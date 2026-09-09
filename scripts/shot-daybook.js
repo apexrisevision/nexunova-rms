@@ -770,9 +770,17 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
        dr.anon_reads === false && dr.auth_reads === false)
         ? okT('and the table itself is shut: row security on, no policies, no direct read')
         : badT('the requests table can be read around the RPCs: ' + JSON.stringify(dr));
-      Number(dr.fns) === 5
-        ? okT('exactly five functions touch it — the two gated ones, the dealer’s ' +
-             'receipt, and the two ways they ask (for a unit, or for a change on one they hold)')
+      /* Seven since the batch work. The two new ones are PLURALS of functions
+         already on this list: submit_availability_requests loops over
+         submit_availability_request with the same link token, and
+         decide_reservation_requests loops over decide_reservation_request with
+         the caller's own session — so every gate above still runs once per row
+         rather than being replaced by a looser one. The rep check further down
+         proves that for the decide side rather than asserting it here. */
+      Number(dr.fns) === 7
+        ? okT('exactly seven functions touch it — the two gated ones and their two ' +
+             'plurals, the dealer’s receipt, and the two ways they ask (for a unit, ' +
+             'or for a change on one they hold)')
         : badT(dr.fns + ' functions touch availability_requests; a new door may have opened');
 
       /* ══ A HOLD YOU CAN SEE IS A HOLD YOU CAN LET GO OF ══════════════════
@@ -1827,6 +1835,199 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
     await pv.screenshot({ path: path.join(OUT, '05-print-nobg-p1.png') });
     await pv.close();
     console.log('  rendered 05-print-nobg-p1.png from a printBackground:false PDF');
+
+    console.log('\n\u2500\u2500 One action, many units');
+    {
+      const one = rows => (rows && rows[0]) || {};
+      const okB = m => console.log('  \u2705 ' + m);
+      const badB = m => { console.log('  \u274C ' + m); FAILED = true; };
+
+      /* ══ THE DESK: ONE TAG, MANY UNITS ═══════════════════════════════════
+         Forty units to the landowner used to be forty passes over the same
+         three fields. reserve_units_desk is a LOOP around the single-unit
+         function, not a second copy of it, so what has to be proved is that
+         the loop itself does not invent anything: that a repeated unit is not
+         booked twice, that the token is money taken once rather than once per
+         unit, and that one refusal does not take the batch down with it.
+
+         Inside a transaction that is rolled back. Nothing here reaches Awami. */
+      const deskRows = await sql(`
+        BEGIN;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','${DIR}','59ded55b-9bc2-45b2-a372-49fc31807fa9','dbshot_bulk1', now() + interval '5 minutes');
+
+        CREATE TEMP TABLE bu ON COMMIT DROP AS
+          SELECT u.id, u.unit_no, row_number() OVER (ORDER BY u.unit_no DESC) AS rn
+            FROM public.units u JOIN public.category_unit_statuses st ON st.id=u.status_id
+           WHERE u.project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND st.is_available
+             AND NOT EXISTS (SELECT 1 FROM public.availability_requests x
+                              WHERE x.unit_id=u.id AND x.status='pending')
+           ORDER BY u.unit_no DESC LIMIT 4;
+
+        /* A unit that is NOT free, so the batch has something real to refuse. */
+        CREATE TEMP TABLE bh ON COMMIT DROP AS
+          SELECT u.id, u.unit_no FROM public.units u
+            JOIN public.category_unit_statuses st ON st.id=u.status_id
+           WHERE u.project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND NOT st.is_available
+           ORDER BY u.unit_no LIMIT 1;
+
+        CREATE TEMP TABLE bt ON COMMIT DROP AS
+          SELECT id, status_name, nature FROM public.category_unit_statuses
+           WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code='LANDOWNER';
+
+        CREATE TEMP TABLE br ON COMMIT DROP AS SELECT public.reserve_units_desk(
+          'dbshot_bulk1',
+          /* every free unit TWICE, plus one that is already gone */
+          (SELECT array_agg(id ORDER BY rn) FROM bu)
+            || (SELECT array_agg(id ORDER BY rn) FROM bu)
+            || (SELECT array_agg(id) FROM bh),
+          NULL, NULL, 'Bulk Probe', NULL, NULL, 7, true, 50000,
+          'bulk probe', (SELECT id FROM bt)) AS j;
+
+        SELECT (j->>'asked')::int  AS asked,
+               (j->>'done')::int   AS done,
+               (j->>'failed')::int AS failed,
+               (SELECT count(*)::int FROM public.reservations rr
+                 WHERE rr.unit_id IN (SELECT id FROM bu) AND rr.status='active') AS holds,
+               (SELECT count(*)::int FROM public.reservations rr
+                 WHERE rr.unit_id IN (SELECT id FROM bu) AND rr.status='active'
+                   AND rr.token_amount > 0) AS carrying_token,
+               (SELECT count(*)::int FROM public.reservations rr
+                 WHERE rr.unit_id IN (SELECT id FROM bu) AND rr.status='active'
+                   AND rr.expiry_date IS NULL) AS no_expiry,
+               (SELECT count(*)::int FROM public.units u JOIN bt t ON t.id=u.status_id
+                 WHERE u.id IN (SELECT id FROM bu)) AS stamped,
+               (SELECT x->>'unit_no' FROM jsonb_array_elements(j->'results') x
+                 WHERE (x->>'success')::boolean IS NOT TRUE) AS refused_named,
+               (SELECT unit_no FROM bh) AS the_held_one
+          FROM br;
+        ROLLBACK;`);
+      const dk = one(deskRows);
+
+      dk.asked === 5
+        ? okB('nine ids for five units \u2014 a pasted list repeats itself, and the ' +
+              'repeat is folded rather than refused as already reserved')
+        : badB('the batch did not dedupe: ' + JSON.stringify(dk));
+      (dk.done === 4 && dk.failed === 1 && dk.holds === 4)
+        ? okB('four booked and one refused \u2014 a unit that has gone does not ' +
+              'take the other four down with it')
+        : badB('partial failure was mishandled: ' + JSON.stringify(dk));
+      dk.refused_named === dk.the_held_one
+        ? okB('and the refusal says WHICH: ' + dk.refused_named)
+        : badB('the refused unit was not named: ' + JSON.stringify(dk));
+      dk.carrying_token === 1
+        ? okB('PKR 50,000 lands on ONE unit, not on all four \u2014 the token is ' +
+              'the money that changed hands, not a number stamped four times')
+        : badB('the token was multiplied across the batch: ' + JSON.stringify(dk));
+      (dk.no_expiry === 4 && dk.stamped === 4)
+        ? okB('a permanent tag takes every one of them off the market with no ' +
+              'end date, and the units carry it')
+        : badB('the permanent tag did not apply across the batch: ' + JSON.stringify(dk));
+
+      /* ══ THE LINK, AND THE ONE TAP THAT ANSWERS IT ═══════════════════════
+         A dealer asking for five shops at once writes five rows that share a
+         batch_ref, and the desk answers all of them together. What has to hold
+         is that the batch is only ever this dealer's own rows \u2014 a ref that
+         already belonged to somebody else's pending ask must not be pulled
+         into it \u2014 and that approving still books through the same
+         reserve_unit_desk the desk itself uses. */
+      const askRows = await sql(`
+        BEGIN;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','${DIR}','59ded55b-9bc2-45b2-a372-49fc31807fa9','dbshot_bulk2', now() + interval '5 minutes');
+        CREATE TEMP TABLE lk9 ON COMMIT DROP AS SELECT
+          (public.create_availability_link('dbshot_bulk2','59ded55b-9bc2-45b2-a372-49fc31807fa9','bulk probe')->>'token') AS tok;
+
+        CREATE TEMP TABLE fu9 ON COMMIT DROP AS
+          SELECT u.unit_no FROM public.units u
+            JOIN public.category_unit_statuses st ON st.id=u.status_id
+           WHERE u.project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND st.is_available
+             AND NOT EXISTS (SELECT 1 FROM public.availability_requests x
+                              WHERE x.unit_id=u.id AND x.status='pending')
+           ORDER BY u.unit_no DESC LIMIT 3;
+
+        /* three real ones, a number that is not a unit, and one of the three
+           again in lower case */
+        CREATE TEMP TABLE ask9 ON COMMIT DROP AS SELECT
+          public.submit_availability_requests((SELECT tok FROM lk9),
+            (SELECT array_agg(unit_no) FROM fu9)
+              || ARRAY['ZZ-NOT-A-UNIT', lower((SELECT min(unit_no) FROM fu9))],
+            5, 'Bulk Dealer',
+            (SELECT id FROM public.category_unit_statuses
+              WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code='HOLD')) AS j;
+
+        /* READ THE QUEUE BEFORE ANSWERING IT. Approving retires the rows, so a
+           desk view taken after dec9 finds nothing and reports "not grouped"
+           when the grouping was fine — the first run of this said exactly
+           that. */
+        CREATE TEMP TABLE see9 ON COMMIT DROP AS SELECT q AS r
+          FROM jsonb_array_elements(
+            public.list_reservation_requests('dbshot_bulk2','59ded55b-9bc2-45b2-a372-49fc31807fa9')->'requests') q
+         WHERE q->>'batch_ref' IS NOT NULL;
+
+        CREATE TEMP TABLE dec9 ON COMMIT DROP AS SELECT
+          public.decide_reservation_requests('dbshot_bulk2',
+            (SELECT array_agg(id) FROM public.availability_requests
+              WHERE batch_ref=(SELECT j->>'batch' FROM ask9) AND status='pending'),
+            'approve',
+            (SELECT id FROM public.category_unit_statuses
+              WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code='HOLD')) AS k;
+
+        SELECT (SELECT (j->>'asked')::int FROM ask9)  AS asked,
+               (SELECT (j->>'ok')::int FROM ask9)     AS ok,
+               (SELECT (j->>'failed')::int FROM ask9) AS failed,
+               (SELECT length(j->>'batch') FROM ask9) AS batch_len,
+               (SELECT count(*)::int FROM public.availability_requests
+                 WHERE batch_ref=(SELECT j->>'batch' FROM ask9)) AS in_batch,
+               (SELECT count(DISTINCT r->>'batch_ref')::int FROM see9
+                 WHERE r->>'batch_ref' = (SELECT j->>'batch' FROM ask9)) AS desk_sees_batch,
+               (SELECT count(*)::int FROM see9
+                 WHERE r->>'batch_ref' = (SELECT j->>'batch' FROM ask9)) AS desk_sees_rows,
+               (SELECT (k->>'done')::int FROM dec9)   AS approved,
+               (SELECT (k->>'failed')::int FROM dec9) AS approve_failed,
+               (SELECT count(*)::int FROM public.reservations rr
+                  JOIN public.availability_requests ar ON ar.reservation_id = rr.id
+                 WHERE ar.batch_ref=(SELECT j->>'batch' FROM ask9)
+                   AND rr.status='active') AS holds_made;
+        ROLLBACK;`);
+      const ak = one(askRows);
+
+      (ak.asked === 4 && ak.ok === 3 && ak.failed === 1)
+        ? okB('five numbers, one of them the same unit in lower case: four asked ' +
+              'for, three registered, and the one that is not a unit refused')
+        : badB('the batch ask miscounted: ' + JSON.stringify(ak));
+      (ak.batch_len === 6 && ak.in_batch === 3)
+        ? okB('the three that landed share one batch ref, and only those three')
+        : badB('the batch ref is wrong: ' + JSON.stringify(ak));
+      (ak.desk_sees_rows === 3 && ak.desk_sees_batch === 1)
+        ? okB('the desk reads them as ONE card carrying three units, not three cards')
+        : badB('the queue does not group them: ' + JSON.stringify(ak));
+      (ak.approved === 3 && ak.approve_failed === 0 && ak.holds_made === 3)
+        ? okB('and one tap answers all three \u2014 three holds, booked through the ' +
+              'same reserve_unit_desk the desk itself types into')
+        : badB('the bulk approve did not book: ' + JSON.stringify(ak));
+
+      /* THE QUEUE IS STILL THE DIRECTOR'S. The plural must not become a way
+         round the gate the singular holds. */
+      const repRows = await sql(`
+        BEGIN;
+        CREATE TEMP TABLE rep9 ON COMMIT DROP AS
+          SELECT id FROM public.sales_users
+           WHERE company_id='96d210e7-e63b-4ef0-b1d0-74e622eac7ce' AND role='sale_rep' AND status='active' LIMIT 1;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        SELECT '96d210e7-e63b-4ef0-b1d0-74e622eac7ce', id, '59ded55b-9bc2-45b2-a372-49fc31807fa9','dbshot_bulk3', now() + interval '5 minutes' FROM rep9;
+        SELECT (SELECT count(*) FROM rep9) AS have_rep,
+               public.decide_reservation_requests('dbshot_bulk3',
+                 ARRAY[gen_random_uuid()], 'approve')->'results'->0->>'error' AS rep_gets;
+        ROLLBACK;`);
+      const rp = one(repRows);
+      Number(rp.have_rep) === 0
+        ? okB('no sale rep in this tenant to test the gate with \u2014 nothing to check')
+        : (rp.rep_gets === 'forbidden'
+            ? okB('a sale rep asking the PLURAL to approve is refused exactly as the ' +
+                  'singular refuses them \u2014 the loop is not a way round the gate')
+            : badB('a rep got past the bulk approve: ' + JSON.stringify(rp)));
+    }
 
     const real=errs.filter(e=>!/favicon|manifest|404|Not Found/i.test(e));
     real.length===0 ? ok('no console errors') : bad('console: '+real.slice(0,3).join(' | '));

@@ -735,6 +735,102 @@ function serve() {
       if (b) b.click();
     });
 
+    /* ── SEVERAL UNITS IN ONE ASK ──────────────────────────────────────────
+       A dealer taking a row of shops was sending one request per shop, and the
+       desk was reading them as unrelated conversations. The sheet now takes a
+       list — typed or pasted, which is the same input event — and sends it as
+       one batch under one ref.
+
+       Two things have to hold. The units must be resolved against the page's
+       own payload, so a number that is not on this link, or one that has gone,
+       is refused HERE rather than by a message the dealer reads afterwards.
+       And it must still be an ASK: nothing below books anything. */
+    const bulk = await page.evaluate(() => {
+      const free = [], gone = [];
+      (P.floors || []).forEach(f => (f.units || []).forEach(u => {
+        (u.s === 'available' ? free : gone).push(u.n);
+      }));
+      const extra = free.filter(n => n !== SHEET.n).slice(0, 2);
+      const read = () => ({
+        head: (document.getElementById('sh-n') || {}).textContent || '',
+        chips: [...document.querySelectorAll('#uc-r .uc')].map(c => ({
+          n: c.textContent.replace(/\u00d7/g, '').trim(),
+          bad: c.classList.contains('bad')
+        })),
+        sending: sheetFree(),
+        msg: message()
+      });
+
+      /* ONE PASTE, both of them — the trailing comma says the last number is
+         finished, which is what a list copied out of a group ends with. */
+      const box = document.getElementById('uc-in');
+      box.value = extra.join(', ') + ',';
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+      const pasted = read();
+
+      /* a unit somebody already holds, offered to a page that knows better */
+      let held = null;
+      if (gone.length) {
+        const b2 = document.getElementById('uc-in');
+        b2.value = gone[0] + ',';
+        b2.dispatchEvent(new Event('input', { bubbles: true }));
+        held = read();
+      }
+
+      /* and the way back out of it */
+      const x = document.querySelector('#uc-r .uc button[data-x]');
+      if (x) x.click();
+      const dropped = read();
+
+      return { extra, gone: gone[0] || null, pasted, held, dropped };
+    });
+
+    (bulk.pasted.chips.length === 3 && /3 units/.test(bulk.pasted.head))
+      ? ok('a pasted list becomes chips in one gesture \u2014 \u201c' +
+           bulk.pasted.head.trim() + '\u201d')
+      : bad('the paste did not land: ' + JSON.stringify(bulk.pasted.chips));
+    (bulk.pasted.sending.length === 3)
+      ? ok('and all three are what would be sent')
+      : bad('it would send ' + JSON.stringify(bulk.pasted.sending));
+    (/^Units \(3\): /m.test(bulk.pasted.msg) && !/^Size: /m.test(bulk.pasted.msg) &&
+     !/^Unit: /m.test(bulk.pasted.msg))
+      ? ok('the message lists them and drops the size \u2014 one size under three ' +
+           'units is a claim about two of them that is not true')
+      : bad('the message for several units is wrong: ' +
+            JSON.stringify(bulk.pasted.msg.slice(0, 160)));
+    /* THE COUNT IS THE ASSERTION, not the strike-through. Both the striking and
+       the filtering read the same availability out of the payload, so a version
+       that ACCEPTED a held unit still drew it struck through and still left it
+       out of the send \u2014 the first draft of this check passed with the rule
+       deleted, which made it worth nothing. What actually breaks is the
+       heading: the sheet would say four units while asking for three, which is
+       the sheet lying about what it is about to do. */
+    bulk.held
+      ? ((bulk.held.chips.filter(c => c.bad).length === 1 &&
+          bulk.held.sending.length === 3 &&
+          /3 units/.test(bulk.held.head) &&
+          bulk.held.sending.indexOf(bulk.gone) < 0)
+          ? ok('a unit that is already taken is struck through, left out of the ask, ' +
+               'and NOT counted \u2014 the heading still says 3 units')
+          : bad('the unavailable unit was mishandled: ' + JSON.stringify(bulk.held)))
+      : ok('no held unit in this fixture to offer \u2014 nothing to check');
+    (bulk.dropped.sending.length === 2)
+      ? ok('and one can be taken back off the list again')
+      : bad('removing a chip did not work: ' + JSON.stringify(bulk.dropped.sending));
+
+    /* Back to the one unit that was tapped, so everything below sends exactly
+       what it has always sent. */
+    await page.evaluate(() => {
+      SHEET.more = []; SHEET.bad = [];
+      paintSheet();
+    });
+    const restored = await page.evaluate(() => ({
+      n: sheetFree().length, msg: message()
+    }));
+    (restored.n === 1 && /^Unit: /m.test(restored.msg) && /^Size: /m.test(restored.msg))
+      ? ok('and with one unit the sheet is byte for byte the sheet it was')
+      : bad('the single-unit sheet did not come back: ' + JSON.stringify(restored));
+
     /* ── the other state ───────────────────────────────────────────────────
        Everything above ran on a project where every unit is free, so the two
        checks about unavailable units could not have failed. The payload is
@@ -1158,13 +1254,20 @@ function serve() {
       const rpcNames = [...new Set((live.code.match(/\.rpc\(\s*['"]([a-z_]+)['"]/g) || [])
         .map(m => m.replace(/.*['"]([a-z_]+)['"]/, '$1')))];
       /* 17 — THE PAGE'S WHOLE REACH INTO THE SERVER, by name, from its source.
-         Four: read the board, register a request, ask for a change on a unit it
-         already holds, and ask what happened to any of them. Nothing that books,
-         nothing that decides, nothing that names a portal RPC. The set is exact,
-         so a fifth appearing is a failure rather than a surprise — which is the
-         only reason this page can be handed to anybody. */
+         Five: read the board, register a request, register several at once, ask
+         for a change on a unit it already holds, and ask what happened to any of
+         them. Nothing that books, nothing that decides, nothing that names a
+         portal RPC. The set is exact, so a sixth appearing is a failure rather
+         than a surprise — which is the only reason this page can be handed to
+         anybody.
+
+         The plural was added deliberately and is the same thing as the singular:
+         it loops over submit_availability_request with this link's own token, so
+         it reaches nothing the singular could not, writes nothing but pending
+         rows, and still holds no unit — a director's tap does that. */
       const allowedRpc = ['get_public_availability', 'get_request_status',
-                          'submit_availability_request', 'submit_change_request'].sort();
+                          'submit_availability_request', 'submit_availability_requests',
+                          'submit_change_request'].sort();
       (JSON.stringify(rpcNames.slice().sort()) === JSON.stringify(allowedRpc))
         ? ok('the page can call exactly these and nothing else: ' + rpcNames.sort().join(', '))
         : bad('the page calls: ' + (rpcNames.join(', ') || 'nothing at all'));

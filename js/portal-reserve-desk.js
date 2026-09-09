@@ -38,10 +38,15 @@
     reqById: {},         // agent_id / sales_user_id -> requester   (IDENTITY)
     reqByLabel: {},      // label (lower) -> [requesters]           (typing aid only)
     sel: null,           // resolved unit
+    cart: [],            // several units, one action  (empty = the old one-unit desk)
+    unknown: [],         // numbers typed that match nothing, kept visible
+    byId: {},            // unit id -> unit, for folding a bulk answer back in
+    out: null,           // last bulk answer, printed under the button
     days: 7,
     statusId: null,      // which tag the next booking applies (id, never a name)
     reqs: [],            // pending requests from the public link
     reqBusy: null,       // id of the request being decided
+    reqSel: {},          // group key -> picked, for answering several at once
     busy: false
   };
   var STALE_MS = 15 * 60 * 1000;   // a soft ceiling; bookings patch in between
@@ -115,6 +120,36 @@
         "background:var(--fk-primary);color:#fff;font:inherit;font-size:16px;font-weight:700;cursor:pointer;" +
         "box-shadow:0 2px 0 rgba(15,23,42,.14)}" +
       ".rd-go:disabled{opacity:.5;cursor:default;box-shadow:none}" +
+      /* ── THE CART. Forty units going to the landowner is one decision, not
+         forty, and the old screen made it forty passes over the same three
+         fields. Typed or pasted, each number becomes a chip; the tag, the
+         days and the requester below apply to all of them at once. */
+      ".rd-cart{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}" +
+      ".rd-uc{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 6px 0 10px;" +
+        "border:1px solid var(--fk-border);border-radius:999px;background:var(--fk-bg-card);" +
+        "font-size:var(--fs-caption);font-weight:650;max-width:100%}" +
+      /* --fk-bg-soft IS NOT DEFINED ANYWHERE, so every use of it is really the
+         light fallback — a near-white pill carrying muted text, which on the
+         dark theme Rashid runs is unreadable. These carry their own surface
+         instead of naming a token that was never declared. */
+      ".rd-uc.bad{background:transparent;color:var(--fk-text-muted);" +
+        "border-style:dashed;text-decoration:line-through}" +
+      ".rd-uc.gone{border-color:var(--fk-danger-edge);background:var(--fk-danger-surface)}" +
+      ".rd-uc button{width:20px;height:20px;flex:none;border:0;border-radius:50%;cursor:pointer;" +
+        "background:var(--fk-bg-subtle,#EEF0F3);color:var(--fk-text-muted);font:inherit;" +
+        "font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center}" +
+      ".rd-sum{margin-top:8px;font-size:var(--fs-caption);color:var(--fk-text-muted)}" +
+      ".rd-sum b{color:var(--fk-text);font-weight:650}" +
+      ".rd-sum .warn{color:#8A5300;font-weight:650}" +
+      /* What came back, unit by unit. A batch that half worked has to say
+         WHICH half, or the operator has to go looking for it. */
+      ".rd-out{margin-top:10px;border:1px solid var(--fk-border);border-radius:11px;overflow:hidden}" +
+      ".rd-out .r{display:flex;gap:9px;padding:8px 11px;font-size:var(--fs-caption);" +
+        "border-bottom:1px solid var(--fk-border);align-items:baseline}" +
+      ".rd-out .r:last-child{border-bottom:0}" +
+      ".rd-out .r b{min-width:72px;font-weight:700}" +
+      ".rd-out .r.no{background:var(--fk-danger-surface);color:var(--fk-text)}" +
+      ".rd-out .r.ok{background:var(--fk-success-surface)}" +
       ".rd-more{margin-top:10px;border-top:1px dashed var(--fk-border);padding-top:10px}" +
       ".rd-more summary{cursor:pointer;font-size:var(--fs-caption);color:var(--fk-text-muted);font-weight:600}" +
       ".rd-2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}" +
@@ -169,6 +204,26 @@
       ".rq-a button{flex:1;height:40px;border-radius:9px;font:inherit;font-size:var(--fs-secondary);font-weight:650;border:1px solid var(--fk-border);background:var(--fk-bg-card);color:var(--fk-text);cursor:pointer}" +
       ".rq-a .ok{border-color:transparent;background:var(--fk-primary);color:#fff}" +
       ".rq-a button:disabled{opacity:.45;cursor:default}" +
+      /* A dealer who asked for eight units in one breath is answered in one
+         tap. The card carries every unit it speaks for, and the tick beside
+         it lets several unrelated cards be answered together. */
+      ".rq-c.sel{border-color:var(--fk-primary);box-shadow:0 0 0 2px var(--fk-primary-surface)}" +
+      ".rq-ck{width:17px;height:17px;flex:none;align-self:center;accent-color:var(--fk-primary);" +
+        "cursor:pointer;margin-right:1px}" +
+      ".rq-us{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}" +
+      ".rq-us span{font-size:11px;font-weight:650;padding:2px 8px;border-radius:999px;" +
+        "border:1px solid var(--fk-border);background:var(--fk-bg-card);color:var(--fk-text)}" +
+      ".rq-us span.gone{border-color:var(--fk-danger-edge);background:var(--fk-danger-surface);" +
+        "color:var(--fk-text-muted);text-decoration:line-through}" +
+      ".rq-bar{position:sticky;top:0;z-index:3;display:flex;gap:8px;align-items:center;flex-wrap:wrap;" +
+        "padding:9px 11px;margin-bottom:8px;border:1px solid var(--fk-primary);border-radius:11px;" +
+        "background:var(--fk-primary-surface,var(--fk-bg-card))}" +
+      ".rq-bar .c{font-weight:700;font-size:var(--fs-secondary);margin-right:auto}" +
+      ".rq-bar button{height:36px;padding:0 13px;border-radius:9px;border:1px solid var(--fk-border);" +
+        "background:var(--fk-bg-card);color:var(--fk-text);font:inherit;font-size:var(--fs-caption);" +
+        "font-weight:650;cursor:pointer}" +
+      ".rq-bar button.ok{border-color:transparent;background:var(--fk-primary);color:#fff}" +
+      ".rq-bar button:disabled{opacity:.45;cursor:default}" +
       ".rd-empty{padding:20px;text-align:center;color:var(--fk-text-muted);font-size:var(--fs-secondary)}" +
       ".rd-top{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}" +
       ".rd-top select{flex:1 1 160px;min-width:0}" +
@@ -402,7 +457,7 @@
      read in the WhatsApp group, so that is what is appended — and only to the
      entries that actually collide, so 120-odd unique names stay clean. */
   function _reindex() {
-    DESK.idx = {}; DESK.reqById = {}; DESK.reqByLabel = {};
+    DESK.idx = {}; DESK.reqById = {}; DESK.reqByLabel = {}; DESK.byId = {};
     /* Unit numbers are unique inside a tower, not across towers — LG-12 exists
        in more than one. The payload is scoped to one project server-side, but
        this index must not depend on that being true: it records EVERY unit for
@@ -413,6 +468,7 @@
     for (i = 0; i < u.length; i++) {
       un = String(u[i].n || '').toUpperCase();
       (DESK.idx[un] = DESK.idx[un] || []).push(u[i]);
+      if (u[i].id) DESK.byId[String(u[i].id)] = u[i];
     }
 
     /* THE INDEX IS KEYED ON id, NEVER ON THE LABEL.
@@ -479,6 +535,23 @@
     _reindex();
     return true;
   }
+
+  /* THE QUEUE, RENDERED FROM ROWS IT IS HANDED. The same shape availability.html
+     already uses for its screenshot harness, and for the same reason: the
+     grouped card and the selection bar can only be photographed when requests
+     are waiting, and waiting requests cannot be manufactured on a live tenant
+     to take a picture of them.
+
+     It GRANTS NOTHING. It reads no session, fetches nothing, and cannot book,
+     approve or decline — it paints whatever array the caller already has, and
+     every button it draws still goes through decide_reservation_request(s),
+     which refuses anybody who is not a director. */
+  window._deskPreviewRequests = function (rows) {
+    DESK.reqs = Array.isArray(rows) ? rows : [];
+    DESK.reqSel = {};
+    _paintReqs();
+    return DESK.reqs.length;
+  };
 
   /* ── the screen ────────────────────────────────────────────────────────── */
   window.renderReserveDesk = async function () {
@@ -649,9 +722,13 @@
         '<div class="rd-bar">' +
           '<div class="rd-lb">Unit</div>' +
           '<input class="rd-in" id="rd-unit" autocomplete="off" autocapitalize="characters" ' +
-                 'spellcheck="false" enterkeyhint="next" placeholder="LG-12">' +
+                 'spellcheck="false" enterkeyhint="next" placeholder="LG-12 \u2014 or paste a list">' +
           '<div id="rd-hit"></div>' +
           '<div id="rd-sugg" class="rd-sugg" style="display:none"></div>' +
+          /* Empty until somebody asks for more than one. A desk that has only
+             ever booked single units never sees either of these. */
+          '<div class="rd-cart" id="rd-cart"></div>' +
+          '<div class="rd-sum" id="rd-sum" style="display:none"></div>' +
 
           '<div class="rd-lb" style="margin-top:13px">Who asked for it</div>' +
           '<input class="rd-in rq" id="rd-req" list="rd-reqlist" autocomplete="off" ' +
@@ -701,9 +778,17 @@
               '<input class="rd-sm" id="rd-tamt" placeholder="Token received (PKR)" inputmode="numeric" autocomplete="off">' +
               '<input class="rd-sm" id="rd-note" placeholder="Note" autocomplete="off">' +
             '</div>' +
+            /* The token is the money that changed hands for the deal, once.
+               Stamped onto each of twenty reservations it would invent a
+               million rupees, so it lands on the first unit and the caption
+               says so before he types the number rather than after. */
+            '<div class="rd-sum" id="rd-tnote" style="display:none">' +
+              'Buyer details and the token are recorded once, on the first unit of the batch.' +
+            '</div>' +
           '</details>' +
 
           '<button class="rd-go" id="rd-go" disabled>' + esc(_goLabel()) + '</button>' +
+          '<div id="rd-out"></div>' +
         '</div>' +
 
         '<div class="rd-h">Booked today ' +
@@ -713,6 +798,9 @@
 
     _wire();
     _syncNature();
+    /* Survives a repaint: switching project clears it deliberately below,
+       but a refresh in the middle of pasting forty numbers must not. */
+    _paintCart();
     _paintReqs();
     _paintToday();
     var u = _q('#rd-unit'); if (u) { try { u.focus(); } catch (e) {} }
@@ -723,7 +811,10 @@
 
     var proj = _q('#rd-proj');
     if (proj) proj.addEventListener('change', async function () {
+      /* Unit numbers repeat across towers, so a tray built against one project
+         means nothing in the next. */
       DESK.projectId = proj.value; DESK.sel = null;
+      DESK.cart = []; DESK.unknown = [];
       var ok = await _load(proj.value, true);
       if (!_alive('desk')) return;
       if (ok === 'expired') return sessionGone();
@@ -747,8 +838,15 @@
     var unit = _q('#rd-unit');
     if (unit) {
       unit.addEventListener('input', function () {
+        /* A pasted list arrives as one input event. Everything finished moves
+           into the tray and whatever is still being typed stays in the box, so
+           the type-ahead below goes on working on the last number. */
+        _absorb(unit);
         _lookup(unit.value);
         _paintSuggest(unit.value);
+        /* AFTER the lookup: with a tray on screen the button belongs to the
+           batch, and _lookup would have disabled it on an empty box. */
+        _paintCart();
       });
       unit.addEventListener('keydown', function (e) {
         /* Arrows walk the list, Escape puts it away, and Enter takes whatever
@@ -764,6 +862,13 @@
         e.preventDefault();
         if (SG.at >= 0) { _takeSuggest(SG.at); return; }
         _closeSuggest();
+        /* Enter on a tray that is already open means "and this one too", and
+           leaves the cursor where it is so the next number can be typed. With
+           an empty tray it does what it always did and moves on. */
+        if (DESK.cart.length || DESK.unknown.length) {
+          var typed = String(unit.value || '').trim();
+          if (typed) { _cartAdd(typed); unit.value = ''; _lookup(''); _paintCart(); return; }
+        }
         var r = _q('#rd-req'); if (r) r.focus();
       });
       /* Leaving the box closes the list, but not before a click on it has
@@ -787,7 +892,7 @@
       req.addEventListener('keydown', function (e) {
         if (e.key !== 'Enter') return;
         e.preventDefault();
-        _reserve();
+        if (DESK.cart.length) _bulkReserve(); else _reserve();
       });
     }
 
@@ -802,7 +907,7 @@
       for (var i = 0; i < all.length; i++) {
         all[i].classList.toggle('on', all[i].getAttribute('data-tag') === DESK.statusId);
       }
-      var g = _q('#rd-go'); if (g) g.textContent = _goLabel();
+      var g = _q('#rd-go'); if (g) g.textContent = _goLabelN(_cartFree().length);
       _syncNature();
     });
 
@@ -819,8 +924,25 @@
       if (n >= 1 && n <= 90) { DESK.days = n; _syncDays(); }
     });
 
+    var tray = _q('#rd-cart');
+    if (tray) tray.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-x],button[data-u]'); if (!b) return;
+      var id = b.getAttribute('data-x');
+      if (id) {
+        DESK.cart = DESK.cart.filter(function (x) { return String(x.id) !== id; });
+      } else {
+        var k = b.getAttribute('data-u');
+        DESK.unknown = DESK.unknown.filter(function (x) { return x !== k; });
+      }
+      _paintCart();
+    });
+
     var go = _q('#rd-go');
-    if (go) go.addEventListener('click', _reserve);
+    /* One button, two paths. The tray decides which, and an empty tray means
+       the single booking that has run every day since handover. */
+    if (go) go.addEventListener('click', function () {
+      if (DESK.cart.length) _bulkReserve(); else _reserve();
+    });
   }
 
   function _syncDays() {
@@ -912,7 +1034,19 @@
      exactly the same state — there is no second path to keep in step. */
   function _takeSuggest(i) {
     var u = SG.list[i]; if (!u) return;
-    var el = _q('#rd-unit'); if (el) { el.value = u.n; }
+    var el = _q('#rd-unit');
+    /* Once a batch is being built, picking from the list adds to it rather
+       than replacing what is in the box — and the focus stays on the box,
+       because the next thing this operator does is name another unit. */
+    if (DESK.cart.length || DESK.unknown.length) {
+      _cartAdd(u.n);
+      if (el) { el.value = ''; try { el.focus(); } catch (e) {} }
+      _closeSuggest();
+      _lookup('');
+      _paintCart();
+      return;
+    }
+    if (el) { el.value = u.n; }
     _closeSuggest();
     _lookup(u.n);
     var r = _q('#rd-req'); if (r) { try { r.focus(); } catch (e) {} }
@@ -936,7 +1070,12 @@
     var key = String(raw || '').trim().toUpperCase();
     DESK.sel = null;
     if (!hit) return;
-    if (!key) { hit.innerHTML = ''; if (go) go.disabled = true; return; }
+    /* The CLASS as well as the content. .rd-hit draws a bordered box and the
+       ok/no/warn variants colour it, so clearing only the text left a green
+       empty box under the field looking like a control that failed to load —
+       visible the moment the box is emptied, which the tray does on every
+       number it absorbs. */
+    if (!key) { hit.className = ''; hit.innerHTML = ''; if (go) go.disabled = true; return; }
 
     var hits = DESK.idx[key] || [];
     if (!hits.length) {
@@ -1056,6 +1195,241 @@
     if (r.kind === 'agent') out.innerHTML = 'Agent · <b>' + esc(r.code || '') + '</b> ' + esc(r.name) + ph;
     else if (r.kind === 'user') out.innerHTML = 'Portal member · ' + esc(r.name) + ph;
     else out.innerHTML = '<span style="color:var(--fk-warning)">New name — recorded as typed</span>';
+  }
+
+  /* ══ SEVERAL UNITS, ONE ACTION ════════════════════════════════════════
+     Forty units to the landowner is one decision. Typing it forty times is
+     not a workflow, it is the absence of one.
+
+     The cart is empty until a separator appears, and while it is empty this
+     screen behaves exactly as it did — one unit, one lookup, reserve_unit_desk.
+     That is deliberate: the single path is the one that has been used every
+     day since handover and it is not being rewritten to add a second one. */
+
+  /* A comma, a slash, a newline — or a space with something after it, which
+     is what a list pasted out of WhatsApp actually looks like. A lone trailing
+     space is NOT a separator: mobile keyboards add one to every word, and
+     turning that into a chip would move the desk into batch mode on its own. */
+  var HARDSEP = /[,;/|\n\r\t]/;
+  var ANYSEP  = /[,;/|\n\r\t\s]+/;
+
+  function _cartHas(id) {
+    for (var i = 0; i < DESK.cart.length; i++) if (DESK.cart[i].id === id) return true;
+    return false;
+  }
+
+  /* One number in. Returns true if it landed anywhere — a unit or the
+     not-found list — because both are things the operator has to see. */
+  function _cartAdd(raw) {
+    var key = String(raw || '').trim().toUpperCase();
+    if (!key) return false;
+
+    var hits = DESK.idx[key] || [];
+    if (!hits.length) {
+      var loose = key.replace(/[^A-Z0-9]/g, ''), keys = Object.keys(DESK.idx);
+      for (var i = 0; i < keys.length && hits.length < 3; i++) {
+        if (keys[i].replace(/[^A-Z0-9]/g, '') === loose) hits = hits.concat(DESK.idx[keys[i]]);
+      }
+    }
+    /* Nothing, or more than one tower answering to that number. The second
+       one is refused for the same reason the single lookup refuses it: booking
+       another tower's flat is not recoverable by looking at the screen. */
+    if (hits.length !== 1) {
+      if (DESK.unknown.indexOf(key) < 0) DESK.unknown.push(key);
+      return true;
+    }
+    if (_cartHas(hits[0].id)) return false;
+    DESK.cart.push(hits[0]);
+    return true;
+  }
+
+  /* Pull every finished number out of the box and leave the one still being
+     typed behind. Returns false when there is nothing to pull, so the normal
+     one-unit path is untouched. */
+  function _absorb(el) {
+    var v = String(el.value || '');
+    if (!HARDSEP.test(v) && !/\S\s+\S/.test(v)) return false;
+    var trailing = ANYSEP.test(v.slice(-1));
+    var parts = v.split(ANYSEP).filter(Boolean);
+    var rest = trailing ? '' : (parts.pop() || '');
+    for (var i = 0; i < parts.length; i++) _cartAdd(parts[i]);
+    el.value = rest;
+    _paintCart();
+    return true;
+  }
+
+  function _cartFree() {
+    return DESK.cart.filter(function (u) { return u.s === 'available'; });
+  }
+
+  /* The button says what it is about to do TO HOW MANY. "Reserve" over a
+     tray of forty chips is not an answer to the only question being asked. */
+  function _goLabelN(n) {
+    if (!n) return _goLabel();
+    var t = _armedTag(), c = t ? String(t.code).toUpperCase() : 'RESERVED';
+    var many = n + (n === 1 ? ' unit' : ' units');
+    if (c === 'HOLD')   return 'Put ' + many + ' on hold';
+    if (c === 'BOOKED') return 'Book ' + many;
+    if (c === 'RESERVED') return 'Reserve ' + many;
+    return 'Mark ' + many + ' ' + String((t && t.name) || 'Reserved');
+  }
+
+  function _paintCart() {
+    var tray = _q('#rd-cart'), sum = _q('#rd-sum'), go = _q('#rd-go');
+    var tn = _q('#rd-tnote');
+    if (!tray) return;
+    var n = DESK.cart.length + DESK.unknown.length;
+
+    if (!n) {
+      tray.innerHTML = '';
+      if (sum) { sum.style.display = 'none'; sum.innerHTML = ''; }
+      if (tn) tn.style.display = 'none';
+      /* Back to one unit: the button and its disabled state belong to the
+         single path again, which reads DESK.sel and nothing else. */
+      if (go) { go.textContent = _goLabel(); go.disabled = !DESK.sel; }
+      return;
+    }
+
+    tray.innerHTML =
+      DESK.cart.map(function (u) {
+        var free = u.s === 'available';
+        return '<span class="rd-uc' + (free ? '' : ' bad') + '"' +
+               (free ? '' : ' title="' + esc(u.sn || 'not available') + '"') + '>' +
+               esc(u.n) + '<button type="button" data-x="' + esc(u.id) + '">\u00d7</button></span>';
+      }).join('') +
+      DESK.unknown.map(function (k) {
+        return '<span class="rd-uc gone" title="No single unit in this project answers to that">' +
+               esc(k) + '<button type="button" data-u="' + esc(k) + '">\u00d7</button></span>';
+      }).join('');
+
+    var free = _cartFree().length;
+    var held = DESK.cart.length - free;
+    var bits = ['<b>' + DESK.cart.length + '</b> unit' + (DESK.cart.length === 1 ? '' : 's'),
+                '<b>' + free + '</b> available'];
+    if (held) bits.push('<span class="warn">' + held + ' already taken</span>');
+    if (DESK.unknown.length) bits.push('<span class="warn">' + DESK.unknown.length + ' not found</span>');
+    if (sum) { sum.innerHTML = bits.join(' \u00b7 '); sum.style.display = ''; }
+    if (tn) tn.style.display = (free > 1) ? '' : 'none';
+    if (go) { go.textContent = _goLabelN(free); go.disabled = !free; }
+  }
+
+  function _cartClear() {
+    DESK.cart = []; DESK.unknown = [];
+    var out = _q('#rd-out'); if (out) out.innerHTML = '';
+    _paintCart();
+  }
+
+  /* ── the batch ───────────────────────────────────────────────────────── */
+  async function _bulkReserve() {
+    if (DESK.busy) return;
+    var units = _cartFree();
+    if (!units.length) { toast('None of those units is available.', 'warn'); return; }
+
+    var r = _resolveReq();
+    if (!r) { toast('Record who asked for these units.', 'warn'); var re = _q('#rd-req'); if (re) re.focus(); return; }
+    if (r.kind === 'ambiguous') {
+      toast(r.matches.length + ' people match that name — pick the exact one from the list.', 'err');
+      var ra = _q('#rd-req'); if (ra) ra.focus();
+      return;
+    }
+
+    var go = _q('#rd-go');
+    DESK.busy = true;
+    if (go) { go.disabled = true; go.textContent = 'Saving ' + units.length + '\u2026'; }
+
+    var tamt = Number(String((_q('#rd-tamt') || {}).value || '').replace(/[^0-9.]/g, '')) || 0;
+    var cname = String((_q('#rd-cname') || {}).value || '').trim() || null;
+    var args = {
+      p_session_token: TOKEN,
+      p_unit_ids: units.map(function (u) { return u.id; }),
+      p_requested_by_agent_id: r.kind === 'agent' ? r.id : null,
+      p_requested_by_sales_user_id: r.kind === 'user' ? r.id : null,
+      p_requested_by_name: r.name,
+      p_client_name: cname,
+      p_client_phone: String((_q('#rd-cphone') || {}).value || '').trim() || null,
+      p_expiry_days: _armedPermanent() ? null : DESK.days,
+      p_token_received: tamt > 0,
+      p_token_amount: tamt,
+      p_note: String((_q('#rd-note') || {}).value || '').trim() || null,
+      p_unit_status_id: DESK.statusId || null
+    };
+
+    var res;
+    try { res = await sb.rpc('reserve_units_desk', args); }
+    catch (e) { res = null; }
+    DESK.busy = false;
+
+    var d = res && res.data;
+    if (!d) {
+      toast('Could not reach the server. Nothing was booked.', 'err');
+      if (_alive('desk')) _paintCart();
+      return;
+    }
+    /* The batch never gets past the first unit on a dead session, so the
+       answer is the same one the single path acts on. */
+    var rows = d.results || [];
+    if (d.error === 'session_expired' ||
+        (rows[0] && rows[0].error === 'session_expired')) return sessionGone();
+
+    /* Committed or refused server-side by now. Record it either way, even if
+       the operator has walked off this screen. */
+    var i, row, u, done = 0;
+    for (i = 0; i < rows.length; i++) {
+      row = rows[i]; u = DESK.byId[String(row.unit_id)];
+      if (!u) continue;
+      if (row.success) { _patchAfterBooking(row, r, u, done === 0 ? cname : null); done++; }
+      else if (row.error === 'unit_unavailable' || row.error === 'already_reserved') {
+        /* The cache disagreed with the database. Rather than refetch 282 KB
+           and lose the tray, mark the one unit the database corrected. */
+        u.s = 'reserved'; u.sn = u.sn || 'Reserved';
+      }
+    }
+
+    if (!_alive('desk')) {
+      if (done) toast(done + ' unit' + (done === 1 ? '' : 's') + ' booked.', 'ok');
+      return;
+    }
+
+    /* Only what did NOT work stays in the tray, so a second tap retries
+       exactly the ones that failed and nothing else. */
+    var okIds = {};
+    for (i = 0; i < rows.length; i++) if (rows[i].success) okIds[String(rows[i].unit_id)] = 1;
+    DESK.cart = DESK.cart.filter(function (x) { return !okIds[String(x.id)]; });
+
+    _paintOut(d);
+    _paintCart();
+    _paintToday();
+    _refreshReqs();
+
+    if (d.failed) {
+      toast(d.done + ' booked, ' + d.failed + ' refused \u2014 see the list below.',
+            d.done ? 'warn' : 'err');
+    } else {
+      toast(d.done + ' unit' + (d.done === 1 ? '' : 's') + ' \u2014 ' +
+            (r.name || 'recorded') + '.', 'ok');
+      /* A clean batch leaves nothing behind but the requester, exactly as the
+         single path does: the next ask from the same rep needs no retyping. */
+      var ids = ['#rd-cname', '#rd-cphone', '#rd-tamt', '#rd-note'];
+      for (i = 0; i < ids.length; i++) { var el = _q(ids[i]); if (el) el.value = ''; }
+      var ub = _q('#rd-unit'); if (ub) { ub.value = ''; try { ub.focus(); } catch (e) {} }
+    }
+  }
+
+  /* Unit by unit, in the order they were sent. "3 of 20 failed" without
+     saying which three sends somebody hunting through 1,467 units. */
+  function _paintOut(d) {
+    var box = _q('#rd-out'); if (!box) return;
+    var rows = (d && d.results) || [];
+    if (!rows.length) { box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="rd-out">' + rows.map(function (x) {
+      return '<div class="r ' + (x.success ? 'ok' : 'no') + '">' +
+        '<b>' + esc(x.unit_no || '\u2014') + '</b>' +
+        '<span>' + esc(x.success
+            ? ((x.tag || 'Reserved') + (x.expiry_days == null ? ' \u00b7 no expiry'
+                                                              : ' \u00b7 ' + x.expiry_days + 'd'))
+            : (x.message || x.error || 'refused')) + '</span>' +
+      '</div>';
+    }).join('') + '</div>';
   }
 
   /* ── the booking ───────────────────────────────────────────────────────── */
@@ -1219,15 +1593,59 @@
   /* One card per request, oldest first, with what the dealer chose already
      filled in. Nothing here asks a second question: the duration is theirs,
      the name is theirs, and the only decision left is yes or no. */
+  /* ══ THE QUEUE, GROUPED ═══════════════════════════════════════════════
+     A dealer who asks for eight units at once used to arrive as eight cards
+     carrying the same name, the same duration and the same answer — eight
+     taps for one decision, and a queue that read as a backlog when it was one
+     conversation.
+
+     Requests that were sent together share a batch_ref and are shown as one
+     card. A lone request has no batch_ref and is drawn exactly as it always
+     was. A CHANGE request is never folded in: it is about one particular
+     hold, and the tag it wants depends on the tag that hold already carries. */
+  function _reqGroups() {
+    var rows = DESK.reqs || [], out = [], by = {}, i, r, k;
+    for (i = 0; i < rows.length; i++) {
+      r = rows[i];
+      k = (r.kind !== 'change' && r.batch_ref) ? ('b:' + r.batch_ref) : ('r:' + r.id);
+      if (!by[k]) { by[k] = { key: k, rows: [] }; out.push(by[k]); }
+      by[k].rows.push(r);
+    }
+    return out;
+  }
+
+  function _reqSelected(groups) {
+    var ids = [], i, j;
+    for (i = 0; i < groups.length; i++) {
+      if (!DESK.reqSel[groups[i].key]) continue;
+      for (j = 0; j < groups[i].rows.length; j++) ids.push(groups[i].rows[j].id);
+    }
+    return ids;
+  }
+
   function _paintReqs() {
     var box = _q('#rd-reqs'); if (!box) return;
     var rows = DESK.reqs || [];
-    if (!rows.length) { box.innerHTML = ''; return; }
+    if (!rows.length) { box.innerHTML = ''; DESK.reqSel = {}; return; }
+    var groups = _reqGroups();
+
+    /* A tick on a card that has since been answered would count towards a
+       batch nobody is looking at any more. */
+    var live = {}, gi;
+    for (gi = 0; gi < groups.length; gi++) live[groups[gi].key] = 1;
+    for (var kk in DESK.reqSel) if (!live[kk]) delete DESK.reqSel[kk];
 
     box.innerHTML =
+      /* Its own node, repainted on its own. A tick used to repaint the whole
+         queue, which replaced the very checkbox that was being ticked \u2014 the
+         second one in a row went to a node that was no longer in the document,
+         so two cards ticked read as one. Same reason the tag chips on the desk
+         are toggled in place rather than repainted. */
+      '<div id="rq-bar-host"></div>' +
       '<div class="rq-h">Requests from the link ' +
         '<span class="rq-n">' + rows.length + '</span></div>' +
-      rows.map(function (r) {
+      groups.map(function (g) {
+        var r = g.rows[0];
         var mins = Number(r.minutes_waiting || 0);
         var waited = mins < 1 ? 'just now'
                    : mins < 60 ? mins + ' min ago'
@@ -1236,12 +1654,23 @@
            different tag on one this dealer already holds. Answering them the
            same way would be answering the wrong question. */
         var isChg = r.kind === 'change';
-        return '<div class="rq-c' + (isChg ? ' chg' : '') + '" data-r="' + esc(r.id) + '">' +
+        var many = g.rows.length > 1;
+        var free = g.rows.filter(function (x) { return x.still_free; }).length;
+        var ids = g.rows.map(function (x) { return x.id; }).join(',');
+        var tick = '<input type="checkbox" class="rq-ck" data-k="' + esc(g.key) + '"' +
+                   (DESK.reqSel[g.key] ? ' checked' : '') + '>';
+
+        return '<div class="rq-c' + (isChg ? ' chg' : '') +
+               (DESK.reqSel[g.key] ? ' sel' : '') + '" data-r="' + esc(ids) +
+               '" data-k="' + esc(g.key) + '">' +
           '<div class="rq-top">' +
+            tick +
             (isChg ? '<span class="rq-k">Change</span>' : '') +
-            '<span class="rq-u">' + esc(r.unit_no) + '</span>' +
-            '<span class="rq-m">' + esc(r.floor) +
-              (Number(r.area) ? ' \u00b7 ' + esc(_area(r.area, r.area_unit)) : '') + '</span>' +
+            (many
+              ? '<span class="rq-u">' + g.rows.length + ' units</span>'
+              : '<span class="rq-u">' + esc(r.unit_no) + '</span>' +
+                '<span class="rq-m">' + esc(r.floor) +
+                  (Number(r.area) ? ' \u00b7 ' + esc(_area(r.area, r.area_unit)) : '') + '</span>') +
             '<span class="rq-w">' + esc(waited) + '</span>' +
           '</div>' +
           '<div class="rq-by">' +
@@ -1252,8 +1681,17 @@
             (r.days == null
               ? (r.asked_tag ? ' · ' + esc(r.asked_tag) : '')
               : ' · ' + esc(r.days) + ' day' + (Number(r.days) === 1 ? '' : 's')) +
-            ' \u00b7 <span class="rq-m">' + esc(r.ref) + '</span>' +
+            ' \u00b7 <span class="rq-m">' + esc(many ? r.batch_ref : r.ref) + '</span>' +
           '</div>' +
+          /* The units themselves, because "8 units" is not something anybody
+             can answer. The ones that have gone since are struck through, and
+             the count under the button counts only the rest. */
+          (many
+            ? '<div class="rq-us">' + g.rows.map(function (x) {
+                return '<span' + (x.still_free ? '' : ' class="gone"') + '>' +
+                       esc(x.unit_no) + '</span>';
+              }).join('') + '</div>'
+            : '') +
           /* Say it BEFORE the tap. Approving a unit that has gone fails, and a
              button that is going to fail should look like one. */
           (isChg
@@ -1262,16 +1700,19 @@
             /* A change request is about a unit that is ALREADY held, so
                still_free is false by definition and the warning below would
                be a lie on every one of them. */
-            : (r.still_free ? ''
-              : '<div class="rq-gone">This unit is no longer available — approving will not book it.</div>')) +
+            : (free === g.rows.length ? ''
+              : free
+                ? '<div class="rq-gone">' + (g.rows.length - free) +
+                  ' of these are no longer available — only ' + free + ' will be booked.</div>'
+                : '<div class="rq-gone">This unit is no longer available — approving will not book it.</div>')) +
           /* APPROVE ASKS WHICH. It used to apply whatever tag happened to be
              armed on the desk behind this queue — invisible from here, and
              wrong the moment the last booking was a Pagri and this one is not.
              The question is asked where the decision is made. */
           '<div class="rq-a">' +
-            '<button class="ok" data-act="approve"' + ((isChg || r.still_free) ? '' : ' disabled') +
-              '>Approve\u2026</button>' +
-            '<button data-act="decline">Decline</button>' +
+            '<button class="ok" data-act="approve"' + ((isChg || free) ? '' : ' disabled') +
+              '>Approve' + (many ? ' ' + free : '') + '\u2026</button>' +
+            '<button data-act="decline">Decline' + (many ? ' all' : '') + '</button>' +
           '</div>' +
           '<div class="rq-pick" hidden>' +
             '<div class="rq-pl">Approve as</div>' +
@@ -1287,16 +1728,58 @@
         '</div>';
       }).join('');
 
+    _paintBar();
+
     /* Bound once per painted list, for the same reason Undo is: _paintReqs
        runs after every decision, and stacking a listener each time would make
        the fifth Approve fire five decisions. */
-    if (!box.__reqBound) { box.addEventListener('click', _reqClick); box.__reqBound = true; }
+    if (!box.__reqBound) {
+      box.addEventListener('click', _reqClick);
+      box.addEventListener('change', _reqTick);
+      box.__reqBound = true;
+    }
+  }
+
+  /* What is ticked, and what can be done to it. Drawn alone so that ticking
+     something never disturbs the list under it. */
+  function _paintBar() {
+    var host = _q('#rq-bar-host'); if (!host) return;
+    var picked = _reqSelected(_reqGroups());
+    if (!picked.length) { host.innerHTML = ''; return; }
+    host.innerHTML =
+      '<div class="rq-bar">' +
+        '<span class="c">' + picked.length + ' selected</span>' +
+        '<button class="ok" data-act="bulkapprove">Approve\u2026</button>' +
+        '<button data-act="bulkdecline">Decline</button>' +
+        '<button data-act="bulkclear">Clear</button>' +
+      '</div>' +
+      '<div class="rq-pick" id="rq-bulkpick" hidden>' +
+        '<div class="rq-pl">Approve all ' + picked.length + ' as</div>' +
+        '<div class="rq-pc">' +
+          _tags().map(function (t) {
+            return '<button class="rq-t' + (t.nature === 'permanent' ? ' perm' : '') +
+                   '" data-tag="' + esc(t.id) + '" data-bulk="1">' +
+                   esc(t.name) + (t.nature === 'permanent' ? ' \u221e' : '') + '</button>';
+          }).join('') +
+        '</div>' +
+        '<button class="rq-cancel" data-act="bulkcancel">Cancel</button>' +
+      '</div>';
+  }
+
+  function _reqTick(e) {
+    var c = e.target.closest('.rq-ck'); if (!c) return;
+    var k = c.getAttribute('data-k');
+    if (c.checked) DESK.reqSel[k] = true; else delete DESK.reqSel[k];
+    var card = c.closest('.rq-c');
+    if (card) card.classList.toggle('sel', !!DESK.reqSel[k]);
+    _paintBar();
   }
 
   /* Only one card asks at a time: two open pickers is two half-made
      decisions sitting next to each other. */
   function _reqPick(card, on) {
     var box = _q('#rd-reqs'); if (!box) return;
+    var bulk = _q('#rq-bulkpick'); if (bulk) bulk.hidden = true;
     var all = box.querySelectorAll('.rq-c');
     for (var i = 0; i < all.length; i++) {
       var p = all[i].querySelector('.rq-pick'), a = all[i].querySelector('.rq-a');
@@ -1310,24 +1793,106 @@
     /* The tag buttons carry no data-act, so they are read first. */
     var tg = e.target.closest('.rq-t');
     if (tg) {
+      /* One in the bar answers everything ticked; one on a card answers that
+         card, which may itself speak for several units. */
+      if (tg.getAttribute('data-bulk')) {
+        return _reqDecideMany(_reqSelected(_reqGroups()), 'approve',
+                              tg.getAttribute('data-tag'), tg);
+      }
       var card0 = tg.closest('.rq-c'); if (!card0) return;
-      return _reqDecide(card0, card0.getAttribute('data-r'), 'approve',
-                        tg.getAttribute('data-tag'), tg);
+      return _reqGo(card0, 'approve', tg.getAttribute('data-tag'), tg);
     }
     var b = e.target.closest('button[data-act]'); if (!b) return;
-    if (b.getAttribute('data-act') === 'cancelpick') {
+    var act = b.getAttribute('data-act');
+
+    if (act === 'bulkapprove') {
+      /* Closes any card picker first: two open questions is two half-made
+         decisions sitting next to each other. */
+      _reqPick(null, false);
+      var bp = _q('#rq-bulkpick'); if (bp) bp.hidden = false;
+      return;
+    }
+    if (act === 'bulkcancel') {
+      var bp3 = _q('#rq-bulkpick'); if (bp3) bp3.hidden = true;
+      return;
+    }
+    if (act === 'bulkdecline') {
+      return _reqDecideMany(_reqSelected(_reqGroups()), 'decline', null, b);
+    }
+    if (act === 'bulkclear') {
+      DESK.reqSel = {};
+      var box2 = _q('#rd-reqs');
+      if (box2) {
+        var ck = box2.querySelectorAll('.rq-ck');
+        for (var ci = 0; ci < ck.length; ci++) ck[ci].checked = false;
+        var cd = box2.querySelectorAll('.rq-c');
+        for (var di = 0; di < cd.length; di++) cd[di].classList.remove('sel');
+      }
+      return _paintBar();
+    }
+
+    if (act === 'cancelpick') {
       var c1 = b.closest('.rq-c'); if (c1) _reqPick(c1, false);
       return;
     }
-    if (b.getAttribute('data-act') === 'approve') {
+    if (act === 'approve') {
       var c2 = b.closest('.rq-c'); if (c2) _reqPick(c2, true);
       return;
     }
     var card = b.closest('.rq-c'); if (!card) return;
-    return _reqDecide(card, card.getAttribute('data-r'),
-                      b.getAttribute('data-act'), null, b);
+    return _reqGo(card, act, null, b);
   }
 
+  /* One card, one or many requests behind it. A lone request keeps the exact
+     path it has always taken. */
+  function _reqGo(card, act, tagId, b) {
+    var ids = String(card.getAttribute('data-r') || '').split(',').filter(Boolean);
+    if (ids.length === 1) return _reqDecide(card, ids[0], act, tagId, b);
+    return _reqDecideMany(ids, act, tagId, b);
+  }
+
+  /* ── several requests, one answer ────────────────────────────────────── */
+  async function _reqDecideMany(ids, act, tagId, b) {
+    if (!ids || !ids.length) return;
+    if (DESK.reqBusy) return;
+    DESK.reqBusy = ids[0];
+    var was = b ? b.textContent : '';
+    if (b) { b.disabled = true; b.textContent = (act === 'approve' ? 'Approving ' : 'Declining ') + ids.length + '\u2026'; }
+
+    var res;
+    try {
+      res = await sb.rpc('decide_reservation_requests',
+        { p_session_token: TOKEN, p_request_ids: ids, p_action: act,
+          p_unit_status_id: tagId || DESK.statusId || null });
+    } catch (e2) { res = null; }
+    DESK.reqBusy = null;
+    if (b) { b.disabled = false; b.textContent = was; }
+    var d = res && res.data;
+
+    if (d && d.error === 'session_expired') return sessionGone();
+    var rows = (d && d.results) || [];
+    if (rows[0] && rows[0].error === 'session_expired') return sessionGone();
+    if (!d) { toast('Could not reach the server.', 'err'); return _refreshReqs(); }
+
+    /* Named, not counted. Which two of the eight failed is the only part of
+       this answer somebody has to act on. */
+    if (d.failed) {
+      var bad = rows.filter(function (x) { return !x.success; })
+                    .map(function (x) { return x.unit_no || '?'; });
+      toast(d.done + ' done, ' + d.failed + ' not: ' + bad.slice(0, 6).join(', ') +
+            (bad.length > 6 ? '\u2026' : ''), d.done ? 'warn' : 'err');
+    } else {
+      toast(d.done + ' request' + (d.done === 1 ? '' : 's') + ' ' +
+            (act === 'approve' ? 'approved.' : 'declined.'), 'ok');
+    }
+
+    DESK.reqSel = {};
+    /* The whole desk is reloaded, not just the queue: approving books units,
+       so the board, the index and today's list are all now out of date. */
+    await _refreshReqs(true);
+  }
+
+  
   /* One decision, whichever button reached it: Decline arrives with no tag,
      Approve arrives carrying the one that was chosen. */
   async function _reqDecide(card, id, act, tagId, b) {

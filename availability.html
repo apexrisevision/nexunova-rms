@@ -443,6 +443,28 @@ button{cursor:pointer;background:none;border:0}
 .ask-k button.on{border-color:var(--ink);background:var(--ink);color:var(--card)}
 .ask-n{margin-top:10px;font-size:12.5px;color:var(--mut);line-height:1.55}
 
+/* MORE THAN ONE UNIT IN ONE ASK. A dealer taking a row of shops on the
+   second floor was sending five separate requests, and the desk was reading
+   them as five separate conversations. The tapped unit is a chip; anything
+   typed or pasted after it becomes one too. */
+.uc-r{display:flex;flex-wrap:wrap;gap:7px}
+.uc{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 6px 0 12px;
+    border:1px solid var(--line);border-radius:999px;background:var(--card);
+    font-size:13px;font-weight:650;color:var(--ink);max-width:100%}
+.uc.bad{background:var(--sunk);color:var(--mut);border-style:dashed;
+        text-decoration:line-through}
+.uc button{width:22px;height:22px;flex:none;border:0;border-radius:50%;
+           background:var(--sunk);color:var(--mut);font-size:14px;line-height:1;
+           display:flex;align-items:center;justify-content:center;
+           transition:background var(--t-fast) var(--ease)}
+.uc button:active{background:#E3E3E2}
+.uc-in{width:100%;height:46px;margin-top:9px;padding:0 13px;border:1px solid var(--line);
+       border-radius:var(--r);background:var(--card);color:var(--ink);font:inherit;
+       font-size:14px;font-weight:600;letter-spacing:.01em}
+.uc-in:focus{outline:none;border-color:var(--ink)}
+.uc-s{margin-top:9px;font-size:12px;color:var(--mut);line-height:1.5}
+.uc-s b{color:var(--soft);font-weight:650}
+
 .dur{display:flex;gap:8px}
 .dur button{flex:1;height:46px;border:1px solid var(--line);border-radius:var(--r);
             background:var(--card);font-size:13.5px;font-weight:600;color:var(--soft);
@@ -656,7 +678,7 @@ const TOKEN = (function () {
 var P = null;              // the payload, exactly as the server sent it
 var FLOOR = null;          // index into P.floors, or null on screen one
 var SHOWALL = false;
-var SHEET = null;          // { unit, floorIdx, days, ref }
+var SHEET = null;          // { unit, floorIdx, days, ref, more[] }
 var FETCHED = 0;           // ms of the last SUCCESSFUL fetch
 var STALE = false;
 /* The entrance plays for the first grid of chips and never again, and the
@@ -1259,6 +1281,9 @@ function openSheet(unitNo, floorIdx) {
   if (!u || u.s !== 'available') return;
   var c0 = choices()[0];
   SHEET = { n: unitNo, fi: floorIdx, days: 7, ref: null,
+            /* Everything asked for besides the one that was tapped. Empty is
+               the whole of the old behaviour: one unit, one request, one ref. */
+            more: [], bad: [],
             choice: c0 ? c0.id : null };
   if (c0 && c0.nature === 'permanent') SHEET.days = null;
   else if (c0 && c0.days) SHEET.days = Number(c0.days);
@@ -1271,6 +1296,60 @@ function closeSheet() {
   SHEET = null;
   $('scrim').classList.remove('on');
   $('sheet').classList.remove('on');
+}
+
+/* The page already holds every unit, so a number typed into the sheet can be
+   answered here rather than by asking the server and waiting. It resolves
+   only an EXACT match on the normalised number — the desk refuses to guess
+   between two towers and so does this. */
+function findUnit(no) {
+  var k = norm(no), hit = null, n = 0;
+  (P.floors || []).forEach(function (f, fi) {
+    (f.units || []).forEach(function (u) {
+      if (norm(u.n) === k) { hit = { u: u, f: f, fi: fi }; n++; }
+    });
+  });
+  return n === 1 ? hit : null;
+}
+
+/* Every unit this sheet speaks for, the tapped one first. */
+function sheetAll() {
+  if (!SHEET) return [];
+  return [SHEET.n].concat(SHEET.more || []);
+}
+function sheetFree() {
+  return sheetAll().filter(function (n) {
+    var h = findUnit(n); return h && h.u.s === 'available';
+  });
+}
+
+/* A comma, a slash, a newline — or a space with something after it, which is
+   what a list pasted out of a WhatsApp group actually looks like. A lone
+   trailing space is not a separator; phone keyboards add one to every word. */
+function absorbUnits(el) {
+  var v = String(el.value || '');
+  if (!/[,;/|\n\r\t]/.test(v) && !/\S\s+\S/.test(v)) return false;
+  var trailing = /[,;/|\n\r\t\s]/.test(v.slice(-1));
+  var parts = v.split(/[,;/|\n\r\t\s]+/).filter(Boolean);
+  var rest = trailing ? '' : (parts.pop() || '');
+  for (var i = 0; i < parts.length; i++) addUnit(parts[i]);
+  el.value = rest;
+  return true;
+}
+
+function addUnit(raw) {
+  var key = String(raw || '').trim().toUpperCase();
+  if (!key) return;
+  var hit = findUnit(key);
+  /* Not a unit here, or a unit that is already gone. Kept on screen rather
+     than dropped, because a number that vanishes as you type reads as a bug
+     and leaves the dealer believing it was accepted. */
+  if (!hit || hit.u.s !== 'available') {
+    if (SHEET.bad.indexOf(key) < 0) SHEET.bad.push(key);
+    return;
+  }
+  if (sheetAll().indexOf(hit.u.n) >= 0) return;
+  SHEET.more.push(hit.u.n);
 }
 
 function sheetUnit() {
@@ -1288,9 +1367,18 @@ function message() {
   L.push(SHEET.ref ? ('Ref: ' + initials(P.project) + '-REQ-' + SHEET.ref)
                    : 'Ref: not registered \u2014 please confirm in the group');
   L.push('');
-  L.push('Unit: ' + SHEET.n);
-  L.push('Floor: ' + f.floor_label);
-  L.push('Size: ' + (u ? area(u) : '—'));
+  /* One unit reads as it always did. Several are listed by number, and the
+     floor and size are dropped rather than printed for the first one only —
+     a size line under a list of five is a statement about four units that is
+     not true. */
+  var mu = sheetFree();
+  if (mu.length > 1) {
+    L.push('Units (' + mu.length + '): ' + mu.join(', '));
+  } else {
+    L.push('Unit: ' + SHEET.n);
+    L.push('Floor: ' + f.floor_label);
+    L.push('Size: ' + (u ? area(u) : '—'));
+  }
   var t = chosen();
   if (t) L.push('Asking for: ' + t.label);
   if (askNeedsDays()) {
@@ -1307,17 +1395,48 @@ function paintSheet() {
   var u = sheetUnit(), f = P.floors[SHEET.fi];
   var gone = !u || u.s !== 'available';
 
+  var all = sheetAll(), many = all.length > 1;
+
   $('sheet').innerHTML =
     '<div class="sh-h"><div>' +
-      '<div class="sh-n" id="sh-n">' + esc(SHEET.n) + '</div>' +
-      '<div class="sh-m">' + esc(f.floor_label) +
-        (u && area(u) ? ' · ' + esc(area(u)) : '') + '</div>' +
+      '<div class="sh-n" id="sh-n">' +
+        (many ? all.length + ' units' : esc(SHEET.n)) + '</div>' +
+      '<div class="sh-m">' +
+        (many ? 'Asked for together \u2014 one request, one answer'
+              : esc(f.floor_label) + (u && area(u) ? ' · ' + esc(area(u)) : '')) +
+      '</div>' +
     '</div><button class="sh-x" id="sh-x" aria-label="Close">✕</button></div>' +
 
     (gone
       ? '<div class="gone">This unit is no longer available. It was taken while ' +
         'this was open.</div>'
-      : (choices().length > 1
+      : /* MORE THAN ONE. The chips only appear once there is more than one
+           thing to look at; a dealer taking a single shop sees the box and
+           nothing else, exactly as before. */
+        ((many || SHEET.bad.length)
+          ? '<div class="sh-l">Units</div>' +
+            '<div class="uc-r" id="uc-r">' +
+              all.map(function (n, i) {
+                var h = findUnit(n), ok = h && h.u.s === 'available';
+                return '<span class="uc' + (ok ? '' : ' bad') + '">' + esc(n) +
+                  (i === 0 ? '' : '<button type="button" data-x="' + esc(n) + '">\u00d7</button>') +
+                '</span>';
+              }).join('') +
+              SHEET.bad.map(function (n) {
+                return '<span class="uc bad">' + esc(n) +
+                  '<button type="button" data-b="' + esc(n) + '">\u00d7</button></span>';
+              }).join('') +
+            '</div>'
+          : '') +
+        '<input class="uc-in" id="uc-in" autocomplete="off" autocapitalize="characters" ' +
+          'spellcheck="false" placeholder="Add another unit \u2014 or paste a list">' +
+        (SHEET.bad.length
+          ? '<div class="uc-s"><b>' + SHEET.bad.length + '</b> of those ' +
+            (SHEET.bad.length === 1 ? 'is not available' : 'are not available') +
+            ' \u2014 they will not be sent.</div>'
+          : (many ? '<div class="uc-s">All <b>' + all.length +
+                    '</b> will be asked for together.</div>' : '')) +
+        (choices().length > 1
           ? '<div class="sh-l">What do you need?</div>' +
             '<div class="ask-k" id="ask-k">' +
               choices().map(function (c) {
@@ -1395,6 +1514,33 @@ function paintSheet() {
                  : Number((t && t.days) || 7);
       paintSheet();
     };
+    /* One number per separator, and a pasted list arrives as a single input
+       event, so forty units land in one gesture. */
+    var mi = $('uc-in');
+    if (mi) {
+      mi.addEventListener('input', function () {
+        if (absorbUnits(mi)) { var keep = mi.value; paintSheet();
+                               var m2 = $('uc-in');
+                               if (m2) { m2.value = keep; try { m2.focus(); } catch (e) {} } }
+      });
+      mi.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        var t = String(mi.value || '').trim();
+        if (!t) return;
+        addUnit(t); mi.value = ''; paintSheet();
+        var m3 = $('uc-in'); if (m3) { try { m3.focus(); } catch (e2) {} }
+      });
+    }
+    var ur = $('uc-r');
+    if (ur) ur.onclick = function (e) {
+      var b = e.target.closest('button[data-x],button[data-b]'); if (!b) return;
+      var x = b.getAttribute('data-x');
+      if (x) SHEET.more = SHEET.more.filter(function (n) { return n !== x; });
+      else { var y = b.getAttribute('data-b');
+             SHEET.bad = SHEET.bad.filter(function (n) { return n !== y; }); }
+      paintSheet();
+    };
     $('wa').onclick = function () { requestAndSend('wa'); };
   }
 }
@@ -1412,6 +1558,11 @@ function paintSheet() {
 var SENDING = false;
 async function submitRequest() {
   if (!SHEET) return null;
+  /* SEVERAL UNITS TAKE THE ARRAY CALL, one takes the call it always took.
+     Both write the same rows into the same queue; the batch simply stamps a
+     shared ref on them so the desk can answer them in one tap instead of
+     five. Neither reserves anything — a director still decides. */
+  if (sheetFree().length > 1) return submitMany();
   try {
     var r = await sb.rpc('submit_availability_request', {
       p_token: TOKEN, p_unit_no: SHEET.n, p_days: SHEET.days, p_name: NAME || null,
@@ -1434,6 +1585,39 @@ async function submitRequest() {
   } catch (e) { return { ok: false, error: 'offline' }; }
 }
 
+async function submitMany() {
+  var units = sheetFree();
+  try {
+    var r = await sb.rpc('submit_availability_requests', {
+      p_token: TOKEN, p_unit_nos: units, p_days: SHEET.days, p_name: NAME || null,
+      p_status_id: SHEET.choice || null });
+    var d = r && r.data;
+    if (!d || !d.ok) {
+      /* Every one of them refused is not a server failure, and telling the
+         dealer to confirm in the group would send them chasing units that are
+         gone. It says what happened instead. */
+      var none = d && d.success === false && Number(d.failed) > 0;
+      return { ok: false, error: none ? 'none_free' : ((d && d.error) || 'failed'),
+               message: none ? 'None of those units is available any more.'
+                             : ((d && d.message) || null) };
+    }
+    /* The batch ref is what the desk shows on the card, so it is the number
+       the dealer should be able to read out. */
+    SHEET.ref = d.batch || null;
+    var rows = (d.results || []).filter(function (x) { return x.success; });
+    var list = readReqs();
+    rows.forEach(function (x) {
+      list = list.filter(function (y) { return y.ref !== x.ref; });
+      list.unshift({ ref: x.ref, unit: x.unit_no, days: SHEET.days, status: 'pending',
+                     batch: d.batch || null, asked: x.asked || null });
+    });
+    REQS = list; writeReqs(list); paintMyReqs();
+    /* Some of them may have been spoken for a minute ago. The ask still went
+       in for the rest, and the count says which. */
+    return { ok: true, many: rows.length, missed: units.length - rows.length };
+  } catch (e) { return { ok: false, error: 'offline' }; }
+}
+
 async function requestAndSend(how) {
   if (!SHEET || SENDING) return;
   /* If the name was skipped earlier, ask HERE — this is the moment it means
@@ -1452,12 +1636,15 @@ async function requestAndSend(how) {
   if (res && !res.ok) {
     if (res.error === 'unit_unavailable') { toast('That unit has just been taken.'); return refreshSheet(); }
     if (res.error === 'queue_full' || res.error === 'too_many') { toast(res.message); return; }
+    if (res.error === 'none_free') { toast(res.message); return refreshSheet(); }
     if (res.error === 'not_available') { toast('This link is no longer active.'); return; }
     /* offline or unknown: send anyway, and say the desk has not got it */
     toast('Sent, but the desk has not registered it \u2014 please confirm in the group.');
     SHEET.ref = null;
   } else if (res && res.already) {
     toast('A request for this unit is already waiting.');
+  } else if (res && res.missed) {
+    toast(res.missed + ' of those had already gone \u2014 the rest are in.');
   }
   if (how === 'copy') {
     window._portalCopy(message(),
@@ -1475,12 +1662,16 @@ async function requestAndSend(how) {
 function showSent() {
   var host = document.getElementById('sheet');
   var ref = initials(P && P.project) + '-REQ-' + (SHEET.ref || '');
+  var n = sheetFree().length;
   host.innerHTML =
     '<div class="done">' +
       '<div class="done-k"><i></i></div>' +
       '<div class="done-t">Request sent</div>' +
-      '<div class="done-s">' + esc(SHEET.n) + ' \u00b7 ' + esc(ref) + '<br>' +
-        'The desk will confirm. The unit is not held until they do.</div>' +
+      '<div class="done-s">' +
+        (n > 1 ? n + ' units' : esc(SHEET.n)) + ' \u00b7 ' + esc(ref) + '<br>' +
+        'The desk will confirm. ' +
+        (n > 1 ? 'They are not held until they do.' : 'The unit is not held until they do.') +
+      '</div>' +
     '</div>';
   SENT_T = setTimeout(function () { if (SHEET) closeSheet(); }, 1600);
 }
