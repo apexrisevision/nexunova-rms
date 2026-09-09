@@ -236,6 +236,7 @@ button{cursor:pointer;background:none;border:0}
        border-bottom:1px solid var(--hair);font-size:13px}
 .myq-r:last-child{border-bottom:0}
 .myq-r .u{font-weight:650;min-width:70px;letter-spacing:-.01em}
+.myq-r .d b.soon{color:var(--held);font-weight:650}
 .myq-r .d{flex:1;min-width:0;font-size:12px;color:var(--mut);
           overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .myq-r .s{font-size:11.5px;font-weight:650;white-space:nowrap}
@@ -372,6 +373,38 @@ button{cursor:pointer;background:none;border:0}
 
    Slim on purpose: it is a doorway, not the report. */
 #myq{margin-bottom:16px}
+/* TELLING THE TWO DOORS APART. They are the same card in the same place on
+   the same ground, so the eye has nothing to sort them by. A tint each, both
+   taken from the palette rather than invented: the accent's own pale wash for
+   the one that is about YOU, and the held sand for the one that is about the
+   building. Quiet enough to read as paper in sunlight, different enough to
+   find without reading.
+
+   The 3px edge does most of the work. A tint alone at this lightness
+   disappears on a dim phone; a coloured edge survives it. */
+#myq .all-chip{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+@media (hover:hover){ #myq .all-chip:hover{background:#E5EDFD} }
+#myq .all-chip:active{background:#DCE7FC}
+#allrow .all-chip{background:var(--held-bg);box-shadow:inset 3px 0 0 var(--held)}
+@media (hover:hover){ #allrow .all-chip:hover{background:#EFE8DC} }
+#allrow .all-chip:active{background:#EAE1D2}
+/* The count badge sits on a tinted card now, so it takes the accent rather
+   than the ink it wore on white. */
+#myq .all-chip .ac-n{background:var(--accent)}
+
+/* ── the report, floor by floor ── */
+.myq-f{display:flex;align-items:baseline;gap:9px;padding:13px 16px 9px;
+       border-top:1px solid var(--hair)}
+.myq-f:first-child{border-top:0}
+.myq-f .fn{font-size:13.5px;font-weight:650;letter-spacing:-.01em;color:var(--ink)}
+.myq-f .fs{flex:1;min-width:0;font-size:11.5px;color:var(--mut);
+           overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* ── what is about to let go ── */
+.myq-a{margin:0 0 14px;padding:13px 15px;border-radius:var(--r);
+       background:var(--held-bg);box-shadow:inset 3px 0 0 var(--held)}
+.myq-a .t{font-size:13px;font-weight:650;color:var(--held);letter-spacing:-.01em}
+.myq-a .r{margin-top:7px;font-size:12.5px;color:var(--soft);line-height:1.55}
+.myq-a .r b{color:var(--ink);font-weight:650}
 #allrow{margin-top:9px}
 .all-chip .ac-n{display:inline-flex;align-items:center;justify-content:center;
                 min-width:18px;height:18px;padding:0 5px;margin-left:6px;
@@ -389,6 +422,7 @@ button{cursor:pointer;background:none;border:0}
 .all-chip .ac-m{display:block;font-size:11.5px;color:var(--mut);line-height:1.4;
                 margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .all-chip .ac-m b{font-weight:650;color:var(--soft)}
+.all-chip .ac-m.soon{color:var(--held);font-weight:650}
 .all-chip .ac-x{flex:none;display:flex;align-items:center;color:var(--mut)}
 .all-chip .ac-x i{width:7px;height:7px;border-right:1.5px solid currentColor;
                   border-top:1.5px solid currentColor;transform:rotate(45deg);display:block}
@@ -897,6 +931,41 @@ function _myqClick(e) {
 /* HOW LONG IS LEFT, in the words somebody says out loud. Hours under a day,
    because "1 day" on something that goes at four this afternoon is the kind of
    rounding that loses a unit. */
+/* DAYS TO THE DATE, not hours divided by 24. \u201cReleases tomorrow\u201d has to mean
+   the calendar day after this one, or a hold that goes at nine in the morning
+   warns nobody the evening before. */
+function pkParts(iso) {
+  try { return new Date(new Date(iso).toLocaleString('en-US', { timeZone: 'Asia/Karachi' })); }
+  catch (e) { return new Date(iso); }
+}
+function daysToDate(iso) {
+  if (!iso) return null;
+  var b = pkParts(iso), a = pkParts(new Date().toISOString());
+  if (isNaN(b.getTime()) || isNaN(a.getTime())) return null;
+  return Math.round((Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) -
+                     Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 864e5);
+}
+var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function dayName(iso) {
+  var n = daysToDate(iso);
+  if (n === null) return '';
+  if (n < 0) return 'overdue';
+  if (n === 0) return 'today';
+  if (n === 1) return 'tomorrow';
+  var d = pkParts(iso);
+  return String(d.getDate()).padStart(2, '0') + ' ' + MON[d.getMonth()];
+}
+
+/* Everything still standing that lets go within a day. The alert Rashid asked
+   for: told the day BEFORE, not the morning it happens. */
+function releasingSoon() {
+  return REQS.filter(function (r) {
+    if (stateOf(r) !== 'held' || !r.until) return false;
+    var n = daysToDate(r.until);
+    return n !== null && n <= 1;
+  }).sort(function (a, b) { return Date.parse(a.until) - Date.parse(b.until); });
+}
+
 function leftSay(iso) {
   if (!iso) return null;
   var t = Date.parse(iso); if (isNaN(t)) return null;
@@ -948,6 +1017,7 @@ function paintMyReqs() {
   var box = $('myq');
   if (!box) return;
   var M = mySummary();
+  var soon = releasingSoon();
   box.hidden = false;
   box.className = '';
   if (!box.__mineBound) {
@@ -962,10 +1032,20 @@ function paintMyReqs() {
       '<span class="ac-w">' +
         '<span class="ac-t">My Reservations' +
           (M.held ? '<span class="ac-n num">' + M.held + '</span>' : '') + '</span>' +
-        '<span class="ac-m">' +
-          (M.held
-            ? 'With you' + (M.pending ? ' \u00b7 ' + M.pending + ' waiting' : '')
-            : (M.pending ? M.pending + ' waiting for an answer' : 'Nothing yet')) +
+        '<span class="ac-m' + (soon.length ? ' soon' : '') + '">' +
+          /* WHAT IS ABOUT TO LET GO COMES FIRST. A hold releases itself and
+             the unit goes back on the board; that is the one thing on this
+             card worth interrupting the count for. Said in the caption rather
+             than on a line of its own, because screen one fits exactly and a
+             warning that costs the fit would be paid for every day to be read
+             on a few. */
+          (soon.length
+            ? (soon.length === 1
+                ? esc(soon[0].unit) + ' releases ' + esc(dayName(soon[0].until))
+                : soon.length + ' units release within a day')
+            : (M.held
+                ? 'With you' + (M.pending ? ' \u00b7 ' + M.pending + ' waiting' : '')
+                : (M.pending ? M.pending + ' waiting for an answer' : 'Nothing yet'))) +
         '</span>' +
       '</span>' +
       '<span class="ac-x"><i></i></span>' +
@@ -982,7 +1062,28 @@ function myqHTML() {
   /* The bracket is on THIS line on purpose. A bare `return` with the value on
      the next one is a return of undefined — the semicolon is inserted for you
      — and the whole panel silently drew nothing. */
+  var soon = releasingSoon();
+
   return (
+    /* ── WHAT LETS GO NEXT ─────────────────────────────────────────────────
+       A temporary hold releases itself and the unit is back on the board
+       without anybody doing anything. Rashid asked to be told the day before,
+       by name, and this is that: every unit whose release date is today or
+       tomorrow, soonest first, with the day said in words rather than as a
+       date to work out. */
+    (soon.length
+      ? '<div class="myq-a">' +
+          '<div class="t">' +
+            (soon.length === 1 ? 'One unit releases itself'
+                               : soon.length + ' units release themselves') +
+            ' within a day</div>' +
+          '<div class="r">' +
+            soon.map(function (r) {
+              return '<b>' + esc(r.unit) + '</b> ' + esc(dayName(r.until));
+            }).join('  \u00b7  ') +
+          '</div>' +
+        '</div>'
+      : '') +
     (S.held || S.pending
       ? '<div class="myq-s">' +
           '<span class="n">' + S.held +
@@ -1009,9 +1110,68 @@ function myqHTML() {
         '</div>'
       : '') +
     '<div class="myq-h">Your requests</div>' +
-    /* Every one of them. There is no shortened copy of this anywhere else on
-       the page any more, so nothing here is a preview of anything. */
-    REQS.map(function (r) {
+    /* ── FLOOR BY FLOOR, GROUND UPWARDS ────────────────────────────────────
+       A list in the order things were asked for is a list of what YOU did. A
+       list by floor is a list of what you HOLD, which is the question this
+       screen is opened with \u2014 how much of the lower ground is mine.
+
+       The order is the payload's own floor order, which is the order the
+       building is walked, so LG comes before GF before FF without this page
+       knowing what any of those letters mean. Anything whose unit is not in
+       the payload keeps its place at the end rather than being dropped. */
+    floorGroups().map(function (g) {
+      return '<div class="myq-f">' +
+          '<span class="fn">' + esc(g.floor) + '</span>' +
+          '<span class="fs">' + esc(g.line) + '</span>' +
+        '</div>' +
+        g.rows.map(myqRow).join('');
+    }).join('')
+  );
+}
+
+/* Grouped and counted. The counts are of what is HELD \u2014 a request still
+   waiting is somebody else's decision and belongs in neither column. */
+function floorGroups() {
+  var out = [], by = {}, rest = [];
+  (P.floors || []).forEach(function (fl, i) {
+    by[i] = { floor: fl.floor_label, i: i, rows: [] };
+  });
+  REQS.forEach(function (r) {
+    var h = findUnit(r.unit);
+    if (h && by[h.fi]) by[h.fi].rows.push(r); else rest.push(r);
+  });
+  Object.keys(by).forEach(function (k) {
+    var g = by[k];
+    if (!g.rows.length) return;
+    g.rows.sort(function (a, b) {
+      var na = parseInt(String(a.unit).replace(/\D+/g, ''), 10) || 0;
+      var nb = parseInt(String(b.unit).replace(/\D+/g, ''), 10) || 0;
+      return na - nb || String(a.unit).localeCompare(String(b.unit));
+    });
+    out.push(g);
+  });
+  if (rest.length) out.push({ floor: 'Elsewhere', rows: rest });
+
+  out.forEach(function (g) {
+    var tags = {}, order = [], wait = 0;
+    g.rows.forEach(function (r) {
+      var st = stateOf(r);
+      if (st === 'pending') { wait++; return; }
+      if (st !== 'held') return;
+      var k = r.tag || r.asked || 'Held';
+      if (!tags[k]) { tags[k] = 0; order.push(k); }
+      tags[k]++;
+    });
+    var bits = order.map(function (k) { return tags[k] + ' ' + k; });
+    if (wait) bits.push(wait + ' waiting');
+    g.line = bits.length ? bits.join('  \u00b7  ')
+                         : g.rows.length + (g.rows.length === 1 ? ' request' : ' requests');
+  });
+  return out;
+}
+
+/* One request, drawn the same way wherever it appears. */
+function myqRow(r) {
       var st = stateOf(r);
       /* A HELD UNIT CAN STILL NEED SOMETHING. The deal matures, and until now
          the link had nothing to say about a unit that was already theirs — it
@@ -1021,10 +1181,25 @@ function myqHTML() {
       /* A held row says what it IS now and when it goes, in place of what was
          asked for and how many days were asked for — both of which stopped
          being the news the moment the desk answered. */
-      var W = (st === 'held') ? leftSay(r.until) : null;
+      /* THE DAY IT GOES, not how many days that is. \u201c15 days left\u201d has to be
+         counted forward against a calendar nobody has open; \u201creleases 24 Sep\u201d
+         is the thing a rep writes in their diary. Near ones say the word
+         instead of the date, and wear the held colour. */
+      var soonN = (st === 'held' && r.until) ? daysToDate(r.until) : null;
+      var when = (st === 'held')
+        ? (r.until
+            ? (soonN !== null && soonN <= 1
+                ? '<b class="soon">releases ' + esc(dayName(r.until)) + '</b>'
+                : 'releases ' + esc(dayName(r.until)))
+            : 'no end date')
+        : '';
+      /* The tag is dropped when the chip on the right already says it.
+         "Reserved \u00b7 releases 12 Sep" beside "Reserved for you" spends the width
+         saying Reserved twice and then truncates the date, which is the only
+         part of the line nobody can work out for themselves. */
+      var tg = r.tag || r.asked || '';
       var mid = (st === 'held')
-        ? (esc(r.tag || r.asked || 'Held') + '  \u00b7  ' +
-           (r.until ? esc(W ? W.t : '') : 'no end date'))
+        ? ((tg && !/^reserved$/i.test(tg) ? esc(tg) + '  \u00b7  ' : '') + when)
         : ((r.days == null ? esc(r.asked || 'No end date')
                            : esc(r.days) + ' day' + (r.days === 1 ? '' : 's')) +
            '  \u00b7  ' + esc(initials(P && P.project)) + '-REQ-' + esc(r.ref));
@@ -1048,8 +1223,6 @@ function myqHTML() {
             : '<div class="myq-c"><button class="myq-ask" data-ask="' + esc(r.ref) + '">' +
               'Ask to change this</button></div>')
         : '');
-    }).join('')
-  );
 }
 
 /* Asks only about the refs this phone holds, through the link that made them.
@@ -1209,6 +1382,12 @@ function renderHome() {
   $('floor').hidden = true;
   $('all').hidden = true;
   $('mine').hidden = true;
+  /* THE CARD IS THIS SCREEN’S OWN FURNITURE, so this screen draws it. It was
+     painted only by render(), which runs on a fetch — so coming back from the
+     report left a card built before whatever had just been read there. A hold
+     that aged into “releases tomorrow” while the reader was two taps away
+     still said “With you” when they came back to it. */
+  paintMyReqs();
   $('all-body').innerHTML = '';      // unmounted, like a floor
   /* UNMOUNTED, not hidden. The one hard rule of this page is that a floor's
      units are never in the document unless that floor is open. */

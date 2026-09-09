@@ -2017,6 +2017,78 @@ function serve() {
            /days left/.test(ownScreen.clock))
             ? okU2('with the same figures and the same clock the band carries')
             : badU2('the screen and the band disagree: ' + JSON.stringify(ownScreen));
+          /* ── FLOOR BY FLOOR, AND THE WARNING BEFORE IT LETS GO ────────────
+             Two things Rashid asked for and one he did not have to: the report
+             grouped by floor from the ground upwards, and a warning the day
+             BEFORE a temporary hold releases itself.
+
+             The clock is moved in the browser rather than in the database. The
+             hold in this fixture has three days on it; making it fall tomorrow
+             means rewriting a reservation on a live row to photograph a
+             warning, and the warning is drawn from what the phone already
+             holds. Nothing here is written anywhere. */
+          const grouped = await dp.evaluate(() => {
+            const floors = [...document.querySelectorAll('#mine .myq-f')].map(el => ({
+              name: (el.querySelector('.fn') || {}).textContent.trim(),
+              line: (el.querySelector('.fs') || {}).textContent.trim()
+            }));
+            /* every row must sit under a floor heading, not above the first */
+            const kids = [...document.querySelectorAll('#mine .myq > *')];
+            const firstRow = kids.findIndex(k => k.classList.contains('myq-r'));
+            const firstFloor = kids.findIndex(k => k.classList.contains('myq-f'));
+            return { floors: floors, firstRow: firstRow, firstFloor: firstFloor,
+                     rows: document.querySelectorAll('#mine .myq-r').length };
+          });
+          (grouped.floors.length >= 1 && grouped.firstFloor >= 0 &&
+           grouped.firstFloor < grouped.firstRow)
+            ? okU2('the report is grouped by floor, and every unit sits under one: ' +
+                   grouped.floors.map(x => x.name).join(', '))
+            : badU2('the floor grouping is wrong: ' + JSON.stringify(grouped));
+          /\d+ Reserved/.test(grouped.floors[0].line)
+            ? okU2('with the floor\u2019s own count beside it \u2014 \u201c' +
+                   grouped.floors[0].name + '  ' + grouped.floors[0].line + '\u201d')
+            : badU2('the floor line does not count what is held: ' +
+                    JSON.stringify(grouped.floors[0]));
+
+          const warned = await dp.evaluate(() => {
+            const held = REQS.filter(r => stateOf(r) === 'held' && r.until)[0];
+            if (!held) return null;
+            const was = held.until;
+            const t = new Date(); t.setDate(t.getDate() + 1);
+            held.until = t.toISOString();
+            renderMine();
+            const out = {
+              alert: (document.querySelector('#mine .myq-a') || {}).innerText || '',
+              row: (document.querySelector('#mine .myq-r .d b.soon') || {}).textContent || '',
+              unit: held.unit
+            };
+            /* and the card on screen one, which is where he will see it first */
+            document.getElementById('mine-back').click();
+            const cap = document.querySelector('#myq .ac-m');
+            out.card = cap ? cap.textContent.trim() : '';
+            out.cardWarns = !!(cap && cap.classList.contains('soon'));
+            held.until = was; render();
+            return out;
+          });
+          warned
+            ? ((/releases? (itself|themselves)/i.test(warned.alert) &&
+                new RegExp(warned.unit).test(warned.alert) &&
+                /tomorrow/.test(warned.alert))
+                ? okU2('a hold that goes tomorrow is called out by name the day ' +
+                       'before \u2014 \u201c' + warned.alert.replace(/\s+/g, ' ').trim() + '\u201d')
+                : badU2('the day-before warning is wrong: ' + JSON.stringify(warned.alert)))
+            : okU2('no dated hold in this fixture to age \u2014 nothing to warn about');
+          warned && /tomorrow/.test(warned.row)
+            ? okU2('and the row itself says the day rather than a number of days')
+            : badU2('the row does not name the day: ' + JSON.stringify(warned && warned.row));
+          warned && warned.cardWarns && new RegExp(warned.unit).test(warned.card)
+            ? okU2('and it reaches the first screen without opening anything \u2014 \u201c' +
+                   warned.card + '\u201d')
+            : badU2('the card does not carry the warning: ' + JSON.stringify(warned && warned.card));
+
+          await dp.evaluate(() => {
+            const c = document.querySelector('#myq [data-mine]'); if (c) c.click();
+          });
           await dp.screenshot({ path: path.join(OUT, 'q-my-units.png') });
           await dp.evaluate(() => {
             const b = document.getElementById('mine-back'); if (b) b.click();
