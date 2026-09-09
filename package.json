@@ -22,7 +22,8 @@
     "shot:daybook": "node scripts/shot-daybook.js",
     "shot:availability": "node scripts/shot-availability.js",
     "verify:status-nature": "node scripts/verify-status-nature-ui.js",
-    "shot:desk": "node scripts/shot-desk-bulk.js"
+    "shot:desk": "node scripts/shot-desk-bulk.js",
+    "shot:floorplan": "node scripts/shot-floorplan.js"
   },
   "build": {
     "appId": "com.nexunova.rms",

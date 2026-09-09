@@ -332,6 +332,38 @@ button{cursor:pointer;background:none;border:0}
 
 /* Secondary on purpose: revealing what cannot be bought is not the reason
    anyone opened this. Still a 44px target. */
+/* ══ THE FLOOR AS IT WAS DRAWN ══════════════════════════════════════════
+   The architect's own linework, and one shape per unit laid over it. A chip
+   grid can say a shop is free; it cannot say the shop is the third from the
+   escalator on the corridor side, which is the thing anybody asks before they
+   take one.
+
+   The drawing is not redrawn. It is the same paths the sheet carries, with
+   the traced lettering left out and put back as real text — which is also why
+   it weighs 23 KB instead of nine megabytes. */
+.pv{position:relative;margin-top:12px;border-radius:var(--r);background:var(--card);
+    overflow:auto;-webkit-overflow-scrolling:touch}
+.pv .in{position:relative;transform-origin:0 0}
+.pv svg{display:block;width:100%;height:auto}
+.pv .base{position:relative;z-index:1}
+.pv .over{position:absolute;left:0;top:0;width:100%;height:100%;z-index:2}
+/* Available units are simply open \u2014 the drawing shows through. Only what is
+   gone is marked, because a page that tints everything says nothing. */
+.pv .u{fill:transparent;stroke:none;cursor:pointer}
+.pv .u.off{fill:rgba(138,98,36,.20)}
+/* fill:none is not the default here — a two-legged cross left to fill itself
+   paints a solid triangle over the shop instead of an X across it. */
+.pv .x{fill:none;stroke:var(--held);stroke-width:2;opacity:.9;
+       vector-effect:non-scaling-stroke;stroke-linecap:round}
+.pv .n{font-size:5px;font-weight:650;fill:var(--soft);text-anchor:middle;
+       paint-order:stroke;stroke:#fff;stroke-width:1.4px;stroke-linejoin:round}
+.pv .n.off{fill:var(--held)}
+.pv-b{display:flex;gap:8px;margin-top:12px;align-items:center}
+.pv-b button{height:38px;padding:0 14px;border-radius:var(--r);border:1px solid var(--line);
+             background:var(--card);font-size:13px;font-weight:650;color:var(--soft)}
+.pv-b button.on{background:var(--ink);border-color:var(--ink);color:var(--card)}
+.pv-b .sp{flex:1}
+.pv-n{margin-top:9px;font-size:11.5px;color:var(--mut);line-height:1.5}
 .sw{display:inline-flex;align-items:center;gap:10px;margin-bottom:18px;
     height:44px;padding:0 16px;border-radius:999px;background:var(--card);
     font-size:12.5px;color:var(--soft);
@@ -737,6 +769,22 @@ button{cursor:pointer;background:none;border:0}
   <section id="floor" hidden>
     <div class="ft"><button class="bk" id="back"><i></i>All floors</button></div>
     <div class="fh"><h1 id="fname">—</h1><span id="fcount"></span></div>
+    <div class="pv-b" id="pv-b" hidden>
+      <button id="pv-plan">Floor plan</button>
+      <button id="pv-list">List</button>
+      <span class="sp"></span>
+      <button id="pv-zoom">Zoom</button>
+    </div>
+    <div class="pv" id="pv" hidden><div class="in" id="pv-in"></div></div>
+    <div class="pv-n" id="pv-note" hidden></div>
+    <div class="pv-b" id="pv-b" hidden>
+      <button id="pv-plan">Floor plan</button>
+      <button id="pv-list">List</button>
+      <span class="sp"></span>
+      <button id="pv-zoom">Zoom</button>
+    </div>
+    <div class="pv" id="pv" hidden><div class="in" id="pv-in"></div></div>
+    <div class="pv-n" id="pv-note" hidden></div>
     <div class="sw">
       <input type="checkbox" id="showall"><label for="showall">Show unavailable units</label>
     </div>
@@ -1551,6 +1599,137 @@ function renderAll() {
   }
 }
 
+/* ══ THE FLOOR PLAN ═════════════════════════════════════════════════════
+   The drawing is a static file, the same one the office prints and hands out:
+   walls, columns, stairs, and nothing about who holds what. Everything that
+   is not public \u2014 which unit is free, which is gone \u2014 still comes down the
+   token'd board call and is painted on top. So the plan can be cached by the
+   world and the position cannot.
+
+   Fetched once per floor and kept, because a dealer walks a floor, goes back
+   and comes again. */
+var PLANS = {};            // floor prefix -> { svg, w, h, units } | 'none'
+var PLANV = true;          // the plan is the view, when there is one
+var PLANZ = 1;
+
+function slug(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+/* the floor's own prefix, taken from its units rather than from its name: the
+   drawing files are named after what is written on the units. */
+function floorKey(f) {
+  var u = (f.units || [])[0];
+  if (!u) return null;
+  var m = /^([A-Za-z0-9]+)-/.exec(String(u.n || ''));
+  return m ? m[1].toUpperCase() : null;
+}
+
+/* WHICH FLOORS HAVE A DRAWING AT ALL. Asking for one that does not exist is a
+   404 in the console of every project without plans — noise on a page that is
+   meant to be quiet, and a real error to anybody reading the log. One small
+   file answers it, and it is always there. */
+var PLANIX = null;
+async function planIndex() {
+  if (PLANIX) return PLANIX;
+  try {
+    var r = await fetch('/plans/manifest.json');
+    PLANIX = r.ok ? await r.json() : {};
+  } catch (e) { PLANIX = {}; }
+  return PLANIX;
+}
+
+async function loadPlan(f) {
+  var k = floorKey(f);
+  if (!k) return null;
+  if (PLANS[k]) return PLANS[k] === 'none' ? null : PLANS[k];
+  var ix = await planIndex();
+  var have = ix[slug(P.project)] || [];
+  if (have.indexOf(k) < 0) { PLANS[k] = 'none'; return null; }
+  var base = '/plans/' + slug(P.project) + '/' + k;
+  try {
+    var r = await Promise.all([fetch(base + '.svg'), fetch(base + '.json')]);
+    if (!r[0].ok || !r[1].ok) { PLANS[k] = 'none'; return null; }
+    var svg = await r[0].text(), meta = await r[1].json();
+    PLANS[k] = { svg: svg, w: meta.w, h: meta.h, units: meta.units };
+    return PLANS[k];
+  } catch (e) { PLANS[k] = 'none'; return null; }
+}
+
+/* One shape per unit, over the drawing. Available units are left open \u2014 the
+   linework shows through and the tap area is invisible; anything gone is
+   tinted and crossed. That is the whole legend, and it needs no key. */
+function paintPlan(plan, f) {
+  var host = $('pv-in');
+  var over = [], names = [];
+  (f.units || []).forEach(function (u) {
+    var g = plan.units[u.n];
+    if (!g) return;
+    var free = u.s === 'available';
+    var d = 'M' + g.p.map(function (p) {
+      return (p[0] * plan.w).toFixed(1) + ' ' + (p[1] * plan.h).toFixed(1);
+    }).join('L') + 'Z';
+    over.push('<path class="u' + (free ? '' : ' off') + '" d="' + d +
+              '" data-u="' + esc(u.n) + '"><title>' + esc(u.n) +
+              (free ? '' : ' \u2014 not available') + '</title></path>');
+    if (!free) {
+      /* the cross sits on the unit's own box, so an L-shaped shop is crossed
+         across the part a thumb can see */
+      var xs = g.p.map(function (p) { return p[0]; }), ys = g.p.map(function (p) { return p[1]; });
+      var x0 = Math.min.apply(null, xs) * plan.w, x1 = Math.max.apply(null, xs) * plan.w;
+      var y0 = Math.min.apply(null, ys) * plan.h, y1 = Math.max.apply(null, ys) * plan.h;
+      over.push('<path class="x" d="M' + x0.toFixed(1) + ' ' + y0.toFixed(1) +
+                'L' + x1.toFixed(1) + ' ' + y1.toFixed(1) +
+                'M' + x1.toFixed(1) + ' ' + y0.toFixed(1) +
+                'L' + x0.toFixed(1) + ' ' + y1.toFixed(1) + '"/>');
+    }
+    /* the number, as real text \u2014 the drawing's own lettering was traced
+       outlines and cost ten megabytes to carry */
+    names.push('<text class="n' + (free ? '' : ' off') + '" x="' +
+               (g.c[0] * plan.w).toFixed(1) + '" y="' +
+               (g.c[1] * plan.h + 1.8).toFixed(1) + '">' +
+               esc(String(u.n).replace(/^[A-Za-z0-9]+-/, '')) + '</text>');
+  });
+  host.innerHTML =
+    '<div class="base">' + plan.svg + '</div>' +
+    '<svg class="over" viewBox="0 0 ' + plan.w + ' ' + plan.h + '" preserveAspectRatio="none">' +
+      over.join('') + names.join('') +
+    '</svg>';
+  host.style.width = (PLANZ * 100) + '%';
+  if (!host.__bound) {
+    host.addEventListener('click', function (e) {
+      var p = e.target.closest('[data-u]'); if (!p) return;
+      var no = p.getAttribute('data-u');
+      var unit = (P.floors[FLOOR].units || []).filter(function (x) { return x.n === no; })[0];
+      if (!unit || unit.s !== 'available') { toast(no + ' is not available.'); return; }
+      openSheet(no, FLOOR);
+    });
+    host.__bound = true;
+  }
+}
+
+async function showPlan(f) {
+  var plan = await loadPlan(f);
+  var bar = $('pv-b'), box = $('pv'), note = $('pv-note');
+  if (!plan) {
+    /* a floor with no drawing is not an error \u2014 it is a floor with no drawing,
+       and the list is still the list */
+    bar.hidden = true; box.hidden = true; note.hidden = true;
+    PLANV = false; return false;
+  }
+  bar.hidden = false;
+  $('pv-plan').classList.toggle('on', PLANV);
+  $('pv-list').classList.toggle('on', !PLANV);
+  box.hidden = !PLANV;
+  note.hidden = !PLANV;
+  if (PLANV) {
+    paintPlan(plan, f);
+    var gone = (f.units || []).filter(function (u) { return u.s !== 'available'; }).length;
+    note.innerHTML = 'Tap a shop to ask for it. ' +
+      (gone ? '<b>' + gone + '</b> crossed out are already taken.' : 'Every shop on this floor is free.');
+  }
+  return true;
+}
+
 function renderFloor() {
   var f = P.floors[FLOOR];
   if (!f) { FLOOR = null; return renderHome(); }
@@ -1588,6 +1767,17 @@ function renderFloor() {
       ? 'No units on this floor.'
       : 'Nothing available on this floor right now.';
   }
+
+  /* THE DRAWING, IF THERE IS ONE FOR THIS FLOOR. Asked for after the list is
+     already on screen, so a floor never waits on a file: the chips are there
+     the moment the floor opens and the plan takes their place when it lands. */
+  showPlan(f).then(function (has) {
+    var showList = !has || !PLANV;
+    $('units').hidden = !showList;
+    $('fempty').hidden = !showList || !none;
+    var sw = document.querySelector('#floor .sw');
+    if (sw) sw.hidden = !showList;
+  });
 }
 
 /* ── search: across every floor, entirely in the browser ─────────────────
@@ -2212,6 +2402,17 @@ $('allrow').addEventListener('click', function (e) {
 $('mine-back').onclick = function () {
   MINEV = false; BACKING = true;
   renderHome(); window.scrollTo(0, 0);
+};
+
+$('pv-plan').onclick = function () { PLANV = true; renderFloor(); window.scrollTo(0, 0); };
+$('pv-list').onclick = function () { PLANV = false; renderFloor(); window.scrollTo(0, 0); };
+/* THE PLATE IS LONG AND NARROW. At the width of a phone a shop is about ten
+   pixels across, which is enough to see and not enough to hit, so one tap
+   doubles the drawing and the box scrolls sideways. */
+$('pv-zoom').onclick = function () {
+  PLANZ = PLANZ >= 3 ? 1 : PLANZ + 1;
+  $('pv-zoom').textContent = PLANZ === 1 ? 'Zoom' : PLANZ + '\u00d7';
+  var el = $('pv-in'); if (el) el.style.width = (PLANZ * 100) + '%';
 };
 
 $('all-back').onclick = function () {

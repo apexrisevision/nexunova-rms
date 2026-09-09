@@ -441,10 +441,15 @@ function serve() {
     step('One floor at a time');
     const big = payload.floors.reduce((a, b) => (b.units.length > a.units.length ? b : a));
     const bigIdx = payload.floors.indexOf(big);
-    const floorState = await page.evaluate(i => {
+    const floorState = await page.evaluate(async i => {
       document.getElementById('q').value = '';
       document.getElementById('q').dispatchEvent(new Event('input', { bubbles: true }));
       document.querySelector('#floors button[data-f="' + i + '"]').click();
+      /* THE CHIPS, NOT THE DRAWING. A floor with a plan opens on the plan now,
+         and a hidden grid reports no columns — so this asks for the list the way
+         a reader would before measuring it. */
+      if (typeof PLANV !== 'undefined' && PLANV) { PLANV = false; renderFloor(); }
+      await new Promise(r => setTimeout(r, 250));
       const g = document.getElementById('units');
       return {
         name: document.getElementById('fname').textContent.trim(),
