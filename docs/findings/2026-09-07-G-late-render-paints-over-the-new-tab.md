@@ -212,3 +212,26 @@ undoing it. That remains unapproved work.
 
 `npm run measure:overpaint` — 16/16 cells pass (localhost and throttled, delays
 0 through 3000 ms). `npm run gate` 38/38. `npm run verify:desk` 74/74.
+
+---
+
+### 2026-09-09 — it is now blocking pushes
+
+The push gate refused a good commit. `npm run gate` had passed 38/38 on exactly
+the same tree ten minutes earlier; on the push it failed 15 assertions, all on
+the Leads screen, with these diagnostics:
+
+```
+rows: 0, tab: "leads", heading: "Your team",
+toast: "9 new leads — open the Leads tab to view"
+```
+
+`TAB` said `leads` while the Director board was on the screen — the shape this
+finding describes, from the other side. The retry passed 38/38 and the push went
+through.
+
+**What this changes.** It was recorded as a race a user might see once. It is
+also a race that stops work: a green suite and a red gate on identical code
+teaches whoever hits it that a red gate can be ignored, which is the one thing a
+gate must never teach. §5 — a nav token each renderer checks *before it paints* —
+is no longer only a correctness improvement.
