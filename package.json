@@ -23,7 +23,8 @@
     "shot:availability": "node scripts/shot-availability.js",
     "verify:status-nature": "node scripts/verify-status-nature-ui.js",
     "shot:desk": "node scripts/shot-desk-bulk.js",
-    "shot:floorplan": "node scripts/shot-floorplan.js LG && node scripts/shot-floorplan.js GF"
+    "shot:floorplan": "node scripts/shot-floorplan.js LG && node scripts/shot-floorplan.js GF",
+    "plan:audit": "node scripts/plan-audit.js"
   },
   "build": {
     "appId": "com.nexunova.rms",

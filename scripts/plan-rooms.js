@@ -89,13 +89,30 @@ function wallPaths(file) {
       /* defined once and kept, so the second pass runs the same code with a
          thicker wall rather than a second copy of it */
       window.__flood = window.__flood || (async function (o) {
-      const { X0, X1, y0, y1, PX, seeds, thick } = o;
+      const { X0, X1, y0, y1, PX, seeds, thick, blocks } = o;
       const W = Math.ceil((X1 - X0) * PX), H = Math.ceil((y1 - y0) * PX);
       const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H +
         '" viewBox="' + X0 + ' ' + y0 + ' ' + (X1 - X0) + ' ' + (y1 - y0) + '">' +
         '<rect x="' + X0 + '" y="' + y0 + '" width="' + (X1 - X0) + '" height="' + (y1 - y0) +
-        '" fill="#fff"/><g fill="none" stroke="#000" stroke-width="' + (1.2 / PX * 2 * thick) + '">' +
-        window.__paths.map(d => '<path d="' + d + '"/>').join('') + '</g></svg>';
+        '" fill="#fff"/>' +
+        /* ROUND CAPS, AND THIS IS THE WHOLE REASON A THICKER PEN WORKS AT ALL.
+           Thickness runs ACROSS a line, not along it: a wall drawn nine times
+           heavier still has exactly the same gap in the middle of it, because
+           a flat-ended segment ends where it ends. GF-256 was lost to this for
+           an hour — the fill walked through a break a pixel wide in a wall
+           twenty pixels thick. A round cap extends every segment end by half
+           the stroke, so widening the pen finally closes the breaks it was
+           meant to close, and closes nothing a door has not already opened. */
+        '<g fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round"' +
+        ' stroke-width="' + (1.2 / PX * 2 * thick) + '">' +
+        window.__paths.map(d => '<path d="' + d + '"/>').join('') + '</g>' +
+        /* THE SHOPS NEXT DOOR ARE WALLS TOO. Not a line on the sheet — a fact
+           about a building: a shop is bounded by the shops beside it. Passed
+           in as the rooms already found, painted solid, so a fill cannot walk
+           through a neighbour it has no business being in. */
+        (blocks || []).map(b => '<rect x="' + b[0] + '" y="' + b[1] + '" width="' +
+          b[2] + '" height="' + b[3] + '" fill="#000"/>').join('') +
+        '</svg>';
       const img = new Image();
       const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
       await new Promise((ok, no) => { img.onload = ok; img.onerror = no; img.src = url; });
@@ -112,7 +129,17 @@ function wallPaths(file) {
         if (px[p] < 220 || px[p + 1] < 220 || px[p + 2] < 220) wall[i] = 1;
       }
 
-      const CAP = Math.round(120 * 40 * PX * PX);      // a room this big is a leak
+      /* HOW BIG IS TOO BIG. This was 120 by 40 drawing units — about 394 sq ft —
+         and it was throwing away RIGHT ANSWERS: GF-201 is a 483 sq ft corner shop,
+         so its correct fill was declared a leak and the unit vanished from the
+         plate. GF-139, at 417, only survived by being squeezed under the cap by a
+         nine-times pen, which is why its area then read small.
+
+         The cap is not the thing that decides whether a room is right — the
+         register is, further down, room by room. This only has to catch a fill
+         that has run away across the sheet, so it is set well above any shop in
+         the building and left to do that one job. */
+      const CAP = Math.round(120 * 160 * PX * PX);
       const out = [], bad = [];
       const seen = new Uint8Array(W * H);
       for (const s of seeds) {
@@ -212,7 +239,51 @@ function wallPaths(file) {
   }
 
   if (book) {
-    const STEPS = [2.5, 5, 9];   // wider was tried; it never rescued a room
+      /* THE ROOMS ALREADY FOUND, AS SOLID GROUND, near one seed. Sent as the
+       runs they were filled from — merged where consecutive lines share a
+       span, so a room is a handful of rectangles rather than three hundred.
+       Only what is near the seed is sent: nothing at the far end of the
+       building can bound a shop at this one. */
+    /* Does this fill lie on top of a room that is already settled? A quarter of
+       the smaller of the two is the line: shapes touch at their walls, and a
+       pixel of overlap there is not a shop swallowing its neighbour. */
+    const sitsOn = (r, skip) => Object.keys(found).filter(v => {
+      if (v === skip) return false;
+      const b = found[v];
+      const w = Math.min(r.x1, b.x1) - Math.max(r.x0, b.x0);
+      const h = Math.min(r.y1, b.y1) - Math.max(r.y0, b.y0);
+      if (w <= 1 || h <= 1) return false;
+      return (w * h) > 0.25 * Math.min((r.x1 - r.x0) * (r.y1 - r.y0),
+                                       (b.x1 - b.x0) * (b.y1 - b.y0));
+    });
+
+    const near = (seed, skip) => {
+      const out = [];
+      for (const v of Object.keys(found)) {
+        if (v === skip) continue;
+        const r = found[v];
+        if (!r.rows) continue;
+        if (r.x1 < seed.cx - 260 || r.x0 > seed.cx + 260 ||
+            r.y1 < seed.cy - 260 || r.y0 > seed.cy + 260) continue;
+        let run = null;
+        const flush = () => {
+          if (!run) return;
+          out.push([ +(run.a / PX + r.ox).toFixed(2), +(run.y0 / PX + r.oy).toFixed(2),
+                     +((run.b - run.a + 1) / PX).toFixed(2), +((run.y1 - run.y0 + 1) / PX).toFixed(2) ]);
+          run = null;
+        };
+        for (const row of r.rows) {
+          const y = row[0], a = row[1], b = row[2];
+          if (run && run.a === a && run.b === b && y === run.y1 + 1) { run.y1 = y; continue; }
+          flush();
+          run = { a: a, b: b, y0: y, y1: y };
+        }
+        flush();
+      }
+      return out;
+    };
+
+  const STEPS = [2.5, 5, 9];   // wider was tried; it never rescued a room
     const clean = Object.keys(found).filter(u => book[u] > 0);
     const K = median(clean.map(u => book[u] / (found[u].area / (PX * PX))));
     console.log('  1 drawing unit\u00b2 = ' + K.toFixed(4) + ' sq ft, from the rooms as first flooded');
@@ -235,15 +306,27 @@ function wallPaths(file) {
       for (const u of retry) {
         const seed = labels.find(l => l.u === u);
         if (!seed) continue;
-        let best = found[u] && book[u] > 0 ? { r: found[u], off: offBy(u, found[u], 1), pen: 1 } : null;
+        /* THE ONES THAT SIT ON NOBODY COME FIRST. A fill that has walked into
+           the next three shops can happen to have a nicer-looking area than a
+           correct one, and comparing areas alone would take it. So a clean
+           fill always beats a trespassing one, and only among equals does the
+           register decide. */
+        const tries = [];
+        if (found[u] && book[u] > 0) tries.push({ r: found[u], pen: 1 });
         for (const thick of STEPS) {
           const y0 = seed.cy - 110, y1 = seed.cy + 110;
           const res = await page.evaluate(async (o) => window.__flood(o),
-            { X0: X0, X1: X1, y0: y0, y1: y1, PX: PX, seeds: [seed], thick: thick });
-          if (!res.out.length) continue;
-          const off = book[u] > 0 ? offBy(u, res.out[0], thick) : 0;
-          if (!best || off < best.off) best = { r: res.out[0], off: off, pen: thick };
+            { X0: X0, X1: X1, y0: y0, y1: y1, PX: PX, seeds: [seed], thick: thick,
+              blocks: (function(){var b=near(seed,u); if(u===process.env.DBGU) console.log("      pen"+thick+": "+b.length+" blocks, first "+JSON.stringify(b[0])+" tile y "+y0.toFixed(0)+".."+y1.toFixed(0)); return b;})() });
+          if (res.out.length) tries.push({ r: res.out[0], pen: thick });
         }
+        tries.forEach(t => {
+          t.off = book[u] > 0 ? offBy(u, t.r, t.pen) : 0;
+          t.clean = sitsOn(t.r, u).length === 0;
+        });
+        if (u === process.env.DBGU) console.log("      tries for "+u+": "+tries.map(t=>"pen"+t.pen+" area"+(t.r.area/(PX*PX)).toFixed(0)+" off"+(t.off*100).toFixed(0)+"% "+(t.clean?"clean":"on "+sitsOn(t.r,u).join("/"))).join("  |  "));
+        tries.sort((a, b) => (b.clean - a.clean) || (a.off - b.off));
+        let best = tries[0] || null;
         if (!best) { console.log('    ' + u + ' \u2014 no fill at any pen'); continue; }
         const i = failed.findIndex(x => x[0] === u);
         if (i >= 0) failed.splice(i, 1);
@@ -258,15 +341,7 @@ function wallPaths(file) {
            else. One that does is dropped, because a wrong tap target is worse
            than none. One that sits alone is kept and reported, for a person
            who knows the building to settle. */
-        const overlaps = Object.keys(found).filter(v => {
-          if (v === u) return false;
-          const a = best.r, b = found[v];
-          const w = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
-          const h = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
-          if (w <= 1 || h <= 1) return false;
-          return (w * h) > 0.25 * Math.min((a.x1 - a.x0) * (a.y1 - a.y0),
-                                           (b.x1 - b.x0) * (b.y1 - b.y0));
-        });
+        const overlaps = sitsOn(best.r, u);
         if (best.off <= TOL) {
           found[u] = best.r; found[u].pen = best.pen; found[u].off = +best.off.toFixed(3);
           console.log('    ' + u + ' at pen ' + best.pen + '\u00d7 \u2014 matches the register');

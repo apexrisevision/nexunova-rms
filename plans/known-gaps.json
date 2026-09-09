@@ -1,10 +1,7 @@
 {
-  "_": "Units the drawing cannot give a shape to, named on purpose. The suite fails on any gap NOT listed here, so a new one can never pass quietly. A unit listed here still appears in the list view and can still be asked for — it simply has no tap target on the plate.",
+  "_": "Units the drawing cannot give a shape to, named on purpose with the reason. The suite fails on any gap NOT listed here, and also on a listed gap that has quietly fixed itself, so this file cannot rot into an excuse. Empty is the right state: it means every unit in the register has a shape on its floor's plate.",
   "awami-market": {
     "LG": {},
-    "GF": {
-      "GF-201": "front row on the road side: the cell has no closed boundary on the drawing, so a flood from its number runs out into the site. No pen from 2.5x to 20x holds it.",
-      "GF-256": "a gap in the right-hand wall lets the fill run down into GF-257, GF-258 and GF-259. Closing it with a wider pen only makes the room 72% smaller than the register says, so no shape is shipped rather than a wrong one."
-    }
+    "GF": {}
   }
 }
