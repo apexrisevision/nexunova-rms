@@ -349,7 +349,12 @@ button{cursor:pointer;background:none;border:0}
 .pv .over{position:absolute;left:0;top:0;width:100%;height:100%;z-index:2}
 /* Available units are simply open \u2014 the drawing shows through. Only what is
    gone is marked, because a page that tints everything says nothing. */
-.pv .u{fill:transparent;stroke:none;cursor:pointer}
+/* THE SHOP TAKES THE TAP AND NOTHING ELSE DOES. The label sits in the middle
+   of the shop — exactly where a thumb lands — and the cross lies across it;
+   both are drawn after the shape, so both were eating the tap and the shape
+   only answered around its edges. A tap on a name is a tap on the shop. */
+.pv .u{fill:transparent;stroke:none;cursor:pointer;pointer-events:all}
+.pv .x,.pv .n,.pv .base,.pv .base *{pointer-events:none}
 .pv .u.off{fill:rgba(138,98,36,.20)}
 /* fill:none is not the default here — a two-legged cross left to fill itself
    paints a solid triangle over the shop instead of an X across it. */
@@ -1682,16 +1687,70 @@ function unitLines(u) {
    full-size lettering and a narrow strip carries small lettering, the same way
    the draughtsman did it. Nothing is dropped — a shop too small to read at
    arm's length is still right under the zoom. */
-function labelBlock(lines, cx, cy, bw, bh, free) {
+/* WHERE THE ROOM ACTUALLY IS, at one line across it. A bounding box lies about
+   an L-shaped shop: LG-46 wraps around the stairwell, so its box is 99 wide
+   while the arm the label sat in is a third of that — and the label ran out of
+   the shop and over the wall. Cutting the outline at a line gives the real
+   width there. Horizontal edges contribute nothing by the half-open rule, so a
+   cut along a wall does not count it twice. */
+function cutAt(pts, v, vertical) {
+  var out = [];
+  for (var i = 0; i < pts.length; i++) {
+    var a = pts[i], b = pts[(i + 1) % pts.length];
+    var a1 = vertical ? a[0] : a[1], b1 = vertical ? b[0] : b[1];
+    if ((a1 <= v && b1 > v) || (b1 <= v && a1 > v)) {
+      var a2 = vertical ? a[1] : a[0], b2 = vertical ? b[1] : b[0];
+      out.push(a2 + (v - a1) / (b1 - a1) * (b2 - a2));
+    }
+  }
+  return out.sort(function (p, q) { return p - q; });
+}
+/* inside/outside alternates along the cut, so the room is one of the pairs */
+function spanAround(cuts, c) {
+  var best = null;
+  for (var i = 0; i + 1 < cuts.length; i += 2) {
+    if (c >= cuts[i] && c <= cuts[i + 1]) return [cuts[i], cuts[i + 1]];
+    if (!best || cuts[i + 1] - cuts[i] > best[1] - best[0]) best = [cuts[i], cuts[i + 1]];
+  }
+  return best;
+}
+/* THE ROOMIEST PLACE TO WRITE, which is what a draughtsman looks for. The
+   outline is cut at a handful of positions and the one that carries the
+   largest lettering wins — so a label lands in the wide part of an L and not
+   in its arm. */
+function labelSpot(pts, x0, x1, y0, y1, cx, cy, W) {
+  var best = null;
+  for (var k = 0; k <= 8; k++) {
+    var x = k === 8 ? cx : x0 + (x1 - x0) * (k + 0.5) / 8;
+    var v = spanAround(cutAt(pts, x, true), cy);
+    if (!v) continue;
+    var my = (v[0] + v[1]) / 2;
+    var h = spanAround(cutAt(pts, my, false), x);
+    if (!h) continue;
+    var mx = (h[0] + h[1]) / 2;
+    /* measured again at the place the label will really sit */
+    var v2 = spanAround(cutAt(pts, mx, true), my) || v;
+    var bw = h[1] - h[0], bh = v2[1] - v2[0];
+    var fs = Math.min(bw * 0.86 / (W || 1), bh * 0.34, 5.2);
+    if (!best || fs > best.fs) best = { cx: mx, cy: (v2[0] + v2[1]) / 2, fs: fs };
+  }
+  return best;
+}
+
+function labelBlock(lines, pts, cx, cy, x0, x1, y0, y1, free) {
   var W = 0;
   lines.forEach(function (t, i) {
     W = Math.max(W, t.length * 0.60 * (i ? 0.78 : 1));   // ~.60em per character
   });
-  var fs = Math.min(bw * 0.86 / (W || 1), bh * 0.34, 5.2);
+  var spot = labelSpot(pts, x0, x1, y0, y1, cx, cy, W);
+  if (!spot) spot = { cx: cx, cy: cy, fs: Math.min((x1 - x0) * 0.86 / (W || 1), (y1 - y0) * 0.34, 5.2) };
+  cx = spot.cx; cy = spot.cy;
+  var fs = spot.fs;
   if (!(fs > 0)) return '';
   fs = Math.max(fs, 1.15);
   var y = [cy - 0.30 * fs, cy + 0.62 * fs, cy + 1.48 * fs];
-  return '<text class="n' + (free ? '' : ' off') + '" font-size="' + fs.toFixed(2) + '">' +
+  return '<text class="n' + (free ? '' : ' off') + '" data-n="' + esc(lines[0]) +
+           '" font-size="' + fs.toFixed(2) + '">' +
     lines.map(function (t, i) {
       return '<tspan' + (i ? ' class="s"' : '') + ' x="' + cx.toFixed(1) +
              '" y="' + y[i].toFixed(1) + '">' + esc(t) + '</tspan>';
@@ -1705,8 +1764,9 @@ function paintPlan(plan, f) {
     var g = plan.units[u.n];
     if (!g) return;
     var free = u.s === 'available';
-    var d = 'M' + g.p.map(function (p) {
-      return (p[0] * plan.w).toFixed(1) + ' ' + (p[1] * plan.h).toFixed(1);
+    var pts = g.p.map(function (p) { return [p[0] * plan.w, p[1] * plan.h]; });
+    var d = 'M' + pts.map(function (p) {
+      return p[0].toFixed(1) + ' ' + p[1].toFixed(1);
     }).join('L') + 'Z';
     /* the shop's own box, used twice: the cross is drawn across it and the
        label is fitted inside it */
@@ -1724,8 +1784,8 @@ function paintPlan(plan, f) {
                 'M' + x1.toFixed(1) + ' ' + y0.toFixed(1) +
                 'L' + x0.toFixed(1) + ' ' + y1.toFixed(1) + '"/>');
     }
-    names.push(labelBlock(lines, g.c[0] * plan.w, g.c[1] * plan.h,
-                          x1 - x0, y1 - y0, free));
+    names.push(labelBlock(lines, pts, g.c[0] * plan.w, g.c[1] * plan.h,
+                          x0, x1, y0, y1, free));
   });
   host.innerHTML =
     '<div class="base">' + plan.svg + '</div>' +

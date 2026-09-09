@@ -193,27 +193,74 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
         checked++;
         if (b.x < -1 || b.y < -1 || b.x + b.width > vb.width + 1 || b.y + b.height > vb.height + 1) off++;
       });
+      /* NOT THE CENTRE OF THE LABEL — THE WHOLE OF IT. A block can sit with its
+         middle in the right shop and its last line out on the wall, which is
+         exactly what LG-46 did: the label was fitted to a bounding box and that
+         shop wraps around the stairwell. The centre-point test passed while a
+         reader could see the text outside the room, so it is the four corners
+         that are asked about now. */
+      /* AGAINST THE OUTLINE, NOT AGAINST A BOX AROUND IT. Checking the label
+         against the shape's bounding box was no check at all for the shops
+         this is about: LG-46 wraps around the stairwell, so its box covers the
+         stairs too and a label sitting on them passed. The browser can answer
+         the real question about the real outline — isPointInFill — so the four
+         corners of the block are put to it one by one. */
+      const spill = [];
+      const shapes = {};
+      svg.querySelectorAll('.u').forEach(p => { shapes[p.getAttribute('data-u')] = p; });
       svg.querySelectorAll('.n').forEach(t => {
         const b = t.getBBox();
-        const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
-        /* which shape is this number standing in? it must be its own */
-        let inside = null;
-        for (const u in boxes) {
-          const s = boxes[u];
-          if (cx >= s.x && cx <= s.x + s.width && cy >= s.y && cy <= s.y + s.height) { inside = u; break; }
-        }
-        if (!inside) apart++;
+        const own = shapes[t.getAttribute('data-n')];
+        if (!own) { apart++; return; }
+        /* a hair inside, so a letter resting exactly on a wall is not a spill */
+        const ix = Math.min(b.width * 0.06, 0.4), iy = Math.min(b.height * 0.06, 0.4);
+        const corners = [[b.x + ix, b.y + iy], [b.x + b.width - ix, b.y + iy],
+                         [b.x + ix, b.y + b.height - iy], [b.x + b.width - ix, b.y + b.height - iy]];
+        const outside = corners.filter(c => {
+          const pt = svg.createSVGPoint(); pt.x = c[0]; pt.y = c[1];
+          return !own.isPointInFill(pt);
+        }).length;
+        if (outside) spill.push(t.getAttribute('data-n') + '(' + outside + '/4)');
       });
-      return { checked: checked, off: off, apart: apart, w: vb.width, h: vb.height };
+      return { checked: checked, off: off, apart: apart, spill: spill, w: vb.width, h: vb.height };
     });
     (placed.off === 0)
       ? okP('every one of the ' + placed.checked + ' shapes lands inside the drawing — ' +
            'none off the sheet')
       : badP(placed.off + ' shapes are outside the drawing: ' + JSON.stringify(placed));
-    (placed.apart <= 2)
-      ? okP('and every number stands inside a shop, not in a corridor — the two are ' +
-           'worked out separately and they agree')
-      : badP(placed.apart + ' numbers fall outside every shape');
+    (placed.apart === 0 && placed.spill.length === 0)
+      ? okP('and every label sits wholly inside its own shop — all four corners of ' +
+           'all ' + placed.checked + ' put to the outline itself, not to a box round it')
+      : badP((placed.apart ? placed.apart + ' labels belong to no shape. ' : '') +
+             (placed.spill.length ? placed.spill.length + ' spill out of their own shop: ' +
+              placed.spill.slice(0, 6).join(', ') : ''));
+
+    /* ── THE TAP LANDS ON THE SHOP, INCLUDING ON ITS NAME ────────────────
+       Reported from the phone: a shop answered in some places and not in
+       others, and took several tries. The label lies in the middle of the shop
+       and the cross lies across it, and both are drawn after it — so the
+       likeliest spot for a thumb was the one spot that did nothing. This asks
+       the page what is under the middle of every label, and then actually taps
+       one there. */
+    const under = await page.evaluate(() => {
+      const out = { wrong: [], checked: 0 };
+      document.querySelectorAll('#pv-in .over .n').forEach(t => {
+        const r = t.getBoundingClientRect();
+        if (r.width < 1 || r.bottom < 0 || r.top > innerHeight) return;   // off screen, not asked
+        out.checked++;
+        const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        const owner = hit && hit.closest ? hit.closest('[data-u]') : null;
+        if (!owner || owner.getAttribute('data-u') !== t.getAttribute('data-n')) {
+          out.wrong.push(t.getAttribute('data-n') + ' → ' + (owner ? owner.getAttribute('data-u') : (hit && hit.tagName)));
+        }
+      });
+      return out;
+    });
+    (under.checked > 5 && under.wrong.length === 0)
+      ? ok('the middle of every label on screen belongs to its own shop — ' +
+           under.checked + ' checked, none blocked by the text or the cross')
+      : bad(under.wrong.length + ' of ' + under.checked + ' labels are not tappable: ' +
+            under.wrong.slice(0, 5).join('; '));
 
     seen.listHidden
       ? ok('the chip list steps aside while the plan is up \u2014 it is one tap away')
@@ -233,15 +280,26 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
     /* ── the tap ─────────────────────────────────────────────────────────── */
     const free = F.units.find(u => u.s === 'available');
     const taken = gone[0];
-    const tap = await page.evaluate(no => {
-      const p = document.querySelector('#pv-in .over .u[data-u="' + no + '"]');
-      if (!p) return { err: 'no shape for ' + no };
-      p.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      return { open: document.getElementById('sheet').classList.contains('on'),
-               unit: (window.SHEET || {}).n };
+    /* A REAL TAP, ON THE NAME, WITH A REAL MOUSE. Dispatching a click straight
+       at the shape proves the handler works and nothing else — it walks past
+       whatever is lying on top, which is the bug that was reported. This aims
+       at the middle of the label, the way a thumb does. */
+    const spot = await page.evaluate(no => {
+      const t = document.querySelector('#pv-in .over .n[data-n="' + no + '"]');
+      if (!t) return null;
+      t.scrollIntoView({ block: 'center' });
+      const r = t.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
     }, free.n);
+    if (spot) await page.mouse.click(spot.x, spot.y);
+    await sleep(250);
+    const tap = spot ? await page.evaluate(() => ({
+      open: document.getElementById('sheet').classList.contains('on'),
+      unit: (window.SHEET || {}).n
+    })) : { err: 'no label for ' + free.n };
     (tap.open && tap.unit === free.n)
-      ? ok('tapping ' + free.n + ' on the drawing opens the same sheet a chip opens')
+      ? ok('tapping ' + free.n + ' — on its printed name, with a real mouse — opens ' +
+           'the same sheet a chip opens')
       : bad('the tap did not open the sheet: ' + JSON.stringify(tap));
     await page.screenshot({ path: path.join(OUT, 'b-plan-sheet.png') });
 
