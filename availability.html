@@ -172,7 +172,7 @@ button{cursor:pointer;background:none;border:0}
 /* ── floor chips ────────────────────────────────────────────────────────── */
 .fl{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .fl button{
-  padding:13px 15px 12px;border:0;border-radius:var(--r);
+  padding:11px 14px 10px;border:0;border-radius:var(--r);
   background:var(--card);text-align:left;min-height:70px;
   display:flex;flex-direction:column;justify-content:center;
   transition:background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
@@ -185,19 +185,19 @@ button{cursor:pointer;background:none;border:0}
    declared first shows the hover tint and the tactile answer is lost on
    every device that has a cursor. */
 .fl button:active{transform:scale(.975);background:var(--sunk)}
-.fl .fn{font-size:10.5px;font-weight:650;letter-spacing:.11em;text-transform:uppercase;
-        color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fl .fr{display:flex;align-items:baseline;gap:7px;margin-top:6px}
-.fl .fv{font-size:22px;font-weight:650;letter-spacing:-.02em;line-height:1.15}
+.fl .fn{font-size:14.5px;font-weight:650;letter-spacing:-.015em;line-height:1.25;
+        color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fl .fr{display:flex;align-items:baseline;gap:6px;margin-top:3px}
+.fl .fv{font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
 .fl .fc{font-size:11.5px;color:var(--mut);line-height:1.4}
 /* A floor with nothing free is not an error, it is just finished. It sinks
    rather than shouting. */
 .fl button.empty{background:var(--held-bg)}
 @media (hover:hover){ .fl button.empty:hover{background:var(--held-bg)} }
 .fl button.empty:active{background:var(--held-bg);transform:scale(.975)}
-.fl button.empty .fv{font-size:15px;font-weight:600;color:var(--held);letter-spacing:-.01em}
+.fl button.empty .fv{font-size:14.5px;font-weight:600;color:var(--held);letter-spacing:-.01em}
 .fl button.empty .fc{color:var(--held);opacity:.75}
-.fl button.empty .fn{color:var(--held);opacity:.75}
+.fl button.empty .fn{color:var(--held)}
 
 /* A BRIEF ENTRANCE, ONCE. Added by the first paint and taken off immediately,
    so a refetch two minutes later never repeats it. */
@@ -297,13 +297,14 @@ button{cursor:pointer;background:none;border:0}
 
 /* ── one floor ──────────────────────────────────────────────────────────── */
 .ft{display:flex;align-items:center;gap:10px;margin-bottom:2px}
-.bk{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 14px 0 11px;
-    margin-left:-11px;border-radius:var(--r);font-size:13.5px;color:var(--soft);
-    transition:background var(--t-fast) var(--ease)}
-@media (hover:hover){ .bk:hover{background:var(--sunk);color:var(--ink)} }
-.bk:active{background:var(--sunk);color:var(--ink)}
-.bk i{width:7px;height:7px;border-left:1.5px solid currentColor;
-      border-bottom:1.5px solid currentColor;transform:rotate(45deg);display:inline-block}
+.bk{display:inline-flex;align-items:center;gap:9px;height:44px;padding:0 16px 0 13px;
+    margin-left:0;border-radius:var(--r);background:var(--card);
+    font-size:15px;font-weight:650;letter-spacing:-.01em;color:var(--ink);
+    transition:background var(--t-fast) var(--ease),transform var(--t-fast) var(--ease)}
+@media (hover:hover){ .bk:hover{background:#FDFDFD} }
+.bk:active{background:var(--sunk);transform:scale(.97)}
+.bk i{width:8px;height:8px;border-left:2px solid currentColor;
+      border-bottom:2px solid currentColor;transform:rotate(45deg);display:inline-block}
 .fh{display:flex;align-items:baseline;gap:11px;margin:10px 0 18px;flex-wrap:wrap}
 .fh h1{margin:0;font-size:26px;font-weight:700;letter-spacing:-.028em;line-height:1.12}
 .fh span{font-size:12.5px;color:var(--mut)}
@@ -346,15 +347,17 @@ button{cursor:pointer;background:none;border:0}
    A different question from a floor, so a different chip: lighter, wider,
    and it says which floor it is not. */
 #allrow{margin-top:9px}
-.all-chip{width:100%;height:52px;padding:0 15px;border:0;border-radius:var(--r);
-          background:var(--sunk);text-align:left;
-          display:flex;align-items:center;gap:9px;
+.all-chip{width:100%;padding:12px 14px;border:0;border-radius:var(--r);
+          background:var(--card);text-align:left;
+          display:flex;align-items:center;gap:12px;
           transition:background var(--t-fast) var(--ease),transform var(--t-fast) var(--ease)}
-@media (hover:hover){ .all-chip:hover{background:#EAEAE9} }
-.all-chip:active{transform:scale(.985);background:#E6E6E5}
-.all-chip .ac-t{font-size:13.5px;font-weight:650;letter-spacing:-.01em;flex:none}
-.all-chip .ac-m{flex:1;min-width:0;font-size:12px;color:var(--mut);
-                overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (hover:hover){ .all-chip:hover{background:#FDFDFD} }
+.all-chip:active{transform:scale(.985);background:var(--sunk)}
+.all-chip .ac-w{flex:1;min-width:0}
+.all-chip .ac-t{display:block;font-size:14.5px;font-weight:650;letter-spacing:-.015em;
+                line-height:1.25;color:var(--ink)}
+.all-chip .ac-m{display:block;font-size:11.5px;color:var(--mut);line-height:1.4;
+                margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .all-chip .ac-m b{font-weight:650;color:var(--soft)}
 .all-chip .ac-x{flex:none;display:flex;align-items:center;color:var(--mut)}
 .all-chip .ac-x i{width:7px;height:7px;border-right:1.5px solid currentColor;
@@ -988,9 +991,11 @@ function renderHome() {
      and screen one has to stay whole on a phone. */
   $('allrow').innerHTML =
     '<button class="all-chip" data-all="1">' +
-      '<span class="ac-t">All units</span>' +
-      '<span class="ac-m"><b class="num">' + av + '</b> of ' +
-        '<span class="num">' + tot + '</span> \u00b7 every floor</span>' +
+      '<span class="ac-w">' +
+        '<span class="ac-t">All units</span>' +
+        '<span class="ac-m">Every floor in one list \u00b7 <b class="num">' + av +
+          '</b> of <span class="num">' + tot + '</span> available</span>' +
+      '</span>' +
       '<span class="ac-x"><i></i></span>' +
     '</button>';
 
