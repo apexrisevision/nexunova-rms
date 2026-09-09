@@ -133,8 +133,45 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
            ' crosses against ' + gone.length + ' taken units')
       : bad('crosses ' + seen.crosses + ', tinted ' + seen.off + ', taken ' + gone.length);
     (seen.names === seen.shapes)
-      ? ok('and every shop carries its number as real text, not as an outline')
-      : bad('numbers drawn: ' + seen.names + ' for ' + seen.shapes + ' shapes');
+      ? ok('and every shop carries its label as real text, not as an outline')
+      : bad('labels drawn: ' + seen.names + ' for ' + seen.shapes + ' shapes');
+
+    /* ── THE THREE LINES THE ARCHITECT PRINTED ───────────────────────────
+       The sheet writes the number, what the thing is and how big it is, one
+       under the other, and a dealer reads all three. They are painted from
+       the register rather than lifted off the drawing, so this asks the page
+       what it wrote and holds it against what the register says — the full
+       code (LG-85, not 85), the type in the tenant’s own words, and the area
+       with its unit. */
+    const labels = await page.evaluate(() => {
+      const out = {};
+      document.querySelectorAll('#pv-in .over .n').forEach(t => {
+        const l = [...t.querySelectorAll('tspan')].map(x => x.textContent);
+        if (l.length) out[l[0]] = l;
+      });
+      return out;
+    });
+    const fmt = a => Number(a).toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' sqft';
+    const wrong = F.units.filter(u => have.has(u.n)).filter(u => {
+      const l = labels[u.n];
+      return !l || l.length !== 3 ||
+             l[1] !== String(u.t || '').toUpperCase() ||
+             l[2] !== fmt(u.a);
+    });
+    (wrong.length === 0)
+      ? ok('and each one says its full code, its type and its size — e.g. ' +
+           (labels[F.units.find(u => have.has(u.n)).n] || []).join(' / '))
+      : bad(wrong.length + ' labels disagree with the register, first: ' + wrong[0].n +
+            ' → ' + JSON.stringify(labels[wrong[0].n]) + ' vs ' +
+            JSON.stringify([wrong[0].n, wrong[0].t, wrong[0].a]));
+
+    /* A type on the wire is worth nothing if it is somebody else’s idea of the
+       type: it comes from the tenant’s own category list, and the page must
+       not be inventing one when the register has none. */
+    const typed = F.units.filter(u => u.t).length;
+    (typed === F.units.length)
+      ? ok('every unit on the floor carries a type from the register (' + typed + ')')
+      : bad(F.units.length - typed + ' units reach the page with no type at all');
     /* ── AND THE SHAPES ARE WHERE THE ROOMS ARE ──────────────────────────
        Everything above passed once while every outline sat off the sheet at
        negative coordinates: the runs are pixels inside the tile the flood ran

@@ -355,9 +355,15 @@ button{cursor:pointer;background:none;border:0}
    paints a solid triangle over the shop instead of an X across it. */
 .pv .x{fill:none;stroke:var(--held);stroke-width:2;opacity:.9;
        vector-effect:non-scaling-stroke;stroke-linecap:round}
-.pv .n{font-size:5px;font-weight:650;fill:var(--soft);text-anchor:middle;
-       paint-order:stroke;stroke:#fff;stroke-width:1.4px;stroke-linejoin:round}
+/* The label is the architect's own block — number, what the thing is, how big
+   it is — and its size is set per shop in the markup, because a 500 sqft
+   corner and a 170 sqft strip cannot carry the same lettering. The halo is in
+   em so it thins with the text instead of swallowing it. */
+.pv .n{font-weight:650;fill:var(--soft);text-anchor:middle;
+       paint-order:stroke;stroke:#fff;stroke-width:.26em;stroke-linejoin:round}
+.pv .n .s{font-size:.78em;font-weight:600;fill:var(--muted)}
 .pv .n.off{fill:var(--held)}
+.pv .n.off .s{fill:var(--held);opacity:.85}
 .pv-b{display:flex;gap:8px;margin-top:12px;align-items:center}
 .pv-b button{height:38px;padding:0 14px;border-radius:var(--r);border:1px solid var(--line);
              background:var(--card);font-size:13px;font-weight:650;color:var(--soft)}
@@ -1658,6 +1664,40 @@ async function loadPlan(f) {
 /* One shape per unit, over the drawing. Available units are left open \u2014 the
    linework shows through and the tap area is invisible; anything gone is
    tinted and crossed. That is the whole legend, and it needs no key. */
+/* WHAT THE SHEET SAYS ABOUT A SHOP. The printed plan carries three things in
+   the middle of every shop — the number, what it is, and how big it is — and a
+   dealer reads all three together. All three are written here rather than
+   lifted off the drawing, because the drawing's lettering is traced outlines:
+   twelve megabytes for one floor, against one for the walls. Written from the
+   register, they are also current, which a printed sheet never is. */
+function unitLines(u) {
+  var out = [String(u.n)];
+  if (u.t) out.push(String(u.t).toUpperCase());
+  var a = area(u);
+  if (a) out.push(a);
+  return out;
+}
+
+/* Fitted to the shop it sits in, width and height both: a corner unit carries
+   full-size lettering and a narrow strip carries small lettering, the same way
+   the draughtsman did it. Nothing is dropped — a shop too small to read at
+   arm's length is still right under the zoom. */
+function labelBlock(lines, cx, cy, bw, bh, free) {
+  var W = 0;
+  lines.forEach(function (t, i) {
+    W = Math.max(W, t.length * 0.60 * (i ? 0.78 : 1));   // ~.60em per character
+  });
+  var fs = Math.min(bw * 0.86 / (W || 1), bh * 0.34, 5.2);
+  if (!(fs > 0)) return '';
+  fs = Math.max(fs, 1.15);
+  var y = [cy - 0.30 * fs, cy + 0.62 * fs, cy + 1.48 * fs];
+  return '<text class="n' + (free ? '' : ' off') + '" font-size="' + fs.toFixed(2) + '">' +
+    lines.map(function (t, i) {
+      return '<tspan' + (i ? ' class="s"' : '') + ' x="' + cx.toFixed(1) +
+             '" y="' + y[i].toFixed(1) + '">' + esc(t) + '</tspan>';
+    }).join('') + '</text>';
+}
+
 function paintPlan(plan, f) {
   var host = $('pv-in');
   var over = [], names = [];
@@ -1668,26 +1708,24 @@ function paintPlan(plan, f) {
     var d = 'M' + g.p.map(function (p) {
       return (p[0] * plan.w).toFixed(1) + ' ' + (p[1] * plan.h).toFixed(1);
     }).join('L') + 'Z';
+    /* the shop's own box, used twice: the cross is drawn across it and the
+       label is fitted inside it */
+    var xs = g.p.map(function (p) { return p[0]; }), ys = g.p.map(function (p) { return p[1]; });
+    var x0 = Math.min.apply(null, xs) * plan.w, x1 = Math.max.apply(null, xs) * plan.w;
+    var y0 = Math.min.apply(null, ys) * plan.h, y1 = Math.max.apply(null, ys) * plan.h;
+    var lines = unitLines(u);
     over.push('<path class="u' + (free ? '' : ' off') + '" d="' + d +
-              '" data-u="' + esc(u.n) + '"><title>' + esc(u.n) +
-              (free ? '' : ' \u2014 not available') + '</title></path>');
+              '" data-u="' + esc(u.n) + '"><title>' + esc(lines.join(' · ')) +
+              (free ? '' : ' — not available') + '</title></path>');
     if (!free) {
-      /* the cross sits on the unit's own box, so an L-shaped shop is crossed
-         across the part a thumb can see */
-      var xs = g.p.map(function (p) { return p[0]; }), ys = g.p.map(function (p) { return p[1]; });
-      var x0 = Math.min.apply(null, xs) * plan.w, x1 = Math.max.apply(null, xs) * plan.w;
-      var y0 = Math.min.apply(null, ys) * plan.h, y1 = Math.max.apply(null, ys) * plan.h;
+      /* an L-shaped shop is crossed across the part a thumb can see */
       over.push('<path class="x" d="M' + x0.toFixed(1) + ' ' + y0.toFixed(1) +
                 'L' + x1.toFixed(1) + ' ' + y1.toFixed(1) +
                 'M' + x1.toFixed(1) + ' ' + y0.toFixed(1) +
                 'L' + x0.toFixed(1) + ' ' + y1.toFixed(1) + '"/>');
     }
-    /* the number, as real text \u2014 the drawing's own lettering was traced
-       outlines and cost ten megabytes to carry */
-    names.push('<text class="n' + (free ? '' : ' off') + '" x="' +
-               (g.c[0] * plan.w).toFixed(1) + '" y="' +
-               (g.c[1] * plan.h + 1.8).toFixed(1) + '">' +
-               esc(String(u.n).replace(/^[A-Za-z0-9]+-/, '')) + '</text>');
+    names.push(labelBlock(lines, g.c[0] * plan.w, g.c[1] * plan.h,
+                          x1 - x0, y1 - y0, free));
   });
   host.innerHTML =
     '<div class="base">' + plan.svg + '</div>' +

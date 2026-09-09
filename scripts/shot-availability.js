@@ -104,7 +104,12 @@ function serve() {
     : bad('the payload still carries a price');
   const keys = new Set();
   payload.floors.forEach(f => f.units.forEach(u => Object.keys(u).forEach(k => keys.add(k))));
-  JSON.stringify([...keys].sort()) === JSON.stringify(['a', 'n', 's'])
+  /* Four, and no more: the number, the state, the area and the type. The
+     type joined them when the floor plan had to write the architect's own
+     label; everything else about a unit is still none of an outsider's
+     business. This list is a lock, not a description — a fifth key fails here
+     before anybody has to notice it on the page. */
+  JSON.stringify([...keys].sort()) === JSON.stringify(['a', 'n', 's', 't'])
     ? ok('a unit carries exactly: ' + [...keys].sort().join(', '))
     : bad('unexpected unit keys: ' + [...keys].sort().join(', '));
   const states = new Set();
