@@ -253,8 +253,17 @@ function serve() {
             'px of ' + settled.winH + 'px');
     console.log('     first visit, with the name card: ' + one.docH + 'px of ' +
                 one.winH + 'px — ' + Math.max(0, one.docH - one.winH) + 'px of scroll, once');
-    (one.docH - one.winH) <= 90
-      ? ok('and the first visit is at most a nudge (' + Math.max(0, one.docH - one.winH) + 'px)')
+    /* THE FIRST VISIT CARRIES TWO THINGS IT WILL NEVER CARRY AGAIN: the card
+       that asks the dealer's name, and \u2014 since Rashid asked for the doorway to
+       his own reservations at the head of the page \u2014 a card that on a first
+       visit can only say \u201cNothing yet\u201d. Neither is a thing anyone reads twice.
+
+       The promise this page makes is about the screen seen every day after,
+       and that is asserted above at 780 of 780. This one is bounded rather
+       than promised, so that a THIRD one-time card cannot be added quietly. */
+    (one.docH - one.winH) <= 140
+      ? ok('and the first visit is one screen and a little (' +
+           Math.max(0, one.docH - one.winH) + 'px, two one-time cards)')
       : bad('the first visit scrolls ' + (one.docH - one.winH) + 'px, which is a screenful');
     one.unitsInDom === 0
       ? ok('not one unit is in the document on screen one')
@@ -501,31 +510,39 @@ function serve() {
        This browser has made no requests at this point in the run, so this is
        the empty case, which is the one that was missing. */
     const door = await page.evaluate(() => {
-      const cards = [...document.querySelectorAll('#allrow .all-chip')];
-      const mine = document.querySelector('#allrow [data-mine]');
+      const mine = document.querySelector('#myq [data-mine]');
+      const all = document.querySelector('#allrow [data-mine]');
+      const hero = document.getElementById('hero');
       return {
-        cards: cards.length,
-        titles: cards.map(c => (c.querySelector('.ac-t') || {}).textContent.trim()),
+        title: mine ? (mine.querySelector('.ac-t') || {}).textContent.trim() : null,
         caption: mine ? (mine.querySelector('.ac-m') || {}).textContent.trim() : null,
-        sameRow: cards.length === 2 &&
-                 Math.abs(cards[0].getBoundingClientRect().top -
-                          cards[1].getBoundingClientRect().top) < 2,
+        /* ABOVE THE HEADLINE FIGURE. Rashid asked for it at the top, and "at
+           the top" is a position, not a wish \u2014 so it is measured against the
+           thing that used to be first. */
+        aboveHero: !!(mine && hero &&
+                      mine.getBoundingClientRect().top < hero.getBoundingClientRect().top),
+        /* AND ONLY ONCE ON THE PAGE. It used to be a panel at the top and a
+           card at the bottom showing the same report, which is what Rashid
+           called out. */
+        stillBelow: !!all,
+        band: document.querySelectorAll('#myq .myq-r').length,
         reqs: (window.REQS || []).length
       };
     });
-    (door.cards === 2 && door.titles.indexOf('My units') >= 0 && door.reqs === 0)
-      ? ok('a phone that has asked for nothing still has both doors: ' +
-           door.titles.join(' / '))
-      : bad('the My units card is not on screen one: ' + JSON.stringify(door));
-    door.sameRow
-      ? ok('side by side, so screen one keeps the fit it is built around')
-      : bad('the two cards are not on one row');
+    (door.title === 'My Reservations' && door.aboveHero && door.reqs === 0)
+      ? ok('a phone that has asked for nothing still finds the door, above the ' +
+           'headline figure: \u201c' + door.title + '\u201d')
+      : bad('the My Reservations card is not at the head of screen one: ' + JSON.stringify(door));
+    (!door.stillBelow && door.band === 0)
+      ? ok('and the page carries it ONCE \u2014 no second copy of the same report ' +
+           'lower down, and no list of requests at the top')
+      : bad('the report is still on the page twice: ' + JSON.stringify(door));
     /Nothing yet/.test(String(door.caption))
-      ? ok('and it says so rather than pretending \u2014 \u201c' + door.caption + '\u201d')
+      ? ok('it says so rather than pretending \u2014 \u201c' + door.caption + '\u201d')
       : bad('the empty caption reads ' + JSON.stringify(door.caption));
 
     const inside = await page.evaluate(() => {
-      document.querySelector('#allrow [data-mine]').click();
+      document.querySelector('#myq [data-mine]').click();
       return { open: !document.getElementById('mine').hidden,
                home: document.getElementById('home').hidden,
                text: document.getElementById('mine-body').innerText,
@@ -547,7 +564,7 @@ function serve() {
     const allOpen = await page.evaluate(() => {
       document.getElementById('back') && document.getElementById('back').click();
       const t0 = performance.now();
-      document.querySelector('.all-chip').click();
+      document.querySelector('#allrow [data-all]').click();
       /* Forced: reading offsetHeight makes the browser finish the layout it
          would otherwise defer, so the number is the real cost and not the
          time it took to assign a string. */
@@ -1916,7 +1933,12 @@ function serve() {
           const seen = await dp.evaluate(async () => {
             await refreshMyReqs();
             await new Promise(r => setTimeout(r, 300));
-            return document.getElementById('myq').innerText;
+            /* THE REPORT MOVED. It was six rows at the top of screen one; it
+               is a screen of its own behind the card now, so this reads it
+               there \u2014 the same builder draws it, and it is the only copy. */
+            const c = document.querySelector('#myq [data-mine]');
+            if (c) c.click();
+            return document.getElementById('mine-body').innerText;
           });
           /Declined by Management/.test(seen)
             ? okU2('a decline reaches the dealer\u2019s page as \u201cDeclined by Management\u201d')
@@ -1935,10 +1957,10 @@ function serve() {
              from holds still standing: one approved, one declined, so the
              summary has to say ONE. */
           const mine = await dp.evaluate(() => ({
-            head: (document.querySelector('#myq .myq-s .n') || {}).textContent || '',
-            tags: [...document.querySelectorAll('#myq .myq-t span')].map(x => x.textContent.replace(/\s+/g, ' ').trim()),
-            clock: (document.querySelector('#myq .myq-w') || {}).textContent || '',
-            rows: document.querySelectorAll('#myq .myq-r').length,
+            head: (document.querySelector('#mine .myq-s .n') || {}).textContent || '',
+            tags: [...document.querySelectorAll('#mine .myq-t span')].map(x => x.textContent.replace(/\s+/g, ' ').trim()),
+            clock: (document.querySelector('#mine .myq-w') || {}).textContent || '',
+            rows: document.querySelectorAll('#mine .myq-r').length,
             summary: (window.mySummary ? mySummary() : null)
           }));
 
@@ -1970,7 +1992,7 @@ function serve() {
           const ownScreen = await dp.evaluate(() => {
             const b = document.getElementById('back');
             if (b) b.click();
-            const card = document.querySelector('#allrow [data-mine]');
+            const card = document.querySelector('#myq [data-mine]');
             const caption = card ? (card.querySelector('.ac-m') || {}).textContent.trim() : null;
             const badge = card ? (card.querySelector('.ac-n') || {}).textContent.trim() : null;
             if (card) card.click();
@@ -2021,7 +2043,12 @@ function serve() {
           const undone = await dp.evaluate(async () => {
             await refreshMyReqs();
             await new Promise(r => setTimeout(r, 300));
-            return document.getElementById('myq').innerText;
+            /* THE REPORT MOVED. It was six rows at the top of screen one; it
+               is a screen of its own behind the card now, so this reads it
+               there \u2014 the same builder draws it, and it is the only copy. */
+            const c = document.querySelector('#myq [data-mine]');
+            if (c) c.click();
+            return document.getElementById('mine-body').innerText;
           });
           (/Hold ended/.test(undone) && !/Reserved for you/.test(undone))
             ? okU2('undoing the reservation turns the dealer’s row into “Hold ended”')
@@ -2037,10 +2064,10 @@ function serve() {
              unit go is the same lie the row used to tell, moved to a bigger
              typeface. */
           const after2 = await dp.evaluate(() => ({
-            strip: !!document.querySelector('#myq .myq-s'),
-            head: (document.querySelector('#myq .myq-s .n') || {}).textContent || '',
-            clock: (document.querySelector('#myq .myq-w') || {}).textContent || '',
-            rows: document.querySelectorAll('#myq .myq-r').length
+            strip: !!document.querySelector('#mine .myq-s'),
+            head: (document.querySelector('#mine .myq-s .n') || {}).textContent || '',
+            clock: (document.querySelector('#mine .myq-w') || {}).textContent || '',
+            rows: document.querySelectorAll('#mine .myq-r').length
           }));
           /* The strip itself stays while a request is still waiting \u2014 it has
              something true to say. What must not survive is the COUNT and the

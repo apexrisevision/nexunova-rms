@@ -364,16 +364,15 @@ button{cursor:pointer;background:none;border:0}
 
 /* ── the whole building ──────────────────────────────────────────────────
    A different question from a floor, so a different chip: lighter, wider,
-   and it says which floor it is not. */
-/* TWO DOORWAYS, SIDE BY SIDE. A panel that appears only once you have asked
-   for something is a panel nobody can find before they have asked \u2014 Rashid
-   opened the link looking for his report and there was nothing on the screen
-   to open. It sits beside All units now, always, and says what it holds.
+/* MY RESERVATIONS, AT THE TOP. It was a panel that listed the newest six
+   requests, and below it a card that opened a screen listing all of them — the
+   same report twice, and the top copy the less useful one. The panel is gone
+   and the card took its place at the head of the screen, where the one thing a
+   dealer opens this page to check now sits above everything else.
 
-   Side by side rather than stacked because screen one fits 780px exactly, and
-   a fourth row would have cost the fit that the whole first screen is built
-   around. */
-#allrow{margin-top:9px;display:grid;grid-template-columns:1fr 1fr;gap:9px}
+   Slim on purpose: it is a doorway, not the report. */
+#myq{margin-bottom:16px}
+#allrow{margin-top:9px}
 .all-chip .ac-n{display:inline-flex;align-items:center;justify-content:center;
                 min-width:18px;height:18px;padding:0 5px;margin-left:6px;
                 border-radius:999px;background:var(--ink);color:var(--card);
@@ -696,7 +695,7 @@ button{cursor:pointer;background:none;border:0}
        says, and says them when there is nothing to say too. -->
   <section id="mine" hidden>
     <div class="ft"><button class="bk" id="mine-back"><i></i>All floors</button></div>
-    <div class="fh"><h1>My units</h1></div>
+    <div class="fh"><h1>My Reservations</h1></div>
     <div id="mine-body"></div>
   </section>
 
@@ -941,22 +940,42 @@ function mySummary() {
              return stateOf(r) === 'held' && !r.until; }).length };
 }
 
+/* THE DOORWAY, at the head of screen one and on every visit. It used to be the
+   report itself, six rows of it, with a card lower down that opened the same
+   report in full — one page carrying the same thing twice. What is left here is
+   the count and the way in; the report lives on its own screen. */
 function paintMyReqs() {
   var box = $('myq');
   if (!box) return;
-  if (!REQS.length) { box.hidden = true; box.innerHTML = ''; return; }
+  var M = mySummary();
   box.hidden = false;
-  box.className = 'myq';
-  /* Bound once. paintMyReqs runs on every refetch and a listener per paint
-     would fire the fifth ask five times. */
-  if (!box.__askBound) { box.addEventListener('click', _myqClick); box.__askBound = true; }
-  box.innerHTML = myqHTML(false);
+  box.className = '';
+  if (!box.__mineBound) {
+    box.addEventListener('click', function (e) {
+      if (!e.target.closest('[data-mine]')) return;
+      MINEV = true; ALLV = false; FLOOR = null; renderMine(); window.scrollTo(0, 0);
+    });
+    box.__mineBound = true;
+  }
+  box.innerHTML =
+    '<button class="all-chip" data-mine="1">' +
+      '<span class="ac-w">' +
+        '<span class="ac-t">My Reservations' +
+          (M.held ? '<span class="ac-n num">' + M.held + '</span>' : '') + '</span>' +
+        '<span class="ac-m">' +
+          (M.held
+            ? 'With you' + (M.pending ? ' \u00b7 ' + M.pending + ' waiting' : '')
+            : (M.pending ? M.pending + ' waiting for an answer' : 'Nothing yet')) +
+        '</span>' +
+      '</span>' +
+      '<span class="ac-x"><i></i></span>' +
+    '</button>';
 }
 
 /* The band on screen one and the screen of its own draw the SAME thing. Two
    copies of this markup is two places for the wording to drift, and the two
    are read within a thumb's travel of each other. */
-function myqHTML(full) {
+function myqHTML() {
   var S = mySummary();
   var L = S.soonest ? leftSay(new Date(S.soonest.t).toISOString()) : null;
 
@@ -990,9 +1009,9 @@ function myqHTML(full) {
         '</div>'
       : '') +
     '<div class="myq-h">Your requests</div>' +
-    /* The band on screen one shows the newest six — it is a notice, not a
-       ledger. The screen of its own shows every one of them. */
-    (full ? REQS : REQS.slice(0, 6)).map(function (r) {
+    /* Every one of them. There is no shortened copy of this anywhere else on
+       the page any more, so nothing here is a preview of anything. */
+    REQS.map(function (r) {
       var st = stateOf(r);
       /* A HELD UNIT CAN STILL NEED SOMETHING. The deal matures, and until now
          the link had nothing to say about a unit that was already theirs — it
@@ -1159,7 +1178,7 @@ function renderMine() {
       'and how long before a hold releases itself.</div>';
     return;
   }
-  body.innerHTML = '<div class="myq">' + myqHTML(true) + '</div>' +
+  body.innerHTML = '<div class="myq">' + myqHTML() + '</div>' +
     '<div class="mine-n">This is what has been asked for from this phone. ' +
     'The desk holds the record.</div>';
 }
@@ -1197,7 +1216,6 @@ function renderHome() {
   $('home').hidden = false;
   if (BACKING) { BACKING = false; playScr($('home'), 'scr-out'); }
 
-  var M = mySummary();
   var tot = 0, av = 0;
   $('floors').innerHTML = (P.floors || []).map(function (f, i) {
     tot += Number(f.total || 0); av += Number(f.available || 0);
@@ -1222,21 +1240,8 @@ function renderHome() {
     '<button class="all-chip" data-all="1">' +
       '<span class="ac-w">' +
         '<span class="ac-t">All units</span>' +
-        '<span class="ac-m">Every floor \u00b7 <b class="num">' + av + '</b> free</span>' +
-      '</span>' +
-      '<span class="ac-x"><i></i></span>' +
-    '</button>' +
-    /* ALWAYS THERE, whether or not this phone has asked for anything. The
-       count is the news; the card is the way in. */
-    '<button class="all-chip" data-mine="1">' +
-      '<span class="ac-w">' +
-        '<span class="ac-t">My units' +
-          (M.held ? '<span class="ac-n num">' + M.held + '</span>' : '') + '</span>' +
-        '<span class="ac-m">' +
-          (M.held
-            ? 'With you' + (M.pending ? ' \u00b7 ' + M.pending + ' waiting' : '')
-            : (M.pending ? M.pending + ' waiting for an answer' : 'Nothing yet')) +
-        '</span>' +
+        '<span class="ac-m">Every floor in one list \u00b7 <b class="num">' + av +
+          '</b> of <span class="num">' + tot + '</span> available</span>' +
       '</span>' +
       '<span class="ac-x"><i></i></span>' +
     '</button>';
@@ -2021,10 +2026,6 @@ $('floors').addEventListener('click', function (e) {
 /* The chip lives inside the floor grid, so its click arrives on the same
    listener; it is read first because it carries no data-f. */
 $('allrow').addEventListener('click', function (e) {
-  if (e.target.closest('[data-mine]')) {
-    MINEV = true; ALLV = false; FLOOR = null; renderMine(); window.scrollTo(0, 0);
-    return;
-  }
   if (!e.target.closest('[data-all]')) return;
   ALLV = true; FLOOR = null; renderAll(); window.scrollTo(0, 0);
 });
