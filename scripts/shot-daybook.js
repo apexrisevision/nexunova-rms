@@ -154,6 +154,7 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
 
     console.log('\n\u2500\u2500 A booking survives its own tag');
     {
+      const sayo0 = rows => (rows && rows[0]) || {};
       const okT = m => console.log('  \u2705 ' + m);
       const badT = m => { console.log('  \u274C ' + m); FAILED = true; };
       /* One transaction, rolled back. Nothing below reaches Awami. */
@@ -411,6 +412,35 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       rf.junk_err === 'bad_nature'
         ? okT('a nature the system does not have is refused rather than stored')
         : badT('an invented nature was accepted: ' + JSON.stringify(rf));
+
+      /* Publication may only sit on a status the desk can apply, and a check
+         constraint holds that. The Categories form does not send the flag at
+         all, so clearing a nature there would have left it standing and the
+         save would have failed on a constraint message nobody editing a form
+         could act on. The flag follows the nature down instead. */
+      const unpub = await sql(`
+        BEGIN;
+        SELECT set_config('request.jwt.claims',
+          json_build_object('sub',(SELECT auth_user_id::text FROM public.app_users
+                                    WHERE company_id='96d210e7-e63b-4ef0-b1d0-74e622eac7ce'
+                                      AND auth_user_id IS NOT NULL LIMIT 1),
+            'role','authenticated')::text, true);
+        CREATE TEMP TABLE up1 ON COMMIT DROP AS
+          SELECT public.upsert_unit_status(
+            '96d210e7-e63b-4ef0-b1d0-74e622eac7ce',
+            jsonb_build_object('nature','none'),
+            (SELECT id FROM public.category_unit_statuses
+              WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9'
+                AND status_code='HOLD')) AS r;
+        SELECT (SELECT r->>'success' FROM up1) AS saved,
+               nature IS NULL AS nature_cleared, public_choice AS still_published
+          FROM public.category_unit_statuses
+         WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code='HOLD';
+        ROLLBACK;`);
+      const up = (unpub && unpub[0]) || {};
+      (up.saved === 'true' && up.nature_cleared === true && up.still_published === false)
+        ? okT('and taking a nature away unpublishes it from the link, rather than failing the save')
+        : badT('clearing a nature left it published: ' + JSON.stringify(up));
 
       const leftNat = Number((await sql(`select count(*)::int n
           from public.category_unit_statuses
@@ -954,6 +984,94 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       c0.no_expiry === true
         ? okT('and a permanent tag takes its expiry away, the same as booking one outright')
         : badT('the changed hold kept an expiry: ' + JSON.stringify(c0));
+
+      /* ══ THE DEALER SAYS WHAT THEY MEAN, AND STILL DECIDES NOTHING ═══════
+         The link used to ask only for days. It now offers the statuses this
+         project has published — Reserve, Hold, Sold — and carries the answer
+         as an ASK. Three things have to hold at once: only a published status
+         may be named, a permanent one takes no days, and none of it is
+         applied until a director taps Approve. */
+      const say = await sql(`
+        BEGIN;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','${DIR}','59ded55b-9bc2-45b2-a372-49fc31807fa9','dbshot_say', now() + interval '5 minutes');
+        CREATE TEMP TABLE lk4 ON COMMIT DROP AS SELECT
+          (public.create_availability_link('dbshot_say','59ded55b-9bc2-45b2-a372-49fc31807fa9','say probe')->>'token') AS tok;
+
+        CREATE TEMP TABLE fu ON COMMIT DROP AS
+          SELECT u.unit_no FROM public.units u
+            JOIN public.category_unit_statuses st ON st.id=u.status_id
+           WHERE u.project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND st.is_available
+             AND NOT EXISTS (SELECT 1 FROM public.availability_requests x
+                              WHERE x.unit_id=u.id AND x.status='pending')
+           ORDER BY u.unit_no DESC LIMIT 2;
+
+        CREATE TEMP TABLE sayo(step text, r jsonb) ON COMMIT DROP;
+
+        /* a status that exists but is NOT published to the link */
+        INSERT INTO sayo SELECT 'asking for something unpublished',
+          public.submit_availability_request((SELECT tok FROM lk4),
+            (SELECT unit_no FROM fu LIMIT 1), 3, 'Field Rep',
+            (SELECT id FROM public.category_unit_statuses
+              WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code='LANDOWNER'));
+
+        /* and the real SOLD, which has no nature and can never be published */
+        INSERT INTO sayo SELECT 'asking for SOLD itself',
+          public.submit_availability_request((SELECT tok FROM lk4),
+            (SELECT unit_no FROM fu LIMIT 1), 3, 'Field Rep',
+            (SELECT id FROM public.category_unit_statuses
+              WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code='SOLD'));
+
+        /* the published permanent one, asked with days it must not keep */
+        INSERT INTO sayo SELECT 'asking for Sold - Entry Pending',
+          public.submit_availability_request((SELECT tok FROM lk4),
+            (SELECT unit_no FROM fu LIMIT 1), 30, 'Field Rep',
+            (SELECT id FROM public.category_unit_statuses
+              WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code='SOLD_ENTRY_PENDING'));
+
+        SELECT (SELECT r->>'error' FROM sayo WHERE step='asking for something unpublished') AS unpub_err,
+               (SELECT r->>'error' FROM sayo WHERE step='asking for SOLD itself') AS sold_err,
+               (SELECT r->>'success' FROM sayo WHERE step='asking for Sold - Entry Pending') AS asked_ok,
+               (SELECT r->>'asked' FROM sayo WHERE step='asking for Sold - Entry Pending') AS asked_label,
+               (SELECT x.days IS NULL FROM public.availability_requests x
+                 WHERE x.ref=(SELECT r->>'ref' FROM sayo
+                               WHERE step='asking for Sold - Entry Pending')) AS days_dropped,
+               (SELECT a.status_code FROM public.availability_requests x
+                  JOIN public.category_unit_statuses a ON a.id = x.asked_status_id
+                 WHERE x.ref=(SELECT r->>'ref' FROM sayo
+                               WHERE step='asking for Sold - Entry Pending')) AS remembered,
+               /* nothing is held yet: an ask is not a decision */
+               (SELECT count(*)::int FROM public.reservations rr
+                 WHERE rr.unit_id=(SELECT u2.id FROM public.units u2
+                                    WHERE u2.unit_no=(SELECT unit_no FROM fu LIMIT 1)
+                                      AND u2.project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9')
+                   AND rr.status='active') AS booked_already,
+               (SELECT q->>'asked_tag' FROM jsonb_array_elements(
+                  public.list_reservation_requests('dbshot_say','59ded55b-9bc2-45b2-a372-49fc31807fa9')->'requests') q
+                 WHERE q->>'ref'=(SELECT r->>'ref' FROM sayo
+                                   WHERE step='asking for Sold - Entry Pending')) AS desk_sees;
+        ROLLBACK;`);
+      const sy = sayo0(say);
+
+      sy.unpub_err === 'bad_choice'
+        ? okT('a status this link does not publish cannot be asked for')
+        : badT('an unpublished status was accepted: ' + JSON.stringify(sy));
+      sy.sold_err === 'bad_choice'
+        ? okT('and SOLD itself never can be \u2014 it has no nature, so it could never be granted')
+        : badT('SOLD was accepted as an ask: ' + JSON.stringify(sy));
+      (sy.asked_ok === 'true' && sy.asked_label === 'Sold')
+        ? okT('what IS published is accepted, under the word the dealer sees: \u201c' +
+              sy.asked_label + '\u201d')
+        : badT('the published choice was refused: ' + JSON.stringify(sy));
+      (sy.days_dropped === true && sy.remembered === 'SOLD_ENTRY_PENDING')
+        ? okT('the 30 days sent with it are dropped, and the ask itself is remembered')
+        : badT('a permanent ask kept its days: ' + JSON.stringify(sy));
+      Number(sy.booked_already) === 0
+        ? okT('and NOTHING is held by asking \u2014 the tag waits for Approve, as it always did')
+        : badT('asking booked the unit: ' + JSON.stringify(sy));
+      sy.desk_sees === 'Sold'
+        ? okT('the desk sees what was asked for, on the card, before it decides')
+        : badT('the desk cannot see the ask: ' + JSON.stringify(sy));
     }
 
     console.log('\n\u2500\u2500 On-screen daybook \u2014 the same day, told the same way');

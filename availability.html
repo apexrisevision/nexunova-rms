@@ -427,6 +427,19 @@ button{cursor:pointer;background:none;border:0}
 
 .sh-l{font-size:10.5px;font-weight:650;letter-spacing:.11em;text-transform:uppercase;
       color:var(--mut);margin:24px 0 10px}
+/* What the dealer is asking for. Sits above the duration because it decides
+   whether there is a duration at all. */
+.ask-k{display:flex;gap:8px;flex-wrap:wrap}
+.ask-k button{flex:1;min-width:88px;height:46px;border:1px solid var(--line);
+              border-radius:var(--r);background:var(--card);font-size:13.5px;
+              font-weight:600;color:var(--soft);
+              transition:background var(--t-fast) var(--ease),
+                         border-color var(--t-fast) var(--ease),
+                         transform var(--t-fast) var(--ease)}
+.ask-k button:active{transform:scale(.96)}
+.ask-k button.on{border-color:var(--ink);background:var(--ink);color:var(--card)}
+.ask-n{margin-top:10px;font-size:12.5px;color:var(--mut);line-height:1.55}
+
 .dur{display:flex;gap:8px}
 .dur button{flex:1;height:46px;border:1px solid var(--line);border-radius:var(--r);
             background:var(--card);font-size:13.5px;font-weight:600;color:var(--soft);
@@ -805,7 +818,8 @@ function paintMyReqs() {
       var canAsk = (st === 'held' && r.kind !== 'change');
       return '<div class="myq-r">' +
         '<span class="u">' + esc(r.unit) + '</span>' +
-        '<span class="d">' + esc(r.days) + ' day' + (r.days === 1 ? '' : 's') +
+        '<span class="d">' + (r.days == null ? esc(r.asked || 'No end date')
+                             : esc(r.days) + ' day' + (r.days === 1 ? '' : 's')) +
           '  \u00b7  ' + esc(initials(P && P.project)) + '-REQ-' + esc(r.ref) + '</span>' +
         '<span class="s s-' + esc(st) + '">' + esc(SAYS[st] || st) + '</span>' +
       '</div>' +
@@ -889,6 +903,7 @@ async function refreshMyReqs() {
       var st = got.state || got.status;
       if (st && st !== stateOf(x)) { x.state = st; x.status = got.status; changed = true; }
       if (got.held_until !== x.until) { x.until = got.held_until || null; changed = true; }
+      if (got.asked && got.asked !== x.asked) { x.asked = got.asked; changed = true; }
     });
     if (changed) { writeReqs(REQS); paintMyReqs(); }
   } catch (e) { /* the receipt can wait; the board matters more */ }
@@ -1197,6 +1212,20 @@ function runSearch() {
    written, so the number in the WhatsApp message is the number the desk holds.
    A ref invented in the browser was a number nobody could look up. */
 /* Is this duration one of the chips, or something the rep typed? */
+/* WHAT MAY BE ASKED FOR, and it is the server's list. A project that
+   publishes nothing gets the sheet exactly as it was: a unit and a number of
+   days, with the desk deciding what to call it. */
+function choices() { return (P && P.choices) || []; }
+function chosen() {
+  var c = choices();
+  if (!c.length) return null;
+  for (var i = 0; i < c.length; i++) if (c[i].id === (SHEET && SHEET.choice)) return c[i];
+  return c[0];
+}
+/* A permanent ask has no duration — that is the whole difference between
+   "hold it for me" and "this one is gone". */
+function askNeedsDays() { var t = chosen(); return !t || t.nature !== 'permanent'; }
+
 function CUSTOM(d) { return [1, 3, 7].indexOf(Number(d)) < 0; }
 
 /* One place decides which control is lit, so a chip and the box can never
@@ -1223,7 +1252,11 @@ function openSheet(unitNo, floorIdx) {
   var u = (f.units || []).filter(function (x) { return x.n === unitNo; })[0];
   /* Tapping an unavailable unit does nothing at all — no sheet, no message. */
   if (!u || u.s !== 'available') return;
-  SHEET = { n: unitNo, fi: floorIdx, days: 7, ref: null };
+  var c0 = choices()[0];
+  SHEET = { n: unitNo, fi: floorIdx, days: 7, ref: null,
+            choice: c0 ? c0.id : null };
+  if (c0 && c0.nature === 'permanent') SHEET.days = null;
+  else if (c0 && c0.days) SHEET.days = Number(c0.days);
   paintSheet();
   $('scrim').classList.add('on');
   $('sheet').classList.add('on');
@@ -1253,7 +1286,11 @@ function message() {
   L.push('Unit: ' + SHEET.n);
   L.push('Floor: ' + f.floor_label);
   L.push('Size: ' + (u ? area(u) : '—'));
-  L.push('Duration: ' + SHEET.days + ' day' + (SHEET.days === 1 ? '' : 's'));
+  var t = chosen();
+  if (t) L.push('Asking for: ' + t.label);
+  if (askNeedsDays()) {
+    L.push('Duration: ' + SHEET.days + ' day' + (SHEET.days === 1 ? '' : 's'));
+  }
   if (NAME) L.push('Requested by: ' + NAME);
   L.push('');
   L.push('Please confirm.');
@@ -1275,7 +1312,18 @@ function paintSheet() {
     (gone
       ? '<div class="gone">This unit is no longer available. It was taken while ' +
         'this was open.</div>'
-      : '<div class="sh-l">Hold for</div>' +
+      : (choices().length > 1
+          ? '<div class="sh-l">What do you need?</div>' +
+            '<div class="ask-k" id="ask-k">' +
+              choices().map(function (c) {
+                return '<button data-c="' + esc(c.id) + '"' +
+                  (chosen() && chosen().id === c.id ? ' class="on"' : '') + '>' +
+                  esc(c.label) + '</button>';
+              }).join('') +
+            '</div>'
+          : '') +
+        (askNeedsDays()
+          ? '<div class="sh-l">Hold for</div>' +
         '<div class="dur" id="dur">' +
           [1, 3, 7].map(function (d) {
             return '<button data-d="' + d + '"' + (SHEET.days === d ? ' class="on"' : '') +
@@ -1286,7 +1334,10 @@ function paintSheet() {
           '<input id="dcust" inputmode="numeric" maxlength="2" placeholder="\u2026" ' +
             'title="Any number of days, 1 to 90" ' +
             (CUSTOM(SHEET.days) ? 'class="on" value="' + SHEET.days + '"' : '') + '>' +
-        '</div>') +
+        '</div>'
+          /* Nothing greyed out and nothing to ignore: a permanent ask simply
+             does not have a duration, so the question is not on the screen. */
+          : '<div class="ask-n">No end date \u2014 the desk decides and confirms.</div>')) +
 
 
     '<div class="acts">' +
@@ -1300,13 +1351,18 @@ function paintSheet() {
      still needs a way out of this sheet. */
   var cxb = $('cx'); if (cxb) cxb.onclick = closeSheet;
   if (!gone) {
-    $('dur').onclick = function (e) {
+    /* GUARDED, because a permanent ask has no duration and therefore no
+       #dur to wire. Unguarded it threw here and took every listener below
+       it with it — including the choice row, so the sheet stopped
+       responding the moment somebody picked Sold. */
+    var durb = $('dur');
+    if (durb) durb.onclick = function (e) {
       var b = e.target.closest('button[data-d]'); if (!b) return;
       SHEET.days = Number(b.getAttribute('data-d'));
       var cu = $('dcust'); if (cu) { cu.value = ''; cu.classList.remove('on'); }
       markDur();
     };
-    var cust = $('dcust');
+    var cust = durb ? $('dcust') : null;
     if (cust) cust.addEventListener('input', function () {
       /* Out of range does not silently become something else: the box keeps
          what was typed until it is a number this can honour, and the chips
@@ -1323,6 +1379,17 @@ function paintSheet() {
     });
     /* One action. It registers the request and hands the dealer the message
        in the same tap — there is nothing else here to press. */
+    var kb = $('ask-k');
+    if (kb) kb.onclick = function (e) {
+      var b = e.target.closest('button[data-c]'); if (!b) return;
+      SHEET.choice = b.getAttribute('data-c');
+      var t = chosen();
+      /* Each choice brings its own default: a permanent one has none, and a
+         timed one arrives on the number the tenant set for it. */
+      SHEET.days = (t && t.nature === 'permanent') ? null
+                 : Number((t && t.days) || 7);
+      paintSheet();
+    };
     $('wa').onclick = function () { requestAndSend('wa'); };
   }
 }
@@ -1342,12 +1409,18 @@ async function submitRequest() {
   if (!SHEET) return null;
   try {
     var r = await sb.rpc('submit_availability_request', {
-      p_token: TOKEN, p_unit_no: SHEET.n, p_days: SHEET.days, p_name: NAME || null });
+      p_token: TOKEN, p_unit_no: SHEET.n, p_days: SHEET.days, p_name: NAME || null,
+      /* An ASK, not a decision. The server re-derives it against this link's
+         own project and a director still applies it. */
+      p_status_id: SHEET.choice || null });
     var d = r && r.data;
     if (d && d.success) {
       SHEET.ref = d.ref;
       var list = readReqs().filter(function (x) { return x.ref !== d.ref; });
-      list.unshift({ ref: d.ref, unit: SHEET.n, days: SHEET.days, status: 'pending' });
+      list.unshift({ ref: d.ref, unit: SHEET.n, days: SHEET.days, status: 'pending',
+                     /* kept beside the ref so a permanent ask, which has no
+                        number of days, still reads as a sentence here. */
+                     asked: d.asked || null });
       REQS = list; writeReqs(list); paintMyReqs();
       return { ok: true, already: !!d.already };
     }

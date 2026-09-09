@@ -1247,7 +1247,11 @@
           '<div class="rq-by">' +
             (r.requested_by ? '<b>' + esc(r.requested_by) + '</b>' :
               '<span class="rq-m">no name given</span>') +
-            ' \u00b7 ' + esc(r.days) + ' day' + (Number(r.days) === 1 ? '' : 's') +
+            /* A permanent ask has no duration, and " ·  day" is not a
+               sentence. It names what was asked for instead. */
+            (r.days == null
+              ? (r.asked_tag ? ' · ' + esc(r.asked_tag) : '')
+              : ' · ' + esc(r.days) + ' day' + (Number(r.days) === 1 ? '' : 's')) +
             ' \u00b7 <span class="rq-m">' + esc(r.ref) + '</span>' +
           '</div>' +
           /* Say it BEFORE the tap. Approving a unit that has gone fails, and a

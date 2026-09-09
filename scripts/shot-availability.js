@@ -676,6 +676,65 @@ function serve() {
     await page.screenshot({ path: path.join(OUT, 'd-request-sheet.png') });
     fs.writeFileSync(path.join(OUT, 'd-message.txt'), M);
 
+    /* ── WHAT THE DEALER IS ASKING FOR ────────────────────────────────────
+       The sheet used to ask one thing: how many days. It now asks which of
+       the statuses this project has PUBLISHED — Reserve, Hold, Sold on Awami
+       — and a permanent one has no duration at all, so the question is not on
+       the screen rather than greyed out on it.
+
+       It remains an ASK. Nothing here decides: the tag is applied by a
+       director tapping Approve, which is the only reason a link that can be
+       forwarded to anybody may carry this at all. */
+    const kinds = await page.evaluate(() => {
+      const read = () => ({
+        labels: [...document.querySelectorAll('#ask-k button')].map(b => b.textContent.trim()),
+        on: (document.querySelector('#ask-k button.on') || {}).textContent || '',
+        days: !!document.getElementById('dur'),
+        note: (document.querySelector('.ask-n') || {}).textContent || '',
+        msg: message()
+      });
+      const first = read();
+      const press = label => {
+        const b = [...document.querySelectorAll('#ask-k button')]
+          .find(x => x.textContent.trim() === label);
+        if (!b) return null;
+        b.click();
+        return read();
+      };
+      return { first, sold: press('Sold'), hold: press('Hold') };
+    });
+
+    JSON.stringify(kinds.first.labels) === JSON.stringify(['Reserve', 'Hold', 'Sold'])
+      ? ok('the sheet offers what this project publishes: ' + kinds.first.labels.join(' / '))
+      : bad('the choices are ' + JSON.stringify(kinds.first.labels));
+    (kinds.first.on === 'Reserve' && kinds.first.days)
+      ? ok('Reserve is chosen to begin with, and it asks how long')
+      : bad('the opening choice is wrong: ' + JSON.stringify(kinds.first));
+    (kinds.sold && !kinds.sold.days && /no end date/i.test(kinds.sold.note))
+      ? ok('Sold takes the duration away entirely \u2014 \u201c' +
+           kinds.sold.note.trim() + '\u201d')
+      : bad('Sold still asks for days: ' + JSON.stringify(kinds.sold));
+    (kinds.hold && kinds.hold.days && kinds.hold.on === 'Hold')
+      ? ok('and going back to Hold brings the days question back')
+      : bad('Hold did not restore the duration: ' + JSON.stringify(kinds.hold));
+
+    /* The message has to say the same thing the desk will read. */
+    (kinds.sold && /^Asking for: Sold$/m.test(kinds.sold.msg) &&
+     !/^Duration:/m.test(kinds.sold.msg))
+      ? ok('the WhatsApp message says \u201cAsking for: Sold\u201d and carries no duration')
+      : bad('the message for a permanent ask is wrong: ' +
+            JSON.stringify(String(kinds.sold && kinds.sold.msg).slice(0, 120)));
+    (kinds.hold && /^Asking for: Hold$/m.test(kinds.hold.msg) &&
+     /^Duration: \d+ days?$/m.test(kinds.hold.msg))
+      ? ok('and a timed ask carries both the word and the number')
+      : bad('the message for a timed ask is wrong');
+    /* put Reserve back, so the steps below send what they always sent */
+    await page.evaluate(() => {
+      const b = [...document.querySelectorAll('#ask-k button')]
+        .find(x => x.textContent.trim() === 'Reserve');
+      if (b) b.click();
+    });
+
     /* ── the other state ───────────────────────────────────────────────────
        Everything above ran on a project where every unit is free, so the two
        checks about unavailable units could not have failed. The payload is
@@ -802,17 +861,43 @@ function serve() {
     step('Price appears nowhere');
     /* Swept while unavailable units are ON SCREEN — that is the state most
        likely to leak a word like Reserved or Sold into the page. */
+    /* Swept with held units ACTUALLY ON SCREEN. The earlier steps left the
+       page back on screen one, where there is not a single unit — so this
+       check was reading an empty page and passing on nothing. */
+    await page.evaluate(i => {
+      document.querySelector('#floors button[data-f="' + i + '"]').click();
+      const cb = document.getElementById('showall');
+      cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true }));
+    }, bigIdx);
+    await sleep(260);
     const sweep = await page.evaluate(() => {
       const t = document.body.innerText;
+      const why = /\breserved\b|\bsold\b|\bon hold\b|\bbooked\b|\bpagri\b|\blandowner\b/i;
+      /* THE RULE IS ABOUT UNITS, NOT ABOUT WORDS. A dealer must not be able to
+         tell WHY a particular unit is gone — sold and reserved have to read the
+         same. It is not that the word may never appear: the request sheet now
+         offers Reserve / Hold / Sold as things to ASK FOR, on a unit that is
+         available, which says nothing about any held one.
+
+         So the sweep is aimed where the rule lives: every unit chip and every
+         search row, held ones included. That is stricter than reading
+         innerText, which would have passed a leak inside a chip as long as the
+         same word appeared somewhere innocent. */
+      const cells = [...document.querySelectorAll('#units button, #all-body .ug button, #res .res-r')];
+      const bad = cells.filter(c => why.test(c.textContent || ''))
+                       .map(c => (c.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40));
       return { pkr: /PKR|\u20a8|rupee/i.test(t), price: /price|rate\s*\/|\/\s*sq\s*ft/i.test(t),
-               leak: /\breserved\b|\bsold\b|\bon hold\b|\bbooked\b/i.test(t) };
+               cells: cells.length, leaks: bad.slice(0, 4), n: bad.length };
     });
     (!sweep.pkr && !sweep.price)
       ? ok('no currency, no price and no rate anywhere in the rendered page')
       : bad('the page shows money: ' + JSON.stringify(sweep));
-    !sweep.leak
-      ? ok('and never says reserved, sold, on hold or booked \u2014 only Not Available')
-      : bad('the page tells the dealer WHY a unit is gone');
+    (sweep.cells > 0 && sweep.n === 0)
+      ? ok('and not one of the ' + sweep.cells + ' units on screen says why it is gone \u2014 ' +
+           'only Not Available')
+      : bad(sweep.cells === 0
+            ? 'the leak sweep found no units to check — it proves nothing'
+            : sweep.n + ' unit(s) tell the dealer why: ' + JSON.stringify(sweep.leaks));
 
     step('What the page writes to the phone');
     const store = await page.evaluate(() => {
