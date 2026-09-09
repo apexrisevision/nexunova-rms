@@ -246,7 +246,10 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
       const out = { wrong: [], checked: 0 };
       document.querySelectorAll('#pv-in .over .n').forEach(t => {
         const r = t.getBoundingClientRect();
-        if (r.width < 1 || r.bottom < 0 || r.top > innerHeight) return;   // off screen, not asked
+        /* off screen in either direction is not a question about tapping:
+           the plate is wider than the window whenever it is enlarged */
+        if (r.width < 1 || r.bottom < 0 || r.top > innerHeight ||
+            r.right < 0 || r.left > innerWidth) return;
         out.checked++;
         const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
         const owner = hit && hit.closest ? hit.closest('[data-u]') : null;
@@ -302,6 +305,68 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
            'the same sheet a chip opens')
       : bad('the tap did not open the sheet: ' + JSON.stringify(tap));
     await page.screenshot({ path: path.join(OUT, 'b-plan-sheet.png') });
+
+    /* ── THE PLATE'S OWN CONTROLS ────────────────────────────────────────
+       A legend that is also a filter, a box that finds a shop on a plate of
+       168, a zoom, and a mark that stays on the last shop asked about. Each
+       is a claim about behaviour, so each is asked rather than described. */
+    const kept = await page.evaluate(() => ({ sel: document.querySelectorAll('#pv-in .u.sel').length,
+                                              which: (document.querySelector('#pv-in .u.sel') || {}).__u }));
+    const selName = await page.evaluate(() => {
+      const e = document.querySelector('#pv-in .u.sel');
+      return e ? e.getAttribute('data-u') : null;
+    });
+    (kept.sel === 1 && selName === free.n)
+      ? ok('and the shop you asked about stays marked on the plate \u2014 ' + selName)
+      : bad('the tapped shop is not marked: ' + kept.sel + ' marked, ' + selName);
+
+    await page.evaluate(() => { closeSheet(); document.getElementById('k-held').click(); });
+    await sleep(200);
+    const filtered = await page.evaluate(() => {
+      const host = document.getElementById('pv-in');
+      const off = document.querySelector('#pv-in .u.off');
+      return { dim: host.classList.contains('no-held'),
+               op: off ? Number(getComputedStyle(off).opacity) : 1,
+               chip: document.getElementById('k-held').classList.contains('off') };
+    });
+    (filtered.dim && filtered.chip && filtered.op < 0.3)
+      ? ok('tapping \u201ctaken\u201d in the legend pushes the taken shops back (opacity ' +
+           filtered.op.toFixed(2) + ') \u2014 the floor becomes what is sellable')
+      : bad('the legend did not filter: ' + JSON.stringify(filtered));
+    await page.evaluate(() => document.getElementById('k-held').click());
+    await sleep(150);
+    const restored = await page.evaluate(() => !document.getElementById('pv-in').classList.contains('no-held'));
+    restored ? ok('and tapping it again brings them back') : bad('the filter did not come back');
+
+    const found = await page.evaluate(async no => {
+      const q = document.getElementById('pv-q');
+      q.value = no.replace(/^[A-Za-z0-9]+-/, '');
+      q.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 400));
+      const hit = document.querySelector('#pv-in .u.hit');
+      return { n: hit ? hit.getAttribute('data-u') : null,
+               only: document.querySelectorAll('#pv-in .u.hit').length };
+    }, taken.n);
+    (found.n === taken.n && found.only === 1)
+      ? ok('typing \u201c' + taken.n.replace(/^[A-Za-z0-9]+-/, '') + '\u201d finds ' + taken.n +
+           ' on the plate and marks it \u2014 one shop, not a list to read')
+      : bad('the find box did not land on ' + taken.n + ': ' + JSON.stringify(found));
+
+    const zoomed = await page.evaluate(() => {
+      setZoom(1);                       // an earlier check left the plate enlarged
+      document.getElementById('pv-plus').click();
+      document.getElementById('pv-plus').click();
+      return { w: document.getElementById('pv-in').style.width,
+               label: document.getElementById('pv-zoom').textContent, z: PLANZ };
+    });
+    (zoomed.z === 2 && zoomed.w === '200%' && zoomed.label === '200%')
+      ? ok('and the zoom says what it is doing \u2014 two taps take the plate to 200%')
+      : bad('zoom is off: ' + JSON.stringify(zoomed));
+    await page.evaluate(() => { document.getElementById('pv-out').click();
+                                document.getElementById('pv-out').click();
+                                document.getElementById('pv-q').value = '';
+                                document.getElementById('pv-q').dispatchEvent(new Event('input', { bubbles: true })); });
+    await sleep(300);
 
     const tap2 = await page.evaluate(no => {
       closeSheet();

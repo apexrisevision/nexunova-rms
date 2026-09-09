@@ -341,9 +341,66 @@ button{cursor:pointer;background:none;border:0}
    The drawing is not redrawn. It is the same paths the sheet carries, with
    the traced lettering left out and put back as real text — which is also why
    it weighs 23 KB instead of nine megabytes. */
-.pv{position:relative;margin-top:12px;border-radius:var(--r);background:var(--card);
-    overflow:auto;-webkit-overflow-scrolling:touch}
-.pv .in{position:relative;transform-origin:0 0}
+/* ── THE SHEET THE DRAWING SITS ON ───────────────────────────────────────
+   Not a picture dropped on a page: a plate, with the floor named at its head,
+   the count beside it, and the controls riding along as you go down two
+   thousand pixels of building. The drawing inside it is untouched. */
+.pvw{margin-top:12px;border:1px solid var(--line);border-radius:var(--r-lg);
+     background:var(--card);box-shadow:0 1px 2px rgba(17,24,39,.04),
+     0 22px 40px -30px rgba(17,24,39,.5)}
+.pvh{display:flex;align-items:center;gap:12px;padding:14px 16px 12px}
+.pvh>div:first-child{min-width:0}
+.pvh .t{font-size:15px;font-weight:700;letter-spacing:-.01em;color:var(--ink);
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pvh .s{margin-top:2px;font-size:12px;color:var(--mut);
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pvh .sp{flex:1}
+/* one control, two states, no question about which is showing */
+.seg{display:flex;padding:3px;gap:3px;border-radius:999px;background:var(--sunk)}
+.seg button{height:32px;padding:0 14px;border:0;border-radius:999px;background:transparent;
+            font-size:12.5px;font-weight:650;color:var(--soft);cursor:pointer;
+            transition:background var(--t) var(--ease),color var(--t) var(--ease)}
+.seg button.on{background:var(--card);color:var(--ink);
+               box-shadow:0 1px 2px rgba(17,24,39,.10)}
+/* THE BAR THAT FOLLOWS YOU DOWN. A floor plate is taller than any phone, and
+   a legend you have to scroll back up to read is a legend nobody reads. */
+.pvc{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:8px;
+     padding:10px 16px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+     background:rgba(255,255,255,.86);backdrop-filter:saturate(180%) blur(12px);
+     -webkit-backdrop-filter:saturate(180%) blur(12px)}
+.pvc .sp{flex:1}
+/* the legend IS the filter \u2014 the two things a reader wants are the same tap */
+.key{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 11px;
+     border:1px solid var(--line);border-radius:999px;background:var(--card);
+     font-size:12px;color:var(--soft);cursor:pointer;
+     transition:opacity var(--t) var(--ease),border-color var(--t) var(--ease)}
+.key i{width:11px;height:11px;border-radius:3px;display:block;border:1px solid transparent}
+.key.free i{background:var(--accent-soft);border-color:rgba(29,78,216,.35)}
+.key.held i{background:var(--held-bg);border-color:rgba(138,98,36,.45)}
+.key b{color:var(--ink);font-weight:700}
+.key.off{opacity:.45}
+.key.off b{color:var(--mut)}
+.zc{display:flex;align-items:center;gap:2px;border:1px solid var(--line);
+    border-radius:999px;background:var(--card);padding:2px}
+.zc button{width:30px;height:28px;border:0;border-radius:999px;background:transparent;
+           font-size:15px;font-weight:700;color:var(--soft);cursor:pointer;line-height:1}
+.zc button:active{background:var(--sunk)}
+.zc span{min-width:44px;text-align:center;font-size:11.5px;font-weight:650;color:var(--mut)}
+.pvq{padding:10px 16px 0}
+.pvq input{width:100%;height:40px;padding:0 14px;border:1px solid var(--line);
+           border-radius:999px;background:var(--bg);font-size:13px;color:var(--ink)}
+.pvq input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px var(--ring);
+                 background:var(--card)}
+.pv{position:relative;margin:10px 0 0;border-radius:0 0 var(--r-lg) var(--r-lg);
+    background:var(--card);overflow:auto;-webkit-overflow-scrolling:touch;
+    overscroll-behavior-x:contain}
+/* graph paper under the linework, the way a plate is printed */
+.pv .in{position:relative;transform-origin:0 0;
+        background-image:linear-gradient(rgba(29,78,216,.045) 1px,transparent 1px),
+                         linear-gradient(90deg,rgba(29,78,216,.045) 1px,transparent 1px);
+        background-size:26px 26px}
+.pv.grab{cursor:grab}
+.pv.grabbing{cursor:grabbing}
 .pv svg{display:block;width:100%;height:auto}
 .pv .base{position:relative;z-index:1}
 .pv .over{position:absolute;left:0;top:0;width:100%;height:100%;z-index:2}
@@ -353,12 +410,29 @@ button{cursor:pointer;background:none;border:0}
    of the shop — exactly where a thumb lands — and the cross lies across it;
    both are drawn after the shape, so both were eating the tap and the shape
    only answered around its edges. A tap on a name is a tap on the shop. */
-.pv .u{fill:transparent;stroke:none;cursor:pointer;pointer-events:all}
+.pv .u{fill:var(--accent-soft);stroke:rgba(29,78,216,.18);stroke-width:.6;
+       cursor:pointer;pointer-events:all;vector-effect:non-scaling-stroke;
+       transition:fill var(--t-fast) var(--ease)}
 .pv .x,.pv .n,.pv .base,.pv .base *{pointer-events:none}
-.pv .u.off{fill:rgba(138,98,36,.20)}
+.pv .u.off{fill:var(--held-bg);stroke:rgba(138,98,36,.22)}
+@media (hover:hover){.pv .u:not(.off):hover{fill:rgba(29,78,216,.16)}}
+.pv .u:not(.off):active{fill:rgba(29,78,216,.22)}
+/* WHAT YOU LAST ASKED ABOUT STAYS MARKED. Close the sheet on a floor of a
+   hundred and sixty-eight and finding your place again is the whole job. */
+.pv .u.sel{fill:rgba(29,78,216,.20);stroke:var(--accent);stroke-width:2}
+/* and what you searched for says so, once, and then settles */
+/* A FOUND SHOP IS RINGED, NOT FLASHED. The page holds itself to 300ms of
+   movement anywhere, and a thing that blinks for three seconds to be noticed
+   is a thing that was hard to find — the plate scrolls to it instead. */
+.pv .u.hit{stroke:var(--accent);stroke-width:2.6;fill:rgba(29,78,216,.22)}
+/* one tap on the legend and the other half steps back \u2014 the floor is suddenly
+   a list of what you can actually sell */
+.pv .in.no-held .u.off,.pv .in.no-held .x,.pv .in.no-held .n.off{opacity:.13}
+.pv .in.no-free .u:not(.off),.pv .in.no-free .n:not(.off){opacity:.13}
+.pv .u,.pv .x,.pv .n{transition:opacity var(--t) var(--ease)}
 /* fill:none is not the default here — a two-legged cross left to fill itself
    paints a solid triangle over the shop instead of an X across it. */
-.pv .x{fill:none;stroke:var(--held);stroke-width:2;opacity:.9;
+.pv .x{fill:none;stroke:var(--held);stroke-width:1.6;opacity:.5;
        vector-effect:non-scaling-stroke;stroke-linecap:round}
 /* The label is the architect's own block — number, what the thing is, how big
    it is — and its size is set per shop in the markup, because a 500 sqft
@@ -366,15 +440,15 @@ button{cursor:pointer;background:none;border:0}
    em so it thins with the text instead of swallowing it. */
 .pv .n{font-weight:650;fill:var(--soft);text-anchor:middle;
        paint-order:stroke;stroke:#fff;stroke-width:.26em;stroke-linejoin:round}
-.pv .n .s{font-size:.78em;font-weight:600;fill:var(--muted)}
+.pv .n .s{font-size:.78em;font-weight:600;fill:var(--mut)}
 .pv .n.off{fill:var(--held)}
 .pv .n.off .s{fill:var(--held);opacity:.85}
-.pv-b{display:flex;gap:8px;margin-top:12px;align-items:center}
-.pv-b button{height:38px;padding:0 14px;border-radius:var(--r);border:1px solid var(--line);
-             background:var(--card);font-size:13px;font-weight:650;color:var(--soft)}
-.pv-b button.on{background:var(--ink);border-color:var(--ink);color:var(--card)}
-.pv-b .sp{flex:1}
-.pv-n{margin-top:9px;font-size:11.5px;color:var(--mut);line-height:1.5}
+.pv-n{padding:10px 16px 13px;font-size:11.5px;color:var(--mut);line-height:1.5}
+/* the drawing arrives rather than appears \u2014 once, briefly, and never again */
+.pv .over{animation:pvin .28s var(--ease) both}
+@keyframes pvin{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  .pv .over{animation:none}.pv .u.hit{animation:none}}
 .sw{display:inline-flex;align-items:center;gap:10px;margin-bottom:18px;
     height:44px;padding:0 16px;border-radius:999px;background:var(--card);
     font-size:12.5px;color:var(--soft);
@@ -780,22 +854,39 @@ button{cursor:pointer;background:none;border:0}
   <section id="floor" hidden>
     <div class="ft"><button class="bk" id="back"><i></i>All floors</button></div>
     <div class="fh"><h1 id="fname">—</h1><span id="fcount"></span></div>
-    <div class="pv-b" id="pv-b" hidden>
-      <button id="pv-plan">Floor plan</button>
-      <button id="pv-list">List</button>
-      <span class="sp"></span>
-      <button id="pv-zoom">Zoom</button>
+    <!-- THE PLATE. One card: the floor at its head, the legend that is also
+         the filter, a way to find a shop by number, and the architect’s own
+         drawing under all of it. Everything here is laid over the drawing or
+         around it — not one line of it is redrawn. -->
+    <div class="pvw" id="pv-b" hidden>
+      <div class="pvh">
+        <div>
+          <div class="t" id="pv-t">Floor plan</div>
+          <div class="s" id="pv-s"></div>
+        </div>
+        <span class="sp"></span>
+        <div class="seg">
+          <button id="pv-plan" class="on">Plan</button>
+          <button id="pv-list">List</button>
+        </div>
+      </div>
+      <div class="pvc" id="pv-c">
+        <button class="key free" id="k-free"><i></i><b id="k-free-n">0</b>&nbsp;available</button>
+        <button class="key held" id="k-held"><i></i><b id="k-held-n">0</b>&nbsp;taken</button>
+        <span class="sp"></span>
+        <div class="zc">
+          <button id="pv-out" aria-label="Zoom out">−</button>
+          <span id="pv-zoom">100%</span>
+          <button id="pv-plus" aria-label="Zoom in">+</button>
+        </div>
+      </div>
+      <div class="pvq" id="pv-qw">
+        <input id="pv-q" type="search" inputmode="search" autocomplete="off"
+               placeholder="Find a shop on this floor — e.g. 85">
+      </div>
+      <div class="pv" id="pv"><div class="in" id="pv-in"></div></div>
+      <div class="pv-n" id="pv-note" hidden></div>
     </div>
-    <div class="pv" id="pv" hidden><div class="in" id="pv-in"></div></div>
-    <div class="pv-n" id="pv-note" hidden></div>
-    <div class="pv-b" id="pv-b" hidden>
-      <button id="pv-plan">Floor plan</button>
-      <button id="pv-list">List</button>
-      <span class="sp"></span>
-      <button id="pv-zoom">Zoom</button>
-    </div>
-    <div class="pv" id="pv" hidden><div class="in" id="pv-in"></div></div>
-    <div class="pv-n" id="pv-note" hidden></div>
     <div class="sw">
       <input type="checkbox" id="showall"><label for="showall">Show unavailable units</label>
     </div>
@@ -1622,6 +1713,10 @@ function renderAll() {
 var PLANS = {};            // floor prefix -> { svg, w, h, units } | 'none'
 var PLANV = true;          // the plan is the view, when there is one
 var PLANZ = 1;
+var PLANSEL = '';          // the shop last asked about, kept marked
+var PLANF = { free: true, held: true };   // which halves the legend is showing
+var PLANHIT = '';          // what the find box is pointing at
+var PLANZSET = false;      // the reader has taken the zoom into their own hands
 
 function slug(s) {
   return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -1757,6 +1852,36 @@ function labelBlock(lines, pts, cx, cy, x0, x1, y0, y1, free) {
     }).join('') + '</text>';
 }
 
+/* One shop wears one mark. Set on the shape rather than kept in a list, so a
+   repaint that rebuilds the drawing loses nothing that matters. */
+function markPlan(no, cls) {
+  var host = $('pv-in'); if (!host) return;
+  host.querySelectorAll('.u.' + cls).forEach(function (e) { e.classList.remove(cls); });
+  var el = host.querySelector('.u[data-u="' + String(no).replace(/"/g, '') + '"]');
+  if (el) el.classList.add(cls);
+  return el;
+}
+
+/* FIND A SHOP ON A PLATE OF A HUNDRED AND SIXTY-EIGHT. Typing 85 is enough;
+   so is LG-85, and so is the size if that is what a buyer remembers. The
+   match is marked and the plate scrolls to it, which is the part that cannot
+   be done on paper. */
+function findOnPlan(q) {
+  var host = $('pv-in'); if (!host) return;
+  host.querySelectorAll('.u.hit').forEach(function (e) { e.classList.remove('hit'); });
+  PLANHIT = '';
+  var t = norm(q);
+  if (!t) return;
+  var f = P.floors[FLOOR]; if (!f) return;
+  var hit = (f.units || []).filter(function (u) { return norm(u.n) === t; })[0] ||
+            (f.units || []).filter(function (u) { return norm(u.n).slice(-t.length) === t; })[0] ||
+            (f.units || []).filter(function (u) { return norm(u.n).indexOf(t) >= 0; })[0];
+  if (!hit) return;
+  PLANHIT = hit.n;
+  var el = markPlan(hit.n, 'hit');
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
 function paintPlan(plan, f) {
   var host = $('pv-in');
   var over = [], names = [];
@@ -1793,10 +1918,18 @@ function paintPlan(plan, f) {
       over.join('') + names.join('') +
     '</svg>';
   host.style.width = (PLANZ * 100) + '%';
+  /* the board refetches every minute and repaints; a filter or a mark that did
+     not survive that would look like the page forgetting what you just did */
+  host.classList.toggle('no-held', !PLANF.held);
+  host.classList.toggle('no-free', !PLANF.free);
+  if (PLANSEL) markPlan(PLANSEL, 'sel');
+  if (PLANHIT) markPlan(PLANHIT, 'hit');
   if (!host.__bound) {
     host.addEventListener('click', function (e) {
+      if (PANNED) return;              // that was a drag across the plate
       var p = e.target.closest('[data-u]'); if (!p) return;
       var no = p.getAttribute('data-u');
+      PLANSEL = no; markPlan(no, 'sel');
       var unit = (P.floors[FLOOR].units || []).filter(function (x) { return x.n === no; })[0];
       if (!unit || unit.s !== 'available') { toast(no + ' is not available.'); return; }
       openSheet(no, FLOOR);
@@ -1807,21 +1940,48 @@ function paintPlan(plan, f) {
 
 async function showPlan(f) {
   var plan = await loadPlan(f);
-  var bar = $('pv-b'), box = $('pv'), note = $('pv-note');
+  var card = $('pv-b'), box = $('pv'), note = $('pv-note');
   if (!plan) {
     /* a floor with no drawing is not an error \u2014 it is a floor with no drawing,
        and the list is still the list */
-    bar.hidden = true; box.hidden = true; note.hidden = true;
+    card.hidden = true; box.hidden = true; note.hidden = true;
     PLANV = false; return false;
   }
-  bar.hidden = false;
+  /* THE CARD STAYS WHEN THE LIST IS SHOWING. Its head names the floor and its
+     switch is how you come back \u2014 taking the whole plate away in list view
+     would leave nothing to come back with. */
+  card.hidden = false;
   $('pv-plan').classList.toggle('on', PLANV);
   $('pv-list').classList.toggle('on', !PLANV);
   box.hidden = !PLANV;
   note.hidden = !PLANV;
+  $('pv-c').hidden = !PLANV;
+  $('pv-qw').hidden = !PLANV;
+
+  var units = f.units || [];
+  var gone = units.filter(function (u) { return u.s !== 'available'; }).length;
+  var free = units.length - gone;
+  /* A TITLE BLOCK, THE WAY A DRAWING CARRIES ONE. The line above already
+     names the floor and counts it; this names the SHEET — whose building it
+     is and what it is a plan of — which is what a title block is for. */
+  $('pv-t').textContent = f.floor_label || 'Floor plan';
+  $('pv-s').textContent = 'As drawn · ' + units.length + ' shops';
+  $('k-free-n').textContent = free;
+  $('k-held-n').textContent = gone;
+  $('k-free').classList.toggle('off', !PLANF.free);
+  $('k-held').classList.toggle('off', !PLANF.held);
+
   if (PLANV) {
+    /* THE PLATE IS TALLER THAN IT IS WIDE, BY FOUR TO ONE. Fitted to the
+       width of a phone a shop is ten pixels across and its number cannot be
+       read at all, so the first view is opened at a size the writing works
+       at and the plate scrolls sideways — which is how a paper plan of this
+       shape is read too. On a wide screen it fits and nothing is done. */
+    if (!PLANZSET) {
+      var wide = $('pv').clientWidth || 360;
+      setZoom(Math.max(1, Math.min(2.5, 720 / wide)));
+    }
     paintPlan(plan, f);
-    var gone = (f.units || []).filter(function (u) { return u.s !== 'available'; }).length;
     note.innerHTML = 'Tap a shop to ask for it. ' +
       (gone ? '<b>' + gone + '</b> crossed out are already taken.' : 'Every shop on this floor is free.');
   }
@@ -2141,7 +2301,9 @@ function paintSheet() {
         (many ? all.length + ' units' : esc(SHEET.n)) + '</div>' +
       '<div class="sh-m">' +
         (many ? 'Asked for together \u2014 one request, one answer'
-              : esc(f.floor_label) + (u && area(u) ? ' · ' + esc(area(u)) : '')) +
+              /* the same three things the plate prints on the shop itself */
+              : [esc(f.floor_label), u && u.t ? esc(u.t) : '', u && area(u) ? esc(area(u)) : '']
+                  .filter(Boolean).join(' · ')) +
       '</div>' +
     '</div><button class="sh-x" id="sh-x" aria-label="Close">✕</button></div>' +
 
@@ -2504,14 +2666,82 @@ $('mine-back').onclick = function () {
 
 $('pv-plan').onclick = function () { PLANV = true; renderFloor(); window.scrollTo(0, 0); };
 $('pv-list').onclick = function () { PLANV = false; renderFloor(); window.scrollTo(0, 0); };
-/* THE PLATE IS LONG AND NARROW. At the width of a phone a shop is about ten
-   pixels across, which is enough to see and not enough to hit, so one tap
-   doubles the drawing and the box scrolls sideways. */
-$('pv-zoom').onclick = function () {
-  PLANZ = PLANZ >= 3 ? 1 : PLANZ + 1;
-  $('pv-zoom').textContent = PLANZ === 1 ? 'Zoom' : PLANZ + '\u00d7';
-  var el = $('pv-in'); if (el) el.style.width = (PLANZ * 100) + '%';
-};
+
+/* ══ THE PLATE IS LONG AND NARROW ═══════════════════════════════════════════
+   At the width of a phone a shop is about ten pixels across: enough to see,
+   not enough to read or to hit. So the drawing grows and the box scrolls
+   sideways, and because a two-thousand-pixel plate is a thing you travel
+   across rather than look at, it can be dragged as well as scrolled. */
+var PANNED = false;                 // the last gesture was a drag, not a tap
+function setZoom(z) {
+  var box = $('pv'), el = $('pv-in');
+  z = Math.max(1, Math.min(5, Math.round(z * 2) / 2));
+  if (!el) return;
+  /* keep whatever is in the middle of the window in the middle of it */
+  var mid = (box.scrollLeft + box.clientWidth / 2) / Math.max(1, el.offsetWidth);
+  PLANZ = z;
+  el.style.width = (PLANZ * 100) + '%';
+  $('pv-zoom').textContent = Math.round(PLANZ * 100) + '%';
+  box.classList.toggle('grab', PLANZ > 1);
+  box.scrollLeft = mid * el.offsetWidth - box.clientWidth / 2;
+}
+$('pv-plus').onclick = function () { PLANZSET = true; setZoom(PLANZ + (PLANZ < 2 ? 0.5 : 1)); };
+$('pv-out').onclick  = function () { PLANZSET = true; setZoom(PLANZ - (PLANZ <= 2 ? 0.5 : 1)); };
+
+/* THE LEGEND IS THE FILTER. Two words a dealer already reads to understand
+   the colours, and tapping one of them puts the other half of the floor into
+   the background \u2014 nothing is removed, because what is taken is still an
+   answer. Both off would say nothing, so the last one on stays on. */
+function planFilter(k) {
+  var other = k === 'free' ? 'held' : 'free';
+  if (PLANF[k] && !PLANF[other]) { PLANF[other] = true; }   // both back on
+  else { PLANF[k] = !PLANF[k]; if (!PLANF.free && !PLANF.held) PLANF[other] = true; }
+  $('k-free').classList.toggle('off', !PLANF.free);
+  $('k-held').classList.toggle('off', !PLANF.held);
+  var host = $('pv-in');
+  if (host) {
+    host.classList.toggle('no-held', !PLANF.held);
+    host.classList.toggle('no-free', !PLANF.free);
+  }
+}
+$('k-free').onclick = function () { planFilter('free'); };
+$('k-held').onclick = function () { planFilter('held'); };
+
+/* find, on the plate rather than in a list */
+var PQT;
+$('pv-q').addEventListener('input', function () {
+  clearTimeout(PQT);
+  var v = this.value;
+  PQT = setTimeout(function () { findOnPlan(v); }, 160);
+});
+
+/* DRAG TO TRAVEL. Only sideways, and only once the plate is wider than the
+   window: a vertical drag belongs to the page, and taking it would trap a
+   reader halfway down a building. Nothing is captured \u2014 pointer capture on
+   the box would swallow the taps meant for the shops inside it. */
+(function () {
+  var box = $('pv'), d = null;
+  box.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    PANNED = false;
+    d = { x: e.clientX, y: e.clientY, l: box.scrollLeft };
+  });
+  box.addEventListener('pointermove', function (e) {
+    if (!d) return;
+    var dx = e.clientX - d.x, dy = e.clientY - d.y;
+    if (!PANNED && (Math.abs(dx) < 6 || Math.abs(dx) < Math.abs(dy))) return;
+    if (box.scrollWidth <= box.clientWidth + 1) return;
+    PANNED = true;
+    box.classList.add('grabbing');
+    box.scrollLeft = d.l - dx;
+    e.preventDefault();
+  });
+  function done() { d = null; box.classList.remove('grabbing');
+                    setTimeout(function () { PANNED = false; }, 0); }
+  box.addEventListener('pointerup', done);
+  box.addEventListener('pointercancel', done);
+  box.addEventListener('pointerleave', done);
+})();
 
 $('all-back').onclick = function () {
   ALLV = false; BACKING = true;
