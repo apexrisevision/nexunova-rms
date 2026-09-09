@@ -491,6 +491,58 @@ function serve() {
        is therefore not whether it works but what it COSTS, so the cost is
        measured here rather than assumed: how long the browser takes to lay
        it out, and how many nodes it leaves behind. */
+    /* ══ A DOORWAY THAT IS THERE BEFORE THERE IS ANYTHING BEHIND IT ══════
+       The dealer's own position used to appear only once that phone had asked
+       for something, which meant it could not be found by anybody looking for
+       it first \u2014 Rashid opened the link hunting for his report and there was
+       nothing on the screen to open. It is a card beside All units now, on
+       every visit, and the screen behind it says so plainly when it is empty.
+
+       This browser has made no requests at this point in the run, so this is
+       the empty case, which is the one that was missing. */
+    const door = await page.evaluate(() => {
+      const cards = [...document.querySelectorAll('#allrow .all-chip')];
+      const mine = document.querySelector('#allrow [data-mine]');
+      return {
+        cards: cards.length,
+        titles: cards.map(c => (c.querySelector('.ac-t') || {}).textContent.trim()),
+        caption: mine ? (mine.querySelector('.ac-m') || {}).textContent.trim() : null,
+        sameRow: cards.length === 2 &&
+                 Math.abs(cards[0].getBoundingClientRect().top -
+                          cards[1].getBoundingClientRect().top) < 2,
+        reqs: (window.REQS || []).length
+      };
+    });
+    (door.cards === 2 && door.titles.indexOf('My units') >= 0 && door.reqs === 0)
+      ? ok('a phone that has asked for nothing still has both doors: ' +
+           door.titles.join(' / '))
+      : bad('the My units card is not on screen one: ' + JSON.stringify(door));
+    door.sameRow
+      ? ok('side by side, so screen one keeps the fit it is built around')
+      : bad('the two cards are not on one row');
+    /Nothing yet/.test(String(door.caption))
+      ? ok('and it says so rather than pretending \u2014 \u201c' + door.caption + '\u201d')
+      : bad('the empty caption reads ' + JSON.stringify(door.caption));
+
+    const inside = await page.evaluate(() => {
+      document.querySelector('#allrow [data-mine]').click();
+      return { open: !document.getElementById('mine').hidden,
+               home: document.getElementById('home').hidden,
+               text: document.getElementById('mine-body').innerText,
+               back: !!document.getElementById('mine-back') };
+    });
+    (inside.open && inside.home && /Nothing here yet/.test(inside.text) && inside.back)
+      ? ok('and it opens on a screen that explains itself instead of a blank one')
+      : bad('the My units screen is wrong when empty: ' + JSON.stringify(inside));
+    const outAgain = await page.evaluate(() => {
+      document.getElementById('mine-back').click();
+      return { home: !document.getElementById('home').hidden,
+               mine: document.getElementById('mine').hidden };
+    });
+    (outAgain.home && outAgain.mine)
+      ? ok('and there is a way back out of it')
+      : bad('the way back is broken: ' + JSON.stringify(outAgain));
+
     step('All units \u2014 the one screen that draws the whole building');
     const allOpen = await page.evaluate(() => {
       document.getElementById('back') && document.getElementById('back').click();
@@ -1850,7 +1902,10 @@ function serve() {
           u.click();
           await new Promise(r => setTimeout(r, 250));
           await requestAndSend('copy');
-          await new Promise(r => setTimeout(r, 1400));
+          /* The ref is set inside submitRequest, before the receipt screen and
+             its 1600ms self-close. Waiting 1400ms for it raced that timer and
+             read null often enough to fail a run that was otherwise green. */
+          await new Promise(r => setTimeout(r, 200));
           return (window.SHEET || {}).ref;
         });
         if (!second) { badU2('no second unit to decline'); }
@@ -1908,6 +1963,43 @@ function serve() {
           /3 days left/.test(mine.clock) && new RegExp(asked.unit).test(mine.clock)
             ? okU2('with the clock on it \u2014 \u201c' + mine.clock.replace(/\s+/g, ' ').trim() + '\u201d')
             : badU2('the release countdown is wrong: ' + JSON.stringify(mine.clock));
+
+          /* AND THE SAME THING ON THE SCREEN OF ITS OWN. The band at the top
+             shows the newest six; the screen shows every one of them, from the
+             same builder, so the two cannot say different things. */
+          const ownScreen = await dp.evaluate(() => {
+            const b = document.getElementById('back');
+            if (b) b.click();
+            const card = document.querySelector('#allrow [data-mine]');
+            const caption = card ? (card.querySelector('.ac-m') || {}).textContent.trim() : null;
+            const badge = card ? (card.querySelector('.ac-n') || {}).textContent.trim() : null;
+            if (card) card.click();
+            return {
+              caption: caption, badge: badge,
+              open: !document.getElementById('mine').hidden,
+              head: (document.querySelector('#mine .myq-s .n') || {}).textContent || '',
+              rows: document.querySelectorAll('#mine .myq-r').length,
+              all: (window.REQS || []).length,
+              clock: (document.querySelector('#mine .myq-w') || {}).textContent || ''
+            };
+          });
+          (ownScreen.badge === '1' && /With you/.test(String(ownScreen.caption)))
+            ? okU2('the card on screen one carries the count itself \u2014 \u201cMy units 1 \u00b7 ' +
+                   ownScreen.caption + '\u201d')
+            : badU2('the card does not show the count: ' + JSON.stringify(ownScreen));
+          (ownScreen.open && ownScreen.rows === ownScreen.all && ownScreen.rows > 0)
+            ? okU2('and the screen behind it lists every one of the ' + ownScreen.rows +
+                   ' requests, not the newest few')
+            : badU2('the My units screen is not complete: ' + JSON.stringify(ownScreen));
+          (/^1\s*unit with you/.test(ownScreen.head.replace(/\s+/g, ' ')) &&
+           /days left/.test(ownScreen.clock))
+            ? okU2('with the same figures and the same clock the band carries')
+            : badU2('the screen and the band disagree: ' + JSON.stringify(ownScreen));
+          await dp.screenshot({ path: path.join(OUT, 'q-my-units.png') });
+          await dp.evaluate(() => {
+            const b = document.getElementById('mine-back'); if (b) b.click();
+          });
+
 
           /* Shot from the HOME screen: that is where his own position sits, and
              a picture of the floor grid says nothing about it. */
