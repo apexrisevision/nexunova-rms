@@ -648,7 +648,12 @@ button{cursor:pointer;background:none;border:0}
       color:var(--mut);margin:24px 0 10px}
 /* What the dealer is asking for. Sits above the duration because it decides
    whether there is a duration at all. */
+/* FOUR CHOICES SHOULD NOT BE THREE AND A LONELY ONE. Three fit a phone's
+   width; a fourth wraps and then stretches to the full width, where it reads
+   as the main button rather than as one of four. An even number goes two by
+   two. */
 .ask-k{display:flex;gap:8px;flex-wrap:wrap}
+.ask-k.two button{min-width:calc(50% - 4px)}
 .ask-k button{flex:1;min-width:88px;height:46px;border:1px solid var(--line);
               border-radius:var(--r);background:var(--card);font-size:13.5px;
               font-weight:600;color:var(--soft);
@@ -2362,7 +2367,7 @@ function paintSheet() {
                     '</b> will be asked for together.</div>' : '')) +
         (choices().length > 1
           ? '<div class="sh-l">What do you need?</div>' +
-            '<div class="ask-k" id="ask-k">' +
+            '<div class="ask-k' + (choices().length % 2 === 0 ? ' two' : '') + '" id="ask-k">' +
               choices().map(function (c) {
                 return '<button data-c="' + esc(c.id) + '"' +
                   (chosen() && chosen().id === c.id ? ' class="on"' : '') + '>' +

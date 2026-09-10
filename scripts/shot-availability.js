@@ -757,7 +757,8 @@ function serve() {
 
     /* ── WHAT THE DEALER IS ASKING FOR ────────────────────────────────────
        The sheet used to ask one thing: how many days. It now asks which of
-       the statuses this project has PUBLISHED — Reserve, Hold, Sold on Awami
+       the statuses this project has PUBLISHED — Reserve, Hold, Pagri, Sold on
+       Awami
        — and a permanent one has no duration at all, so the question is not on
        the screen rather than greyed out on it.
 
@@ -780,10 +781,14 @@ function serve() {
         b.click();
         return read();
       };
-      return { first, sold: press('Sold'), hold: press('Hold') };
+      return { first, sold: press('Sold'), pagri: press('Pagri'), hold: press('Hold') };
     });
 
-    JSON.stringify(kinds.first.labels) === JSON.stringify(['Reserve', 'Hold', 'Sold'])
+    /* A LOCK, NOT A DESCRIPTION. Whatever a tenant flags public_choice appears
+       here the moment it is flagged, which is the point \u2014 and also the risk. If
+       this list changes, somebody meant it to change. Pagri joined it on
+       2026-09-10 at Rashid's asking. */
+    JSON.stringify(kinds.first.labels) === JSON.stringify(['Reserve', 'Hold', 'Pagri', 'Sold'])
       ? ok('the sheet offers what this project publishes: ' + kinds.first.labels.join(' / '))
       : bad('the choices are ' + JSON.stringify(kinds.first.labels));
     (kinds.first.on === 'Reserve' && kinds.first.days)
@@ -793,6 +798,12 @@ function serve() {
       ? ok('Sold takes the duration away entirely \u2014 \u201c' +
            kinds.sold.note.trim() + '\u201d')
       : bad('Sold still asks for days: ' + JSON.stringify(kinds.sold));
+    /* Pagri is permanent too, and nothing about it is a special case: it is one
+       more status the tenant published, and it behaves like one. */
+    (kinds.pagri && !kinds.pagri.days && /no end date/i.test(kinds.pagri.note) &&
+     /pagri/i.test(kinds.pagri.msg))
+      ? ok('Pagri asks for no duration either, and the message says what was asked')
+      : bad('Pagri is not behaving as a permanent choice: ' + JSON.stringify(kinds.pagri));
     (kinds.hold && kinds.hold.days && kinds.hold.on === 'Hold')
       ? ok('and going back to Hold brings the days question back')
       : bad('Hold did not restore the duration: ' + JSON.stringify(kinds.hold));
