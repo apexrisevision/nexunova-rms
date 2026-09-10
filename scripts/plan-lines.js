@@ -31,7 +31,10 @@ const LABEL = process.argv[4] || 'Floor';
 const PREFIX = process.argv[5] || 'LG';
 const SLUG = process.argv[6] || 'awami-market';
 const PAD = Number(process.argv[7] || 14);          // drawing units of margin
-const TEXT = new Set(['#ba0d70', '#000000']);       // the traced lettering
+const TEXT = new Set(['#ba0d70', '#000000', '#bf00ff']);   // the traced lettering,
+                                                          // purple included: the
+                                                          // residential sheets write
+                                                          // the area in it
 
 const R = JSON.parse(fs.readFileSync(path.join(DIR, PAGE + '-rooms.json'), 'utf8'));
 const S = JSON.parse(fs.readFileSync(path.join(DIR, PAGE + '-shapes.json'), 'utf8'));

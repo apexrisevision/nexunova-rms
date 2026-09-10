@@ -58,8 +58,10 @@ const median = a => { const s = [...a].sort((p, q) => p - q); return s[Math.floo
      gave it back — half the stroke, along the whole boundary — or a correct
      room would be failed here for being correct. */
   const bite = pen => 1.2 / PX * 2 * (pen || 1) / 2;
+  /* a room that was grown back against the true walls has already been given
+     what the heavy pen ate; only a plain fill still needs the allowance */
   const drawnOf = r => r.area / (PX * PX) +
-    2 * ((r.x1 - r.x0) + (r.y1 - r.y0)) * bite(r.pen);
+    (r.restored ? 0 : 2 * ((r.x1 - r.x0) + (r.y1 - r.y0)) * bite(r.pen));
 
   /* the sheet's own scale, from the sheet itself */
   const pairs = have.filter(u => reg[u] > 0)

@@ -45,7 +45,13 @@ const BROWSERS = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 /* the walls, without a word of text: the labels would dam the flood */
-const TEXT = new Set(['#ba0d70', '#000000']);
+/* EVERY COLOUR THE DRAUGHTSMAN WROTE IN. The unit number is #ba0d70 and the
+   type and dimensions are black — but on the three residential floors the AREA
+   line is PURPLE, and there are five thousand of those little outlines on a
+   sheet. Left in, they are not text at all: they are five thousand walls,
+   sitting inside the very rooms being flooded. Every seed on the Third Floor
+   escaped or fragmented until this list was right. */
+const TEXT = new Set(['#ba0d70', '#000000', '#bf00ff']);
 function wallPaths(file) {
   const src = fs.readFileSync(file, 'utf8');
   const out = [];
@@ -121,25 +127,44 @@ function wallPaths(file) {
       window.__flood = window.__flood || (async function (o) {
       const { X0, X1, y0, y1, PX, seeds, thick, blocks } = o;
       const W = Math.ceil((X1 - X0) * PX), H = Math.ceil((y1 - y0) * PX);
+
+      /* ── PINCH THE DOORWAYS SHUT, THEN GIVE BACK WHAT THE PINCH TOOK ───────
+         On the shop floors a unit is a sealed box and a flood from its number
+         stops at its own walls. On the three residential floors it is not: every
+         room has a door onto a corridor that runs the length of the building, so
+         a fill from ANY room reaches every other room. One hundred and forty-nine
+         of the Third Floor's hundred and fifty seeds ran away at the first
+         attempt, and no pen closes a three-foot door by being thicker — thickness
+         runs across a line, not along it.
+
+         So the walls are drawn twice. Once heavily enough that the doorways
+         actually close, which also eats several feet off every wall; and once at
+         their true weight. The fill runs against the heavy walls and stops inside
+         its own room, and is then GROWN BACK against the true ones, exactly as far
+         as the heavy pen had eaten. The doorway stays shut because the fill never
+         reached it to grow through. What comes out is the room the architect drew,
+         not a room this code chose.
+
+         Both go in one image: the heavy pass in red underneath, the true pass in
+         black on top. Black is a wall to both; red is a wall only to the fill. */
+      const heavy = 1.2 / PX * 2 * thick, thin = 1.2 / PX * 2;
       const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H +
         '" viewBox="' + X0 + ' ' + y0 + ' ' + (X1 - X0) + ' ' + (y1 - y0) + '">' +
         '<rect x="' + X0 + '" y="' + y0 + '" width="' + (X1 - X0) + '" height="' + (y1 - y0) +
         '" fill="#fff"/>' +
-        /* ROUND CAPS, AND THIS IS THE WHOLE REASON A THICKER PEN WORKS AT ALL.
-           Thickness runs ACROSS a line, not along it: a wall drawn nine times
-           heavier still has exactly the same gap in the middle of it, because
-           a flat-ended segment ends where it ends. GF-256 was lost to this for
-           an hour — the fill walked through a break a pixel wide in a wall
-           twenty pixels thick. A round cap extends every segment end by half
-           the stroke, so widening the pen finally closes the breaks it was
-           meant to close, and closes nothing a door has not already opened. */
-        '<g fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round"' +
-        ' stroke-width="' + (1.2 / PX * 2 * thick) + '">' +
-        window.__paths.map(d => '<path d="' + d + '"/>').join('') + '</g>' +
-        /* THE SHOPS NEXT DOOR ARE WALLS TOO. Not a line on the sheet — a fact
-           about a building: a shop is bounded by the shops beside it. Passed
-           in as the rooms already found, painted solid, so a fill cannot walk
-           through a neighbour it has no business being in. */
+        /* ROUND CAPS. A flat-ended segment ends where it ends, so a heavier pen
+           leaves the same gap in the middle of a wall; a round cap extends every
+           end by half the stroke and closes the breaks it was meant to close. */
+        '<g fill="none" stroke-linecap="round" stroke-linejoin="round">' +
+        (thick > 1
+          ? '<g stroke="#f00" stroke-width="' + heavy + '">' +
+            window.__paths.map(d => '<path d="' + d + '"/>').join('') + '</g>'
+          : '') +
+        '<g stroke="#000" stroke-width="' + thin + '">' +
+        window.__paths.map(d => '<path d="' + d + '"/>').join('') + '</g></g>' +
+        /* THE ROOMS NEXT DOOR ARE WALLS TOO. Not a line on the sheet — a fact
+           about a building. Black, so the fill cannot cross them and the room
+           cannot be grown back through them either. */
         (blocks || []).map(b => '<rect x="' + b[0] + '" y="' + b[1] + '" width="' +
           b[2] + '" height="' + b[3] + '" fill="#000"/>').join('') +
         '</svg>';
@@ -153,67 +178,90 @@ function wallPaths(file) {
       const px = cx.getImageData(0, 0, W, H).data;
       URL.revokeObjectURL(url);
 
-      /* ink is anything that is not near-white */
-      const wall = new Uint8Array(W * H);
+      /* two masks out of one picture: black is a wall to everything, red
+         only to the fill */
+      const wall = new Uint8Array(W * H);      // the heavy walls, for the fill
+      const real = new Uint8Array(W * H);      // the true walls, for growing back
       for (let i = 0, p = 0; i < wall.length; i++, p += 4) {
-        if (px[p] < 220 || px[p + 1] < 220 || px[p + 2] < 220) wall[i] = 1;
+        const r = px[p], g = px[p + 1], bl = px[p + 2];
+        const dark = r < 220 && g < 220 && bl < 220;
+        const red = r >= 150 && g < 150 && bl < 150;
+        if (dark) { wall[i] = 1; real[i] = 1; }
+        else if (red) { wall[i] = 1; }
       }
+      /* how far the heavy pen ate, in pixels: half the extra width */
+      const GROW = Math.max(0, Math.round((heavy - thin) / 2 * PX));
 
-      /* HOW BIG IS TOO BIG. This was 120 by 40 drawing units — about 394 sq ft —
-         and it was throwing away RIGHT ANSWERS: GF-201 is a 483 sq ft corner shop,
-         so its correct fill was declared a leak and the unit vanished from the
-         plate. GF-139, at 417, only survived by being squeezed under the cap by a
-         nine-times pen, which is why its area then read small.
-
-         The cap is not the thing that decides whether a room is right — the
-         register is, further down, room by room. This only has to catch a fill
-         that has run away across the sheet, so it is set well above any shop in
-         the building and left to do that one job. */
+      /* A fill that has run away across the sheet, and nothing smaller. The
+         register decides whether a room is right, room by room, further down. */
       const CAP = Math.round(120 * 160 * PX * PX);
       const out = [], bad = [];
+      /* ONE SCRATCH BUFFER, NOT ONE PER SEED. Twenty megabytes allocated and
+         thrown away for every unit is what closed the browser on a floor of a
+         hundred and fifty. */
       const seen = new Uint8Array(W * H);
+      const mark = new Uint8Array(W * H);
       for (const s of seeds) {
         const sx = Math.round((s.cx - X0) * PX), sy = Math.round((s.cy - y0) * PX);
         if (sx < 1 || sy < 1 || sx >= W - 1 || sy >= H - 1) { bad.push([s.u, 'outside the tile']); continue; }
         /* the number itself is not drawn, so the seed sits on clear floor */
         if (wall[sy * W + sx]) { bad.push([s.u, 'seed landed on ink']); continue; }
-        const stack = [sy * W + sx];
-        const mark = new Map();
-        let n = 0, minx = W, miny = H, maxx = 0, maxy = 0, leaked = false;
-        seen.fill(0);
+        let stack = [sy * W + sx];
+        let n = 0, leaked = false;
+        seen.fill(0); mark.fill(0);
         seen[sy * W + sx] = 1;
         while (stack.length) {
           const i = stack.pop();
           const y = (i / W) | 0, x = i - y * W;
           n++;
           if (n > CAP) { leaked = true; break; }
-          if (x < minx) minx = x; if (x > maxx) maxx = x;
-          if (y < miny) miny = y; if (y > maxy) maxy = y;
-          mark.set(i, 1);
+          mark[i] = 1;
           if (x > 0 && !seen[i - 1] && !wall[i - 1]) { seen[i - 1] = 1; stack.push(i - 1); }
           if (x < W - 1 && !seen[i + 1] && !wall[i + 1]) { seen[i + 1] = 1; stack.push(i + 1); }
           if (y > 0 && !seen[i - W] && !wall[i - W]) { seen[i - W] = 1; stack.push(i - W); }
           if (y < H - 1 && !seen[i + W] && !wall[i + W]) { seen[i + W] = 1; stack.push(i + W); }
         }
         if (leaked) { bad.push([s.u, 'the fill escaped']); continue; }
-        out.push({ u: s.u, area: n,
+
+        /* grow it back, GROW pixels, against the TRUE walls */
+        if (GROW > 0) {
+          let front = [];
+          for (let i = 0; i < mark.length; i++) if (mark[i]) front.push(i);
+          for (let step = 0; step < GROW && front.length; step++) {
+            const next = [];
+            for (const i of front) {
+              const y = (i / W) | 0, x = i - y * W;
+              if (x > 0 && !mark[i - 1] && !real[i - 1]) { mark[i - 1] = 1; next.push(i - 1); }
+              if (x < W - 1 && !mark[i + 1] && !real[i + 1]) { mark[i + 1] = 1; next.push(i + 1); }
+              if (y > 0 && !mark[i - W] && !real[i - W]) { mark[i - W] = 1; next.push(i - W); }
+              if (y < H - 1 && !mark[i + W] && !real[i + W]) { mark[i + W] = 1; next.push(i + W); }
+            }
+            front = next;
+          }
+        }
+
+        let area = 0, minx = W, miny = H, maxx = 0, maxy = 0;
+        for (let i = 0; i < mark.length; i++) {
+          if (!mark[i]) continue;
+          area++;
+          const y = (i / W) | 0, x = i - y * W;
+          if (x < minx) minx = x; if (x > maxx) maxx = x;
+          if (y < miny) miny = y; if (y > maxy) maxy = y;
+        }
+        out.push({ u: s.u, area: area, restored: GROW > 0,
                    /* THE TILE ORIGIN TRAVELS WITH THE ROWS. The runs below are
                       pixels within THIS tile; without the corner they were cut
                       from, converting them back to drawing units silently
-                      dropped the offset and every shape landed off the sheet.
-                      The bounding box did not, because it was converted here —
-                      so the numbers looked right while the outlines were gone. */
+                      dropped the offset and every shape landed off the sheet. */
                    ox: X0, oy: y0,
                    x0: minx / PX + X0, y0: miny / PX + y0,
                    x1: maxx / PX + X0, y1: maxy / PX + y0,
-                   /* the filled cells, run-length by row, so the shape survives
-                      the trip out of the browser without a megabyte per room */
                    rows: (() => {
                      const rows = [];
                      for (let y = miny; y <= maxy; y++) {
                        let s0 = -1;
                        for (let x = minx; x <= maxx + 1; x++) {
-                         const on = x <= maxx && mark.has(y * W + x);
+                         const on = x <= maxx && mark[y * W + x];
                          if (on && s0 < 0) s0 = x;
                          else if (!on && s0 >= 0) { rows.push([y, s0, x - 1]); s0 = -1; }
                        }
@@ -230,6 +278,43 @@ function wallPaths(file) {
     res.bad.forEach(b => failed.push(b));
     console.log('  band y ' + bandY.toFixed(0) + '  seeds ' + seeds.length +
                 '  filled ' + res.out.length + '  refused ' + res.bad.length);
+  }
+
+  /* ── A SHEET WHERE ALMOST NOTHING SEALS ────────────────────────────────
+     On the shop floors nearly every seed fills at the ordinary pen. On the
+     residential ones almost none do, because every room opens onto a corridor
+     that runs the length of the building. When that is what has happened,
+     saying so and starting again with the doorways pinched shut is better
+     than limping through a hundred and fifty retries — and the scale of the
+     sheet has to come from somewhere, which it cannot if nothing filled. */
+  if (Object.keys(found).length < labels.length / 2) {
+    console.log("  only " + Object.keys(found).length + " of " + labels.length +
+                " sealed at the ordinary pen — this floor's rooms open onto a" +
+                " corridor. Flooding again with the doorways pinched shut.");
+    /* How heavy the pinch has to be is a fact about the building, not a taste:
+       a three-foot door is about ten drawing units on these sheets, and a pen is
+       only half as wide on each side of the line. So it climbs until the floor
+       seals, and says which weight did it.
+
+       ONE ROOM, ONE SMALL TILE. The band pass rasterises the whole width of the
+       sheet at once, which is twenty million pixels, and the pinched pass needs
+       three buffers over it. Windows killed the run twice for that. A room is
+       thirty units across; it does not need the building either side of it. */
+    for (const pinch of [20, 40, 70]) {
+      for (const k of Object.keys(found)) delete found[k];
+      failed.length = 0;
+      for (const seed of labels) {
+        const res = await page.evaluate(async (o) => window.__flood(o), {
+          X0: Math.max(X0, seed.cx - 120), X1: Math.min(X1, seed.cx + 120),
+          y0: seed.cy - 120, y1: seed.cy + 120,
+          PX: PX, seeds: [seed], thick: pinch });
+        if (res.out.length) { found[seed.u] = res.out[0]; res.out[0].pen = pinch; }
+        else res.bad.forEach(b => failed.push(b));
+      }
+      console.log("    at a pen of " + pinch + "× (" + (1.2 / PX * 2 * pinch).toFixed(1) +
+                  " drawing units): " + Object.keys(found).length + " of " + labels.length);
+      if (Object.keys(found).length >= labels.length / 2) break;
+    }
   }
   /* ── MORE PASSES FOR WHAT ESCAPED, WITH A THICKER PEN EACH TIME ─────────
      A fill that runs away has found a gap. Two kinds exist on these sheets:
@@ -307,7 +392,12 @@ function wallPaths(file) {
       return out;
     };
 
-  const STEPS = [2.5, 5, 9];   // wider was tried; it never rescued a room
+  /* The heavy pen is safe now that the room is grown back against the true
+     walls, so it can go far enough to shut a three-foot door: at forty times
+     the wall is twelve drawing units wide. Nothing is risked by trying — the
+     register picks the pen, and one that swallows the room reads wrong and
+     loses. */
+  const STEPS = [2.5, 5, 9, 20, 40];
     const clean = Object.keys(found).filter(u => book[u] > 0);
     const K = median(clean.map(u => book[u] / (found[u].area / (PX * PX))));
     console.log('  1 drawing unit\u00b2 = ' + K.toFixed(4) + ' sq ft, from the rooms as first flooded');
@@ -318,68 +408,84 @@ function wallPaths(file) {
        whole boundary. At the ordinary pen this is a fraction of a percent; at
        nine times it is the difference between keeping a room and losing it. */
     const bite = thick => 1.2 / PX * 2 * thick / 2;
+    /* — unless the room was GROWN BACK against the true walls, which has
+       already been given what the pen ate. Adding the allowance again would
+       hand it the same feet twice. */
     const trueArea = (r, thick) => r.area / (PX * PX) +
-      2 * ((r.x1 - r.x0) + (r.y1 - r.y0)) * bite(thick);
+      (r.restored ? 0 : 2 * ((r.x1 - r.x0) + (r.y1 - r.y0)) * bite(thick));
     const offBy = (u, r, thick) =>
       Math.abs(trueArea(r, thick || 1) * K - book[u]) / book[u];
 
-    const retry = failed.map(x => x[0])
-      .concat(Object.keys(found).filter(u => book[u] > 0 && offBy(u, found[u], 1) > TOL));
-    if (retry.length) {
-      console.log('  flooding again with a wider pen: ' + retry.join(', '));
-      for (const u of retry) {
-        const seed = labels.find(l => l.u === u);
-        if (!seed) continue;
-        /* THE ONES THAT SIT ON NOBODY COME FIRST. A fill that has walked into
-           the next three shops can happen to have a nicer-looking area than a
-           correct one, and comparing areas alone would take it. So a clean
-           fill always beats a trespassing one, and only among equals does the
-           register decide. */
-        const tries = [];
-        if (found[u] && book[u] > 0) tries.push({ r: found[u], pen: 1 });
-        for (const thick of STEPS) {
-          const y0 = seed.cy - 110, y1 = seed.cy + 110;
-          const res = await page.evaluate(async (o) => window.__flood(o),
-            { X0: X0, X1: X1, y0: y0, y1: y1, PX: PX, seeds: [seed], thick: thick,
-              blocks: (function(){var b=near(seed,u); if(u===process.env.DBGU) console.log("      pen"+thick+": "+b.length+" blocks, first "+JSON.stringify(b[0])+" tile y "+y0.toFixed(0)+".."+y1.toFixed(0)); return b;})() });
-          if (res.out.length) tries.push({ r: res.out[0], pen: thick });
-        }
-        tries.forEach(t => {
-          t.off = book[u] > 0 ? offBy(u, t.r, t.pen) : 0;
-          t.clean = sitsOn(t.r, u).length === 0;
-        });
-        if (u === process.env.DBGU) console.log("      tries for "+u+": "+tries.map(t=>"pen"+t.pen+" area"+(t.r.area/(PX*PX)).toFixed(0)+" off"+(t.off*100).toFixed(0)+"% "+(t.clean?"clean":"on "+sitsOn(t.r,u).join("/"))).join("  |  "));
-        tries.sort((a, b) => (b.clean - a.clean) || (a.off - b.off));
-        let best = tries[0] || null;
-        if (!best) { console.log('    ' + u + ' \u2014 no fill at any pen'); continue; }
-        const i = failed.findIndex(x => x[0] === u);
-        if (i >= 0) failed.splice(i, 1);
-        /* ── A ROOM THAT DISAGREES IS NOT AUTOMATICALLY A WRONG ROOM ──────
-           Two different things look the same in the arithmetic. A fill that
-           ran through a doorway is wrong: it is lying on top of the shops it
-           swallowed. A cell the architect simply drew a different size from
-           the one the register records is RIGHT as a shape — the walls are
-           where the walls are — and only its area is in dispute.
-
-           They are told apart by asking whether the shape sits on anybody
-           else. One that does is dropped, because a wrong tap target is worse
-           than none. One that sits alone is kept and reported, for a person
-           who knows the building to settle. */
-        const overlaps = sitsOn(best.r, u);
-        if (best.off <= TOL) {
-          found[u] = best.r; found[u].pen = best.pen; found[u].off = +best.off.toFixed(3);
-          console.log('    ' + u + ' at pen ' + best.pen + '\u00d7 \u2014 matches the register');
-        } else if (!overlaps.length) {
-          found[u] = best.r; found[u].pen = best.pen; found[u].off = +best.off.toFixed(3);
-          found[u].disputed = true;
-          console.log('    ' + u + ' \u2014 a clean cell of its own, but ' +
-                      (best.off * 100).toFixed(0) + '% off the register. Kept, and reported.');
-        } else {
-          delete found[u];
-          failed.push([u, 'the fill lies on top of ' + overlaps.slice(0, 3).join(', ') +
-                          ' \u2014 ' + (best.off * 100).toFixed(0) + '% off the register']);
-          console.log('    ' + u + ' \u2014 lies on top of ' + overlaps.slice(0, 3).join(', ') +
-                      '; no shape');
+    /* ── AND AGAIN, ONCE THE NEIGHBOURS ARE THEMSELVES RIGHT ──────────────
+       The rooms already settled are handed to a re-flood as solid ground. On
+       the first round some of those neighbours are the very rooms about to be
+       corrected \u2014 SF-199 was walled in by SF-120's wrong shape and could not
+       be read, and SF-120 was fixed a moment later. So the round is run twice:
+       the second one sees the first one's corrections. A third would change
+       nothing, because a room that agrees with the register is never retried. */
+    for (let round = 1; round <= 2; round++) {
+      const retry = failed.map(x => x[0])
+        .concat(Object.keys(found).filter(u => book[u] > 0 && offBy(u, found[u], 1) > TOL));
+      if (retry.length) {
+        console.log('  flooding again with a wider pen: ' + retry.join(', '));
+        for (const u of retry) {
+          const seed = labels.find(l => l.u === u);
+          if (!seed) continue;
+          /* THE ONES THAT SIT ON NOBODY COME FIRST. A fill that has walked into
+             the next three shops can happen to have a nicer-looking area than a
+             correct one, and comparing areas alone would take it. So a clean
+             fill always beats a trespassing one, and only among equals does the
+             register decide. */
+          const tries = [];
+          if (found[u] && book[u] > 0) tries.push({ r: found[u], pen: 1 });
+          for (const thick of STEPS) {
+            /* A TILE, NOT THE WHOLE SHEET. Rendering the full width for one seed is
+               nine million pixels a time, and doing that four hundred times is what
+               closed the browser on the Third Floor. */
+            const y0 = seed.cy - 110, y1 = seed.cy + 110;
+            const tx0 = Math.max(X0, seed.cx - 170), tx1 = Math.min(X1, seed.cx + 170);
+            const res = await page.evaluate(async (o) => window.__flood(o),
+              { X0: tx0, X1: tx1, y0: y0, y1: y1, PX: PX, seeds: [seed], thick: thick,
+                blocks: (function(){var b=near(seed,u); if(u===process.env.DBGU) console.log("      pen"+thick+": "+b.length+" blocks, first "+JSON.stringify(b[0])+" tile y "+y0.toFixed(0)+".."+y1.toFixed(0)); return b;})() });
+            if (res.out.length) tries.push({ r: res.out[0], pen: thick });
+          }
+          tries.forEach(t => {
+            t.off = book[u] > 0 ? offBy(u, t.r, t.pen) : 0;
+            t.clean = sitsOn(t.r, u).length === 0;
+          });
+          if (u === process.env.DBGU) console.log("      tries for "+u+": "+tries.map(t=>"pen"+t.pen+" area"+(t.r.area/(PX*PX)).toFixed(0)+" off"+(t.off*100).toFixed(0)+"% "+(t.clean?"clean":"on "+sitsOn(t.r,u).join("/"))).join("  |  "));
+          tries.sort((a, b) => (b.clean - a.clean) || (a.off - b.off));
+          let best = tries[0] || null;
+          if (!best) { console.log('    ' + u + ' \u2014 no fill at any pen'); continue; }
+          const i = failed.findIndex(x => x[0] === u);
+          if (i >= 0) failed.splice(i, 1);
+          /* ── A ROOM THAT DISAGREES IS NOT AUTOMATICALLY A WRONG ROOM ──────
+             Two different things look the same in the arithmetic. A fill that
+             ran through a doorway is wrong: it is lying on top of the shops it
+             swallowed. A cell the architect simply drew a different size from
+             the one the register records is RIGHT as a shape — the walls are
+             where the walls are — and only its area is in dispute.
+  
+             They are told apart by asking whether the shape sits on anybody
+             else. One that does is dropped, because a wrong tap target is worse
+             than none. One that sits alone is kept and reported, for a person
+             who knows the building to settle. */
+          const overlaps = sitsOn(best.r, u);
+          if (best.off <= TOL) {
+            found[u] = best.r; found[u].pen = best.pen; found[u].off = +best.off.toFixed(3);
+            console.log('    ' + u + ' at pen ' + best.pen + '\u00d7 \u2014 matches the register');
+          } else if (!overlaps.length) {
+            found[u] = best.r; found[u].pen = best.pen; found[u].off = +best.off.toFixed(3);
+            found[u].disputed = true;
+            console.log('    ' + u + ' \u2014 a clean cell of its own, but ' +
+                        (best.off * 100).toFixed(0) + '% off the register. Kept, and reported.');
+          } else {
+            delete found[u];
+            failed.push([u, 'the fill lies on top of ' + overlaps.slice(0, 3).join(', ') +
+                            ' \u2014 ' + (best.off * 100).toFixed(0) + '% off the register']);
+            console.log('    ' + u + ' \u2014 lies on top of ' + overlaps.slice(0, 3).join(', ') +
+                        '; no shape');
+          }
         }
       }
     }
