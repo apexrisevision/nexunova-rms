@@ -2409,6 +2409,13 @@ function serve() {
                                AND EXISTS (SELECT 1 FROM public.units u WHERE u.project_id = p.id)
                                AND EXISTS (SELECT 1 FROM public.sales_users su
                                             WHERE su.company_id = p.company_id AND su.role='director')
+                               /* AND A PROJECT THAT STILL HAS ITS STATUS LIST. One ZZTEST
+                                  project had its statuses deleted long ago and its units
+                                  point at rows that are not there; planting a hold on it
+                                  means stamping a unit with nothing. */
+                               AND EXISTS (SELECT 1 FROM public.category_unit_statuses cs
+                                            WHERE cs.project_id = p.id AND NOT cs.is_available
+                                              AND cs.is_active)
                              ORDER BY p.id LIMIT 1;`);
       if (!zr.length) { bad('no ZZTEST project with a director to test the report on'); }
       else {
@@ -2456,6 +2463,41 @@ function serve() {
           wrong[0].e === 'no' ? ok('a wrong password says only \u201cno\u201d')
                               : bad('a wrong password said: ' + JSON.stringify(wrong[0]));
 
+          /* ── ONE HOLD, PLANTED ─────────────────────────────────────────
+             Every ZZTEST unit is free, so a report of nothing held would let
+             every page behind the first screen pass on an empty list. One
+             unit is stamped and given a reservation in a known name, and put
+             back at the end. The unit is stamped BEFORE the reservation is
+             written: the trigger on units cancels live reservations when the
+             status changes, so the other order silently undoes itself. */
+          const HOLDER = 'ZZ Holder';
+          const planted = await sql(`
+            WITH u AS (SELECT u.id, u.unit_no FROM public.units u
+                         JOIN public.category_unit_statuses st ON st.id = u.status_id
+                        WHERE u.project_id='${RP}' AND st.is_available
+                        ORDER BY u.unit_no LIMIT 1),
+                 s AS (SELECT id FROM public.category_unit_statuses
+                        WHERE project_id='${RP}' AND NOT is_available AND is_active
+                          ORDER BY sort_order LIMIT 1)
+            UPDATE public.units SET status_id = (SELECT id FROM s)
+             WHERE id = (SELECT id FROM u)
+            RETURNING id::text AS uid, unit_no,
+                      (SELECT COALESCE(NULLIF(TRIM(public_label),''), status_name)
+                         FROM public.category_unit_statuses WHERE id = (SELECT id FROM s)) AS kind;`);
+          const PU = planted.length ? planted[0] : null;
+          if (PU) {
+            await sql(`INSERT INTO public.reservations
+              (company_id, project_id, unit_id, reserved_by, client_name, status,
+               requested_by_name, expiry_date, created_at)
+              SELECT '${RC}','${RP}','${PU.uid}',
+                     (SELECT id FROM public.sales_users WHERE company_id='${RC}'
+                       AND role='director' LIMIT 1),
+                     'ZZ Client','active','${HOLDER}', now() + interval '3 days', now();`);
+          }
+          PU ? ok('one ZZTEST unit planted as held (' + PU.unit_no + ') so the pages behind ' +
+                  'the first screen have something to show')
+             : bad('could not plant a hold on ZZTEST — the drill-downs would prove nothing');
+
           /* ── the room, through the real page, on the real link ──────── */
           const rc = await browser.createBrowserContext();
           const rpg = await rc.newPage();
@@ -2498,22 +2540,130 @@ function serve() {
           await rpg.waitForFunction(
             () => (document.getElementById('rep-body').innerHTML || '').length > 200,
             { timeout: 20000 }).catch(() => {});
+          /* THE FIRST SCREEN IS SHORT ON PURPOSE. Rashid read the first cut
+             and said it confused him: "ziada reports confuse karti hain, mai
+             professional ho k confuse ho gaya hun to mere directors to non
+             professional hain". So what is asserted is that it is four blocks
+             of DOORS and not a wall of tables \u2014 a fifth table creeping back
+             onto it fails here. */
           const room = await rpg.evaluate(() => {
             const b = document.getElementById('rep-body');
             const t = (b.innerText || '');
             return { len: (b.innerHTML || '').length,
                      heads: [...b.querySelectorAll('h2')].map(h => h.textContent.trim()),
                      tables: b.querySelectorAll('table').length,
+                     doors: b.querySelectorAll('[data-go]').length,
+                     pdf: !!b.querySelector('#rep-pdf'),
+                     dis: (b.querySelector('.dis') || { innerText: '' }).innerText,
                      gate: !document.getElementById('rep-gate').hidden,
                      unitsMounted: document.querySelectorAll('#units button').length,
                      hasPkr: /PKR/.test(t) };
           });
-          (room.len > 200 && !room.gate && room.tables >= 3 && room.hasPkr &&
-           room.heads.length >= 4 && room.unitsMounted === 0)
-            ? ok('and the right one opens it \u2014 ' + room.heads.join(' / ') +
-                 ' (' + room.tables + ' tables)')
+          (room.len > 200 && !room.gate && room.tables === 0 && room.hasPkr &&
+           room.heads.length === 4 && room.doors >= 3 && room.pdf && room.unitsMounted === 0)
+            ? ok('and the right one opens it \u2014 four blocks, ' + room.doors +
+                 ' doors, no table on the way in: ' + room.heads.join(' / '))
             : bad('the room did not open properly: ' + JSON.stringify(room));
+          /* THE DISCLAIMER IS NOT DECORATION. It is the reason this page can be
+             forwarded at all, so its load-bearing sentences are asserted by
+             their meaning rather than by their presence. */
+          (/not a confirmation/i.test(room.dis) && /not a record of money/i.test(room.dis) &&
+           /does not mean paid/i.test(room.dis) && /no guarantee/i.test(room.dis))
+            ? ok('and it carries the disclaimer: not a confirmation, not money, ' +
+                 'sold is not paid, a hold is no guarantee')
+            : bad('the disclaimer is missing or weak: ' + JSON.stringify(room.dis.slice(0, 120)));
           await rpg.screenshot({ path: path.join(OUT, 'g-directors-room.png'), fullPage: true });
+
+          /* ── AND EVERY DOOR OPENS ONTO THE UNITS THEMSELVES ──────────── */
+          const kind = await rpg.evaluate(k => {
+            const r = [...document.querySelectorAll('#rep-body [data-go="kind"]')]
+              .filter(x => x.getAttribute('data-key') === k)[0];
+            if (!r) return { none: true };
+            r.click();
+            const b = document.getElementById('rep-body');
+            return { none: false, rows: b.querySelectorAll('table.ut tr').length,
+                     text: (b.innerText || ''),
+                     pdf: !!b.querySelector('#rep-pdf'),
+                     dis: !!b.querySelector('.dis') };
+          }, PU && PU.kind);
+          (!kind.none && kind.rows >= 3 && kind.pdf && kind.dis &&
+           /zz holder/i.test(kind.text))
+            ? ok('tapping a kind opens every unit of that kind, with the name on each')
+            : bad('the kind page is wrong: ' + JSON.stringify({ kind: PU && PU.kind,
+                  n: kind.none, rows: kind.rows, pdf: kind.pdf, dis: kind.dis,
+                  saw: String(kind.text || '').replace(/s+/g, ' ').slice(0, 140) }));
+
+          const backIn = await rpg.evaluate(() => {
+            document.getElementById('rep-back').click();
+            return { heads: [...document.querySelectorAll('#rep-body h2')].map(h => h.textContent.trim()),
+                     stillIn: !document.getElementById('rep').hidden };
+          });
+          (backIn.stillIn && backIn.heads.length === 4)
+            ? ok('and Back goes one step into the room, not out of it')
+            : bad('Back left the room: ' + JSON.stringify(backIn));
+
+          const person = await rpg.evaluate(() => {
+            const r = [...document.querySelectorAll('#rep-body [data-go="person"]')]
+              .filter(x => x.getAttribute('data-key') === 'ZZ Holder')[0];
+            if (!r) return { none: true };
+            r.click();
+            const b = document.getElementById('rep-body');
+            return { none: false, text: (b.innerText || ''),
+                     rows: b.querySelectorAll('table.ut tr').length,
+                     pdf: !!b.querySelector('#rep-pdf') };
+          });
+          (!person.none && person.rows >= 3 && person.pdf &&
+           /zz holder/i.test(person.text) && /Ends|no end date/i.test(person.text))
+            ? ok('and tapping a name opens that person\u2019s own units, with what ends when')
+            : bad('the person page is wrong: ' + JSON.stringify({ n: person.none,
+                  rows: person.rows, pdf: person.pdf,
+                  saw: String(person.text || '').replace(/s+/g, ' ').slice(0, 140) }));
+          await rpg.screenshot({ path: path.join(OUT, 'h-directors-person.png'), fullPage: true });
+
+          /* ── AND THE WORTH REPORT, FLOOR BY FLOOR ────────────────────── */
+          const worth = await rpg.evaluate(() => {
+            document.getElementById('rep-back').click();
+            const r = document.querySelector('#rep-body [data-go="floors"]');
+            if (!r) return { none: true };
+            r.click();
+            const b = document.getElementById('rep-body');
+            /* A CARD PER FLOOR, and every card says all six things. A floor
+               that quietly lost one of them would still look like a report. */
+            const cards = [...b.querySelectorAll('.wf:not(.wf-t)')];
+            return { none: false,
+                     floors: cards.length,
+                     whole: cards.every(c => c.querySelector('.wf-n') && c.querySelector('.wf-v') &&
+                                             c.querySelectorAll('.g-v').length === 2),
+                     total: !!b.querySelector('.wf-t'),
+                     pdf: !!b.querySelector('#rep-pdf'),
+                     text: (b.innerText || '') };
+          });
+          (!worth.none && worth.total && worth.pdf && worth.floors >= 1 && worth.whole &&
+           /On the shelf/i.test(worth.text) && /Taken/i.test(worth.text))
+            ? ok('and the worth report reads floor by floor — ' + worth.floors +
+                 ' floors, each with its worth, what is on the shelf and what is taken, ' +
+                 'and the whole building underneath')
+            : bad('the worth report is wrong: ' + JSON.stringify({ n: worth.none,
+                  floors: worth.floors, whole: worth.whole, total: worth.total, pdf: worth.pdf }));
+          await rpg.screenshot({ path: path.join(OUT, 'i-directors-worth.png'), fullPage: true });
+
+          /* THE PRINTED SHEET IS THE POINT OF THE PDF BUTTON. Print emulation
+             is the only way to see what the paper gets: the page furniture
+             gone, the letterhead there, the disclaimer still on it. */
+          await rpg.emulateMediaType('print');
+          const paper = await rpg.evaluate(() => {
+            const vis = el => el && getComputedStyle(el).display !== 'none';
+            return { head: vis(document.querySelector('.pr-h')),
+                     tools: vis(document.querySelector('.rp-x')),
+                     nav: vis(document.querySelector('#rep .ft')),
+                     home: vis(document.getElementById('home')),
+                     dis: vis(document.querySelector('.dis')) };
+          });
+          (paper.head && paper.dis && !paper.tools && !paper.nav && !paper.home)
+            ? ok('and on paper it is a document: letterhead on, buttons and ' +
+                 'navigation off, disclaimer still there')
+            : bad('the printed sheet is wrong: ' + JSON.stringify(paper));
+          await rpg.emulateMediaType(null);
 
           const wrote = await rpg.evaluate(() => Object.keys(localStorage)
             .filter(k => /pw|pass|report/i.test(k) || /pw|pass/i.test(String(localStorage[k]))));
@@ -2558,6 +2708,24 @@ function serve() {
           }
         }
         /* put ZZTEST back exactly as it was */
+        await sql(`
+          UPDATE public.reservations SET status='cancelled', cancelled_at=now()
+           WHERE project_id='${RP}' AND requested_by_name='ZZ Holder' AND status='active';
+          UPDATE public.units u SET status_id = (SELECT id FROM public.category_unit_statuses
+                                                  WHERE project_id='${RP}' AND is_available
+                                                  ORDER BY sort_order LIMIT 1)
+           WHERE u.project_id='${RP}'
+             AND EXISTS (SELECT 1 FROM public.reservations r
+                          WHERE r.unit_id=u.id AND r.requested_by_name='ZZ Holder');
+          DELETE FROM public.reservations
+           WHERE project_id='${RP}' AND requested_by_name='ZZ Holder';
+          /* A SAFETY NET, not a second thought: a run that dies between the
+             stamp and the reservation leaves a unit with no status at all,
+             and the next run then reads it as held by nobody. */
+          UPDATE public.units u SET status_id = (SELECT id FROM public.category_unit_statuses
+                                                  WHERE project_id='${RP}' AND is_available
+                                                  ORDER BY sort_order LIMIT 1)
+           WHERE u.project_id='${RP}' AND u.status_id IS NULL;`);
         await sql(`SELECT public.set_availability_report_password('zz-rep-dir','${RP}',NULL);
           DELETE FROM public.availability_report_attempts a USING public.availability_links l
            WHERE l.id = a.link_id AND l.project_id = '${RP}';

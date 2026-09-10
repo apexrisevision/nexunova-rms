@@ -584,28 +584,139 @@ button{cursor:pointer;background:none;border:0}
 .rp .big .bn{font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
 .rp .big .bl{font-size:11px;color:var(--mut);margin-top:2px;line-height:1.35}
 .rp .big .bs{font-size:11px;color:var(--mut);margin-top:4px;line-height:1.35}
-/* a table that is a table: this is a report, and a report is read in columns */
-.rp table{width:100%;border-collapse:collapse;font-size:12.5px}
-.rp th{font-size:10px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;
-       color:var(--mut);text-align:right;padding:0 0 7px;white-space:nowrap}
-.rp th:first-child{text-align:left}
-.rp td{padding:8px 0;border-top:1px solid var(--hair);text-align:right;
-       font-variant-numeric:tabular-nums;white-space:nowrap}
-.rp td:first-child{text-align:left;white-space:normal}
-.rp .nm{font-weight:650;letter-spacing:-.01em}
-.rp .sub{display:block;font-size:10.5px;color:var(--mut);font-weight:400;margin-top:2px}
+/* ── A ROW THAT IS A DOOR ─────────────────────────────────────────────────
+   The first screen is a short list of these and nothing else. Each one names a
+   thing, says what it is worth, and opens a page of its own. */
+.rp .rows{display:flex;flex-direction:column;gap:6px}
+.rp .row{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+         background:var(--card);border:0;border-radius:var(--r);padding:13px 14px;
+         font-family:inherit;color:inherit;
+         transition:background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease)}
+@media (hover:hover){ .rp .row:hover{background:#FDFDFD} }
+.rp .row:active{transform:scale(.985);background:var(--sunk)}
+.rp .r-d{width:9px;height:9px;border-radius:3px;background:var(--t,var(--held));flex:none}
+.rp .r-m{flex:1;min-width:0}
+.rp .r-t{display:block;font-size:14px;font-weight:650;letter-spacing:-.015em;line-height:1.3}
+.rp .r-s{display:block;font-size:11.5px;color:var(--mut);line-height:1.45;margin-top:2px}
+.rp .r-n{font-size:19px;font-weight:700;letter-spacing:-.02em;flex:none;
+         font-variant-numeric:tabular-nums}
+.rp .r-a{flex:none;width:7px;height:7px;border-right:1.6px solid var(--mut);
+         border-top:1.6px solid var(--mut);transform:rotate(45deg);opacity:.5}
+/* one plain sentence under a block, where a sentence says it better than a table */
+.rp .say{font-size:12px;color:var(--mut);line-height:1.6;margin-top:9px}
+.rp .say b{color:var(--soft);font-weight:650}
+.rp .p-h{font-size:13.5px;line-height:1.6}
+.rp .p-h b{font-weight:700}
+.rp .p-p{margin-top:7px}
+
+/* ── THE UNIT TABLE ───────────────────────────────────────────────────────
+   The first cut ran its columns into one another; Rashid: "sab values aik
+   dosray k bohat qaareeb placed hain". So the columns are given widths and
+   real space between them, the numbers are tabular, and the last column is
+   allowed to be the widest because a date is what the eye goes to. */
+.rp table{width:100%;border-collapse:collapse;font-size:12.5px;table-layout:fixed}
+.rp th{font-size:9.5px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;
+       color:var(--mut);text-align:right;padding:0 0 8px 10px;white-space:nowrap;
+       overflow:hidden;text-overflow:clip}
+.rp th:first-child{text-align:left;padding-left:0}
+.rp td{padding:9px 0 9px 10px;border-top:1px solid var(--hair);text-align:right;
+       font-variant-numeric:tabular-nums;vertical-align:middle;
+       white-space:nowrap;overflow:hidden;text-overflow:clip}
+.rp td:first-child{text-align:left;padding-left:0}
+.rp td.nm{font-weight:650;letter-spacing:-.01em}
+.rp td.w{text-align:left;color:var(--soft);font-size:11.5px;
+         overflow:hidden;text-overflow:ellipsis}
+.rp td.warn{color:#b3123c;font-weight:650}
+.rp .c-u{width:22%} .rp .c-w{width:32%} .rp .c-v{width:22%} .rp .c-e{width:24%}
+.rp .ft4 .c-f{width:40%} .rp .ft4 .c-n{width:20%}
+.rp .w4 td{vertical-align:top}
+.rp .w4 td:first-child{white-space:normal}
+.rp .w4 .c-f{width:34%} .rp .w4 .c-n{width:22%}
+/* ── A CARD PER FLOOR ─────────────────────────────────────────────────────
+   Six numbers about one floor will not sit in six columns on a phone. Given
+   its own block, each floor says all of them plainly: what it is worth at the
+   top, the working underneath, and the two halves side by side. */
+.rp .wl{display:flex;flex-direction:column;gap:7px}
+.rp .wf{background:var(--card);border-radius:var(--r);padding:14px 15px}
+.rp .wf-h{display:flex;align-items:baseline;gap:10px}
+.rp .wf-n{flex:1;min-width:0;font-size:14.5px;font-weight:650;letter-spacing:-.015em}
+.rp .wf-v{flex:none;font-size:16px;font-weight:700;letter-spacing:-.02em;
+          font-variant-numeric:tabular-nums}
+.rp .wf-s{font-size:11px;color:var(--mut);line-height:1.5;margin-top:3px}
+.rp .wf .sh{margin:9px 0 11px}
+.rp .wf-g{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.rp .wf-g > div{min-width:0}
+.rp .g-l{display:block;font-size:9.5px;font-weight:650;letter-spacing:.06em;
+         text-transform:uppercase;color:var(--mut)}
+.rp .g-v{display:block;font-size:13.5px;font-weight:650;margin-top:3px;
+         font-variant-numeric:tabular-nums}
+.rp .g-s{display:block;font-size:10.5px;color:var(--mut);margin-top:2px}
+.rp .wf-t{margin-top:9px;border:1.5px solid var(--ink)}
+.rp .wf-t .wf-n, .rp .wf-t .wf-v{font-weight:750}
+.rp tr.tot td{border-top:2px solid var(--ink);font-weight:700;padding-top:9px}
+.rp .nm{font-weight:650;letter-spacing:-.01em;display:block}
+.rp .sub{display:block;font-size:10px;color:var(--mut);font-weight:400;margin-top:3px;
+         line-height:1.35;white-space:normal}
+.rp .mut{color:var(--mut)}
+
 .rp .pill{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.05em;
           text-transform:uppercase;color:#fff;background:var(--t,var(--held));
-          border-radius:999px;padding:1px 6px;margin-right:4px}
-.rp .note{font-size:12px;color:var(--mut);line-height:1.6;margin-top:9px}
-.rp .note b{color:var(--soft);font-weight:650}
+          border-radius:999px;padding:1.5px 7px;margin:0 4px 3px 0}
 /* one bar, reused: share of a whole, drawn once so the eye can rank rows */
-.rp .sh{height:4px;border-radius:2px;background:var(--sunk);margin-top:5px;overflow:hidden}
+.rp .sh{display:block;height:4px;border-radius:2px;background:var(--sunk);
+        margin-top:6px;overflow:hidden}
 .rp .sh i{display:block;height:100%;background:var(--t,var(--accent))}
-.rp .wk{display:flex;align-items:flex-end;gap:5px;height:52px;margin-top:4px}
-.rp .wk i{flex:1;background:var(--accent);border-radius:3px 3px 0 0;min-height:2px;opacity:.75}
-.rp .wkl{display:flex;gap:5px;margin-top:5px;font-size:9.5px;color:var(--mut)}
-.rp .wkl span{flex:1;text-align:center}
+
+/* ── SAVE AS PDF ──────────────────────────────────────────────────────────
+   The browser's own print, which is Save as PDF on every phone and every
+   desktop, and is how the rest of this system makes its documents. */
+.rp-x{display:flex;align-items:center;gap:12px;margin-top:18px}
+.rp-x-t{flex:1;min-width:0;font-size:11.5px;color:var(--mut)}
+.rp-pdf{flex:none;height:40px;padding:0 16px;border:1px solid var(--hair);border-radius:11px;
+        background:var(--card);font-family:inherit;font-size:13px;font-weight:650;
+        color:var(--ink)}
+@media (hover:hover){ .rp-pdf:hover{background:var(--sunk)} }
+
+/* ── THE DISCLAIMER ───────────────────────────────────────────────────────
+   At the foot of every page in this room, on screen and on paper. It is meant
+   to be read, so it is not grey six-point mouse type. */
+.dis{margin:22px 0 34px;padding:15px 15px 16px;border:1px solid var(--hair);
+     border-radius:var(--r);background:#FFFBFB}
+.dis-h{font-size:11px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;
+       color:#b3123c;margin-bottom:9px}
+.dis ul{margin:0;padding-left:17px}
+.dis li{font-size:11.5px;color:var(--soft);line-height:1.65;margin-bottom:6px}
+.dis li b{font-weight:700;color:var(--ink)}
+.dis-f{margin-top:10px;padding-top:9px;border-top:1px solid var(--hair);
+       font-size:10.5px;color:var(--mut)}
+
+/* the letterhead: nothing on screen, the head of the page on paper */
+.pr-h{display:none}
+
+@media print {
+  /* ONLY THE REPORT GOES ON THE PAPER. Everything else on this page is a way
+     of getting to it. */
+  body{background:#fff}
+  .hd, .ft, #home, #all, #mine, #floor, #rep-gate, .rp-x, .toast, #sheet, #boot{display:none !important}
+  .wrap{max-width:none;padding:0}
+  #rep{display:block !important}
+  .fh{margin:0 0 4px}
+  .pr-h{display:block;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #111}
+  .pr-t{font-size:17px;font-weight:750;letter-spacing:-.02em}
+  .pr-p{font-size:12.5px;margin-top:3px}
+  .pr-d{font-size:10.5px;color:#555;margin-top:3px}
+  .rp .card, .rp .b, .rp .row{border:1px solid #ddd;background:#fff !important;
+                              break-inside:avoid}
+  .rp .row{page-break-inside:avoid}
+  .rp h2{margin:14px 0 6px;color:#333}
+  .rp table{font-size:10.5px}
+  .rp td{padding:6px 0 6px 8px}
+  .dis{break-inside:avoid;background:#fff}
+  /* colour is meaning here — a Hold and a Sold must not print as the same
+     grey pill, so the browser is told to keep the ink */
+  .rp .pill, .rp .r-d, .rp .sh i{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  tr, .dis li{page-break-inside:avoid}
+}
 
 /* ── the whole building ──────────────────────────────────────────────────
    A different question from a floor, so a different chip: lighter, wider,
@@ -3155,24 +3266,106 @@ $('all-back').onclick = function () {
    localStorage, not in the URL, not in the name card. Close the tab and the
    room shuts, which is the behaviour a password on a forwarded link has to
    have. */
-var REPV = false, REPPW = '', REP = null;
+var REPV = false, REP = null;
+/* WHICH PAGE OF THE ROOM IS OPEN. The first screen is short on purpose —
+   Rashid read the first cut and said so: "mai professional ho k confuse ho gaya
+   hun to mere directors to non professional hain". So it carries four things,
+   and every one of them is a door: tap a kind, a name, the line about what is
+   ending, or the floors, and that page opens with the units themselves on it.
+   Nothing is fetched again: the report already came with them. */
+var REPP = { view: 'home', key: '' };
 
 function pkr(v) {
   var n = Number(v) || 0;
-  /* Crores and lakhs, because that is how the number is said in the room it
-     is read in. Under a lakh it is written out. */
+  /* Crores and lakhs, because that is how the number is said in the room it is
+     read in. Under a lakh it is written out in full. */
   if (n >= 1e7) return (n / 1e7).toFixed(n >= 1e8 ? 0 : 2) + ' cr';
   if (n >= 1e5) return (n / 1e5).toFixed(n >= 1e6 ? 0 : 1) + ' lac';
   return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 function num(v) { return (Number(v) || 0).toLocaleString('en-US'); }
+/* one unit is not "1 units" */
+function units(n) { return num(n) + ' unit' + (Number(n) === 1 ? '' : 's'); }
+function held() { return (REP && REP.units) || []; }
+function dayOf(s) {
+  if (!s) return '';
+  return new Date(s).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function daysTo(s) {
+  if (!s) return null;
+  return Math.round((new Date(s).getTime() - Date.now()) / 86400000);
+}
+function sum(rows, k) { return rows.reduce(function (t, r) { return t + (Number(r[k]) || 0); }, 0); }
+function kindsOf(rows) {
+  var by = {};
+  rows.forEach(function (r) { by[r.k] = (by[r.k] || 0) + 1; });
+  return by;
+}
 function kindPills(by) {
   return Object.keys(by || {})
-    .sort(function (a, b) { return by[b] - by[a]; })
+    .sort(function (x, y) { return by[y] - by[x]; })
     .map(function (k) {
       return '<span class="pill" style="--t:' + tint(skey(k)) + '">' + esc(k) + ' ' + by[k] + '</span>';
     }).join('');
 }
+function endingSoon() {
+  return held().filter(function (r) {
+    var d = daysTo(r.e); return d !== null && d <= 7;
+  }).sort(function (x, y) { return new Date(x.e) - new Date(y.e); });
+}
+
+/* ── THE DISCLAIMER ───────────────────────────────────────────────────────
+   Rashid asked for the strongest one there is, and for a reason worth writing
+   down: this page is forwarded, and a page that lists a unit as "Sold" beside
+   a rupee figure will be read by somebody as a receipt. It is not. It is the
+   desk's own working note of what is off the market today, nothing has been
+   verified against a bank, and every line on it can change without notice.
+   It goes at the foot of every page in this room, including the printed one —
+   there is no page a director can share that does not carry it. */
+function disclaimer(d) {
+  return '<div class="dis">' +
+    '<div class="dis-h">Read this before you act on anything above</div>' +
+    '<ul>' +
+      '<li>This is <b>not a confirmation, an allotment, a receipt or an agreement</b>. ' +
+        'It confirms nothing to anybody and creates no right over any unit.</li>' +
+      '<li><b>It is not a record of money.</b> No amount shown here has been received, ' +
+        'verified, reconciled or banked. The figures are the register’s asking values, ' +
+        'not payments, not dues, and not a statement of account.</li>' +
+      '<li><b>“Sold” here does not mean paid.</b> It is a working label the desk puts on a ' +
+        'unit that is off the market. It does not mean a sale is complete, that any ' +
+        'instalment has come in, or that any document has been signed.</li>' +
+      '<li><b>“Hold”, “Pagri”, “Reserve” carry no guarantee.</b> A hold can lapse, be ' +
+        'released or be cancelled at any time, with or without notice, and a unit shown ' +
+        'against a name may be given to somebody else.</li>' +
+      '<li>The names shown are only <b>who asked for the unit</b> — they are not owners, ' +
+        'buyers, or parties to anything.</li>' +
+      '<li>This page is a <b>working snapshot taken at the moment it was opened</b> and may ' +
+        'already be out of date. Nothing here supersedes the company’s own books, ' +
+        'agreements or receipts, which are the only record that counts.</li>' +
+      '<li><b>Internal use only.</b> It carries commercial information about the project ' +
+        'and is not for onward circulation.</li>' +
+    '</ul>' +
+    '<div class="dis-f">' + esc(d.project) + ' · ' + esc(d.company) +
+      ' · snapshot ' + new Date(d.as_of).toLocaleString('en-US') + '</div>' +
+  '</div>';
+}
+
+/* the head of the printed sheet — invisible on screen, the letterhead on paper */
+function printHead(d, title) {
+  return '<div class="pr-h">' +
+    '<div class="pr-t">' + esc(d.company) + '</div>' +
+    '<div class="pr-p">' + esc(d.project) + ' · ' + esc(title) + '</div>' +
+    '<div class="pr-d">Snapshot taken ' + new Date(d.as_of).toLocaleString('en-US') + '</div>' +
+  '</div>';
+}
+function repTools(title) {
+  /* PRINT, WHICH IS ALSO SAVE AS PDF. No library: the browser's own print is
+     the one route on every phone and every desktop, and it is what the rest of
+     this system uses for its documents. */
+  return '<div class="rp-x"><div class="rp-x-t">' + esc(title) + '</div>' +
+    '<button class="rp-pdf" id="rep-pdf">Save as PDF</button></div>';
+}
+
 function showRep() {
   REPV = true;
   ['home', 'all', 'mine', 'floor'].forEach(function (id) { $(id).hidden = true; });
@@ -3181,7 +3374,7 @@ function showRep() {
   $('name-ask').hidden = true;
   $('rep').hidden = false;
   $('rep-gate').hidden = !!REP;
-  $('rep-body').innerHTML = REP ? repHtml(REP) : '';
+  $('rep-body').innerHTML = REP ? repRender() : '';
   $('rep-as').textContent = REP ? 'as of ' + hhmm(new Date(REP.as_of).getTime()) : '';
   if (!REP) setTimeout(function () { $('dir-pw').focus(); }, 60);
 }
@@ -3201,7 +3394,8 @@ async function repOpen() {
       $('dir-pw').value = '';
       return;
     }
-    REP = d; REPPW = pw; $('dir-pw').value = ''; err.hidden = true;
+    REP = d; REPP = { view: 'home', key: '' };
+    $('dir-pw').value = ''; err.hidden = true;
     showRep(); window.scrollTo(0, 0);
   } catch (e) {
     err.hidden = false; err.textContent = 'Could not reach the office. Try again.';
@@ -3213,161 +3407,270 @@ $('dir-pw').addEventListener('keydown', function (e) {
   if (e.key === 'Enter') { e.preventDefault(); repOpen(); }
 });
 $('rep-back').onclick = function () {
+  /* one step back inside the room before leaving it */
+  if (REP && REPP.view !== 'home') {
+    REPP = { view: 'home', key: '' };
+    $('rep-body').innerHTML = repRender();
+    window.scrollTo(0, 0);
+    return;
+  }
   REPV = false; BACKING = true;
   $('rep').hidden = true;
   paintNameAsk();
   renderHome(); window.scrollTo(0, 0);
 };
+$('rep-body').addEventListener('click', function (e) {
+  if (e.target.closest('#rep-pdf')) { window.print(); return; }
+  var go = e.target.closest('[data-go]');
+  if (!go) return;
+  REPP = { view: go.getAttribute('data-go'), key: go.getAttribute('data-key') || '' };
+  $('rep-body').innerHTML = repRender();
+  window.scrollTo(0, 0);
+});
 
-function repHtml(d) {
-  var t = d.totals, i = d.insights, U = d.area_unit || 'sqft';
-  var held = Number(t.held) || 0;
-  var H = [];
+function repRender() {
+  var d = REP;
+  if (REPP.view === 'person') return repPeoplePage(d, REPP.key);
+  if (REPP.view === 'kind')   return repKindPage(d, REPP.key);
+  if (REPP.view === 'ending') return repEndingPage(d);
+  if (REPP.view === 'floors') return repFloorPage(d);
+  return repHome(d);
+}
 
-  /* ── WHERE THE BUILDING STANDS ─────────────────────────────────────── */
-  H.push('<div class="rp">');
+/* ── THE FIRST SCREEN — FOUR THINGS AND A WAY INTO EACH ──────────────────── */
+function repHome(d) {
+  var t = d.totals, i = d.insights || {}, rows = held();
+  var gone = Number(t.held) || 0;
+  var by = d.by_status || [];
+  var people = d.by_person || [];
+  var soon = endingSoon();
+  var H = ['<div class="rp">'];
+
+  H.push(printHead(d, 'Position summary'));
   H.push('<h2>Where the building stands</h2><div class="big">' +
     '<div class="b"><div class="bn">' + num(t.available) + '</div>' +
-      '<div class="bl">available of ' + num(t.units) + '</div>' +
+      '<div class="bl">still available, of ' + num(t.units) + '</div>' +
       '<div class="bs">PKR ' + pkr(t.value_free) + ' unsold</div></div>' +
-    '<div class="b"><div class="bn">' + num(held) + '</div>' +
-      '<div class="bl">held, by ' + num(t.holders) + ' ' +
+    '<div class="b"><div class="bn">' + num(gone) + '</div>' +
+      '<div class="bl">taken, by ' + num(t.holders) + ' ' +
         (Number(t.holders) === 1 ? 'person' : 'people') + '</div>' +
       '<div class="bs">PKR ' + pkr(t.value_held) + ' committed</div></div>' +
     '</div>');
 
-  /* ── WHAT KIND OF HOLD ─────────────────────────────────────────────── */
-  H.push('<h2>What is holding it</h2><div class="card"><table>' +
-    '<tr><th>Kind</th><th>Units</th><th>' + esc(U) + '</th><th>Value</th></tr>' +
-    (d.by_status || []).map(function (s) {
-      return '<tr><td><span class="pill" style="--t:' + tint(skey(s.kind)) + '">' +
-        esc(s.kind) + '</span></td><td>' + num(s.units) + '</td><td>' +
-        num(Math.round(s.area)) + '</td><td>PKR ' + pkr(s.value) + '</td></tr>';
-    }).join('') + '</table></div>');
+  H.push('<h2>What is holding it</h2><div class="rows">' +
+    by.map(function (s) {
+      return '<button class="row" data-go="kind" data-key="' + esc(s.kind) + '" ' +
+        'style="--t:' + tint(skey(s.kind)) + '">' +
+        '<span class="r-d"></span>' +
+        '<span class="r-m"><span class="r-t">' + esc(s.kind) + '</span>' +
+          '<span class="r-s">PKR ' + pkr(s.value) + '</span></span>' +
+        '<span class="r-n">' + num(s.units) + '</span><span class="r-a"></span></button>';
+    }).join('') + '</div>' +
+    (gone ? '<div class="say">' + ((i.ageing && Number(i.ageing.d31_60) + Number(i.ageing.d60) > 0)
+        ? 'PKR <b>' + pkr(i.ageing.value_over_30) + '</b> has been off the market for more than a month.'
+        : 'Nothing has been held longer than a month.') + '</div>' : ''));
 
-  /* ── WHO IS HOLDING IT ─────────────────────────────────────────────── */
-  H.push('<h2>Who is holding it</h2><div class="card"><table>' +
-    '<tr><th>Name</th><th>Units</th><th>Value</th><th>Ends</th></tr>' +
-    (d.by_person || []).map(function (p) {
-      var share = held ? Math.round(p.units * 1000 / held) / 10 : 0;
-      return '<tr><td><span class="nm">' + esc(p.who) + '</span>' +
-        '<span class="sub">' + kindPills(p.by) + '</span>' +
-        '<span class="sub">' + share + '% of everything held · ' +
-          p.floors + ' floor' + (p.floors === 1 ? '' : 's') +
-          (p.oldest_days != null ? ' · oldest ' + p.oldest_days + 'd' : '') + '</span>' +
-        '<div class="sh"><i style="width:' + share + '%"></i></div></td>' +
-        '<td>' + num(p.units) + '</td><td>PKR ' + pkr(p.value) + '</td>' +
-        '<td>' + (Number(p.expiring) ? '<b>' + p.expiring + '</b>' : '—') + '</td></tr>';
-    }).join('') + '</table>' +
-    '<div class="note">“Ends” is how many of that person’s holds run out within ' +
-      'seven days. A hold with no end date does not run out on its own.</div></div>');
+  H.push('<h2>Who is holding it</h2><div class="rows">' +
+    people.map(function (p) {
+      var share = gone ? Math.round(p.units * 1000 / gone) / 10 : 0;
+      return '<button class="row" data-go="person" data-key="' + esc(p.who) + '">' +
+        '<span class="r-m"><span class="r-t">' + esc(p.who) + '</span>' +
+          '<span class="r-s">PKR ' + pkr(p.value) + ' · ' + share + '% of what is taken</span>' +
+          '<span class="sh"><i style="width:' + share + '%"></i></span></span>' +
+        '<span class="r-n">' + num(p.units) + '</span><span class="r-a"></span></button>';
+    }).join('') + '</div>');
 
-  /* ── FLOOR BY FLOOR ────────────────────────────────────────────────── */
-  H.push('<h2>Floor by floor</h2><div class="card"><table>' +
-    '<tr><th>Floor</th><th>Held</th><th>Rate</th><th>Value held</th></tr>' +
-    (d.by_floor || []).map(function (f) {
-      var share = f.units ? Math.round(f.held * 1000 / f.units) / 10 : 0;
-      return '<tr><td><span class="nm">' + esc(f.label) + '</span>' +
-        '<span class="sub">' + kindPills(f.by) +
-        (Object.keys(f.by || {}).length ? '' : 'nothing held') + '</span>' +
-        '<div class="sh"><i style="width:' + share + '%"></i></div></td>' +
-        '<td>' + num(f.held) + ' of ' + num(f.units) + '</td>' +
-        '<td>' + (f.rate ? num(f.rate) : '—') + '</td>' +
-        '<td>' + (Number(f.value_held) ? 'PKR ' + pkr(f.value_held) : '—') + '</td></tr>';
-    }).join('') + '</table>' +
-    '<div class="note">Rate is the register’s own average for the floor: its total ' +
-      'value over its total area.</div></div>');
-
-  /* ── WHAT IT ADDS UP TO ────────────────────────────────────────────── */
-  H.push('<h2>What it adds up to</h2>');
-
-  var c = i.concentration || {};
-  H.push('<div class="card"><div class="nm">Concentration</div><div class="note">' +
-    (held === 0 ? 'Nothing is held, so nothing is concentrated.'
-      : '<b>' + esc(c.top) + '</b> holds <b>' + c.units + '</b> of the ' + held +
-        ' units that are gone — <b>' + c.share + '%</b> of everything held.' +
-        (Number(c.share) >= 50
-          ? ' More than half the held stock sits with one name: whatever they decide, ' +
-            'the month decides with them.'
-          : ' The held stock is spread across ' + num(t.holders) + ' names.')) +
-    '</div></div>');
-
-  var a = i.ageing || {};
-  H.push('<div class="card" style="margin-top:7px"><div class="nm">How long it has been held</div>' +
-    '<table><tr><th>Age</th><th>Units</th></tr>' +
-    '<tr><td>Under a week</td><td>' + num(a.d0_7) + '</td></tr>' +
-    '<tr><td>1 to 4 weeks</td><td>' + num(a.d8_30) + '</td></tr>' +
-    '<tr><td>1 to 2 months</td><td>' + num(a.d31_60) + '</td></tr>' +
-    '<tr><td>Over 2 months</td><td>' + num(a.d60) + '</td></tr></table>' +
-    '<div class="note">' +
-      (Number(a.d31_60) + Number(a.d60) > 0
-        ? 'PKR <b>' + pkr(a.value_over_30) + '</b> has been off the market for more than a ' +
-          'month. The oldest hold standing is <b>' + a.oldest_days + ' days</b> old.'
-        : 'Nothing has been held longer than a month. The oldest is ' +
-          (a.oldest_days == null ? 'none' : '<b>' + a.oldest_days + ' days</b>') + ' old.') +
-    '</div></div>');
-
-  var lap = i.lapsing || [];
-  H.push('<div class="card" style="margin-top:7px"><div class="nm">Running out this week</div>' +
-    (lap.length
-      ? '<table><tr><th>Unit</th><th>Held by</th><th>Ends</th></tr>' +
-        lap.slice(0, 25).map(function (l) {
-          return '<tr><td class="nm">' + esc(l.unit) + '</td><td>' + esc(l.who) + '</td>' +
-            '<td>' + new Date(l.on).toLocaleDateString('en-US',
-              { day: 'numeric', month: 'short' }) + '</td></tr>';
-        }).join('') + '</table>' +
-        '<div class="note"><b>' + lap.length + '</b> hold' + (lap.length === 1 ? '' : 's') +
-          ' worth PKR <b>' +
-          pkr(lap.reduce(function (s, l) { return s + Number(l.value || 0); }, 0)) +
-          '</b> come back to the floor within seven days unless somebody renews them.</div>'
-      : '<div class="note">Nothing runs out in the next seven days.</div>') +
+  H.push('<h2>Worth a look</h2><div class="rows">' +
+    '<button class="row" data-go="ending">' +
+      '<span class="r-m"><span class="r-t">' +
+        (soon.length ? soon.length + ' hold' + (soon.length === 1 ? '' : 's') + ' end within 7 days'
+                     : 'Nothing ends within 7 days') + '</span>' +
+        '<span class="r-s">' + (soon.length
+          ? 'PKR ' + pkr(sum(soon, 'v')) + ' comes back to the floor unless renewed'
+          : 'no hold runs out this week') + '</span></span>' +
+      '<span class="r-a"></span></button>' +
+    '<button class="row" data-go="floors">' +
+      '<span class="r-m"><span class="r-t">What each floor is worth</span>' +
+        '<span class="r-s">floor by floor: worth, what is on the shelf, what is committed</span></span>' +
+      '<span class="r-a"></span></button>' +
     '</div>');
 
-  var pace = i.pace || [], top = Math.max.apply(null, pace.map(function (p) { return p.taken; }).concat([1]));
-  H.push('<div class="card" style="margin-top:7px"><div class="nm">Pace</div>' +
-    (pace.length
-      ? '<div class="wk">' + pace.map(function (p) {
-          return '<i style="height:' + Math.max(3, Math.round(p.taken * 100 / top)) + '%" ' +
-                 'title="' + p.taken + ' in the week of ' + p.week + '"></i>';
-        }).join('') + '</div>' +
-        '<div class="wkl">' + pace.map(function (p) {
-          return '<span>' + new Date(p.week).toLocaleDateString('en-US',
-            { day: 'numeric', month: 'short' }) + '</span>';
-        }).join('') + '</div>' +
-        '<div class="note">Holds taken per week, eight weeks back. ' +
-          '<b>' + num(pace[pace.length - 1].taken) + '</b> in the most recent week.</div>'
-      : '<div class="note">No holds were taken in the last eight weeks.</div>') +
-    '</div>');
-
-  var gb = i.given_back || {};
-  H.push('<div class="card" style="margin-top:7px"><div class="nm">Given back</div>' +
-    '<div class="note">' +
-    (Number(gb.units)
-      ? '<b>' + num(gb.units) + '</b> hold' + (Number(gb.units) === 1 ? ' has' : 's have') +
-        ' been taken and released again, across <b>' + num(gb.names) + '</b> name' +
-        (Number(gb.names) === 1 ? '' : 's') + '. Read it beside the pace above: units ' +
-        'taken is not the same as units moving.'
-      : 'No hold has been released yet.') +
-    '</div></div>');
-
-  var ff = i.floors_fast || [];
-  if (ff.length) {
-    H.push('<div class="card" style="margin-top:7px"><div class="nm">Moving fastest</div>' +
-      '<table><tr><th>Floor</th><th>Gone</th></tr>' +
-      ff.map(function (f) {
-        return '<tr><td>' + esc(f.label) + '</td><td>' + f.share + '% (' +
-          f.held + ' of ' + f.units + ')</td></tr>';
-      }).join('') + '</table>' +
-      '<div class="note">Share of the floor already held or sold. The floors not listed ' +
-        'here are the ones with room left in them.</div></div>');
-  }
-
-  H.push('<div class="note" style="margin:16px 2px 30px">' +
-    esc(d.project) + ' · ' + esc(d.company) + ' · read at ' +
-    new Date(d.as_of).toLocaleString('en-US') +
-    '. This page reads the register; it does not change it.</div>');
+  H.push(repTools('Position summary'));
+  H.push(disclaimer(d));
   H.push('</div>');
   return H.join('');
+}
+
+/* ── ONE TABLE, WRITTEN ONCE ──────────────────────────────────────────────
+   The unit list is the same list on every page behind the first one; only the
+   slice and the heading change. Columns are spaced rather than crammed — the
+   first cut ran the numbers into each other and Rashid said so. */
+/* ── ONE TABLE, WRITTEN ONCE ──────────────────────────────────────────────
+   The unit list is the same list on every page behind the first one; only the
+   slice and the second column change. ONE LINE PER CELL and four columns: the
+   first cut stacked a second line under the unit number and it fell out of its
+   own column on a phone — "sab values aik dosray k bohat qaareeb placed hain".
+   Nothing wraps, nothing leans, and what a cell cannot show it does not try to
+   show. */
+function unitTable(rows, opts) {
+  opts = opts || {};
+  var U = (REP && REP.area_unit) || 'sqft';
+  return '<div class="card"><table class="ut">' +
+    '<colgroup><col class="c-u"><col class="c-w"><col class="c-v"><col class="c-e"></colgroup>' +
+    '<tr><th>Unit</th><th>' + (opts.who ? 'Held by' : 'Floor') + '</th>' +
+      '<th>Value</th><th>Ends</th></tr>' +
+    rows.map(function (r) {
+      var d = daysTo(r.e);
+      return '<tr><td class="nm">' + esc(r.n) + '</td>' +
+        '<td class="w">' + (opts.who ? esc(r.w || '—') : esc(r.f)) + '</td>' +
+        '<td class="n">' + pkr(r.v) + '</td>' +
+        '<td class="n' + (d !== null && d <= 7 ? ' warn' : '') + '">' +
+          (r.e ? shortDay(r.e) : '<span class="mut">open</span>') + '</td></tr>';
+    }).join('') +
+    '<tr class="tot"><td>' + num(rows.length) + '</td>' +
+      '<td class="w">' + (opts.who ? 'units' : num(Math.round(sum(rows, 'a'))) + ' ' + esc(U)) + '</td>' +
+      '<td class="n">' + pkr(sum(rows, 'v')) + '</td><td></td></tr>' +
+    '</table>' +
+    '<div class="say">Value is the register’s asking price for the unit. ' +
+      '“Open” means the hold carries no end date and does not lapse on its own.</div>' +
+  '</div>';
+}
+/* short enough to sit in its column on a 380px phone, and unambiguous */
+function shortDay(s) {
+  var d = new Date(s);
+  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) +
+         " '" + String(d.getFullYear()).slice(2);
+}
+
+function repPeoplePage(d, who) {
+  var rows = held().filter(function (r) { return (r.w || '') === who; });
+  var by = kindsOf(rows);
+  var gone = Number(d.totals.held) || 0;
+  var share = gone ? Math.round(rows.length * 1000 / gone) / 10 : 0;
+  var soon = rows.filter(function (r) { var x = daysTo(r.e); return x !== null && x <= 7; });
+  var floors = {};
+  rows.forEach(function (r) { floors[r.f] = (floors[r.f] || 0) + 1; });
+  return '<div class="rp">' + printHead(d, 'Units held by ' + who) +
+    '<h2>' + esc(who || 'Not recorded') + '</h2>' +
+    '<div class="card"><div class="p-h">' +
+      '<div><b>' + units(rows.length) + '</b> · <b>PKR ' + pkr(sum(rows, 'v')) + '</b> · ' +
+        num(Math.round(sum(rows, 'a'))) + ' ' + esc(d.area_unit || 'sqft') + '</div>' +
+      '<div class="p-p">' + kindPills(by) + '</div>' +
+      '<div class="say">' + share + '% of everything taken in this project, across ' +
+        Object.keys(floors).length + ' floor' + (Object.keys(floors).length === 1 ? '' : 's') +
+        (soon.length ? ' · <b>' + soon.length + '</b> ending within 7 days' : '') +
+      '</div></div></div>' +
+    '<h2>Every unit</h2>' + unitTable(rows, { who: false }) +
+    repTools('Units held by ' + who) + disclaimer(d) + '</div>';
+}
+
+function repKindPage(d, kind) {
+  var rows = held().filter(function (r) { return r.k === kind; });
+  var people = {};
+  rows.forEach(function (r) { people[r.w || '—'] = (people[r.w || '—'] || 0) + 1; });
+  var names = Object.keys(people).sort(function (x, y) { return people[y] - people[x]; });
+  return '<div class="rp">' + printHead(d, kind + ' — every unit') +
+    '<h2><span class="pill" style="--t:' + tint(skey(kind)) + '">' + esc(kind) + '</span></h2>' +
+    '<div class="card"><div class="p-h">' +
+      '<div><b>' + units(rows.length) + '</b> · <b>PKR ' + pkr(sum(rows, 'v')) + '</b></div>' +
+      '<div class="say">' + names.map(function (n) {
+        return '<b>' + esc(n) + '</b> ' + people[n];
+      }).join(' · ') + '</div></div></div>' +
+    '<h2>Every unit</h2>' + unitTable(rows, { who: true }) +
+    repTools(kind + ' — every unit') + disclaimer(d) + '</div>';
+}
+
+function repEndingPage(d) {
+  var rows = endingSoon();
+  return '<div class="rp">' + printHead(d, 'Ending within seven days') +
+    '<h2>Ending within seven days</h2>' +
+    '<div class="card"><div class="p-h">' +
+      (rows.length
+        ? '<div><b>' + num(rows.length) + '</b> holds · <b>PKR ' + pkr(sum(rows, 'v')) + '</b></div>' +
+          '<div class="say">These come back to the floor unless somebody renews them. ' +
+            'A unit with no end date does not run out on its own.</div>'
+        : '<div class="say">Nothing runs out in the next seven days.</div>') +
+    '</div></div>' +
+    (rows.length ? unitTable(rows, { who: true }) : '') +
+    repTools('Ending within seven days') + disclaimer(d) + '</div>';
+}
+
+/* ── WHAT EACH FLOOR IS WORTH ─────────────────────────────────────────────
+   Rashid asked for a complete worth report, floor by floor, and worth is the
+   subject of it: what the floor is worth whole, how much of that is still on
+   the shelf, how much is committed. The units, the area and the rate ride
+   underneath as the working — a director comparing two floors is comparing
+   size and rate, and the rupees are those two multiplied.
+
+   Four columns and a total, with the columns given room. The first cut ran
+   them into each other. */
+/* ── WHAT EACH FLOOR IS WORTH ─────────────────────────────────────────────
+   Rashid asked for a complete worth report, floor by floor, and worth is the
+   subject: what the floor is worth whole, how much is still on the shelf, how
+   much is committed. Units, area and rate ride underneath as the working — a
+   director comparing two floors is comparing size and rate, and the rupees are
+   those two multiplied.
+
+   A CARD PER FLOOR, NOT A TABLE ROW. Six numbers about one floor will not sit
+   in six columns on a phone without the columns fighting — which is exactly
+   what Rashid saw: "sab values aik dosray k bohat qaareeb placed hain". Given
+   its own block, each floor has room to say all six plainly. */
+function repFloorPage(d) {
+  var f = d.by_floor || [];
+  var U = d.area_unit || 'sqft';
+  var tot = { units: 0, held: 0, avail: 0, value: 0, free: 0, taken: 0, area: 0 };
+  f.forEach(function (r) {
+    tot.units += Number(r.units) || 0;
+    tot.held  += Number(r.held) || 0;
+    tot.avail += Number(r.available) || 0;
+    tot.value += Number(r.value) || 0;
+    tot.free  += Number(r.value_free) || 0;
+    tot.taken += Number(r.value_held) || 0;
+    tot.area  += Number(r.area) || 0;
+  });
+  var big = f.reduce(function (m, r) { return Math.max(m, Number(r.value) || 0); }, 0);
+
+  return '<div class="rp">' + printHead(d, 'What each floor is worth') +
+    '<h2>What each floor is worth</h2>' +
+    '<div class="wl">' + f.map(function (r) {
+      var share = big ? Math.round((Number(r.value) || 0) * 100 / big) : 0;
+      var takenPc = r.units ? Math.round(r.held * 1000 / r.units) / 10 : 0;
+      return '<div class="wf">' +
+        '<div class="wf-h"><span class="wf-n">' + esc(r.label) + '</span>' +
+          '<span class="wf-v">PKR ' + pkr(r.value) + '</span></div>' +
+        '<div class="wf-s">' + units(r.units) + ' · ' +
+          num(Math.round(r.area)) + ' ' + esc(U) +
+          (r.rate ? ' · ' + num(r.rate) + ' per ' + esc(U) : '') + '</div>' +
+        '<div class="sh"><i style="width:' + share + '%"></i></div>' +
+        '<div class="wf-g">' +
+          '<div><span class="g-l">On the shelf</span>' +
+            '<span class="g-v">PKR ' + pkr(r.value_free) + '</span>' +
+            '<span class="g-s">' + units(r.available) + '</span></div>' +
+          '<div><span class="g-l">Taken</span>' +
+            '<span class="g-v">' + (Number(r.value_held) ? 'PKR ' + pkr(r.value_held) : '—') + '</span>' +
+            '<span class="g-s">' + (Number(r.held) ? units(r.held) + ' · ' + takenPc + '%'
+                                                   : 'nothing taken') + '</span></div>' +
+        '</div></div>';
+    }).join('') + '</div>' +
+
+    '<div class="wf wf-t">' +
+      '<div class="wf-h"><span class="wf-n">The whole building</span>' +
+        '<span class="wf-v">PKR ' + pkr(tot.value) + '</span></div>' +
+      '<div class="wf-s">' + units(tot.units) + ' · ' +
+        num(Math.round(tot.area)) + ' ' + esc(U) + '</div>' +
+      '<div class="wf-g">' +
+        '<div><span class="g-l">On the shelf</span>' +
+          '<span class="g-v">PKR ' + pkr(tot.free) + '</span>' +
+          '<span class="g-s">' + units(tot.avail) + '</span></div>' +
+        '<div><span class="g-l">Taken</span>' +
+          '<span class="g-v">PKR ' + pkr(tot.taken) + '</span>' +
+          '<span class="g-s">' + units(tot.held) + '</span></div>' +
+      '</div></div>' +
+
+    '<div class="say">Worth is the register’s own asking value: every unit on the ' +
+      'floor at the price the register carries for it. It is not money received, ' +
+      'and no discount, instalment or adjustment is in it.</div>' +
+    repTools('What each floor is worth') + disclaimer(d) + '</div>';
 }
 
 $('all-filter').addEventListener('click', function (e) {
