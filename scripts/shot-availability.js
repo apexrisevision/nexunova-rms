@@ -128,15 +128,38 @@ function serve() {
           wrong[0].unit_no + ' register ' + wrong[0].v + ' payload ' + said[wrong[0].unit_no]);
   const keys = new Set();
   payload.floors.forEach(f => f.units.forEach(u => Object.keys(u).forEach(k => keys.add(k))));
-  /* Five, and no more: the number, the state, the area, the type and the
-     total. The type joined them when the floor plan had to write the
-     architect's own label, and the total when Rashid asked for Awami's prices
-     on the link; everything else about a unit is still none of an outsider's
-     business. This list is a lock, not a description — a sixth key fails here
-     before anybody has to notice it on the page. */
-  JSON.stringify([...keys].sort()) === JSON.stringify(['a', 'n', 's', 't', 'v'])
+  /* Seven, and no more: the number, the state, the area, the type, the total,
+     the KIND of hold and the name it was held ON. The type joined them when
+     the floor plan had to write the architect's own label, the total when
+     Rashid asked for Awami's prices on the link, and k and w on 2026-09-10
+     when he asked for the statuses themselves — "hamain zaroorat hai status ki
+     proper… aur wo kis ne hold sold kia hai". Everything else about a unit is
+     still none of an outsider's business: not the buyer, not the phone, not
+     the amount, not the note, not who at the desk pressed the button. This
+     list is a lock, not a description — an eighth key fails here before
+     anybody has to notice it on the page. */
+  JSON.stringify([...keys].sort()) === JSON.stringify(['a', 'k', 'n', 's', 't', 'v', 'w'])
     ? ok('a unit carries exactly: ' + [...keys].sort().join(', '))
     : bad('unexpected unit keys: ' + [...keys].sort().join(', '));
+  /* AND THE TWO NEW ONES RIDE ONLY ON A UNIT THAT IS ALREADY GONE. A free
+     shop that carried a kind would be telling a dealer about a hold that was
+     lifted, which is worse than telling them nothing. */
+  {
+    const all = payload.floors.flatMap(f => f.units);
+    const freeLeak = all.filter(u => u.s === 'available' && ('k' in u || 'w' in u));
+    const heldBare = all.filter(u => u.s !== 'available' && !u.k);
+    const held = all.filter(u => u.s !== 'available');
+    (held.length > 0 && freeLeak.length === 0 && heldBare.length === 0)
+      ? ok('all ' + held.length + ' held units say what kind of hold, and no free one does — ' +
+           [...new Set(held.map(u => u.k))].sort().join(', '))
+      : bad(held.length === 0
+            ? 'no held units in the payload — this check proves nothing'
+            : freeLeak.length + ' free unit(s) carry a kind, ' + heldBare.length + ' held ones carry none');
+    const named = held.filter(u => u.w);
+    named.length
+      ? ok('and ' + named.length + ' of them name whose word it was held on')
+      : bad('not one held unit says on whose word — reservations.requested_by_name is not reaching the wire');
+  }
   const states = new Set();
   payload.floors.forEach(f => f.units.forEach(u => states.add(u.s)));
   [...states].every(s => s === 'available' || s === 'not_available')
@@ -1042,8 +1065,16 @@ function serve() {
        makes them mean something. */
     const mixed = JSON.parse(JSON.stringify(payload));
     let flipped = 0;
+    /* THREE KINDS, ROTATED, so the page has more than one to draw and the
+       legend has more than one key to isolate. A flip that left k off would
+       exercise the fallback wording and nothing else. */
+    const KINDS = [['Hold', 'Akbar Shah'], ['Sold', 'Waqar Landlord'], ['Pagri', 'Haseeb']];
     mixed.floors.forEach(f2 => {
-      f2.units.forEach((u, i) => { if (i % 3 === 1) { u.s = 'not_available'; flipped++; } });
+      f2.units.forEach((u, i) => {
+        if (i % 3 !== 1) return;
+        const k = KINDS[(flipped) % KINDS.length];
+        u.s = 'not_available'; u.k = k[0]; u.w = k[1]; flipped++;
+      });
       f2.available = f2.units.filter(u => u.s === 'available').length;
     });
     await page.evaluate(p => window._availPreview(p), mixed);
@@ -1075,9 +1106,14 @@ function serve() {
     (!inert.none && !inert.sheetOpen && inert.disabled)
       ? ok('clicking ' + inert.unit + ' opens no sheet, and openSheet refuses it when called directly')
       : bad('an unavailable unit produced a sheet: ' + JSON.stringify(inert));
-    (!inert.none && /Not Available/.test(inert.label) &&
-     !/reserved|sold|hold|booked/i.test(inert.label))
-      ? ok('and it reads "Not Available" \u2014 never Reserved, never Sold')
+    /* IT USED TO HAVE TO READ "Not Available" AND NOTHING ELSE, so that a
+       sold unit and a reserved one were the same answer to a dealer. Rashid
+       turned that over on 2026-09-10: "pehle ham ne decide kia tha k just Not
+       available likhaingay magar ab hamain zaroorat hai status ki proper". So
+       the chip must now name the kind, and name whose word it was held on. */
+    (!inert.none && /Hold|Sold|Pagri/.test(inert.label) &&
+     /Akbar Shah|Waqar Landlord|Haseeb/.test(inert.label))
+      ? ok('and it names the hold and whose word it was on \u2014 "' + inert.label + '"')
       : bad('an unavailable unit is labelled "' + inert.label + '"');
 
     /* ── e. the toggle ──────────────────────────────────────────────────── */
@@ -1092,7 +1128,18 @@ function serve() {
       const off = [...document.querySelectorAll('#units button.off')];
       const on = document.querySelector('#units button:not(.off)');
       const px = e => e ? getComputedStyle(e) : null;
-      return { before, after, offCount: off.length,
+      /* ONE SWATCH PER KIND. The chip carries data-k, so this reads the ink
+         of the first chip of each kind rather than of the first chip of any
+         kind \u2014 which is what tells apart "they are all coloured" from
+         "they are all coloured THE SAME". */
+      const byKind = {};
+      off.forEach(c => {
+        const k = c.getAttribute('data-k') || '?';
+        if (!byKind[k]) byKind[k] = { ink: px(c.querySelector('.un')).color,
+                                      pill: px(c.querySelector('.us')).backgroundColor,
+                                      who: (c.querySelector('.uw') || {}).textContent || '' };
+      });
+      return { before, after, offCount: off.length, byKind,
                label: off.length ? off[0].textContent.replace(/\s+/g, ' ').trim() : '',
                offBg: off.length ? px(off[0]).backgroundColor : '',
                onBg: on ? px(on).backgroundColor : '',
@@ -1102,8 +1149,8 @@ function serve() {
       ? ok('the toggle reveals ' + (tog.after - tog.before) + ' more unit(s) (' +
            tog.before + ' \u2192 ' + tog.after + ')')
       : bad('the toggle revealed nothing: ' + tog.before + ' \u2192 ' + tog.after);
-    tog.offCount > 0 && /Not Available/.test(tog.label)
-      ? ok('and the ' + tog.offCount + ' revealed units read "Not Available"')
+    tog.offCount > 0 && /Hold|Sold|Pagri/.test(tog.label)
+      ? ok('and the ' + tog.offCount + ' revealed units name their hold')
       : bad('revealed units are labelled "' + tog.label + '"');
     /* ── held units are AMBER ─────────────────────────────────
        Read off the computed style, not the class list, because a class that
@@ -1122,11 +1169,29 @@ function serve() {
       const a = rgbOf(tog.offBg), b = rgbOf(tog.onBg);
       return a.length >= 3 && b.length >= 3 && (a[0] - a[2]) > (b[0] - b[2]) + 8;
     })();
-    (tog.offCount > 0 && heldWarmer && warm(tog.offInk, 40) && !warm(tog.onBg, 4))
-      ? ok('and they are drawn warm — held ' + tog.offBg + ' on ink ' + tog.offInk +
+    /* THE GROUND IS STILL WARM — a taken chip has to read as taken before
+       anybody reads a word — but the INK is no longer one colour. Rashid:
+       "har aik ko alag cross se ya color se differenciate karo… taakay dekhtay
+       hee pata chal jai". So what is asserted now is that every kind is drawn
+       in its own colour and no two share one. A palette where Hold and Sold
+       came out the same would pass every other check on this page. */
+    (tog.offCount > 0 && heldWarmer && !warm(tog.onBg, 4))
+      ? ok('a taken chip still reads taken — ground ' + tog.offBg +
            ', available still ' + tog.onBg)
-      : bad('held units do not read warm: ' + JSON.stringify(
-            { off: tog.offBg, ink: tog.offInk, on: tog.onBg }));
+      : bad('held units do not read taken: ' + JSON.stringify(
+            { off: tog.offBg, on: tog.onBg }));
+    {
+      const kinds = Object.keys(tog.byKind || {});
+      const inks = kinds.map(k => tog.byKind[k].ink);
+      const pills = kinds.map(k => tog.byKind[k].pill);
+      const named = kinds.filter(k => (tog.byKind[k].who || '').trim());
+      (kinds.length >= 2 && new Set(inks).size === kinds.length &&
+       new Set(pills).size === kinds.length && named.length === kinds.length)
+        ? ok('and each kind is its own colour — ' +
+             kinds.map(k => k + ' ' + tog.byKind[k].ink).join(', ') +
+             ', every one naming whose word it was on')
+        : bad('the kinds are not told apart: ' + JSON.stringify(tog.byKind));
+    }
     /* the sheet from the step before is still up; a screenshot of a toggle with a
        modal over it shows neither */
     await page.evaluate(() => { closeSheet(); window.scrollTo(0, 0); });
@@ -1172,19 +1237,20 @@ function serve() {
     await sleep(260);
     const sweep = await page.evaluate(() => {
       const t = document.body.innerText;
-      const why = /\breserved\b|\bsold\b|\bon hold\b|\bbooked\b|\bpagri\b|\blandowner\b/i;
-      /* THE RULE IS ABOUT UNITS, NOT ABOUT WORDS. A dealer must not be able to
-         tell WHY a particular unit is gone — sold and reserved have to read the
-         same. It is not that the word may never appear: the request sheet now
-         offers Reserve / Hold / Sold as things to ASK FOR, on a unit that is
-         available, which says nothing about any held one.
+      /* THE RULE TURNED OVER ON 2026-09-10. It used to be that a dealer must
+         not be able to tell WHY a unit was gone — sold and reserved had to
+         read the same. Rashid asked for the opposite, and the sweep asks the
+         opposite: every taken chip must NAME its hold.
 
-         So the sweep is aimed where the rule lives: every unit chip and every
-         search row, held ones included. That is stricter than reading
-         innerText, which would have passed a leak inside a chip as long as the
-         same word appeared somewhere innocent. */
+         What the sweep still guards is the line that did not move. The buyer,
+         the phone number, the money taken and the desk's own note are on the
+         same reservation row and none of them is a dealer's business, so a
+         chip carrying any of them fails here. */
       const cells = [...document.querySelectorAll('#units button, #all-body .ug button, #res .res-r')];
-      const bad = cells.filter(c => why.test(c.textContent || ''))
+      const taken = [...document.querySelectorAll('#units button.off, #all-body .ug button.off')];
+      const mute = taken.filter(c => !c.querySelector('.us'));
+      const priv = /\bcnic\b|\bphone\b|\btoken\b|\badvance\b|03[0-9]{2}[- ]?[0-9]{7}/i;
+      const bad = cells.filter(c => priv.test(c.textContent || ''))
                        .map(c => (c.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40));
       /* MONEY IS SHOWN WHERE THE PROJECT PUBLISHES IT, and this project does:
          Rashid asked for the total and the rate on the chips and on the plate
@@ -1200,6 +1266,7 @@ function serve() {
         }));
       return { rate: /rate\s*\/|discount/i.test(t),
                chips: priced,
+               taken: taken.length, mute: mute.length,
                cells: cells.length, leaks: bad.slice(0, 4), n: bad.length };
     });
     {
@@ -1221,12 +1288,13 @@ function serve() {
                 wrongChip[0].n + ' shows ' + wrongChip[0].v + ')' : '') +
               (sweep.rate ? '  and something reads like a discount' : ''));
     }
-    (sweep.cells > 0 && sweep.n === 0)
-      ? ok('and not one of the ' + sweep.cells + ' units on screen says why it is gone \u2014 ' +
-           'only Not Available')
-      : bad(sweep.cells === 0
-            ? 'the leak sweep found no units to check — it proves nothing'
-            : sweep.n + ' unit(s) tell the dealer why: ' + JSON.stringify(sweep.leaks));
+    (sweep.cells > 0 && sweep.taken > 0 && sweep.mute === 0 && sweep.n === 0)
+      ? ok('every one of the ' + sweep.taken + ' taken units on screen names its hold, ' +
+           'and none of the ' + sweep.cells + ' carries a buyer, a number or an amount')
+      : bad(sweep.cells === 0 || sweep.taken === 0
+            ? 'the sweep found no taken units to check — it proves nothing'
+            : sweep.mute + ' taken unit(s) say nothing, ' + sweep.n +
+              ' leak something private: ' + JSON.stringify(sweep.leaks));
 
     step('What the page writes to the phone');
     const store = await page.evaluate(() => {

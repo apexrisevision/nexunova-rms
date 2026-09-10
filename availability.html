@@ -126,10 +126,10 @@ button{cursor:pointer;background:none;border:0}
 .bar i{display:block;height:100%}
 .bar .free{background:var(--ink);opacity:.28}
 .bar .held{background:transparent}
-.hero-f{display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:12px;
-        color:var(--mut);line-height:1.45}
+.hero-f{display:flex;align-items:center;gap:11px;flex-wrap:wrap;font-size:11.5px;
+        color:var(--mut);line-height:1.4}
 .hero-f b{font-weight:650;color:var(--soft)}
-.dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:7px;
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;
      vertical-align:1px}
 .dot.free{background:var(--ink);opacity:.28}
 .dot.held{background:var(--sunk);box-shadow:inset 0 0 0 1px var(--hair)}
@@ -170,10 +170,13 @@ button{cursor:pointer;background:none;border:0}
 .res-none{padding:26px 16px;font-size:13.5px;color:var(--mut);text-align:center;line-height:1.6}
 
 /* ── floor chips ────────────────────────────────────────────────────────── */
-.fl{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.fl{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+/* The chip carries a fourth line now — what the rest of the floor is — so it
+   is a little taller and a little tighter. Screen one still has to hold the
+   whole building without becoming a scroll, and the harness measures that. */
 .fl button{
-  padding:11px 14px 10px;border:0;border-radius:var(--r);
-  background:var(--card);text-align:left;min-height:70px;
+  padding:9px 14px 8px;border:0;border-radius:var(--r);
+  background:var(--card);text-align:left;min-height:74px;
   display:flex;flex-direction:column;justify-content:center;
   transition:background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
 }
@@ -187,9 +190,17 @@ button{cursor:pointer;background:none;border:0}
 .fl button:active{transform:scale(.975);background:var(--sunk)}
 .fl .fn{font-size:14.5px;font-weight:650;letter-spacing:-.015em;line-height:1.25;
         color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fl .fr{display:flex;align-items:baseline;gap:6px;margin-top:3px}
+.fl .fr{display:flex;align-items:baseline;gap:6px;margin-top:2px}
 .fl .fv{font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
 .fl .fc{font-size:11.5px;color:var(--mut);line-height:1.4}
+/* WHAT THE REST OF THE FLOOR IS, under the number a dealer came for. Small
+   enough that the count still reads first, coloured the same way the plate
+   colours the shops themselves. */
+.fl .fk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:3px}
+.fl .fk-i{display:inline-flex;align-items:center;gap:4px;font-size:10px;
+          font-weight:650;color:var(--t,var(--mut));line-height:1.2}
+.fl .fk-i i{width:6px;height:6px;border-radius:2px;background:var(--t,var(--mut));display:block}
+.fl button.empty .fk-i{opacity:.9}
 /* A floor with nothing free is not an error, it is just finished. It sinks
    rather than shouting. */
 .fl button.empty{background:var(--held-bg)}
@@ -219,7 +230,7 @@ button{cursor:pointer;background:none;border:0}
 .sk-leg{height:13px;width:56%;margin-bottom:15px}
 .sk-sr{height:58px;width:100%;margin-bottom:17px;border-radius:var(--r)}
 .sk-fl{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.sk-ch{height:70px;border-radius:var(--r)}
+.sk-ch{height:74px;border-radius:var(--r)}
 
 /* ── SCREEN TRANSITION — user-initiated, one way in, one way back ───────── */
 .scr-in {animation:scrIn  var(--t) var(--ease) both}
@@ -377,7 +388,11 @@ button{cursor:pointer;background:none;border:0}
      transition:opacity var(--t) var(--ease),border-color var(--t) var(--ease)}
 .key i{width:11px;height:11px;border-radius:3px;display:block;border:1px solid transparent}
 .key.free i{background:#fff;border-color:rgba(29,78,216,.45)}
-.key.held i{background:#EFE7DA;border-color:rgba(138,98,36,.5)}
+/* ONE KEY PER STATUS, not one for "taken". The swatch is the status's own
+   colour, set on the button, so the legend and the plate can never drift
+   apart about what a Hold looks like. */
+.key.held i{background:var(--t,#EFE7DA);border-color:var(--t,rgba(138,98,36,.5));opacity:.85}
+.key.held b{color:var(--t,var(--ink))}
 .key b{color:var(--ink);font-weight:700}
 .key.off{opacity:.45}
 .key.off b{color:var(--mut)}
@@ -438,6 +453,8 @@ button{cursor:pointer;background:none;border:0}
        cursor:pointer;pointer-events:all;
        transition:fill var(--t-fast) var(--ease)}
 .pv .x,.pv .n,.pv .base,.pv .base *{pointer-events:none}
+/* A taken shop is washed in the colour of the hold that is on it. The wash is
+   set on the shape itself, because the words are the tenant's. */
 .pv .u.off{fill:rgba(138,98,36,.16)}
 @media (hover:hover){.pv .u:not(.off):hover{fill:rgba(29,78,216,.16)}}
 .pv .u:not(.off):active{fill:rgba(29,78,216,.22)}
@@ -451,13 +468,21 @@ button{cursor:pointer;background:none;border:0}
 .pv .u.hit{stroke:var(--accent);stroke-width:2.6;fill:rgba(29,78,216,.22)}
 /* one tap on the legend and the other half steps back \u2014 the floor is suddenly
    a list of what you can actually sell */
-.pv .in.no-held .u.off,.pv .in.no-held .x,.pv .in.no-held .n.off{opacity:.13}
-.pv .in.no-free .u:not(.off),.pv .in.no-free .n:not(.off){opacity:.13}
+.pv .dim{opacity:.1}
 .pv .u,.pv .x,.pv .n{transition:opacity var(--t) var(--ease)}
 /* fill:none is not the default here — a two-legged cross left to fill itself
-   paints a solid triangle over the shop instead of an X across it. */
-.pv .x{fill:none;stroke:var(--held);stroke-width:1.6;opacity:.5;
+   paints a solid triangle over the shop instead of an X across it.
+   The stroke colour is set per shop, in the status's own colour, so a Sold and
+   a Hold are told apart at a glance and not only by reading. */
+.pv .x{fill:none;stroke:var(--held);stroke-width:1.6;opacity:.6;
        vector-effect:non-scaling-stroke;stroke-linecap:round}
+/* AND EACH KIND IS MARKED ITS OWN WAY, not only its own colour. On a printed
+   sheet, or to an eye that does not separate one hue from another, the shape
+   of the mark is what carries: a sale is crossed solid, a hold dashed, a
+   pagri dotted, anything else finely dashed. */
+.pv .x.d-dash{stroke-dasharray:5 4}
+.pv .x.d-dot{stroke-dasharray:.5 4.5}
+.pv .x.d-fine{stroke-width:1.15;stroke-dasharray:9 3.5}
 /* The label is the architect's own block — number, what the thing is, how big
    it is — and its size is set per shop in the markup, because a 500 sqft
    corner and a 170 sqft strip cannot carry the same lettering. The halo is in
@@ -466,7 +491,10 @@ button{cursor:pointer;background:none;border:0}
        paint-order:stroke;stroke:#fff;stroke-width:.26em;stroke-linejoin:round}
 .pv .n .s{font-size:.78em;font-weight:600;fill:var(--mut)}
 .pv .n.off{fill:var(--held)}
-.pv .n.off .s{fill:var(--held);opacity:.85}
+.pv .n.off .s{fill:inherit;opacity:.7}
+/* the status line keeps its colour at full strength — it is the answer to the
+   question a dealer is asking when they look at a crossed-out shop */
+.pv .n.off .s.k{font-weight:750;opacity:1}
 .pv-n{padding:10px 16px 13px;font-size:11.5px;color:var(--mut);line-height:1.5}
 /* the drawing arrives rather than appears \u2014 once, briefly, and never again */
 .pv .over{animation:pvin .28s var(--ease) both}
@@ -502,7 +530,9 @@ button{cursor:pointer;background:none;border:0}
    it was arrived at, so one is ink and the other is quiet */
 .ug .uv{font-size:11px;color:var(--ink);line-height:1.3;letter-spacing:-.01em}
 .ug .ur{font-size:9.5px;color:var(--mut);line-height:1.3}
-.ug button.off .uv{color:var(--held)}
+/* the money on a taken chip follows its own hold, so a Sold chip is not
+   crimson at the top and amber at the bottom */
+.ug button.off .uv{color:var(--t,var(--held));opacity:.85}
 /* Held: a warm, muted ground. It says somebody has this without ever being
    the loudest thing on a screen of three hundred units. */
 .ug button.off{background:var(--held-bg);cursor:default}
@@ -511,6 +541,16 @@ button{cursor:pointer;background:none;border:0}
 .ug button.off .un{color:var(--held);font-weight:600}
 .ug .off-l{font-size:9px;font-weight:650;letter-spacing:.07em;text-transform:uppercase;
            color:var(--held);opacity:.85;line-height:1.3}
+/* WHAT KIND OF HOLD, AND ON WHOSE WORD. The status is a short word in its own
+   colour — the colour is set per chip, because the words belong to the tenant
+   and not to this stylesheet — and under it, quietly, the name it was held on.
+   Both only ever appear on a unit that is already gone. */
+.ug .us{font-size:8.5px;font-weight:750;letter-spacing:.06em;text-transform:uppercase;
+        color:#fff;background:var(--t,var(--held));border-radius:999px;
+        padding:1.5px 7px;line-height:1.4;white-space:nowrap}
+.ug .uw{font-size:9px;color:var(--mut);line-height:1.3;max-width:100%;
+        overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ug button.off .un{color:var(--t,var(--held))}
 
 .empty{padding:34px 8px;text-align:center;color:var(--mut);font-size:13.5px;line-height:1.6}
 
@@ -915,9 +955,12 @@ button{cursor:pointer;background:none;border:0}
           <button id="pv-list">List</button>
         </div>
       </div>
+      <!-- THE LEGEND IS ALSO THE FILTER, and it now has one key per kind of
+           hold rather than a single "taken". It is written by the page from
+           the floor in front of you: a floor with nothing sold shows no Sold
+           key, because a legend that names what is not there is furniture. -->
       <div class="pvc" id="pv-c">
-        <button class="key free" id="k-free"><i></i><b id="k-free-n">0</b>&nbsp;available</button>
-        <button class="key held" id="k-held"><i></i><b id="k-held-n">0</b>&nbsp;taken</button>
+        <span id="k-keys"></span>
         <span class="sp"></span>
         <div class="zc">
           <button id="pv-out" aria-label="Zoom out">−</button>
@@ -948,12 +991,17 @@ button{cursor:pointer;background:none;border:0}
 <script src="/js/portal-copy.js?v=20260908a"></script>
 <script>
 /* ── the only server call this page can make ──────────────────────────────
-   get_public_availability(token) returns, per unit, its number, its area and
-   whether it can be bought. Not the price — that was removed from the SERVER,
-   not from this page, so reading the network tab does not bring it back. Not
-   the buyer, not the amount, not who holds a unit that is taken: 'available'
-   and 'not_available' are the only two answers, and a reserved unit is
-   indistinguishable from a sold one.
+   get_public_availability(token) returns, per unit, its number, its area, what
+   it is, and whether it can be bought. Where the project publishes prices it
+   returns the total as well, and nothing computes a rate on the server — the
+   page divides.
+
+   AND, ON A UNIT THAT IS ALREADY GONE, TWO MORE THINGS: what kind of hold is
+   on it, in the tenant's own wording, and the name it was held on. Both were
+   deliberately absent until 2026-09-10, when Rashid asked for them by name —
+   see WHAT KIND OF HOLD, AND ON WHOSE WORD below. What still never comes down
+   the wire is the buyer, their phone, the amount taken, the note, and which
+   person at the desk pressed the button.
 
    No session is created. Nothing is written. reserve_unit is unreachable from
    here — the button on this page composes a WhatsApp message and does not book
@@ -1034,16 +1082,84 @@ function short(v) {
   if (!P || !P.show_price || !isFinite(n) || n <= 0) return '';
   return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
+/* ── WHAT KIND OF HOLD, AND ON WHOSE WORD ─────────────────────────────────
+   The link used to answer available or not available and nothing else, and a
+   reserved unit was indistinguishable from a sold one. Rashid changed that,
+   and said why: "hamain zaroorat hai status ki proper k kia ye unit jo
+   available nahi hai us ka status kia hai Sold hai, Hold hai, Pagri hai… aur
+   wo kis ne hold sold kia hai… mai khud direct reserve karta hun magar us mai
+   likhta hun k kis k kehnay pe howa."
+
+   So the server sends two more things about a unit that is gone: `k`, the kind
+   of hold in the tenant's own public wording, and `w`, the name it was held
+   on. Nothing else came with them — not the buyer, not the phone, not the
+   amount, not who at the desk pressed the button.
+
+   THE WORDS BELONG TO THE TENANT, so no list here may be closed. The four this
+   building uses get a colour chosen for them: a sale reads as final, a hold as
+   temporary, a pagri as its own thing. Anything a tenant adds later takes a
+   stable colour from its own letters — never the next one out of a queue,
+   which would repaint every status already on screen the day a new one
+   appears. */
+var TINT = {
+  sold: '#b3123c', pagri: '#7c3aed', hold: '#c2760a', 'on-hold': '#c2760a',
+  reserved: '#0f766e', reserve: '#0f766e', booked: '#b45309', landowner: '#4d7c0f'
+};
+var SPARE = ['#0369a1', '#9d174d', '#4d7c0f', '#a16207', '#6d28d9', '#0e7490'];
+/* the mark, as a shape — see .pv .x above for why colour cannot carry alone */
+var DASH = { sold: '', pagri: 'd-dot', hold: 'd-dash', 'on-hold': 'd-dash',
+             reserved: 'd-dash', reserve: 'd-dash', booked: 'd-dash' };
+function skey(label) {
+  return String(label || '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'held';
+}
+function tint(key) {
+  if (TINT[key]) return TINT[key];
+  var h = 0;
+  for (var i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return SPARE[h % SPARE.length];
+}
+function wash(key, a) {
+  var c = tint(key);
+  return 'rgba(' + parseInt(c.slice(1, 3), 16) + ',' + parseInt(c.slice(3, 5), 16) +
+         ',' + parseInt(c.slice(5, 7), 16) + ',' + a + ')';
+}
+/* ONE PLACE DECIDES WHAT A UNIT IS. Everything else — the chip, the plate, the
+   legend, the floor counts — asks this and nothing asks the payload directly,
+   so the plate can never disagree with the list about the same shop. */
+function stat(u) {
+  var free = !u || u.s === 'available';
+  var label = free ? 'Available' : (u && u.k ? String(u.k) : 'Not available');
+  var key = free ? 'free' : skey(label);
+  return { free: free, label: label, key: key, who: (u && u.w) ? String(u.w) : '',
+           tint: free ? '' : tint(key), dash: free ? '' : (DASH[key] || 'd-fine') };
+}
+/* the kinds of hold present in a set of units, commonest first — the legend,
+   the floor chips and the building total are all built from this */
+function tally(units) {
+  var by = {}, out = [];
+  (units || []).forEach(function (u) {
+    var s = stat(u);
+    if (s.free) return;
+    if (!by[s.key]) { by[s.key] = { key: s.key, label: s.label, tint: s.tint, n: 0 }; out.push(by[s.key]); }
+    by[s.key].n++;
+  });
+  out.sort(function (a, b) { return b.n - a.n || a.label.localeCompare(b.label); });
+  return out;
+}
+
 /* ONE CHIP, WRITTEN ONCE. The floor screen and the whole-building screen each
    used to build their own, and they had already drifted apart by a class name
    before the money went on them. */
 function chip(u, fi) {
   var off = u.s !== 'available';
+  var s = stat(u);
   return '<button data-u="' + esc(u.n) + '"' +
     (fi === undefined ? '' : ' data-fi="' + fi + '"') +
-    (off ? ' class="off" disabled' : '') + '>' +
+    (off ? ' class="off" data-k="' + esc(s.key) + '" style="--t:' + s.tint + '" disabled' : '') + '>' +
     '<span class="un">' + esc(u.n) + '</span>' +
-    (off ? '<span class="off-l">Not Available</span>'
+    (off ? '<span class="us">' + esc(s.label) + '</span>' +
+           (s.who ? '<span class="uw">' + esc(s.who) + '</span>' : '')
          : '<span class="ua">' + esc(area(u)) + '</span>') +
     /* the money goes on a taken chip too: what it went for is the thing a
        dealer asks about next */
@@ -1650,6 +1766,11 @@ function renderHome() {
     var n = Number(f.available || 0), t = Number(f.total || 0);
     /* The count is the headline of the chip and the floor name is the caption,
        because nobody scans this grid looking for the word "Second". */
+    /* AND WHAT THE REST OF THE FLOOR IS. Rashid: "main dashboard pe b detail
+       ho k har floor pe kitnay hold kitnay sold kitnay pagri etc aur phir
+       cummulative detail b." A row of small coloured counts under the number,
+       in the same colours the plate uses, so a floor reads at a glance. */
+    var kinds = tally(f.units || []);
     return '<button data-f="' + i + '" style="--i:' + i + '"' +
       (n ? '' : ' class="empty"') + '>' +
       '<span class="fn">' + esc(f.floor_label) + '</span>' +
@@ -1659,6 +1780,10 @@ function renderHome() {
            : '<span class="fv">None free</span>' +
              '<span class="fc">of ' + t + '</span>') +
       '</span>' +
+      (kinds.length ? '<span class="fk">' + kinds.map(function (k) {
+          return '<span class="fk-i" style="--t:' + k.tint + '" title="' + esc(k.label) + '">' +
+                 '<i></i>' + k.n + '</span>';
+        }).join('') + '</span>' : '') +
       '</button>';
   }).join('');
 
@@ -1696,6 +1821,13 @@ function paintHero(av, tot) {
   var held = Math.max(0, tot - av);
   var pct = tot ? Math.round(av * 1000 / tot) / 10 : 0;
   var fw = tot ? (av * 100 / tot) : 0;
+  /* THE WHOLE BUILDING, BROKEN OUT. The bar was two colours and the line under
+     it said "N not available", which is the one thing a dealer already knew.
+     It is the cumulative half of what Rashid asked for: the bar is now a band
+     per kind of hold, and the line under it names each with its count. */
+  var all = [];
+  (P.floors || []).forEach(function (f) { all = all.concat(f.units || []); });
+  var kinds = tally(all);
   $('hero').innerHTML =
     '<div class="hero-l">Available now</div>' +
     '<div class="hero-top">' +
@@ -1703,9 +1835,15 @@ function paintHero(av, tot) {
       '<div class="hero-p">of ' + tot + (tot ? ' · ' + pct + '%' : '') + '</div>' +
     '</div>' +
     '<div class="bar"><i class="free" style="width:' + fw + '%"></i>' +
-      '<i class="held" style="width:' + (100 - fw) + '%"></i></div>' +
+      kinds.map(function (k) {
+        return '<i style="width:' + (tot ? k.n * 100 / tot : 0) + '%;background:' + k.tint + '"></i>';
+      }).join('') +
+    '</div>' +
     '<div class="hero-f">' +
-      (held ? '<span><i class="dot held"></i><b>' + held + '</b> not available</span>'
+      (held ? kinds.map(function (k) {
+                return '<span><i class="dot" style="background:' + k.tint + '"></i><b>' +
+                       k.n + '</b> ' + esc(k.label.toLowerCase()) + '</span>';
+              }).join('')
             : '<span>Every unit is free</span>') +
     '</div>';
 }
@@ -1805,7 +1943,10 @@ var PLANS = {};            // floor prefix -> { svg, w, h, units } | 'none'
 var PLANV = true;          // the plan is the view, when there is one
 var PLANZ = 1;
 var PLANSEL = '';          // the shop last asked about, kept marked
-var PLANF = { free: true, held: true };   // which halves the legend is showing
+/* which keys the legend has switched OFF. Absent means showing, so a status
+   the tenant invents tomorrow is visible the first time it appears rather
+   than hidden until somebody thinks to add it here. */
+var PLANF = {};
 var PLANHIT = '';          // what the find box is pointing at
 var PLANZSET = false;      // the reader has taken the zoom into their own hands
 
@@ -1868,8 +2009,15 @@ function unitLines(u) {
   if (a) out.push(a);
   /* and what it costs, where the project publishes it: the rate under the
      size it is a rate of, and the total under both */
-  var r = rate(u);
-  if (r) out.push(r);
+  /* ON A SHOP THAT IS GONE, THE STATUS TAKES THE RATE'S LINE. A sixth line
+     does not fit — a 170 sqft strip carries five and the block was already at
+     the smallest lettering worth printing. So the plate says the same number
+     of things about every shop, and about a taken one it says the more useful
+     of the two: not what it works out to per foot, but what kind of hold is on
+     it and on whose word. The rate is still on the chip. */
+  var s = stat(u);
+  if (s.free) { var r = rate(u); if (r) out.push(r); }
+  else out.push(s.label.toUpperCase() + (s.who ? ' · ' + s.who : ''));
   var m = money(u.v);
   if (m) out.push(m);
   return out;
@@ -1929,8 +2077,11 @@ function labelSpot(pts, x0, x1, y0, y1, cx, cy, W, tall) {
   return best;
 }
 
-function labelBlock(lines, pts, cx, cy, x0, x1, y0, y1, free) {
-  var n = lines.length;
+/* WHERE A BLOCK OF THIS MANY LINES WOULD SIT, AND HOW BIG. Pulled out of
+   labelBlock so the same question can be asked twice — once of the full block
+   and once of a shorter one — which is how a 170 sqft strip decides what it
+   can carry. */
+function fitLines(lines, pts, x0, x1, y0, y1, cx, cy) {
   var W = 0;
   lines.forEach(function (t, i) {
     W = Math.max(W, t.length * 0.60 * (i ? 0.78 : 1));   // ~.60em per character
@@ -1938,20 +2089,42 @@ function labelBlock(lines, pts, cx, cy, x0, x1, y0, y1, free) {
   /* HOW TALL THE BLOCK IS, FOR HOWEVER MANY LINES IT HAS. The first line is
      full size and the rest are smaller, one step of nine tenths apart. This
      used to be three hard-coded baselines, which was fine until the price and
-     the rate made it five. */
-  var tall = 1 + (n - 1) * 0.9;
+     the rate made it five, and the status made it six. */
+  var tall = 1 + (lines.length - 1) * 0.9;
   var spot = labelSpot(pts, x0, x1, y0, y1, cx, cy, W, tall);
   if (!spot) spot = { cx: cx, cy: cy,
                       fs: Math.min((x1 - x0) * 0.86 / (W || 1), (y1 - y0) * 0.85 / tall, 5.2) };
+  spot.tall = tall;
+  return spot;
+}
+function labelBlock(lines, pts, cx, cy, x0, x1, y0, y1, free, key) {
+  var spot = fitLines(lines, pts, x0, x1, y0, y1, cx, cy);
+  /* THE NAME IS THE FIRST THING TO GO. "HOLD · Waqar Landlord" is twice the
+     width of any other line in the block, and on a small shop it is what
+     pushes the lettering out through the wall. Where it does not fit, the
+     plate keeps the word and drops the name — which is still on the chip, in
+     the tooltip, and in what a tap says. */
+  if (spot.fs <= 1.16 && lines.length > 1 && lines[lines.length - 1].indexOf(' · ') > 0) {
+    var shorter = lines.slice(0, -1)
+      .concat(lines[lines.length - 1].split(' · ')[0]);
+    var s2 = fitLines(shorter, pts, x0, x1, y0, y1, cx, cy);
+    if (s2.fs > spot.fs) { lines = shorter; spot = s2; }
+  }
+  var tall = spot.tall;
   cx = spot.cx; cy = spot.cy;
   var fs = spot.fs;
   if (!(fs > 0)) return '';
   fs = Math.max(fs, 1.15);
   var top = cy - (tall * fs) / 2 + 0.72 * fs;
   return '<text class="n' + (free ? '' : ' off') + '" data-n="' + esc(lines[0]) +
-           '" font-size="' + fs.toFixed(2) + '">' +
+           '" data-k="' + esc(key || (free ? 'free' : 'held')) + '"' +
+           (free ? '' : ' style="fill:' + tint(key) + '"') +
+           ' font-size="' + fs.toFixed(2) + '">' +
     lines.map(function (t, i) {
-      return '<tspan' + (i ? ' class="s"' : '') + ' x="' + cx.toFixed(1) +
+      /* the last line of a taken block is the status, and it is the one line
+         that carries its own weight rather than fading with the rest */
+      var last = !free && i === lines.length - 2;   // the status sits above the total
+      return '<tspan' + (i ? ' class="s' + (last ? ' k' : '') + '"' : '') + ' x="' + cx.toFixed(1) +
              '" y="' + (top + i * 0.9 * fs).toFixed(1) + '">' + esc(t) + '</tspan>';
     }).join('') + '</text>';
 }
@@ -2003,18 +2176,24 @@ function paintPlan(plan, f) {
     var x0 = Math.min.apply(null, xs) * plan.w, x1 = Math.max.apply(null, xs) * plan.w;
     var y0 = Math.min.apply(null, ys) * plan.h, y1 = Math.max.apply(null, ys) * plan.h;
     var lines = unitLines(u);
+    var s = stat(u);
+    /* THE WASH AND THE CROSS ARE THE STATUS'S OWN. data-k rides with every
+       piece of a shop — the shape, the cross and the lettering — so the legend
+       can step the other kinds back without knowing anything about them. */
     over.push('<path class="u' + (free ? '' : ' off') + '" d="' + d +
-              '" data-u="' + esc(u.n) + '"><title>' + esc(lines.join(' · ')) +
-              (free ? '' : ' — not available') + '</title></path>');
+              '" data-u="' + esc(u.n) + '" data-k="' + esc(s.key) + '"' +
+              (free ? '' : ' style="fill:' + wash(s.key, .17) + '"') +
+              '><title>' + esc(lines.join(' · ')) + '</title></path>');
     if (!free) {
       /* an L-shaped shop is crossed across the part a thumb can see */
-      over.push('<path class="x" d="M' + x0.toFixed(1) + ' ' + y0.toFixed(1) +
+      over.push('<path class="x ' + s.dash + '" data-k="' + esc(s.key) + '"' +
+                ' style="stroke:' + s.tint + '" d="M' + x0.toFixed(1) + ' ' + y0.toFixed(1) +
                 'L' + x1.toFixed(1) + ' ' + y1.toFixed(1) +
                 'M' + x1.toFixed(1) + ' ' + y0.toFixed(1) +
                 'L' + x0.toFixed(1) + ' ' + y1.toFixed(1) + '"/>');
     }
     names.push(labelBlock(lines, pts, g.c[0] * plan.w, g.c[1] * plan.h,
-                          x0, x1, y0, y1, free));
+                          x0, x1, y0, y1, free, s.key));
   });
   host.innerHTML =
     '<div class="base">' + plan.svg + '</div>' +
@@ -2024,8 +2203,7 @@ function paintPlan(plan, f) {
   host.style.width = (PLANZ * 100) + '%';
   /* the board refetches every minute and repaints; a filter or a mark that did
      not survive that would look like the page forgetting what you just did */
-  host.classList.toggle('no-held', !PLANF.held);
-  host.classList.toggle('no-free', !PLANF.free);
+  planShown();
   if (PLANSEL) markPlan(PLANSEL, 'sel');
   if (PLANHIT) markPlan(PLANHIT, 'hit');
   if (!host.__bound) {
@@ -2035,7 +2213,12 @@ function paintPlan(plan, f) {
       var no = p.getAttribute('data-u');
       PLANSEL = no; markPlan(no, 'sel');
       var unit = (P.floors[FLOOR].units || []).filter(function (x) { return x.n === no; })[0];
-      if (!unit || unit.s !== 'available') { toast(no + ' is not available.'); return; }
+      if (!unit || unit.s !== 'available') {
+        /* say WHICH kind, and on whose word — the tap was the question */
+        var st = stat(unit);
+        toast(no + ' — ' + st.label + (st.who ? ', on ' + st.who + '’s word' : ''));
+        return;
+      }
       openSheet(no, FLOOR);
     });
     host.__bound = true;
@@ -2067,16 +2250,12 @@ async function showPlan(f) {
 
   var units = f.units || [];
   var gone = units.filter(function (u) { return u.s !== 'available'; }).length;
-  var free = units.length - gone;
   /* A TITLE BLOCK, THE WAY A DRAWING CARRIES ONE. The line above already
      names the floor and counts it; this names the SHEET — whose building it
      is and what it is a plan of — which is what a title block is for. */
   $('pv-t').textContent = f.floor_label || 'Floor plan';
   $('pv-s').textContent = 'As drawn · ' + units.length + ' shops';
-  $('k-free-n').textContent = free;
-  $('k-held-n').textContent = gone;
-  $('k-free').classList.toggle('off', !PLANF.free);
-  $('k-held').classList.toggle('off', !PLANF.held);
+  planKeys();
 
   if (PLANV) {
     /* THE WHOLE FLOOR FIRST. Opening enlarged was tried and it starts the
@@ -2796,24 +2975,46 @@ function setZoom(z) {
 $('pv-plus').onclick = function () { PLANZSET = true; setZoom(PLANZ + (PLANZ < 2 ? 0.5 : 1)); };
 $('pv-out').onclick  = function () { PLANZSET = true; setZoom(PLANZ - (PLANZ <= 2 ? 0.5 : 1)); };
 
-/* THE LEGEND IS THE FILTER. Two words a dealer already reads to understand
-   the colours, and tapping one of them puts the other half of the floor into
-   the background \u2014 nothing is removed, because what is taken is still an
-   answer. Both off would say nothing, so the last one on stays on. */
-function planFilter(k) {
-  var other = k === 'free' ? 'held' : 'free';
-  if (PLANF[k] && !PLANF[other]) { PLANF[other] = true; }   // both back on
-  else { PLANF[k] = !PLANF[k]; if (!PLANF.free && !PLANF.held) PLANF[other] = true; }
-  $('k-free').classList.toggle('off', !PLANF.free);
-  $('k-held').classList.toggle('off', !PLANF.held);
-  var host = $('pv-in');
-  if (host) {
-    host.classList.toggle('no-held', !PLANF.held);
-    host.classList.toggle('no-free', !PLANF.free);
-  }
+/* THE LEGEND IS THE FILTER, and now there is one key per kind of hold. Rashid
+   asked for it in the same breath as the statuses: "ooper aik jaisay aik Not
+   available ka button hai osi tarhan ab har aik ka aik button banao jisay
+   click karnay pe wohi bataye \u2014 suppose mai ne select kia reserve to muje just
+   reserved bataye".
+
+   So a tap ISOLATES: press Sold and the floor shows the sold ones and steps
+   everything else back. Press it again and the whole floor comes back. Nothing
+   is ever removed \u2014 what is taken is still an answer \u2014 and pressing the last
+   remaining key on cannot leave the plate saying nothing. */
+function planKeys() {
+  var f = P && P.floors && P.floors[FLOOR];
+  var units = (f && f.units) || [];
+  var free = units.filter(function (u) { return u.s === 'available'; }).length;
+  var rows = [{ key: 'free', label: 'available', n: free, tint: '' }].concat(tally(units));
+  $('k-keys').innerHTML = rows.map(function (r) {
+    return '<button class="key ' + (r.key === 'free' ? 'free' : 'held') +
+      (PLANF[r.key] === false ? ' off' : '') + '" data-k="' + esc(r.key) + '"' +
+      (r.tint ? ' style="--t:' + r.tint + '"' : '') + '>' +
+      '<i></i><b>' + r.n + '</b>&nbsp;' + esc(r.label.toLowerCase()) + '</button>';
+  }).join('');
 }
-$('k-free').onclick = function () { planFilter('free'); };
-$('k-held').onclick = function () { planFilter('held'); };
+function planShown() {
+  /* every key that is not switched off; with none off, everything shows */
+  var host = $('pv-in'); if (!host) return;
+  [].forEach.call(host.querySelectorAll('[data-k]'), function (el) {
+    el.classList.toggle('dim', PLANF[el.getAttribute('data-k')] === false);
+  });
+}
+function planFilter(k) {
+  var keys = [].map.call($('k-keys').children, function (b) { return b.getAttribute('data-k'); });
+  var alone = keys.every(function (x) { return x === k ? PLANF[x] !== false : PLANF[x] === false; });
+  keys.forEach(function (x) { PLANF[x] = alone ? true : (x === k); });
+  planKeys();
+  planShown();
+}
+$('k-keys').onclick = function (e) {
+  var b = e.target.closest('button[data-k]');
+  if (b) planFilter(b.getAttribute('data-k'));
+};
 
 /* find, on the plate rather than in a list */
 var PQT;

@@ -253,15 +253,32 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
     const priced = payload.show_price === true;
     const money = v => 'PKR ' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 });
     const perFt = u => Math.round(Number(u.v) / Number(u.a)).toLocaleString('en-US') + '/sqft';
+    /* FIVE LINES ON EVERY SHOP, AND ON A TAKEN ONE THE FOURTH IS DIFFERENT.
+       The plate used to cross a taken shop and say no more than that; Rashid
+       asked for the status on the map itself, in words as well as in colour.
+       A sixth line does not fit a 170 sqft strip, so on a shop that is gone
+       the status takes the rate's place — the more useful of the two about a
+       unit nobody can buy. The rate is still on the chip.
+
+       The name may be dropped from that line where the shop is too small to
+       carry it, so the check requires the WORD and accepts either. */
     const wantLines = u => [u.n, String(u.t || '').toUpperCase(), fmt(u.a)]
-      .concat(priced ? [perFt(u), money(u.v)] : []);
+      .concat(u.s === 'available' ? (priced ? [perFt(u)] : [])
+              : [String(u.k || 'Not available').toUpperCase() + (u.w ? ' · ' + u.w : '')])
+      .concat(priced ? [money(u.v)] : []);
+    const wantShort = u => wantLines(u).map(t =>
+      u.s === 'available' ? t : t.split(' · ')[0]);
     const wrong = F.units.filter(u => have.has(u.n)).filter(u => {
-      const l = labels[u.n], w = wantLines(u);
-      return !l || l.length !== w.length || w.some((t, i) => l[i] !== t);
+      const l = labels[u.n];
+      if (!l) return true;
+      const full = wantLines(u), brief = wantShort(u);
+      const same = w => l.length === w.length && w.every((t, i) => l[i] === t);
+      return !(same(full) || same(brief));
     });
     (wrong.length === 0)
       ? ok('and each one says its full code, its type, its size' +
-           (priced ? ', its rate and its total' : '') + ' — e.g. ' +
+           (priced ? ', its rate and its total' : '') +
+           ', and a taken one what kind of hold is on it' + ' — e.g. ' +
            (labels[F.units.find(u => have.has(u.n)).n] || []).join(' / '))
       : bad(wrong.length + ' labels disagree with the register, first: ' + wrong[0].n +
             ' → ' + JSON.stringify(labels[wrong[0].n]) + ' vs ' +
@@ -431,24 +448,58 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
       ? ok('and the shop you asked about stays marked on the plate \u2014 ' + selName)
       : bad('the tapped shop is not marked: ' + kept.sel + ' marked, ' + selName);
 
-    await page.evaluate(() => { closeSheet(); document.getElementById('k-held').click(); });
-    await sleep(200);
-    const filtered = await page.evaluate(() => {
-      const host = document.getElementById('pv-in');
-      const off = document.querySelector('#pv-in .u.off');
-      return { dim: host.classList.contains('no-held'),
-               op: off ? Number(getComputedStyle(off).opacity) : 1,
-               chip: document.getElementById('k-held').classList.contains('off') };
+    /* ONE KEY PER KIND OF HOLD, AND A TAP ISOLATES IT. The legend used to be
+       two words — available and taken — and a tap put the other half back.
+       Rashid asked for the real thing: "har aik ka aik button banao jisay
+       click karnay pe wohi bataye, suppose mai ne select kia reserve to muje
+       just reserved bataye". So the keys are written from the floor itself,
+       and pressing one leaves that kind lit and steps everything else back. */
+    const keys = await page.evaluate(() => {
+      closeSheet();
+      return [...document.querySelectorAll('#k-keys button')].map(b => ({
+        k: b.getAttribute('data-k'),
+        label: b.textContent.replace(/\s+/g, ' ').trim(),
+        swatch: getComputedStyle(b.querySelector('i')).backgroundColor
+      }));
     });
-    (filtered.dim && filtered.chip && (!anyGone || filtered.op < 0.3))
-      ? ok("tapping “taken” in the legend pushes the taken shops back" +
-           (anyGone ? " (opacity " + filtered.op.toFixed(2) + ") — the floor becomes " +
-                      "what is sellable" : " — there are none on this floor to push"))
-      : bad("the legend did not filter: " + JSON.stringify(filtered));
-    await page.evaluate(() => document.getElementById('k-held').click());
-    await sleep(150);
-    const restored = await page.evaluate(() => !document.getElementById('pv-in').classList.contains('no-held'));
-    restored ? ok('and tapping it again brings them back') : bad('the filter did not come back');
+    const held = keys.filter(k => k.k !== 'free');
+    (keys.length >= 1 && keys[0].k === 'free' &&
+     (!anyGone || held.length >= 1) &&
+     new Set(keys.map(k => k.swatch)).size === keys.length)
+      ? ok('the legend names ' + keys.length + ' state(s), each its own colour — ' +
+           keys.map(k => k.label).join(' / '))
+      : bad('the legend does not name the kinds: ' + JSON.stringify(keys));
+
+    if (held.length) {
+      const pick = held[0].k;
+      await page.evaluate(k => {
+        document.querySelector('#k-keys button[data-k="' + k + '"]').click();
+      }, pick);
+      await sleep(200);
+      const filtered = await page.evaluate(k => {
+        const on = document.querySelector('#pv-in .u[data-k="' + k + '"]');
+        const other = [...document.querySelectorAll('#pv-in .u')]
+          .filter(e => e.getAttribute('data-k') !== k)[0];
+        return { on: on ? Number(getComputedStyle(on).opacity) : 0,
+                 other: other ? Number(getComputedStyle(other).opacity) : 1,
+                 lit: !document.querySelector('#k-keys button[data-k="' + k + '"]').classList.contains('off') };
+      }, pick);
+      (filtered.lit && filtered.on > 0.9 && filtered.other < 0.3)
+        ? ok('and pressing “' + held[0].label + '” leaves only that kind lit ' +
+             '(' + filtered.on.toFixed(2) + ' against ' + filtered.other.toFixed(2) + ')')
+        : bad('isolating ' + pick + ' did not work: ' + JSON.stringify(filtered));
+      await page.evaluate(k => {
+        document.querySelector('#k-keys button[data-k="' + k + '"]').click();
+      }, pick);
+      await sleep(150);
+      const restored = await page.evaluate(() =>
+        [...document.querySelectorAll('#pv-in .u')].every(e => !e.classList.contains('dim')));
+      restored ? ok('and pressing it again brings the whole floor back')
+               : bad('the floor did not come back');
+    } else {
+      ok('every shop on this floor is free, so there is no kind to isolate');
+      ok('and nothing to bring back');
+    }
 
     const found = await page.evaluate(async no => {
       const q = document.getElementById('pv-q');
