@@ -223,11 +223,30 @@ const median = a => { const s = [...a].sort((p, q) => p - q); return s[Math.floo
            meet in the middle of the opening, which is where the threshold is.
 
            Nothing here needs to know what a kitchen is, or which strip belongs
-           to whom. It only needs the doors, and the doors are on the sheet. */
+        /* ── EVERY SQUARE FOOT GOES TO THE ROOM IT IS NEAREST, THROUGH DOORS ──
+           Only two kinds of place start with a name of their own: a room with a
+           unit number standing in it, and anything that runs off the edge of the
+           window, which is the verandah and the world outside. Everything else —
+           the kitchens, the baths, the balconies, the little strips between one
+           unit and the next — starts nameless, and is claimed by whichever named
+           place reaches it first through a door.
+
+           That is Rashid's rule, done by the drawing rather than by hand: "aik
+           bath kit aur balcony ko square mai lete howay ham unit 67 k sath show
+           kare gay aur aik square ko 66 k sath". The strip between two units is
+           not refused for touching both — it is SPLIT between them, and it
+           splits where the doors say it should, because 67's half is entered
+           from 67 and 66's half from 66.
+
+           An earlier version seeded every island, so a kitchen that survived the
+           pinch kept its own name and belonged to nobody. That is what Rashid
+           saw: "kisi b unit k sath Washroom, Kitchen aur open space balony
+           select hota hee nahi hai". */
         const owner = new Int32Array(W * H).fill(-1);
         let front = [];
         for (let i = 0; i < cell.length; i++) {
-          if (cell[i] >= 0) { owner[i] = cell[i]; front.push(i); }
+          const c = cell[i];
+          if (c >= 0 && (numbered.has(c) || cells[c].edge)) { owner[i] = c; front.push(i); }
         }
         while (front.length) {
           const next = [];
@@ -244,8 +263,8 @@ const median = a => { const s = [...a].sort((p, q) => p - q); return s[Math.floo
         }
 
         const mark = new Uint8Array(W * H);
+        let parts = 1;
         for (let i = 0; i < owner.length; i++) if (owner[i] === mine) mark[i] = 1;
-        const take = new Set([mine]);
 
         let area = 0, minx = W, miny = H, maxx = 0, maxy = 0;
         for (let i = 0; i < mark.length; i++) {
@@ -265,7 +284,7 @@ const median = a => { const s = [...a].sort((p, q) => p - q); return s[Math.floo
             else if (!on && s0 >= 0) { rows2.push([y, s0, x - 1]); s0 = -1; }
           }
         }
-        return { u: seed.u, area: area, restored: true, parts: take.size,
+        return { u: seed.u, area: area, restored: true, parts: parts,
                  ox: X0, oy: Y0,
                  x0: minx / PX + X0, y0: miny / PX + Y0,
                  x1: maxx / PX + X0, y1: maxy / PX + Y0, rows: rows2 };
