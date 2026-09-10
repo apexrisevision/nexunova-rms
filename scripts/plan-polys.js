@@ -17,7 +17,12 @@
 const fs = require('fs'), path = require('path');
 const DIR = process.argv[2] || 'marketing_shots/plan';
 const PAGE = process.argv[3] || 'page1';
-const EPS = Number(process.argv[4] || 0.55);      // px of deviation allowed
+/* HOW HARD TO SNAP THE STAIRCASE OUT OF A BOUNDARY. A flooded shop has clean
+   rectilinear edges and two pixels is plenty. A watershed boundary — where two
+   rooms met in the middle of an opening — runs diagonally, and a diagonal in a
+   raster is a staircase: without a heavier snap the Third Floor came out at
+   seventy-eight corners a room against fifteen on a shop floor. */
+const SNAP = Number(process.argv[4] || 2);
 
 const R = JSON.parse(fs.readFileSync(path.join(DIR, PAGE + '-rooms.json'), 'utf8'));
 const PX = R.px;
@@ -69,7 +74,7 @@ function outline(rows) {
    it. These outlines are rectilinear anyway — they need no curve fitting, only
    the corners, with the raster staircase snapped away first. */
 function tidy(pts) {
-  const SNAP = 2;                                  // px; the wall is thicker than this
+  /* px; the wall is thicker than this */
   let p = pts.map(q => [Math.round(q[0] / SNAP) * SNAP, Math.round(q[1] / SNAP) * SNAP]);
   /* consecutive duplicates first, or the collinearity test sees zero-length legs */
   p = p.filter((q, i) => { const r = p[(i + 1) % p.length]; return q[0] !== r[0] || q[1] !== r[1]; });

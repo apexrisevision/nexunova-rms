@@ -166,8 +166,8 @@ if (!MAP) {
     '.c{border:1px solid #999}.t{background:#111;color:#fff;padding:2px 4px;font-weight:700}' +
     '.r{display:flex;height:9px}i{width:9px;height:9px;display:block}i.on{background:#000}</style>' +
     '<div class="g">' + groups.map((g, i) => cell(g, i)).join('') + '</div>';
-  fs.writeFileSync(path.join(DIR, PAGE + '-chars.html'), html);
-  console.log('contact sheet: ' + path.join(DIR, PAGE + '-chars.html'));
+  fs.writeFileSync(path.join(DIR, PAGE + (COLOUR === '#ba0d70' ? '' : '-text') + '-chars.html'), html);
+  console.log('contact sheet: ' + path.join(DIR, PAGE + (COLOUR === '#ba0d70' ? '' : '-text') + '-chars.html'));
 } else {
   const table = MAP.split('');
   /* the string AND where it sits, because the next step needs to know which
@@ -182,7 +182,12 @@ if (!MAP) {
              x0: +x0.toFixed(2), y0: +y0.toFixed(2), x1: +x1.toFixed(2), y1: +y1.toFixed(2),
              cx: +((x0 + x1) / 2).toFixed(2), cy: +((y0 + y1) / 2).toFixed(2) };
   });
-  fs.writeFileSync(path.join(DIR, PAGE + '-read.json'), JSON.stringify(out, null, 1));
-  console.log('read ' + out.length + ' labels');
+  /* THE UNIT NUMBERS OWN -read.json. Reading the black or purple lettering is
+     a side errand — an area line, a dimension — and writing it over the file the
+     whole pipeline reads its labels from wipes the floor out. It cost a run to
+     learn that; it goes to its own file now. */
+  const out2 = path.join(DIR, PAGE + (COLOUR === '#ba0d70' ? '-read.json' : '-text.json'));
+  fs.writeFileSync(out2, JSON.stringify(out, null, 1));
+  console.log('read ' + out.length + ' labels → ' + out2);
   console.log(out.slice(0, 12).map(o => o.u).join('  '));
 }

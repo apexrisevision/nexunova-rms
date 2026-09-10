@@ -23,7 +23,7 @@
     "shot:availability": "node scripts/shot-availability.js",
     "verify:status-nature": "node scripts/verify-status-nature-ui.js",
     "shot:desk": "node scripts/shot-desk-bulk.js",
-    "shot:floorplan": "node scripts/shot-floorplan.js LG && node scripts/shot-floorplan.js GF && node scripts/shot-floorplan.js FF && node scripts/shot-floorplan.js SF",
+    "shot:floorplan": "node scripts/shot-floorplan.js LG && node scripts/shot-floorplan.js GF && node scripts/shot-floorplan.js FF && node scripts/shot-floorplan.js SF && node scripts/shot-floorplan.js TF",
     "plan:audit": "node scripts/plan-audit.js"
   },
   "build": {

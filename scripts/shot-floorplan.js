@@ -144,9 +144,14 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
       return { ground: inn.backgroundImage, freeA: free ? alpha(free) : 1,
                offA: off ? alpha(off) : 0 };
     });
-    (veil.ground === 'none' && veil.freeA <= 0.06 && veil.offA >= 0.1)
+    /* A FLOOR WITH NOTHING SOLD HAS NOTHING TO COLOUR. The Third Floor is
+       entirely available, so there is no tinted shape to measure — and a check
+       that insists on finding one would fail the floor for being unsold. */
+    const anyGone = gone.length > 0;
+    (veil.ground === 'none' && veil.freeA <= 0.06 && (!anyGone || veil.offA >= 0.1))
       ? ok('nothing is laid across the drawing — no ground behind it, free shops ' +
-           'left at ' + veil.freeA + ' and only the taken ones coloured')
+           'left at ' + veil.freeA +
+           (anyGone ? ' and only the taken ones coloured' : '; nothing on this floor is taken'))
       : bad('something is veiling the plate: ' + JSON.stringify(veil));
 
     /* ── AND THE LINE IS A LINE, NOT A GREY SMUDGE ───────────────────────
@@ -334,12 +339,17 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
       const out = { wrong: [], checked: 0 };
       document.querySelectorAll('#pv-in .over .n').forEach(t => {
         const r = t.getBoundingClientRect();
-        /* off screen in either direction is not a question about tapping:
-           the plate is wider than the window whenever it is enlarged */
-        if (r.width < 1 || r.bottom < 0 || r.top > innerHeight ||
-            r.right < 0 || r.left > innerWidth) return;
+        /* THE POINT THAT WILL BE ASKED ABOUT IS THE ONE THAT HAS TO BE ON
+           SCREEN. Testing the label's box instead let a label straddling the
+           bottom edge through, and elementFromPoint on a spot below the window
+           answers nothing at all — which read as a shop that could not be
+           tapped. */
+        const mx = r.x + r.width / 2, my = r.y + r.height / 2;
+        /* and a pixel INSIDE the window, not on its rim: elementFromPoint at the
+           very edge answers nothing, which reads as an untappable shop */
+        if (r.width < 1 || mx < 1 || my < 1 || mx > innerWidth - 1 || my > innerHeight - 1) return;
         out.checked++;
-        const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        const hit = document.elementFromPoint(mx, my);
         const owner = hit && hit.closest ? hit.closest('[data-u]') : null;
         if (!owner || owner.getAttribute('data-u') !== t.getAttribute('data-n')) {
           out.wrong.push(t.getAttribute('data-n') + ' → ' + (owner ? owner.getAttribute('data-u') : (hit && hit.tagName)));
@@ -371,6 +381,10 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
     /* ── the tap ─────────────────────────────────────────────────────────── */
     const free = F.units.find(u => u.s === 'available');
     const taken = gone[0];
+    /* THE FIND BOX HAS TO FIND SOMETHING, and on a floor where nothing is sold
+       that something is simply another free shop. Searching only ever needed a
+       unit, not a sold one. */
+    const probe = taken || F.units.filter(u => u.n !== free.n)[0];
     /* A REAL TAP, ON THE NAME, WITH A REAL MOUSE. Dispatching a click straight
        at the shape proves the handler works and nothing else — it walks past
        whatever is lying on top, which is the bug that was reported. This aims
@@ -417,10 +431,11 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
                op: off ? Number(getComputedStyle(off).opacity) : 1,
                chip: document.getElementById('k-held').classList.contains('off') };
     });
-    (filtered.dim && filtered.chip && filtered.op < 0.3)
-      ? ok('tapping \u201ctaken\u201d in the legend pushes the taken shops back (opacity ' +
-           filtered.op.toFixed(2) + ') \u2014 the floor becomes what is sellable')
-      : bad('the legend did not filter: ' + JSON.stringify(filtered));
+    (filtered.dim && filtered.chip && (!anyGone || filtered.op < 0.3))
+      ? ok("tapping “taken” in the legend pushes the taken shops back" +
+           (anyGone ? " (opacity " + filtered.op.toFixed(2) + ") — the floor becomes " +
+                      "what is sellable" : " — there are none on this floor to push"))
+      : bad("the legend did not filter: " + JSON.stringify(filtered));
     await page.evaluate(() => document.getElementById('k-held').click());
     await sleep(150);
     const restored = await page.evaluate(() => !document.getElementById('pv-in').classList.contains('no-held'));
@@ -434,11 +449,11 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
       const hit = document.querySelector('#pv-in .u.hit');
       return { n: hit ? hit.getAttribute('data-u') : null,
                only: document.querySelectorAll('#pv-in .u.hit').length };
-    }, taken.n);
-    (found.n === taken.n && found.only === 1)
-      ? ok('typing \u201c' + taken.n.replace(/^[A-Za-z0-9]+-/, '') + '\u201d finds ' + taken.n +
+    }, probe.n);
+    (found.n === probe.n && found.only === 1)
+      ? ok('typing \u201c' + probe.n.replace(/^[A-Za-z0-9]+-/, '') + '\u201d finds ' + probe.n +
            ' on the plate and marks it \u2014 one shop, not a list to read')
-      : bad('the find box did not land on ' + taken.n + ': ' + JSON.stringify(found));
+      : bad('the find box did not land on ' + probe.n + ': ' + JSON.stringify(found));
 
     const zoomed = await page.evaluate(() => {
       setZoom(1);                       // an earlier check left the plate enlarged
@@ -456,16 +471,22 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
                                 document.getElementById('pv-q').dispatchEvent(new Event('input', { bubbles: true })); });
     await sleep(300);
 
-    const tap2 = await page.evaluate(no => {
-      closeSheet();
-      const p = document.querySelector('#pv-in .over .u[data-u="' + no + '"]');
-      if (!p) return { err: 'no shape for ' + no };
-      p.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      return { open: document.getElementById('sheet').classList.contains('on') };
-    }, taken.n);
-    (tap2 && tap2.open === false)
-      ? ok('and tapping ' + taken.n + ', which is taken, opens nothing')
-      : bad('a taken unit opened the sheet: ' + JSON.stringify(tap2));
+    /* and a taken shop opens nothing — on a floor that has one to try */
+    if (taken) {
+      const tap2 = await page.evaluate(no => {
+        closeSheet();
+        const p = document.querySelector('#pv-in .over .u[data-u="' + no + '"]');
+        if (!p) return { err: 'no shape for ' + no };
+        p.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        return { open: document.getElementById('sheet').classList.contains('on') };
+      }, probe.n);
+      (tap2 && tap2.open === false)
+        ? ok('and tapping ' + taken.n + ', which is taken, opens nothing')
+        : bad('a taken unit opened the sheet: ' + JSON.stringify(tap2));
+    } else {
+      await page.evaluate(() => closeSheet());
+      ok('every shop on this floor is available, so there is no taken one to refuse');
+    }
 
     /* ── the weight ──────────────────────────────────────────────────────── */
     const svgB = fs.statSync(path.join(ROOT, 'plans', 'awami-market', WANT + '.svg')).size;
