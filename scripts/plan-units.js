@@ -149,20 +149,58 @@ function wallPaths(file) {
    enough to judge by, so they still take a piece of the gallery. They are the
    only ones left on the floor. */
 function bridges(paths, maxGap, offGap, rails, reach) {
-  /* WHICH GAPS ARE FRONT DOORS. A gap deep inside the block is a kitchen
-     door and must stay open — that is Rashid's first complaint, and closing
-     it took the lobby and the bath straight back out of the flat. A gap that
-     faces the open side is the flat's own front, and that is the one to
-     close. The sheet says which is which: it draws a rail, in cyan, along
-     every side that is open to the air. So a gap is bridged only if it is
-     within a gallery's width of one. */
-  const rail = [];
-  (rails || []).forEach(d => {
-    const n = (d.match(/-?[0-9.]+/g) || []).map(Number);
-    for (let i = 0; i + 1 < n.length; i += 2) rail.push([n[i], n[i + 1]]);
-  });
-  const facesOpen = (x, y) => {
-    for (const p of rail) if (Math.abs(p[0] - x) < reach && Math.abs(p[1] - y) < reach) return true;
+  /* WHICH GAPS ARE FRONT DOORS, AND HOW THE SHEET SAYS SO.
+     A gap deep inside the block is a kitchen door and must stay open — that
+     was Rashid's first complaint, and closing those took the lobby and the
+     bath straight back out of the flat. A gap in the block's OUTER wall is
+     the flat's own front, and that is the one to close, or the flat walks
+     out through it and helps itself to a wedge of the gallery.
+
+     The sheet marks every side that is open to the air with a rail, in cyan.
+     The first rule here was "is a rail within a gallery's width", and it was
+     too blunt: the architect draws the rail along part of a block and not the
+     rest, so on the Fourth Floor whole rows of flats were left unbridged and
+     walked out into the gallery exactly as before.
+
+     The rule now is the one a person uses: CAN YOU SEE THE RAIL FROM THE GAP?
+     A ray is cast out of the middle of the gap, square to the wall, both ways.
+     If it reaches a rail without a wall getting in the way first, the gap
+     opens onto the air and is closed. A kitchen door sees the far wall of its
+     own flat and nothing else, so it stays open. Nothing is guessed and no
+     distance is tuned: the sheet is asked, and it answers. */
+  const seg = (list) => {
+    const out = [];
+    (list || []).forEach(d => {
+      d.split('M').slice(1).forEach(sub => {
+        const n = (sub.match(/-?[0-9.]+/g) || []).map(Number);
+        for (let i = 0; i + 3 < n.length; i += 2)
+          out.push([n[i], n[i + 1], n[i + 2], n[i + 3]]);
+      });
+    });
+    return out;
+  };
+  const wallSeg = seg(paths), railSeg = seg(rails);
+  /* how far along the ray a segment is hit, or Infinity */
+  const hit = (px, py, dx, dy, sg, skip) => {
+    const ex = sg[2] - sg[0], ey = sg[3] - sg[1];
+    const den = dx * ey - dy * ex;
+    if (Math.abs(den) < 1e-9) return Infinity;
+    const t = ((sg[0] - px) * ey - (sg[1] - py) * ex) / den;
+    const u = ((sg[0] - px) * dy - (sg[1] - py) * dx) / den;
+    if (t <= skip || u < 0 || u > 1) return Infinity;
+    return t;
+  };
+  const SEE = 90;              // drawing units: further than any gallery is wide
+  const facesOpen = (x, y, nx, ny) => {
+    for (const dir of [1, -1]) {
+      const dx = nx * dir, dy = ny * dir;
+      let wall = SEE, rl = SEE;
+      /* the jambs either side of this very gap are what the ray starts
+         between, so the first stretch of it is ignored */
+      for (const sg of wallSeg) { const t = hit(x, y, dx, dy, sg, 1.6); if (t < wall) wall = t; }
+      for (const sg of railSeg) { const t = hit(x, y, dx, dy, sg, 1.6); if (t < rl) rl = t; }
+      if (rl < wall) return true;
+    }
     return false;
   };
   const ends = [];
@@ -193,7 +231,8 @@ function bridges(paths, maxGap, offGap, rails, reach) {
       if (a.ux * ux + a.uy * uy < 0.985) continue;      // a points at b
       if (b.ux * ux + b.uy * uy > -0.985) continue;     // and b back at a
       if (Math.abs(a.ux * uy - a.uy * ux) * L > offGap) continue;   // same line
-      if (rail.length && !facesOpen((a.x + b.x) / 2, (a.y + b.y) / 2)) continue;
+      if (railSeg.length &&
+          !facesOpen((a.x + b.x) / 2, (a.y + b.y) / 2, -uy, ux)) continue;
       out.push('M' + a.x + ' ' + a.y + ' L' + b.x + ' ' + b.y);
     }
   }
