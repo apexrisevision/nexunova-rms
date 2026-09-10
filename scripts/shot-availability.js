@@ -97,19 +97,44 @@ function serve() {
   console.log('  payload ' + bytes.toLocaleString() + ' bytes  ·  ' +
               payload.floors.length + ' floors  ·  ' + units.toLocaleString() + ' units');
 
-  /* Price must not be on the wire. Asserted on the RAW TEXT, not on parsed
-     keys — a field renamed rather than removed would still pass a key check. */
-  !/"p"\s*:|price|base_price/i.test(cap[0].payload)
-    ? ok('no price on the wire, by raw text search of the whole payload')
-    : bad('the payload still carries a price');
+  /* ── WHAT MAY BE ON THE WIRE, AND WHERE ────────────────────────────────
+     For most of this page's life the answer was: never a price. The link is a
+     URL that can be forwarded to anybody. Rashid asked for Awami's totals on
+     it — his to decide about his own building, and nobody else's — so it is a
+     switch per project, and this lock now has two sides. Awami must carry the
+     register's own total on every unit. A project without the switch must
+     carry none at all, which is checked on ZZTEST further down.
+
+     Still refused everywhere: the RATE per square foot, and anything that
+     reads like a discount. A total is what the office sells at; the rate is
+     how the office arrived at it. */
+  payload.show_price === true
+    ? ok('this project publishes its prices, and the payload says so')
+    : bad('Awami is switched to publish prices and the payload does not say so');
+  !/per_sqft|per sq|discount|base_price/i.test(cap[0].payload)
+    ? ok('and still no rate and no discount, by raw text search of the whole payload')
+    : bad('the payload carries more than a total');
+
+  const book = await sql(`SELECT unit_no, base_price::float8 AS v FROM public.units
+                           WHERE project_id = '${AWAMI_PR}'
+                             AND public._map_unit_state(id) <> 'retired';`);
+  const said = {};
+  payload.floors.forEach(fl => fl.units.forEach(u => { said[u.n] = u.v; }));
+  const wrong = book.filter(r => Number(said[r.unit_no]) !== Number(r.v));
+  (wrong.length === 0)
+    ? ok('every one of the ' + book.length + ' units carries the register\u2019s own total \u2014 ' +
+         'nothing rounded and nothing recalculated on the way out')
+    : bad(wrong.length + ' carry a different total from the register, first: ' +
+          wrong[0].unit_no + ' register ' + wrong[0].v + ' payload ' + said[wrong[0].unit_no]);
   const keys = new Set();
   payload.floors.forEach(f => f.units.forEach(u => Object.keys(u).forEach(k => keys.add(k))));
-  /* Four, and no more: the number, the state, the area and the type. The
-     type joined them when the floor plan had to write the architect's own
-     label; everything else about a unit is still none of an outsider's
-     business. This list is a lock, not a description — a fifth key fails here
+  /* Five, and no more: the number, the state, the area, the type and the
+     total. The type joined them when the floor plan had to write the
+     architect's own label, and the total when Rashid asked for Awami's prices
+     on the link; everything else about a unit is still none of an outsider's
+     business. This list is a lock, not a description — a sixth key fails here
      before anybody has to notice it on the page. */
-  JSON.stringify([...keys].sort()) === JSON.stringify(['a', 'n', 's', 't'])
+  JSON.stringify([...keys].sort()) === JSON.stringify(['a', 'n', 's', 't', 'v'])
     ? ok('a unit carries exactly: ' + [...keys].sort().join(', '))
     : bad('unexpected unit keys: ' + [...keys].sort().join(', '));
   const states = new Set();
@@ -842,6 +867,8 @@ function serve() {
       }));
       const extra = free.filter(n => n !== SHEET.n).slice(0, 2);
       const read = () => ({
+        /* the one figure a dealer taking six shops wants: what the six come to */
+        price: (document.querySelector('.sh-p') || {}).textContent || '',
         head: (document.getElementById('sh-n') || {}).textContent || '',
         chips: [...document.querySelectorAll('#uc-r .uc')].map(c => ({
           n: c.textContent.replace(/\u00d7/g, '').trim(),
@@ -882,6 +909,24 @@ function serve() {
     (bulk.pasted.sending.length === 3)
       ? ok('and all three are what would be sent')
       : bad('it would send ' + JSON.stringify(bulk.pasted.sending));
+
+    /* ── ONE FIGURE FOR THE WHOLE ASK ──────────────────────────────────────
+       Rashid asked for totals on the reservation, and a dealer taking three
+       shops wants what the three come to rather than three numbers to add on
+       a phone. It is the sum of exactly what would be sent, checked against
+       the register — and a sum that quietly left a unit out would be worse
+       than no sum at all. */
+    const wantSum = bulk.pasted.sending
+      .reduce((t, n) => t + Number((book.find(r => r.unit_no === n) || {}).v || 0), 0);
+    /* the money, and not the "for all 3" beside it — stripping every
+       non-digit from the line swept that 3 up into the figure */
+    const saidSum = Number(((/PKR\s*([\d,]+)/.exec(bulk.pasted.price) || [])[1] || '')
+                             .replace(/,/g, ''));
+    (wantSum > 0 && saidSum === Math.round(wantSum) && /for all 3/.test(bulk.pasted.price))
+      ? ok('three shops asked for together show one total — “' +
+           bulk.pasted.price.replace(/\s+/g, ' ').trim() + '”')
+      : bad('the total for three is wrong: showed ' + saidSum + ', register says ' +
+            Math.round(wantSum));
     (/^Units \(3\): /m.test(bulk.pasted.msg) && !/^Size: /m.test(bulk.pasted.msg) &&
      !/^Unit: /m.test(bulk.pasted.msg))
       ? ok('the message lists them and drops the size \u2014 one size under three ' +
@@ -1138,12 +1183,20 @@ function serve() {
       const cells = [...document.querySelectorAll('#units button, #all-body .ug button, #res .res-r')];
       const bad = cells.filter(c => why.test(c.textContent || ''))
                        .map(c => (c.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40));
-      return { pkr: /PKR|\u20a8|rupee/i.test(t), price: /price|rate\s*\/|\/\s*sq\s*ft/i.test(t),
+      /* MONEY HAS A PLACE NOW, AND ONLY ONE. Awami publishes its totals, so a
+         figure on the request sheet is expected. A RATE never is — a total is
+         what the office sells at, the rate is how it got there — and a unit
+         chip must stay a unit chip: a floor of three hundred prices is a price
+         list, which is not what a dealer was handed a link for. */
+      return { pkr: /PKR|\u20a8|rupee/i.test(t),
+               rate: /rate\s*\/|\/\s*sq\s*ft|per\s*sq/i.test(t),
+               chipMoney: cells.filter(c => /PKR/i.test(c.textContent || '')).length,
                cells: cells.length, leaks: bad.slice(0, 4), n: bad.length };
     });
-    (!sweep.pkr && !sweep.price)
-      ? ok('no currency, no price and no rate anywhere in the rendered page')
-      : bad('the page shows money: ' + JSON.stringify(sweep));
+    (!sweep.rate && sweep.chipMoney === 0)
+      ? ok('a total may show on the request sheet, but never a rate, and never on ' +
+           'a unit chip \u2014 ' + sweep.cells + ' chips checked')
+      : bad('the page shows money where it should not: ' + JSON.stringify(sweep));
     (sweep.cells > 0 && sweep.n === 0)
       ? ok('and not one of the ' + sweep.cells + ' units on screen says why it is gone \u2014 ' +
            'only Not Available')
@@ -1401,12 +1454,30 @@ function serve() {
         ? ok('no buyer name, phone or sale number on the wire' +
              (secret.buyer ? ' (looked for ' + secret.buyer + ')' : ''))
         : bad('LEAKED on the wire: ' + leaked.join(', '));
+      /* show_price is a switch, not a price: it says whether this project put
+         its totals on the link, and for ZZTEST it says no. The next check reads
+         it rather than trusting the name. */
       const privKeys = ['client', 'phone', 'paid', 'outstanding', 'overdue', 'net_amount',
                         'sale_number', 'due', 'price', 'base_price']
-        .filter(k => new RegExp('"[a-z_]*' + k, 'i').test(live.wire));
+        .filter(k => new RegExp('"[a-z_]*' + k, 'i')
+                       .test(live.wire.replace(/"show_price"/g, '"switch"')));
       /* 16 */ privKeys.length === 0
         ? ok('not one private key name is present, price included')
         : bad('private key names on the wire: ' + privKeys.join(', '));
+
+      /* ── AND THE OTHER SIDE OF THE SWITCH ─────────────────────────────────
+         Awami publishes its totals because Rashid asked. ZZTEST never did, and
+         neither did Khushal Bagh Heights or Fourteen Manzil Height, which run
+         on this same code. A project that did not ask must carry no total at
+         all \u2014 not a null one, not a zero one, no key. */
+      const off = JSON.parse(live.wire);
+      const anyV = (off.floors || []).some(fl => (fl.units || [])
+        .some(u => Object.prototype.hasOwnProperty.call(u, 'v')));
+      (off.show_price === false && !anyV)
+        ? ok('a project that never asked for it carries no total at all \u2014 ' +
+              'the switch is off and not one unit has the key')
+        : bad('a project without the switch is carrying prices: show_price=' +
+               off.show_price + ' units with a total: ' + anyV);
       const rpcNames = [...new Set((live.code.match(/\.rpc\(\s*['"]([a-z_]+)['"]/g) || [])
         .map(m => m.replace(/.*['"]([a-z_]+)['"]/, '$1')))];
       /* 17 — THE PAGE'S WHOLE REACH INTO THE SERVER, by name, from its source.
