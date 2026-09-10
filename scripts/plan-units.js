@@ -15,6 +15,8 @@
 
    So this asks the doors, and nothing else:
 
+     0. The door leaves are lifted off the sheet first — see OPENING below — and
+        the wall is cut back along them, so a doorway is a doorway.
      1. With a heavy pen every doorway is pinched shut, and the floor falls apart
         into separate cells: rooms, kitchens, baths, balconies, the verandah.
      2. The pixels that are floor at the true pen but wall at the heavy one ARE
@@ -33,10 +35,13 @@
    super area with a share of the common parts in it: the Third Floor sheet
    says 495.50 for a unit the register calls 345.50, and 492.40 for one it
    calls 342.40. What this is held to is the REGISTER, unit by unit, the same
-   test the shop floors passed. On the Third Floor 117 of the 150 land within
-   10% of their record and the typical one within 2.7%.
+   test the shop floors passed. On the Third Floor 132 of the 150 land within
+   10% of their record and the typical one within 1.4%.
 
-   The 33 that do not are marked disputed and reported by name. A watershed
+   The 18 that do not are marked disputed and reported by name. Seventeen of
+   them are the register's own saleable figure — nine units it prices at a flat
+   342.40 that the sheet draws half as big again — and that is a question for
+   Rashid, not for the drawing. A watershed
    shape cannot lie on top of another one — every pixel has exactly one owner —
    so what is in dispute there is the register's number, not the outline.
 
@@ -52,6 +57,26 @@ const PINCH = Number(process.argv[6] || 20);
 const HALF = Number(process.argv[7] || 120);       // drawing units either side of a label
 const AWAMI = '59ded55b-9bc2-45b2-a372-49fc31807fa9';
 const TEXT = new Set(['#ba0d70', '#000000', '#bf00ff']);
+/* ── THE GREY LINE IS A DOOR, AND A DOOR IS NOT A WALL ──────────────────────
+   The sheet draws in layers by colour: red is structure, magenta the columns,
+   blue the glazing, cyan the balcony rail — and a pale grey, 250 strokes of
+   it, that appears only in ONE place. It spans the gap between two wall stubs
+   with a jamb returned on either side. That is the door leaf.
+
+   Read as a wall it shuts every kitchen, bath and lobby off from the room they
+   belong to. The flood then cannot get in at all: on the Third Floor 427,000
+   pixels a window ended up belonging to nobody, and the units came out as bare
+   rooms with the service block hanging outside them — "right walay units pe
+   washroom aur kitchen wagaira" missing, exactly as Rashid put it. Leaving it
+   out opens the doorways and nothing else: the jambs either side are red and
+   still stand, so the opening stays a doorway and does not become a hole in
+   the wall.
+
+   The blue is NOT in this list, although the balcony hangs off it. Opening the
+   glazing opens the outer windows too, and 140 and 141 then flood into one
+   another through the front. A balcony that stays outside the shape is a
+   smaller wrong than two units becoming one. */
+const OPENING = new Set(['#bababa', '#969696', '#757575']);
 const BROWSERS = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
                   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'];
 
@@ -71,15 +96,15 @@ function sql(q) {
 }
 function wallPaths(file) {
   const src = fs.readFileSync(file, 'utf8');
-  const out = [];
+  const out = [], doors = [];
   const re = /<path d="([^"]*)" fill="([^"]*)" stroke="([^"]*)"[^>]*\/>/g;
   let m;
   while ((m = re.exec(src))) {
     const f = m[2].toLowerCase(), s = m[3].toLowerCase();
     if (TEXT.has(f) || TEXT.has(s)) continue;
-    out.push(m[1]);
+    (OPENING.has(s) ? doors : out).push(m[1]);
   }
-  return out;
+  return { walls: out, doors: doors };
 }
 const median = a => { const s = [...a].sort((p, q) => p - q); return s[Math.floor(s.length / 2)]; };
 
@@ -96,8 +121,9 @@ const median = a => { const s = [...a].sort((p, q) => p - q); return s[Math.floo
   if (turned.length) console.log('  ON THE SHEET BUT NOT IN THE REGISTER: ' +
                                  turned.map(t => JSON.stringify(t)).join(', '));
 
-  const paths = wallPaths(path.join(DIR, PAGE + '.svg'));
-  console.log('  ' + paths.length + ' wall paths, pinch ' + PINCH + '\u00d7 (' +
+  const sheet = wallPaths(path.join(DIR, PAGE + '.svg'));
+  console.log('  ' + sheet.walls.length + ' wall paths and ' + sheet.doors.length +
+              ' door leaves, pinch ' + PINCH + '\u00d7 (' +
               (1.2 / PX * 2 * PINCH).toFixed(1) + ' drawing units)');
 
   const browser = await puppeteer.launch({ executablePath: BROWSERS.find(p => fs.existsSync(p)),
@@ -106,7 +132,7 @@ const median = a => { const s = [...a].sort((p, q) => p - q); return s[Math.floo
   const page = await browser.newPage();
   await page.setViewport({ width: 400, height: 300 });
   await page.goto('about:blank');
-  await page.evaluate(ps => { window.__paths = ps; }, paths);
+  await page.evaluate(s => { window.__paths = s.walls; window.__doors = s.doors; }, sheet);
 
   const found = {}, failed = [], took = {};
   for (const seed of labels) {
@@ -130,7 +156,15 @@ const median = a => { const s = [...a].sort((p, q) => p - q); return s[Math.floo
           '<g stroke="#f00" stroke-width="' + heavy + '">' +
           window.__paths.map(d => '<path d="' + d + '"/>').join('') + '</g>' +
           '<g stroke="#000" stroke-width="' + thin + '">' +
-          window.__paths.map(d => '<path d="' + d + '"/>').join('') + '</g></g></svg>';
+          window.__paths.map(d => '<path d="' + d + '"/>').join('') + '</g>' +
+          /* AND THE DOORS ARE CUT LAST, in white. Leaving the leaf out is not
+             always enough: in some blocks the draughtsman ran the wall line
+             straight through the opening and drew the leaf on top of it, so
+             the doorway was still shut. Painting back along the leaf opens it
+             either way. Only the true pen is cut — the heavy pen's band is
+             walked through anyway — and only as wide as the leaf itself. */
+          '<g stroke="#fff" stroke-width="' + (thin * 3) + '">' +
+          window.__doors.map(d => '<path d="' + d + '"/>').join('') + '</g></g></svg>';
         const img = new Image();
         const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
         await new Promise((ok, no) => { img.onload = ok; img.onerror = no; img.src = url; });
