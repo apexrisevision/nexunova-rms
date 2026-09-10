@@ -245,14 +245,23 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
       return out;
     });
     const fmt = a => Number(a).toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' sqft';
+    /* WHAT A SHOP SAYS ABOUT ITSELF. Three things until Rashid asked for the
+       money on the plate as well, and five since: the code, what it is, how
+       big, at what rate, and for how much. The last two are the register's own
+       total and that total over that area — worked out on the page rather than
+       sent, so this is also the check that the division is right. */
+    const priced = payload.show_price === true;
+    const money = v => 'PKR ' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 });
+    const perFt = u => Math.round(Number(u.v) / Number(u.a)).toLocaleString('en-US') + '/sqft';
+    const wantLines = u => [u.n, String(u.t || '').toUpperCase(), fmt(u.a)]
+      .concat(priced ? [perFt(u), money(u.v)] : []);
     const wrong = F.units.filter(u => have.has(u.n)).filter(u => {
-      const l = labels[u.n];
-      return !l || l.length !== 3 ||
-             l[1] !== String(u.t || '').toUpperCase() ||
-             l[2] !== fmt(u.a);
+      const l = labels[u.n], w = wantLines(u);
+      return !l || l.length !== w.length || w.some((t, i) => l[i] !== t);
     });
     (wrong.length === 0)
-      ? ok('and each one says its full code, its type and its size — e.g. ' +
+      ? ok('and each one says its full code, its type, its size' +
+           (priced ? ', its rate and its total' : '') + ' — e.g. ' +
            (labels[F.units.find(u => have.has(u.n)).n] || []).join(' / '))
       : bad(wrong.length + ' labels disagree with the register, first: ' + wrong[0].n +
             ' → ' + JSON.stringify(labels[wrong[0].n]) + ' vs ' +

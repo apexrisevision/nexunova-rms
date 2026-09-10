@@ -499,9 +499,12 @@ function serve() {
     floorState.offShown === 0
       ? ok('unavailable units are not drawn by default')
       : bad(floorState.offShown + ' unavailable units drawn with the toggle off');
-    floorState.perRow >= 4
-      ? ok('a grid of ' + floorState.perRow + ' per row, not a list of rows')
-      : bad('only ' + floorState.perRow + ' per row');
+    /* A GRID, NOT A LIST OF ROWS. Four across until the chips began carrying a
+       total and a rate, which needs the width — three across is still a grid
+       and still reads as one; two would not. */
+    floorState.perRow >= (payload.show_price ? 3 : 4)
+      ? ok("a grid of " + floorState.perRow + " per row, not a list of rows")
+      : bad("only " + floorState.perRow + " per row");
     floorState.homeHidden
       ? ok('screen one is put away while a floor is open')
       : bad('both screens are showing at once');
@@ -1183,20 +1186,41 @@ function serve() {
       const cells = [...document.querySelectorAll('#units button, #all-body .ug button, #res .res-r')];
       const bad = cells.filter(c => why.test(c.textContent || ''))
                        .map(c => (c.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40));
-      /* MONEY HAS A PLACE NOW, AND ONLY ONE. Awami publishes its totals, so a
-         figure on the request sheet is expected. A RATE never is — a total is
-         what the office sells at, the rate is how it got there — and a unit
-         chip must stay a unit chip: a floor of three hundred prices is a price
-         list, which is not what a dealer was handed a link for. */
-      return { pkr: /PKR|\u20a8|rupee/i.test(t),
-               rate: /rate\s*\/|\/\s*sq\s*ft|per\s*sq/i.test(t),
-               chipMoney: cells.filter(c => /PKR/i.test(c.textContent || '')).length,
+      /* MONEY IS SHOWN WHERE THE PROJECT PUBLISHES IT, and this project does:
+         Rashid asked for the total and the rate on the chips and on the plate
+         as well as on the request sheet. So the question is no longer whether
+         money appears \u2014 it is whether EVERY unit carries it, and whether the
+         figures are the register's. A chip that quietly lost its price would
+         read as a shop with no price rather than as a fault. */
+      const priced = [...document.querySelectorAll('#units button, #all-body .ug button')]
+        .map(c => ({
+          n: (c.querySelector('.un') || {}).textContent || '',
+          v: (c.querySelector('.uv') || {}).textContent || '',
+          r: (c.querySelector('.ur') || {}).textContent || ''
+        }));
+      return { rate: /rate\s*\/|discount/i.test(t),
+               chips: priced,
                cells: cells.length, leaks: bad.slice(0, 4), n: bad.length };
     });
-    (!sweep.rate && sweep.chipMoney === 0)
-      ? ok('a total may show on the request sheet, but never a rate, and never on ' +
-           'a unit chip \u2014 ' + sweep.cells + ' chips checked')
-      : bad('the page shows money where it should not: ' + JSON.stringify(sweep));
+    {
+      const emptyChip = sweep.chips.filter(c => !c.v || !c.r);
+      const money = v => Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 });
+      const wrongChip = sweep.chips.filter(c => {
+        const u = book.find(r => r.unit_no === c.n.trim());
+        if (!u) return false;
+        return c.v.replace(/[^0-9,]/g, '') !== money(u.v);
+      });
+      (sweep.chips.length > 20 && emptyChip.length === 0 && wrongChip.length === 0 && !sweep.rate)
+        ? ok('every one of the ' + sweep.chips.length + ' chips on screen carries the ' +
+             'register\u2019s total and the rate it works out to \u2014 e.g. ' +
+             sweep.chips[0].n + ' ' + sweep.chips[0].v + ' at ' + sweep.chips[0].r)
+        : bad('the chips do not carry the money properly: ' +
+              (emptyChip.length ? emptyChip.length + ' without a price (' +
+                emptyChip.slice(0, 3).map(c => c.n).join(',') + ')' : '') +
+              (wrongChip.length ? '  ' + wrongChip.length + ' with the wrong total (' +
+                wrongChip[0].n + ' shows ' + wrongChip[0].v + ')' : '') +
+              (sweep.rate ? '  and something reads like a discount' : ''));
+    }
     (sweep.cells > 0 && sweep.n === 0)
       ? ok('and not one of the ' + sweep.cells + ' units on screen says why it is gone \u2014 ' +
            'only Not Available')

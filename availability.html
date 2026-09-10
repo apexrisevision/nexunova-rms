@@ -313,6 +313,7 @@ button{cursor:pointer;background:none;border:0}
   .fl button{min-height:92px;padding:17px 18px}
   .sr input{height:60px}
   .ug{grid-template-columns:repeat(8,1fr);gap:9px}
+  .ug.money{grid-template-columns:repeat(6,1fr)}
 }
 
 /* ── one floor ──────────────────────────────────────────────────────────── */
@@ -480,8 +481,13 @@ button{cursor:pointer;background:none;border:0}
 .sw input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;margin:0}
 .sw label{cursor:pointer;user-select:none}
 
+/* FOUR TO A ROW UNTIL THEY CARRY MONEY. A chip with a rate and a total on it
+   is twice the reading of one with a size, and eighty-five pixels will not
+   hold "16,167,000". Three fit, and the floor is still a grid. */
 .ug{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-@media (min-width:440px){ .ug{grid-template-columns:repeat(5,1fr)} }
+.ug.money{grid-template-columns:repeat(3,1fr)}
+@media (min-width:440px){ .ug{grid-template-columns:repeat(5,1fr)}
+                          .ug.money{grid-template-columns:repeat(4,1fr)} }
 .ug button{
   padding:11px 5px;border:0;border-radius:var(--r);background:var(--card);
   display:flex;flex-direction:column;align-items:center;gap:3px;min-height:56px;
@@ -492,6 +498,11 @@ button{cursor:pointer;background:none;border:0}
 .ug button:active{transform:scale(.94);background:var(--sunk)}
 .ug .un{font-size:13.5px;font-weight:650;letter-spacing:-.015em;line-height:1.2}
 .ug .ua{font-size:10px;color:var(--mut);line-height:1.3}
+/* the money on a chip: the total is the thing being compared, the rate is how
+   it was arrived at, so one is ink and the other is quiet */
+.ug .uv{font-size:11px;color:var(--ink);line-height:1.3;letter-spacing:-.01em}
+.ug .ur{font-size:9.5px;color:var(--mut);line-height:1.3}
+.ug button.off .uv{color:var(--held)}
 /* Held: a warm, muted ground. It says somebody has this without ever being
    the loudest thing on a screen of three hundred units. */
 .ug button.off{background:var(--held-bg);cursor:default}
@@ -1008,6 +1019,38 @@ function money(v) {
 /* THE SUM OF WHAT WOULD ACTUALLY BE SENT. Takes unit numbers, because that is
    what the ask is made of, and looks each one up. A total that quietly leaves
    a unit out is worse than no total, so one missing price gives none. */
+/* THE RATE IS NOT ON THE WIRE, AND DOES NOT NEED TO BE. It is the total over
+   the area, and both of those are already here — so the payload stays exactly
+   as small and as plain as it was, and the page does the division. Rounded to
+   the rupee: the bands are whole numbers and a rate that reads 74,999.87 is a
+   rate nobody quoted. */
+function rate(u) {
+  var v = Number(u && u.v), a = Number(u && u.a);
+  if (!P || !P.show_price || !isFinite(v) || !isFinite(a) || v <= 0 || a <= 0) return '';
+  return Math.round(v / a).toLocaleString('en-US') + '/' + (P.area_unit || 'sqft');
+}
+function short(v) {
+  var n = Number(v);
+  if (!P || !P.show_price || !isFinite(n) || n <= 0) return '';
+  return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+/* ONE CHIP, WRITTEN ONCE. The floor screen and the whole-building screen each
+   used to build their own, and they had already drifted apart by a class name
+   before the money went on them. */
+function chip(u, fi) {
+  var off = u.s !== 'available';
+  return '<button data-u="' + esc(u.n) + '"' +
+    (fi === undefined ? '' : ' data-fi="' + fi + '"') +
+    (off ? ' class="off" disabled' : '') + '>' +
+    '<span class="un">' + esc(u.n) + '</span>' +
+    (off ? '<span class="off-l">Not Available</span>'
+         : '<span class="ua">' + esc(area(u)) + '</span>') +
+    /* the money goes on a taken chip too: what it went for is the thing a
+       dealer asks about next */
+    (short(u.v) ? '<span class="uv">' + esc(short(u.v)) + '</span>' : '') +
+    (rate(u) ? '<span class="ur">' + esc(rate(u)) + '</span>' : '') +
+  '</button>';
+}
 function totalOf(names) {
   var t = 0, all = true;
   (names || []).forEach(function (n) {
@@ -1734,16 +1777,8 @@ function renderAll() {
           ' \u00b7 <b class="num">' + a + '</b> available' +
         '</span>' +
       '</div>' +
-      '<div class="ug">' +
-        units.map(function (u) {
-          var off = u.s !== 'available';
-          return '<button data-u="' + esc(u.n) + '" data-fi="' + fi + '"' +
-            (off ? ' class="off" disabled' : '') + '>' +
-            '<span class="un">' + esc(u.n) + '</span>' +
-            (off ? '<span class="off-l">Not Available</span>'
-                 : '<span class="ua">' + esc(area(u)) + '</span>') +
-          '</button>';
-        }).join('') +
+      '<div class="ug' + (P && P.show_price ? ' money' : '') + '">' +
+        units.map(function (u) { return chip(u, fi); }).join('') +
       '</div>' +
     '</div>';
   }).join('');
@@ -1831,6 +1866,12 @@ function unitLines(u) {
   if (u.t) out.push(String(u.t).toUpperCase());
   var a = area(u);
   if (a) out.push(a);
+  /* and what it costs, where the project publishes it: the rate under the
+     size it is a rate of, and the total under both */
+  var r = rate(u);
+  if (r) out.push(r);
+  var m = money(u.v);
+  if (m) out.push(m);
   return out;
 }
 
@@ -1869,7 +1910,7 @@ function spanAround(cuts, c) {
    outline is cut at a handful of positions and the one that carries the
    largest lettering wins — so a label lands in the wide part of an L and not
    in its arm. */
-function labelSpot(pts, x0, x1, y0, y1, cx, cy, W) {
+function labelSpot(pts, x0, x1, y0, y1, cx, cy, W, tall) {
   var best = null;
   for (var k = 0; k <= 8; k++) {
     var x = k === 8 ? cx : x0 + (x1 - x0) * (k + 0.5) / 8;
@@ -1882,29 +1923,36 @@ function labelSpot(pts, x0, x1, y0, y1, cx, cy, W) {
     /* measured again at the place the label will really sit */
     var v2 = spanAround(cutAt(pts, mx, true), my) || v;
     var bw = h[1] - h[0], bh = v2[1] - v2[0];
-    var fs = Math.min(bw * 0.86 / (W || 1), bh * 0.34, 5.2);
+    var fs = Math.min(bw * 0.86 / (W || 1), bh * 0.85 / (tall || 2.8), 5.2);
     if (!best || fs > best.fs) best = { cx: mx, cy: (v2[0] + v2[1]) / 2, fs: fs };
   }
   return best;
 }
 
 function labelBlock(lines, pts, cx, cy, x0, x1, y0, y1, free) {
+  var n = lines.length;
   var W = 0;
   lines.forEach(function (t, i) {
     W = Math.max(W, t.length * 0.60 * (i ? 0.78 : 1));   // ~.60em per character
   });
-  var spot = labelSpot(pts, x0, x1, y0, y1, cx, cy, W);
-  if (!spot) spot = { cx: cx, cy: cy, fs: Math.min((x1 - x0) * 0.86 / (W || 1), (y1 - y0) * 0.34, 5.2) };
+  /* HOW TALL THE BLOCK IS, FOR HOWEVER MANY LINES IT HAS. The first line is
+     full size and the rest are smaller, one step of nine tenths apart. This
+     used to be three hard-coded baselines, which was fine until the price and
+     the rate made it five. */
+  var tall = 1 + (n - 1) * 0.9;
+  var spot = labelSpot(pts, x0, x1, y0, y1, cx, cy, W, tall);
+  if (!spot) spot = { cx: cx, cy: cy,
+                      fs: Math.min((x1 - x0) * 0.86 / (W || 1), (y1 - y0) * 0.85 / tall, 5.2) };
   cx = spot.cx; cy = spot.cy;
   var fs = spot.fs;
   if (!(fs > 0)) return '';
   fs = Math.max(fs, 1.15);
-  var y = [cy - 0.30 * fs, cy + 0.62 * fs, cy + 1.48 * fs];
+  var top = cy - (tall * fs) / 2 + 0.72 * fs;
   return '<text class="n' + (free ? '' : ' off') + '" data-n="' + esc(lines[0]) +
            '" font-size="' + fs.toFixed(2) + '">' +
     lines.map(function (t, i) {
       return '<tspan' + (i ? ' class="s"' : '') + ' x="' + cx.toFixed(1) +
-             '" y="' + y[i].toFixed(1) + '">' + esc(t) + '</tspan>';
+             '" y="' + (top + i * 0.9 * fs).toFixed(1) + '">' + esc(t) + '</tspan>';
     }).join('') + '</text>';
 }
 
@@ -2064,14 +2112,8 @@ function renderFloor() {
     return SHOWALL || u.s === 'available';
   });
 
-  $('units').innerHTML = list.map(function (u) {
-    var off = u.s !== 'available';
-    return '<button data-u="' + esc(u.n) + '"' + (off ? ' class="off" disabled' : '') + '>' +
-      '<span class="un">' + esc(u.n) + '</span>' +
-      (off ? '<span class="off-l">Not Available</span>'
-           : '<span class="ua">' + esc(area(u)) + '</span>') +
-    '</button>';
-  }).join('');
+  $('units').innerHTML = list.map(function (u) { return chip(u); }).join('');
+  $('units').className = 'ug' + (P && P.show_price ? ' money' : '');
 
   var none = !list.length;
   $('fempty').hidden = !none;
