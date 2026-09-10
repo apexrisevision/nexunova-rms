@@ -559,10 +559,12 @@ button{cursor:pointer;background:none;border:0}
    deliberately plainer than the rest of this page: no colour that means
    nothing, no card that is only a card, and every number next to the words
    that say what it is. */
-.hd-r{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none}
-.hd-d{border:0;background:none;font-size:10.5px;color:var(--mut);opacity:.62;
-      letter-spacing:.05em;padding:2px 6px;border-radius:8px;font-family:inherit}
-@media (hover:hover){ .hd-d:hover{opacity:1;color:var(--soft);background:var(--sunk)} }
+.hd-r{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:none}
+.hd-d{border:1px solid rgba(179,18,60,.35);background:#FFF6F8;color:#b3123c;
+      font-size:10px;font-weight:700;letter-spacing:.03em;padding:3px 9px;
+      border-radius:999px;font-family:inherit;white-space:nowrap}
+@media (hover:hover){ .hd-d:hover{background:#b3123c;color:#fff;border-color:#b3123c} }
+.hd-d:active{transform:scale(.96)}
 .dr-c{background:var(--card);border-radius:var(--r);padding:20px 18px 18px;margin-top:6px}
 .dr-t{font-size:15px;font-weight:650;letter-spacing:-.01em}
 .dr-s{font-size:12.5px;color:var(--mut);line-height:1.55;margin-top:5px}
@@ -1051,10 +1053,14 @@ button{cursor:pointer;background:none;border:0}
     </div>
     <div class="hd-r">
       <div class="hd-u" id="upd"></div>
-      <!-- THE DOOR TO THE OTHER ROOM. In the title block rather than at the
-           foot of screen one: it costs the page no height, and a dealer who
-           does not have the password has no business being drawn to it. -->
-      <button class="hd-d" id="dir-open">Directors</button>
+      <!-- THE DOOR TO THE OTHER ROOM. It sat here in the dealer's own grey and
+           Rashid could not find it on his own page: "na nazr aaye… koi button
+           banao chota sa k directors ko dashboard dekhnay pe nazar aaye". So it
+           is a button now, in the one colour nothing else on this page uses.
+           Small, because a dealer without the password still has no business
+           in it — but findable, because a director should not have to be told
+           twice where it is. -->
+      <button class="hd-d" id="dir-open">Director’s Login</button>
     </div>
   </div>
 

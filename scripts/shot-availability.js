@@ -2505,15 +2505,30 @@ function serve() {
           rpg.on('pageerror', e => rerr.push(String(e.message || e)));
           await rpg.setViewport({ width: 380, height: 900, deviceScaleFactor: 2 });
           await rpg.goto(BASE + '/a/' + RT, { waitUntil: 'domcontentloaded', timeout: 30000 });
-          await rpg.waitForFunction(() => !!document.getElementById('dir-open'), { timeout: 30000 });
+          await rpg.waitForFunction(
+            () => !!document.getElementById('dir-open') &&
+                  !document.getElementById('app').hidden &&
+                  document.getElementById('dir-open').getBoundingClientRect().width > 0,
+            { timeout: 30000 });
+          /* IT MUST BE FINDABLE. It was set in the dealer's own grey and Rashid
+             could not spot it on his own page, so what is asserted now is that
+             it says whose door it is and is drawn in a colour of its own —
+             red, which nothing else on this page uses. */
           const door = await rpg.evaluate(() => {
             const b = document.getElementById('dir-open');
             const r = b.getBoundingClientRect();
+            const c = getComputedStyle(b);
+            const rgb = (c.color.match(/[0-9]+/g) || []).map(Number);
             return { text: b.textContent.trim(), w: Math.round(r.width),
+                     h: Math.round(r.height), red: rgb[0] > 120 && rgb[0] > rgb[1] + 80,
+                     ring: c.borderTopWidth !== '0px', ink: c.color,
                      units: document.querySelectorAll('#units button').length };
           });
-          (door.text === 'Directors' && door.units === 0)
-            ? ok('the door is on screen one, quiet, and still no unit is mounted there')
+          (/director/i.test(door.text) && door.red && door.ring &&
+           door.w > 60 && door.w < 170 && door.units === 0)
+            ? ok('the door says “' + door.text + '”, is drawn in its own red (' +
+                 door.ink + ') and is still ' + door.w + 'px on screen one, ' +
+                 'where no unit is mounted')
             : bad('the door is wrong: ' + JSON.stringify(door));
 
           await rpg.evaluate(() => document.getElementById('dir-open').click());
