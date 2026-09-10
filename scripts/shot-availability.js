@@ -1573,18 +1573,23 @@ function serve() {
       const rpcNames = [...new Set((live.code.match(/\.rpc\(\s*['"]([a-z_]+)['"]/g) || [])
         .map(m => m.replace(/.*['"]([a-z_]+)['"]/, '$1')))];
       /* 17 — THE PAGE'S WHOLE REACH INTO THE SERVER, by name, from its source.
-         Five: read the board, register a request, register several at once, ask
-         for a change on a unit it already holds, and ask what happened to any of
-         them. Nothing that books, nothing that decides, nothing that names a
-         portal RPC. The set is exact, so a sixth appearing is a failure rather
-         than a surprise — which is the only reason this page can be handed to
-         anybody.
+         Six: read the board, register a request, register several at once, ask
+         for a change on a unit it already holds, ask what happened to any of
+         them, and — behind a password — read the directors' report. Nothing
+         that books, nothing that decides, nothing that names a portal RPC. The
+         set is exact, so a seventh appearing is a failure rather than a
+         surprise, which is the only reason this page can be handed to anybody.
 
          The plural was added deliberately and is the same thing as the singular:
          it loops over submit_availability_request with this link's own token, so
          it reaches nothing the singular could not, writes nothing but pending
-         rows, and still holds no unit — a director's tap does that. */
-      const allowedRpc = ['get_public_availability', 'get_request_status',
+         rows, and still holds no unit — a director's tap does that.
+
+         get_availability_report was added on 2026-09-10 and is the first thing
+         here gated by a secret rather than by the token. It READS: no unit
+         changes hands through it. Its lock is tested end to end further down. */
+      const allowedRpc = ['get_availability_report', 'get_public_availability',
+                          'get_request_status',
                           'submit_availability_request', 'submit_availability_requests',
                           'submit_change_request'].sort();
       (JSON.stringify(rpcNames.slice().sort()) === JSON.stringify(allowedRpc))
@@ -2385,6 +2390,179 @@ function serve() {
           SELECT public.revoke_availability_link('zz-rt-dir','${T}');
           DELETE FROM public.sales_sessions WHERE session_token='zz-rt-dir';`);
         okU2('ZZTEST put back: requests deleted, reservation cancelled, link revoked');
+      }
+    }
+
+    /* ══ THE ROOM BEHIND THE PASSWORD ═══════════════════════════════════
+       A second room on the same link, for directors: who is holding what,
+       what it is worth, and what that adds up to. It is the first thing on
+       this page that is gated by a secret rather than by a token, so the lock
+       is tested before the room is.
+
+       All of it on ZZTEST, on links made and revoked here. The password on
+       Awami's project is Rashid's and is never touched. ════════════════ */
+    step('The directors\u2019 room \u2014 the lock, then the room');
+    {
+      const zr = await sql(`SELECT p.id, p.company_id FROM public.projects p
+                              JOIN public.companies c ON c.id = p.company_id
+                             WHERE c.company_name ILIKE '%zztest%'
+                               AND EXISTS (SELECT 1 FROM public.units u WHERE u.project_id = p.id)
+                               AND EXISTS (SELECT 1 FROM public.sales_users su
+                                            WHERE su.company_id = p.company_id AND su.role='director')
+                             ORDER BY p.id LIMIT 1;`);
+      if (!zr.length) { bad('no ZZTEST project with a director to test the report on'); }
+      else {
+        const RP = zr[0].id, RC = zr[0].company_id;
+        const PW = 'zz-report-' + Math.random().toString(36).slice(2, 10);
+        await sql(`DELETE FROM public.sales_sessions WHERE session_token IN ('zz-rep-dir','zz-rep-rep');
+          INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+          SELECT s.company_id, s.id, NULL, 'zz-rep-dir', now()+interval '10 minutes'
+            FROM public.sales_users s WHERE s.company_id='${RC}' AND s.role='director' LIMIT 1;
+          INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+          SELECT s.company_id, s.id, NULL, 'zz-rep-rep', now()+interval '10 minutes'
+            FROM public.sales_users s WHERE s.company_id='${RC}' AND s.role <> 'director' LIMIT 1;`);
+
+        /* ── the lock ─────────────────────────────────────────────────── */
+        const shortPw = await sql(`SELECT (public.set_availability_report_password(
+                                     'zz-rep-dir','${RP}','short')->>'error') AS e;`);
+        shortPw[0].e === 'too_short'
+          ? ok('a password under twelve characters is refused \u2014 this is a public URL')
+          : bad('a short password was accepted: ' + JSON.stringify(shortPw[0]));
+        const notDir = await sql(`SELECT (public.set_availability_report_password(
+                                    'zz-rep-rep','${RP}','${PW}')->>'error') AS e;`);
+        (notDir[0].e === 'not_allowed' || notDir[0].e === 'session_expired')
+          ? ok('and only a director may set it (' + notDir[0].e + ')')
+          : bad('a non-director set the report password: ' + JSON.stringify(notDir[0]));
+
+        const mk = await sql(`SELECT public.create_availability_link('zz-rep-dir','${RP}','report shot') AS r;`);
+        const RT = mk[0].r && mk[0].r.token;
+        if (!RT) { bad('no link to test the report with: ' + JSON.stringify(mk[0].r)); }
+        else {
+          const before = await sql(`SELECT (public.get_availability_report('${RT}','${PW}')->>'error') AS e;`);
+          before[0].e === 'no'
+            ? ok('with no password set, the room does not exist \u2014 not even to the right word')
+            : bad('the report opened before a password was set: ' + JSON.stringify(before[0]));
+
+          const setOk = await sql(`SELECT (public.set_availability_report_password(
+                                     'zz-rep-dir','${RP}','${PW}')->>'success') AS s;`);
+          setOk[0].s === 'true' ? ok('the director sets one')
+                                : bad('the director could not set it: ' + JSON.stringify(setOk[0]));
+          const stored = await sql(`SELECT report_password_hash h FROM public.projects WHERE id='${RP}';`);
+          (stored[0].h && stored[0].h.indexOf(PW) < 0 && /^[0-9a-f]{64}$/.test(stored[0].h))
+            ? ok('and it is stored as a sha256, salted with the project \u2014 not as the word')
+            : bad('the password is stored badly: ' + JSON.stringify(stored[0]));
+
+          const wrong = await sql(`SELECT (public.get_availability_report('${RT}','not-the-password')->>'error') AS e;`);
+          wrong[0].e === 'no' ? ok('a wrong password says only \u201cno\u201d')
+                              : bad('a wrong password said: ' + JSON.stringify(wrong[0]));
+
+          /* ── the room, through the real page, on the real link ──────── */
+          const rc = await browser.createBrowserContext();
+          const rpg = await rc.newPage();
+          const rerr = [];
+          rpg.on('pageerror', e => rerr.push(String(e.message || e)));
+          await rpg.setViewport({ width: 380, height: 900, deviceScaleFactor: 2 });
+          await rpg.goto(BASE + '/a/' + RT, { waitUntil: 'domcontentloaded', timeout: 30000 });
+          await rpg.waitForFunction(() => !!document.getElementById('dir-open'), { timeout: 30000 });
+          const door = await rpg.evaluate(() => {
+            const b = document.getElementById('dir-open');
+            const r = b.getBoundingClientRect();
+            return { text: b.textContent.trim(), w: Math.round(r.width),
+                     units: document.querySelectorAll('#units button').length };
+          });
+          (door.text === 'Directors' && door.units === 0)
+            ? ok('the door is on screen one, quiet, and still no unit is mounted there')
+            : bad('the door is wrong: ' + JSON.stringify(door));
+
+          await rpg.evaluate(() => document.getElementById('dir-open').click());
+          await sleep(150);
+          await rpg.evaluate(() => {
+            document.getElementById('dir-pw').value = 'wrong-wrong-wrong';
+            document.getElementById('dir-go').click();
+          });
+          await sleep(1400);
+          const refused = await rpg.evaluate(() => ({
+            err: (document.getElementById('dir-err').textContent || '').trim(),
+            shown: !document.getElementById('dir-err').hidden,
+            body: (document.getElementById('rep-body').innerHTML || '').length,
+            kept: document.getElementById('dir-pw').value
+          }));
+          (refused.shown && refused.body === 0 && refused.kept === '')
+            ? ok('a wrong password on the page says so, shows nothing, and clears the field')
+            : bad('the page let a wrong password through: ' + JSON.stringify(refused));
+
+          await rpg.evaluate(pw => {
+            document.getElementById('dir-pw').value = pw;
+            document.getElementById('dir-go').click();
+          }, PW);
+          await rpg.waitForFunction(
+            () => (document.getElementById('rep-body').innerHTML || '').length > 200,
+            { timeout: 20000 }).catch(() => {});
+          const room = await rpg.evaluate(() => {
+            const b = document.getElementById('rep-body');
+            const t = (b.innerText || '');
+            return { len: (b.innerHTML || '').length,
+                     heads: [...b.querySelectorAll('h2')].map(h => h.textContent.trim()),
+                     tables: b.querySelectorAll('table').length,
+                     gate: !document.getElementById('rep-gate').hidden,
+                     unitsMounted: document.querySelectorAll('#units button').length,
+                     hasPkr: /PKR/.test(t) };
+          });
+          (room.len > 200 && !room.gate && room.tables >= 3 && room.hasPkr &&
+           room.heads.length >= 4 && room.unitsMounted === 0)
+            ? ok('and the right one opens it \u2014 ' + room.heads.join(' / ') +
+                 ' (' + room.tables + ' tables)')
+            : bad('the room did not open properly: ' + JSON.stringify(room));
+          await rpg.screenshot({ path: path.join(OUT, 'g-directors-room.png'), fullPage: true });
+
+          const wrote = await rpg.evaluate(() => Object.keys(localStorage)
+            .filter(k => /pw|pass|report/i.test(k) || /pw|pass/i.test(String(localStorage[k]))));
+          wrote.length === 0
+            ? ok('and the password is not written to the phone \u2014 the room shuts with the tab')
+            : bad('the page stored something about the password: ' + wrote.join(', '));
+          rerr.length === 0 ? ok('no page errors in the room')
+                            : bad('the room threw: ' + rerr.slice(0, 2).join(' | '));
+          await rc.close();
+
+          /* ── and the lock holds while it is being picked ─────────────── */
+          const mk2 = await sql(`SELECT public.create_availability_link('zz-rep-dir','${RP}','report throttle') AS r;`);
+          const RT2 = mk2[0].r && mk2[0].r.token;
+          if (!RT2) { bad('no second link to test the throttle with'); }
+          else {
+            let last = '';
+            for (let i = 0; i < 10; i++) {
+              const t = await sql(`SELECT (public.get_availability_report('${RT2}','nope-${i}')->>'error') AS e;`);
+              last = t[0].e;
+            }
+            const shut = await sql(`SELECT (public.get_availability_report('${RT2}','${PW}')->>'error') AS e;`);
+            shut[0].e === 'too_many'
+              ? ok('after ten wrong tries the door stops answering \u2014 to the right password too')
+              : bad('the throttle did not hold: ten wrong tries then ' + JSON.stringify(shut[0]));
+            /* A FRESH LINK, WHICH ROTATES THE THROTTLED ONE AWAY. Minting a
+               link revokes the project's previous one, so the old link cannot
+               be used to prove this \u2014 it is dead for a different reason. The
+               new one proves what matters: the hour is spent on the LINK that
+               was picked at, not on the project. */
+            const mk3 = await sql(`SELECT public.create_availability_link('zz-rep-dir','${RP}','report fresh') AS r;`);
+            const RT3 = mk3[0].r && mk3[0].r.token;
+            const fresh = await sql(`SELECT (public.get_availability_report('${RT3}','${PW}')->>'success') AS s;`);
+            fresh[0].s === 'true'
+              ? ok('and the hour is spent on the LINK, not the project \u2014 a fresh link opens at once')
+              : bad('picking one link locked the whole project out');
+
+            const revoked = await sql(`SELECT public.revoke_availability_link('zz-rep-dir','${RT3}');
+              SELECT (public.get_availability_report('${RT3}','${PW}')->>'error') AS e;`);
+            revoked[0].e === 'no'
+              ? ok('and revoking a link shuts the room behind it')
+              : bad('a revoked link still opened the report: ' + JSON.stringify(revoked[0]));
+          }
+        }
+        /* put ZZTEST back exactly as it was */
+        await sql(`SELECT public.set_availability_report_password('zz-rep-dir','${RP}',NULL);
+          DELETE FROM public.availability_report_attempts a USING public.availability_links l
+           WHERE l.id = a.link_id AND l.project_id = '${RP}';
+          DELETE FROM public.sales_sessions WHERE session_token IN ('zz-rep-dir','zz-rep-rep');`);
+        ok('ZZTEST put back: password cleared, attempts deleted, links revoked');
       }
     }
 

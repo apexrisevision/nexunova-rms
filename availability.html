@@ -554,6 +554,59 @@ button{cursor:pointer;background:none;border:0}
 
 .empty{padding:34px 8px;text-align:center;color:var(--mut);font-size:13.5px;line-height:1.6}
 
+/* ── THE ROOM BEHIND THE PASSWORD ────────────────────────────────────────
+   A director's reading of the building, on the same link a dealer uses. It is
+   deliberately plainer than the rest of this page: no colour that means
+   nothing, no card that is only a card, and every number next to the words
+   that say what it is. */
+.hd-r{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none}
+.hd-d{border:0;background:none;font-size:10.5px;color:var(--mut);opacity:.62;
+      letter-spacing:.05em;padding:2px 6px;border-radius:8px;font-family:inherit}
+@media (hover:hover){ .hd-d:hover{opacity:1;color:var(--soft);background:var(--sunk)} }
+.dr-c{background:var(--card);border-radius:var(--r);padding:20px 18px 18px;margin-top:6px}
+.dr-t{font-size:15px;font-weight:650;letter-spacing:-.01em}
+.dr-s{font-size:12.5px;color:var(--mut);line-height:1.55;margin-top:5px}
+.dr-f{display:flex;gap:8px;margin-top:14px}
+.dr-f input{flex:1;min-width:0;height:46px;border-radius:12px;border:1px solid var(--hair);
+            background:var(--bg);padding:0 13px;font-size:15px;font-family:inherit}
+.dr-f input:focus{outline:none;border-color:var(--accent)}
+.dr-f button{height:46px;padding:0 18px;border:0;border-radius:12px;background:var(--accent);
+             color:#fff;font-size:14px;font-weight:650;font-family:inherit}
+.dr-e{margin-top:10px;font-size:12.5px;color:#b3123c;line-height:1.5}
+
+.rp{margin-top:14px}
+.rp h2{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+       color:var(--mut);margin:22px 0 8px}
+.rp .card{background:var(--card);border-radius:var(--r);padding:15px 16px}
+/* the four readings at the head: a number and what it is, nothing else */
+.rp .big{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.rp .big .b{background:var(--card);border-radius:var(--r);padding:13px 14px}
+.rp .big .bn{font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.rp .big .bl{font-size:11px;color:var(--mut);margin-top:2px;line-height:1.35}
+.rp .big .bs{font-size:11px;color:var(--mut);margin-top:4px;line-height:1.35}
+/* a table that is a table: this is a report, and a report is read in columns */
+.rp table{width:100%;border-collapse:collapse;font-size:12.5px}
+.rp th{font-size:10px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;
+       color:var(--mut);text-align:right;padding:0 0 7px;white-space:nowrap}
+.rp th:first-child{text-align:left}
+.rp td{padding:8px 0;border-top:1px solid var(--hair);text-align:right;
+       font-variant-numeric:tabular-nums;white-space:nowrap}
+.rp td:first-child{text-align:left;white-space:normal}
+.rp .nm{font-weight:650;letter-spacing:-.01em}
+.rp .sub{display:block;font-size:10.5px;color:var(--mut);font-weight:400;margin-top:2px}
+.rp .pill{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.05em;
+          text-transform:uppercase;color:#fff;background:var(--t,var(--held));
+          border-radius:999px;padding:1px 6px;margin-right:4px}
+.rp .note{font-size:12px;color:var(--mut);line-height:1.6;margin-top:9px}
+.rp .note b{color:var(--soft);font-weight:650}
+/* one bar, reused: share of a whole, drawn once so the eye can rank rows */
+.rp .sh{height:4px;border-radius:2px;background:var(--sunk);margin-top:5px;overflow:hidden}
+.rp .sh i{display:block;height:100%;background:var(--t,var(--accent))}
+.rp .wk{display:flex;align-items:flex-end;gap:5px;height:52px;margin-top:4px}
+.rp .wk i{flex:1;background:var(--accent);border-radius:3px 3px 0 0;min-height:2px;opacity:.75}
+.rp .wkl{display:flex;gap:5px;margin-top:5px;font-size:9.5px;color:var(--mut)}
+.rp .wkl span{flex:1;text-align:center}
+
 /* ── the whole building ──────────────────────────────────────────────────
    A different question from a floor, so a different chip: lighter, wider,
 /* MY RESERVATIONS, AT THE TOP. It was a panel that listed the newest six
@@ -885,7 +938,13 @@ button{cursor:pointer;background:none;border:0}
       <div class="hd-t" id="ttl">—</div>
       <div class="hd-c" id="co">—</div>
     </div>
-    <div class="hd-u" id="upd"></div>
+    <div class="hd-r">
+      <div class="hd-u" id="upd"></div>
+      <!-- THE DOOR TO THE OTHER ROOM. In the title block rather than at the
+           foot of screen one: it costs the page no height, and a dealer who
+           does not have the password has no business being drawn to it. -->
+      <button class="hd-d" id="dir-open">Directors</button>
+    </div>
   </div>
 
   <div id="name-ask" hidden></div>
@@ -909,6 +968,31 @@ button{cursor:pointer;background:none;border:0}
     <!-- Deliberately outside #floors: it is not a floor, and every check
          that counts floors would have counted it. -->
     <div id="allrow"></div>
+  </section>
+
+  <!-- SCREEN FIVE — THE ROOM BEHIND THE PASSWORD ───────────────────────────
+       The same link, a different question. The dealer's screens answer "what
+       can I sell"; this one answers "where does the building stand" — who is
+       holding what, for how long, worth how much, and what that adds up to.
+       It writes nothing and it books nothing: a password that leaks costs the
+       company its numbers, not its inventory. -->
+  <section id="rep" hidden>
+    <div class="ft"><button class="bk" id="rep-back"><i></i>All floors</button></div>
+    <div class="fh"><h1>Directors</h1><span id="rep-as"></span></div>
+    <div id="rep-gate">
+      <div class="dr-c">
+        <div class="dr-t">This part is not for the link</div>
+        <div class="dr-s">It shows who is holding what, and what the building is
+          worth. Ask the office for the password.</div>
+        <div class="dr-f">
+          <input id="dir-pw" type="password" autocomplete="off" spellcheck="false"
+                 placeholder="Password" aria-label="Directors password">
+          <button id="dir-go">Open</button>
+        </div>
+        <div class="dr-e" id="dir-err" hidden></div>
+      </div>
+    </div>
+    <div id="rep-body"></div>
   </section>
 
   <!-- SCREEN THREE — THE WHOLE BUILDING, WHEN SOMEBODY ASKS FOR IT ────────
@@ -1728,6 +1812,12 @@ function render() {
   paintUpdated();
   paintNameAsk();
   paintMyReqs();
+  /* THE REPORT IS NOT REPAINTED BY THE CLOCK. Every other screen is a reading
+     of the payload and can be redrawn under the reader without them noticing;
+     the report is a separate call behind a password, and rebuilding the
+     screens would shut the room every sixty seconds. It is read once and
+     stays until it is left. */
+  if (REPV) { if (SHEET) refreshSheet(); return; }
   if (MINEV) { renderMine(); }
   else if (ALLV) { renderAll(); }
   else if (FLOOR == null) { renderHome(); } else { renderFloor(); }
@@ -1747,6 +1837,7 @@ function renderHome() {
   $('floor').hidden = true;
   $('all').hidden = true;
   $('mine').hidden = true;
+  $('rep').hidden = true; REPV = false;
   /* THE CARD IS THIS SCREEN’S OWN FURNITURE, so this screen draws it. It was
      painted only by render(), which runs on a fetch — so coming back from the
      report left a card built before whatever had just been read there. A hold
@@ -2275,6 +2366,7 @@ function renderFloor() {
   if (!f) { FLOOR = null; return renderHome(); }
   var opening = $('floor').hidden;
   $('all').hidden = true;
+  $('rep').hidden = true; REPV = false;
   $('all-body').innerHTML = '';
   $('home').hidden = true;
   $('res').hidden = true;
@@ -3056,6 +3148,227 @@ $('all-back').onclick = function () {
   ALLV = false; BACKING = true;
   renderHome(); window.scrollTo(0, 0);
 };
+
+/* ── THE DIRECTORS' ROOM ──────────────────────────────────────────────────
+   One call, get_availability_report(token, password), and everything below is
+   presentation. The password is held in a variable and nowhere else: not in
+   localStorage, not in the URL, not in the name card. Close the tab and the
+   room shuts, which is the behaviour a password on a forwarded link has to
+   have. */
+var REPV = false, REPPW = '', REP = null;
+
+function pkr(v) {
+  var n = Number(v) || 0;
+  /* Crores and lakhs, because that is how the number is said in the room it
+     is read in. Under a lakh it is written out. */
+  if (n >= 1e7) return (n / 1e7).toFixed(n >= 1e8 ? 0 : 2) + ' cr';
+  if (n >= 1e5) return (n / 1e5).toFixed(n >= 1e6 ? 0 : 1) + ' lac';
+  return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+function num(v) { return (Number(v) || 0).toLocaleString('en-US'); }
+function kindPills(by) {
+  return Object.keys(by || {})
+    .sort(function (a, b) { return by[b] - by[a]; })
+    .map(function (k) {
+      return '<span class="pill" style="--t:' + tint(skey(k)) + '">' + esc(k) + ' ' + by[k] + '</span>';
+    }).join('');
+}
+function showRep() {
+  REPV = true;
+  ['home', 'all', 'mine', 'floor'].forEach(function (id) { $(id).hidden = true; });
+  /* the card that asks a dealer's name is screen one's furniture, and a
+     director reading the building is not being asked to introduce himself */
+  $('name-ask').hidden = true;
+  $('rep').hidden = false;
+  $('rep-gate').hidden = !!REP;
+  $('rep-body').innerHTML = REP ? repHtml(REP) : '';
+  $('rep-as').textContent = REP ? 'as of ' + hhmm(new Date(REP.as_of).getTime()) : '';
+  if (!REP) setTimeout(function () { $('dir-pw').focus(); }, 60);
+}
+async function repOpen() {
+  var pw = $('dir-pw').value.trim();
+  var err = $('dir-err');
+  if (!pw) { err.hidden = false; err.textContent = 'Enter the password.'; return; }
+  $('dir-go').disabled = true;
+  try {
+    var r = await sb.rpc('get_availability_report', { p_token: TOKEN, p_password: pw });
+    var d = r.data;
+    if (!d || !d.success) {
+      err.hidden = false;
+      err.textContent = (d && d.error === 'too_many')
+        ? 'Too many tries on this link. It opens again in an hour.'
+        : 'That password does not open this.';
+      $('dir-pw').value = '';
+      return;
+    }
+    REP = d; REPPW = pw; $('dir-pw').value = ''; err.hidden = true;
+    showRep(); window.scrollTo(0, 0);
+  } catch (e) {
+    err.hidden = false; err.textContent = 'Could not reach the office. Try again.';
+  } finally { $('dir-go').disabled = false; }
+}
+$('dir-open').onclick = function () { showRep(); window.scrollTo(0, 0); };
+$('dir-go').onclick = repOpen;
+$('dir-pw').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') { e.preventDefault(); repOpen(); }
+});
+$('rep-back').onclick = function () {
+  REPV = false; BACKING = true;
+  $('rep').hidden = true;
+  paintNameAsk();
+  renderHome(); window.scrollTo(0, 0);
+};
+
+function repHtml(d) {
+  var t = d.totals, i = d.insights, U = d.area_unit || 'sqft';
+  var held = Number(t.held) || 0;
+  var H = [];
+
+  /* ── WHERE THE BUILDING STANDS ─────────────────────────────────────── */
+  H.push('<div class="rp">');
+  H.push('<h2>Where the building stands</h2><div class="big">' +
+    '<div class="b"><div class="bn">' + num(t.available) + '</div>' +
+      '<div class="bl">available of ' + num(t.units) + '</div>' +
+      '<div class="bs">PKR ' + pkr(t.value_free) + ' unsold</div></div>' +
+    '<div class="b"><div class="bn">' + num(held) + '</div>' +
+      '<div class="bl">held, by ' + num(t.holders) + ' ' +
+        (Number(t.holders) === 1 ? 'person' : 'people') + '</div>' +
+      '<div class="bs">PKR ' + pkr(t.value_held) + ' committed</div></div>' +
+    '</div>');
+
+  /* ── WHAT KIND OF HOLD ─────────────────────────────────────────────── */
+  H.push('<h2>What is holding it</h2><div class="card"><table>' +
+    '<tr><th>Kind</th><th>Units</th><th>' + esc(U) + '</th><th>Value</th></tr>' +
+    (d.by_status || []).map(function (s) {
+      return '<tr><td><span class="pill" style="--t:' + tint(skey(s.kind)) + '">' +
+        esc(s.kind) + '</span></td><td>' + num(s.units) + '</td><td>' +
+        num(Math.round(s.area)) + '</td><td>PKR ' + pkr(s.value) + '</td></tr>';
+    }).join('') + '</table></div>');
+
+  /* ── WHO IS HOLDING IT ─────────────────────────────────────────────── */
+  H.push('<h2>Who is holding it</h2><div class="card"><table>' +
+    '<tr><th>Name</th><th>Units</th><th>Value</th><th>Ends</th></tr>' +
+    (d.by_person || []).map(function (p) {
+      var share = held ? Math.round(p.units * 1000 / held) / 10 : 0;
+      return '<tr><td><span class="nm">' + esc(p.who) + '</span>' +
+        '<span class="sub">' + kindPills(p.by) + '</span>' +
+        '<span class="sub">' + share + '% of everything held · ' +
+          p.floors + ' floor' + (p.floors === 1 ? '' : 's') +
+          (p.oldest_days != null ? ' · oldest ' + p.oldest_days + 'd' : '') + '</span>' +
+        '<div class="sh"><i style="width:' + share + '%"></i></div></td>' +
+        '<td>' + num(p.units) + '</td><td>PKR ' + pkr(p.value) + '</td>' +
+        '<td>' + (Number(p.expiring) ? '<b>' + p.expiring + '</b>' : '—') + '</td></tr>';
+    }).join('') + '</table>' +
+    '<div class="note">“Ends” is how many of that person’s holds run out within ' +
+      'seven days. A hold with no end date does not run out on its own.</div></div>');
+
+  /* ── FLOOR BY FLOOR ────────────────────────────────────────────────── */
+  H.push('<h2>Floor by floor</h2><div class="card"><table>' +
+    '<tr><th>Floor</th><th>Held</th><th>Rate</th><th>Value held</th></tr>' +
+    (d.by_floor || []).map(function (f) {
+      var share = f.units ? Math.round(f.held * 1000 / f.units) / 10 : 0;
+      return '<tr><td><span class="nm">' + esc(f.label) + '</span>' +
+        '<span class="sub">' + kindPills(f.by) +
+        (Object.keys(f.by || {}).length ? '' : 'nothing held') + '</span>' +
+        '<div class="sh"><i style="width:' + share + '%"></i></div></td>' +
+        '<td>' + num(f.held) + ' of ' + num(f.units) + '</td>' +
+        '<td>' + (f.rate ? num(f.rate) : '—') + '</td>' +
+        '<td>' + (Number(f.value_held) ? 'PKR ' + pkr(f.value_held) : '—') + '</td></tr>';
+    }).join('') + '</table>' +
+    '<div class="note">Rate is the register’s own average for the floor: its total ' +
+      'value over its total area.</div></div>');
+
+  /* ── WHAT IT ADDS UP TO ────────────────────────────────────────────── */
+  H.push('<h2>What it adds up to</h2>');
+
+  var c = i.concentration || {};
+  H.push('<div class="card"><div class="nm">Concentration</div><div class="note">' +
+    (held === 0 ? 'Nothing is held, so nothing is concentrated.'
+      : '<b>' + esc(c.top) + '</b> holds <b>' + c.units + '</b> of the ' + held +
+        ' units that are gone — <b>' + c.share + '%</b> of everything held.' +
+        (Number(c.share) >= 50
+          ? ' More than half the held stock sits with one name: whatever they decide, ' +
+            'the month decides with them.'
+          : ' The held stock is spread across ' + num(t.holders) + ' names.')) +
+    '</div></div>');
+
+  var a = i.ageing || {};
+  H.push('<div class="card" style="margin-top:7px"><div class="nm">How long it has been held</div>' +
+    '<table><tr><th>Age</th><th>Units</th></tr>' +
+    '<tr><td>Under a week</td><td>' + num(a.d0_7) + '</td></tr>' +
+    '<tr><td>1 to 4 weeks</td><td>' + num(a.d8_30) + '</td></tr>' +
+    '<tr><td>1 to 2 months</td><td>' + num(a.d31_60) + '</td></tr>' +
+    '<tr><td>Over 2 months</td><td>' + num(a.d60) + '</td></tr></table>' +
+    '<div class="note">' +
+      (Number(a.d31_60) + Number(a.d60) > 0
+        ? 'PKR <b>' + pkr(a.value_over_30) + '</b> has been off the market for more than a ' +
+          'month. The oldest hold standing is <b>' + a.oldest_days + ' days</b> old.'
+        : 'Nothing has been held longer than a month. The oldest is ' +
+          (a.oldest_days == null ? 'none' : '<b>' + a.oldest_days + ' days</b>') + ' old.') +
+    '</div></div>');
+
+  var lap = i.lapsing || [];
+  H.push('<div class="card" style="margin-top:7px"><div class="nm">Running out this week</div>' +
+    (lap.length
+      ? '<table><tr><th>Unit</th><th>Held by</th><th>Ends</th></tr>' +
+        lap.slice(0, 25).map(function (l) {
+          return '<tr><td class="nm">' + esc(l.unit) + '</td><td>' + esc(l.who) + '</td>' +
+            '<td>' + new Date(l.on).toLocaleDateString('en-US',
+              { day: 'numeric', month: 'short' }) + '</td></tr>';
+        }).join('') + '</table>' +
+        '<div class="note"><b>' + lap.length + '</b> hold' + (lap.length === 1 ? '' : 's') +
+          ' worth PKR <b>' +
+          pkr(lap.reduce(function (s, l) { return s + Number(l.value || 0); }, 0)) +
+          '</b> come back to the floor within seven days unless somebody renews them.</div>'
+      : '<div class="note">Nothing runs out in the next seven days.</div>') +
+    '</div>');
+
+  var pace = i.pace || [], top = Math.max.apply(null, pace.map(function (p) { return p.taken; }).concat([1]));
+  H.push('<div class="card" style="margin-top:7px"><div class="nm">Pace</div>' +
+    (pace.length
+      ? '<div class="wk">' + pace.map(function (p) {
+          return '<i style="height:' + Math.max(3, Math.round(p.taken * 100 / top)) + '%" ' +
+                 'title="' + p.taken + ' in the week of ' + p.week + '"></i>';
+        }).join('') + '</div>' +
+        '<div class="wkl">' + pace.map(function (p) {
+          return '<span>' + new Date(p.week).toLocaleDateString('en-US',
+            { day: 'numeric', month: 'short' }) + '</span>';
+        }).join('') + '</div>' +
+        '<div class="note">Holds taken per week, eight weeks back. ' +
+          '<b>' + num(pace[pace.length - 1].taken) + '</b> in the most recent week.</div>'
+      : '<div class="note">No holds were taken in the last eight weeks.</div>') +
+    '</div>');
+
+  var gb = i.given_back || {};
+  H.push('<div class="card" style="margin-top:7px"><div class="nm">Given back</div>' +
+    '<div class="note">' +
+    (Number(gb.units)
+      ? '<b>' + num(gb.units) + '</b> hold' + (Number(gb.units) === 1 ? ' has' : 's have') +
+        ' been taken and released again, across <b>' + num(gb.names) + '</b> name' +
+        (Number(gb.names) === 1 ? '' : 's') + '. Read it beside the pace above: units ' +
+        'taken is not the same as units moving.'
+      : 'No hold has been released yet.') +
+    '</div></div>');
+
+  var ff = i.floors_fast || [];
+  if (ff.length) {
+    H.push('<div class="card" style="margin-top:7px"><div class="nm">Moving fastest</div>' +
+      '<table><tr><th>Floor</th><th>Gone</th></tr>' +
+      ff.map(function (f) {
+        return '<tr><td>' + esc(f.label) + '</td><td>' + f.share + '% (' +
+          f.held + ' of ' + f.units + ')</td></tr>';
+      }).join('') + '</table>' +
+      '<div class="note">Share of the floor already held or sold. The floors not listed ' +
+        'here are the ones with room left in them.</div></div>');
+  }
+
+  H.push('<div class="note" style="margin:16px 2px 30px">' +
+    esc(d.project) + ' · ' + esc(d.company) + ' · read at ' +
+    new Date(d.as_of).toLocaleString('en-US') +
+    '. This page reads the register; it does not change it.</div>');
+  H.push('</div>');
+  return H.join('');
+}
 
 $('all-filter').addEventListener('click', function (e) {
   var b = e.target.closest('button[data-f]'); if (!b) return;
