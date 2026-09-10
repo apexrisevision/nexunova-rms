@@ -16,7 +16,9 @@
    So this asks the doors, and nothing else:
 
      0. The door leaves are lifted off the sheet first — see OPENING below — and
-        the wall is cut back along them, so a doorway is a doorway.
+        the wall is cut back along them, so a doorway is a doorway. Where the
+        draughtsman left a flat's FRONT open and drew no line at all, the line
+        is put back: see WHERE A WALL STOPS AND STARTS AGAIN.
      1. With a heavy pen every doorway is pinched shut, and the floor falls apart
         into separate cells: rooms, kitchens, baths, balconies, the verandah.
      2. The pixels that are floor at the true pen but wall at the heavy one ARE
@@ -35,15 +37,18 @@
    super area with a share of the common parts in it: the Third Floor sheet
    says 495.50 for a unit the register calls 345.50, and 492.40 for one it
    calls 342.40. What this is held to is the REGISTER, unit by unit, the same
-   test the shop floors passed. On the Third Floor 132 of the 150 land within
-   10% of their record and the typical one within 1.4%.
+   test the shop floors passed. On the Third Floor 120 of the 150 land within
+   10% of their record and the typical one within 1.6%.
 
-   The 18 that do not are marked disputed and reported by name. Seventeen of
-   them are the register's own saleable figure — nine units it prices at a flat
-   342.40 that the sheet draws half as big again — and that is a question for
-   Rashid, not for the drawing. A watershed
-   shape cannot lie on top of another one — every pixel has exactly one owner —
-   so what is in dispute there is the register's number, not the outline.
+   The 30 that do not are marked disputed and reported by name, and they fall
+   into two families, both of which are the register's number rather than the
+   outline. Nine units it prices at a flat 342.40 that the sheet draws half as
+   big again. And a dozen along the access galleries — 48 to 51, 85 to 88 — that
+   it prices at about 425 where the sheet draws 320: the difference is very
+   nearly the gallery in front of them, which Rashid has confirmed is COMMON and
+   not sold. A watershed shape cannot lie on top of another one — every pixel
+   has exactly one owner — so what is in dispute there is what the register
+   counts, not where the wall is.
 
    node scripts/plan-units.js <dir> <pageN> <floor_no> [px] [pinch] [half]
 */
@@ -94,17 +99,105 @@ function sql(q) {
     r.on('error', rej); r.write(body); r.end();
   });
 }
+const STRUCT = '#ff0000';                     // the load-bearing lines, in red
+const RAIL = '#00ffff';                       // and the rail along the open side
 function wallPaths(file) {
   const src = fs.readFileSync(file, 'utf8');
-  const out = [], doors = [];
+  const out = [], doors = [], struct = [], rails = [];
   const re = /<path d="([^"]*)" fill="([^"]*)" stroke="([^"]*)"[^>]*\/>/g;
   let m;
   while ((m = re.exec(src))) {
     const f = m[2].toLowerCase(), s = m[3].toLowerCase();
     if (TEXT.has(f) || TEXT.has(s)) continue;
-    (OPENING.has(s) ? doors : out).push(m[1]);
+    if (OPENING.has(s)) { doors.push(m[1]); continue; }
+    out.push(m[1]);
+    if (s === STRUCT) struct.push(m[1]);
+    if (s === RAIL) rails.push(m[1]);
   }
-  return { walls: out, doors: doors };
+  return { walls: out, doors: doors, struct: struct, rails: rails };
+}
+
+/* ── WHERE A WALL STOPS AND STARTS AGAIN, IT IS STILL A WALL ────────────────
+   A flat's front on this floor is a four-and-a-half foot opening, and the
+   access gallery it opens onto is five feet wide. No pen is thin enough to
+   keep the gallery and thick enough to shut the opening, because the drawing
+   simply does not put a line there. So the flat walked out through its own
+   front door and helped itself to a wedge of the gallery — "center walay units
+   still bahir nikal rahay hain area se".
+
+   A person reading the sheet has no trouble at all: the wall above the opening
+   and the wall below it are the same wall, and the flat ends on that line. So
+   the line is drawn back in. Two wall ends that face each other across a gap,
+   ON THE SAME LINE, are joined.
+
+   Nothing else is joined. Each end must point at the other, the gap must be no
+   wider than a doorway, and the two walls must be collinear to within a couple
+   of inches.
+
+   And the gap must FACE THE OPEN SIDE. A gap deep inside the block is a kitchen
+   door and has to stay open — closing those took the lobby and the bath
+   straight back out of the flat, which is the fault Rashid reported first. The
+   sheet says which is which: it draws a rail, in cyan, along every side that is
+   open to the air, so only gaps within a gallery's width of one are closed.
+
+   The joins are drawn as WALL, and they are drawn before the door leaves are
+   lifted off, so that wherever the architect actually drew a door the door
+   wins. What is left bridged is the openings he drew no door for.
+
+   WHAT THIS DOES NOT REACH. Six units at the foot of the bottom block — 45, 46,
+   47 and 82, 83, 84 — have fronts ten feet wide with no line and no rail near
+   enough to judge by, so they still take a piece of the gallery. They are the
+   only ones left on the floor. */
+function bridges(paths, maxGap, offGap, rails, reach) {
+  /* WHICH GAPS ARE FRONT DOORS. A gap deep inside the block is a kitchen
+     door and must stay open — that is Rashid's first complaint, and closing
+     it took the lobby and the bath straight back out of the flat. A gap that
+     faces the open side is the flat's own front, and that is the one to
+     close. The sheet says which is which: it draws a rail, in cyan, along
+     every side that is open to the air. So a gap is bridged only if it is
+     within a gallery's width of one. */
+  const rail = [];
+  (rails || []).forEach(d => {
+    const n = (d.match(/-?[0-9.]+/g) || []).map(Number);
+    for (let i = 0; i + 1 < n.length; i += 2) rail.push([n[i], n[i + 1]]);
+  });
+  const facesOpen = (x, y) => {
+    for (const p of rail) if (Math.abs(p[0] - x) < reach && Math.abs(p[1] - y) < reach) return true;
+    return false;
+  };
+  const ends = [];
+  paths.forEach(d => {
+    d.split('M').slice(1).forEach(sub => {
+      const n = (sub.match(/-?[0-9.]+/g) || []).map(Number);
+      if (n.length < 4) return;
+      const pts = [];
+      for (let i = 0; i + 1 < n.length; i += 2) pts.push([n[i], n[i + 1]]);
+      /* EVERY SEGMENT'S OWN TWO ENDS, not just the polyline's. A wall is drawn
+         as an outline that runs down one face, across the jamb and back up the
+         other, so the end that faces the opening is in the middle of the
+         polyline, not at either end of it. */
+      const push = (p, q) => {                 // p is the end, q its inner neighbour
+        const dx = p[0] - q[0], dy = p[1] - q[1], L = Math.hypot(dx, dy);
+        if (L > 0.01) ends.push({ x: p[0], y: p[1], ux: dx / L, uy: dy / L });
+      };
+      for (let i = 0; i + 1 < pts.length; i++) { push(pts[i], pts[i + 1]); push(pts[i + 1], pts[i]); }
+    });
+  });
+  const out = [];
+  for (let i = 0; i < ends.length; i++) {
+    for (let j = i + 1; j < ends.length; j++) {
+      const a = ends[i], b = ends[j];
+      const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy);
+      if (L < 0.5 || L > maxGap) continue;
+      const ux = dx / L, uy = dy / L;
+      if (a.ux * ux + a.uy * uy < 0.985) continue;      // a points at b
+      if (b.ux * ux + b.uy * uy > -0.985) continue;     // and b back at a
+      if (Math.abs(a.ux * uy - a.uy * ux) * L > offGap) continue;   // same line
+      if (rail.length && !facesOpen((a.x + b.x) / 2, (a.y + b.y) / 2)) continue;
+      out.push('M' + a.x + ' ' + a.y + ' L' + b.x + ' ' + b.y);
+    }
+  }
+  return out;
 }
 const median = a => { const s = [...a].sort((p, q) => p - q); return s[Math.floor(s.length / 2)]; };
 
@@ -132,10 +225,15 @@ const median = a => { const s = [...a].sort((p, q) => p - q); return s[Math.floo
   const page = await browser.newPage();
   await page.setViewport({ width: 400, height: 300 });
   await page.goto('about:blank');
-  await page.evaluate(s => { window.__paths = s.walls; window.__doors = s.doors; }, sheet);
+  const spans = bridges(sheet.struct, 30, 0.6, sheet.rails, 30);
+  console.log('  ' + spans.length + ' wall lines closed back across their own gap');
+  await page.evaluate(s => { window.__paths = s.walls; window.__doors = s.doors;
+                             window.__spans = s.spans; },
+                      { walls: sheet.walls, doors: sheet.doors, spans: spans });
 
   const found = {}, failed = [], took = {};
   for (const seed of labels) {
+    if (process.env.PICTURE && seed.u !== process.env.PICTURE) continue;
     const others = labels.filter(l => l.u !== seed.u &&
       Math.abs(l.cx - seed.cx) < HALF && Math.abs(l.cy - seed.cy) < HALF)
       .map(l => ({ u: l.u, cx: l.cx, cy: l.cy }));
@@ -156,6 +254,7 @@ const median = a => { const s = [...a].sort((p, q) => p - q); return s[Math.floo
           '<g stroke="#f00" stroke-width="' + heavy + '">' +
           window.__paths.map(d => '<path d="' + d + '"/>').join('') + '</g>' +
           '<g stroke="#000" stroke-width="' + thin + '">' +
+          window.__spans.map(d => '<path d="' + d + '"/>').join('') +
           window.__paths.map(d => '<path d="' + d + '"/>').join('') + '</g>' +
           /* AND THE DOORS ARE CUT LAST, in white. Leaving the leaf out is not
              always enough: in some blocks the draughtsman ran the wall line
@@ -296,6 +395,37 @@ const median = a => { const s = [...a].sort((p, q) => p - q); return s[Math.floo
           front = next;
         }
 
+        /* PICTURE=<unit> draws the window instead of measuring it: this unit
+           solid blue, every other room its own tint, unclaimed white, true
+           wall black. Colours can be argued with; this cannot. */
+        if (o.picture) {
+          const im = cx.createImageData(W, H);
+          const pad = document.createElement('canvas').getContext('2d');
+          const tint = {};
+          for (let i = 0; i < W * H; i++) {
+            const p = i * 4, ow = owner[i];
+            let v;
+            if (kind[i] === WALL) v = [20, 20, 20];
+            else if (ow === mine) v = [40, 90, 220];
+            else if (ow < 0) v = [255, 255, 255];
+            else {
+              if (!tint[ow]) {
+                pad.fillStyle = cells[ow].edge ? 'hsl(0,0%,72%)'
+                  : 'hsl(' + ((ow * 67) % 360) + ',' +
+                    (numbered.has(ow) ? '80%,62%' : '60%,84%') + ')';
+                pad.fillRect(0, 0, 1, 1);
+                tint[ow] = pad.getImageData(0, 0, 1, 1).data;
+              }
+              v = tint[ow];
+            }
+            im.data[p] = v[0]; im.data[p + 1] = v[1]; im.data[p + 2] = v[2]; im.data[p + 3] = 255;
+          }
+          const c2 = document.createElement('canvas'); c2.width = W; c2.height = H;
+          c2.getContext('2d').putImageData(im, 0, 0);
+          return { picture: c2.toDataURL('image/png'), pinch: pinch,
+                   ox: X0, oy: Y0, W: W, H: H };
+        }
+
         const mark = new Uint8Array(W * H);
         let parts = 1;
         for (let i = 0; i < owner.length; i++) if (owner[i] === mine) mark[i] = 1;
@@ -324,11 +454,19 @@ const median = a => { const s = [...a].sort((p, q) => p - q); return s[Math.floo
                  x1: maxx / PX + X0, y1: maxy / PX + Y0, rows: rows2 };
       }, { X0: seed.cx - HALF, X1: seed.cx + HALF, Y0: seed.cy - HALF, Y1: seed.cy + HALF,
            PX: PX, seed: { u: seed.u, cx: seed.cx, cy: seed.cy }, others: others, pinch: pinch,
-           probe: process.env.PROBE === seed.u });
+           probe: process.env.PROBE === seed.u,
+          picture: process.env.PICTURE === seed.u });
     } catch (e) { res = { err: e.message.slice(0, 60) }; }
       if (res && (!res.err || res.err.indexOf('did not seal') < 0)) break;
     }
     if (res && res.probe) { console.log("  PROBE " + seed.u + " " + JSON.stringify(res.probe)); continue; }
+    if (res && res.picture) {
+      const png = path.join(DIR, '_owner-' + seed.u + '.png');
+      fs.writeFileSync(png, Buffer.from(res.picture.split(',')[1], 'base64'));
+      console.log('  PICTURE ' + seed.u + ' ' + res.W + 'x' + res.H + ' at (' +
+        res.ox.toFixed(1) + ',' + res.oy.toFixed(1) + ') pinch ' + res.pinch + '  → ' + png);
+      continue;
+    }
     if (res && !res.err) { found[seed.u] = res; took[res.parts] = (took[res.parts] || 0) + 1; }
     else failed.push([seed.u, (res && res.err) || 'no answer']);
   }
