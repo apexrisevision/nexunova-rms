@@ -1,0 +1,157 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Awami Market — the building</title>
+<style>
+  html,body{margin:0;height:100%;background:#0E1630;overflow:hidden}
+  canvas{display:block}
+  #hud{position:fixed;left:20px;top:18px;color:#EFE7D8;font:14px/1.4 system-ui,sans-serif}
+  #hud b{display:block;font-size:22px;letter-spacing:-.02em;font-weight:650}
+  #hud span{opacity:.62;font-size:12.5px}
+  #stat{position:fixed;right:20px;top:18px;color:#EFE7D8;opacity:.6;
+        font:12px ui-monospace,monospace;text-align:right;white-space:pre}
+</style>
+<canvas id="c"></canvas>
+<div id="hud"><b>Awami Market</b><span>seven floors, 1,469 units, drawn from the architect's own outlines</span></div>
+<div id="stat">building…</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* A PROOF, NOT THE PAGE. This exists to answer one question before anything is
+   wired to the live link: do 1,469 real outlines, stacked seven deep, make a
+   building worth looking at — and will a phone carry it. Everything here is
+   read from assets/awami-twin.json, which is the architect's geometry and
+   nothing else: no status, no price, no names. */
+const COL = { bg:0x0E1630, open:0xF3EEE3, slab:0x8A8681, edge:0x8E97C4 };
+/* TRUE PROPORTIONS, WORKED OUT RATHER THAN CHOSEN. A drawing unit is about
+   0.29 ft, so this building is roughly 160 ft across and 960 ft long — six
+   times longer than it is broad, which is what it is. A storey of ten feet is
+   34 drawing units, and a unit standing 24 of those leaves the slab its own
+   thickness. Made up numbers here would have made a model of a different
+   building. */
+const UH = 24;           // a unit's height
+const PITCH = 34;        // floor to floor — ten feet
+
+const el = id => document.getElementById(id);
+const renderer = new THREE.WebGLRenderer({ canvas: el('c'), antialias: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(COL.bg);
+/* set once the model's size is known — a fixed far plane swallowed the
+   whole building, which is a long way off for something this elongated */
+scene.fog = new THREE.Fog(COL.bg, 1, 1e9);
+const camera = new THREE.PerspectiveCamera(30, 1, 5, 12000);
+scene.add(new THREE.HemisphereLight(0xE6ECFF, 0x3A2F26, 1.0));
+const sun = new THREE.DirectionalLight(0xFFE9C8, 0.66);
+sun.position.set(600, 900, 420); scene.add(sun);
+
+let verts = 0, t0 = performance.now();
+
+fetch('../assets/awami-twin.json').then(r => r.json()).then(D => {
+  const S = D.s, W = D.w, H = D.h, CX = W / 2, CZ = H / 2;
+
+  D.floors.forEach((f, fi) => {
+    const g = new THREE.Group();
+    g.position.y = fi * PITCH;
+    scene.add(g);
+
+    /* ONE GEOMETRY PER FLOOR, NOT ONE PER UNIT. Fourteen hundred meshes is
+       fourteen hundred draw calls and no phone will hold thirty frames through
+       that. Every unit on a floor is extruded, then folded into a single
+       buffer, so the whole building costs seven. */
+    const pos = [], nor = [];
+    f.units.forEach(u => {
+      const pts = [];
+      for (let i = 0; i < u.p.length; i += 2) pts.push(new THREE.Vector2(u.p[i] / S, u.p[i + 1] / S));
+      let shape;
+      try { shape = new THREE.Shape(pts); } catch (e) { return; }
+      let geo;
+      try { geo = new THREE.ExtrudeGeometry(shape, { depth: UH, bevelEnabled: false, curveSegments: 1 }); }
+      catch (e) { return; }
+      /* THE PLAN LIES FLAT AND THE HEIGHT GOES UP — and which way it is turned
+         matters more than it looks. Turning it the other way (-90°) sends the
+         plan's own Y to NEGATIVE world Z, so the whole building lands behind
+         the camera; two renders came back empty before that was the reason.
+         +90° puts the plan on +Z where it belongs and the extrusion below the
+         floor, so it is lifted back up by its own height. Neither step mirrors
+         anything: the model reads the same way round as the sheet. */
+      geo.rotateX(Math.PI / 2);
+      geo.translate(0, UH, 0);
+      const p = geo.attributes.position.array, n = geo.attributes.normal.array;
+      for (let i = 0; i < p.length; i++) { pos.push(p[i]); nor.push(n[i]); }
+      geo.dispose();
+    });
+    const bg = new THREE.BufferGeometry();
+    bg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    bg.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    verts += pos.length / 3;
+    const mat = new THREE.MeshLambertMaterial({ color: COL.open });
+    g.add(new THREE.Mesh(bg, mat));
+
+    /* THE PLATE IS THIS FLOOR'S OWN FOOTPRINT, not the building's. Every floor
+       given the full extent buried the ones under it and turned the model into
+       a stack of identical cards — and it also lied: the Lower Ground is half
+       the length of the rest, and the Fourth and Fifth step back from the
+       front. Measured per floor, the model shows the massing the architect
+       actually drew. */
+    let fx0=1e9, fz0=1e9, fx1=-1e9, fz1=-1e9;
+    f.units.forEach(u => { for (let i=0;i<u.p.length;i+=2){
+      const x=u.p[i]/S, z=u.p[i+1]/S;
+      if(x<fx0)fx0=x; if(x>fx1)fx1=x; if(z<fz0)fz0=z; if(z>fz1)fz1=z; } });
+    const M = 7;
+    const slab = new THREE.Mesh(
+      new THREE.BoxGeometry(fx1-fx0+M*2, 2.4, fz1-fz0+M*2),
+      new THREE.MeshLambertMaterial({ color: COL.slab }));
+    slab.position.set((fx0+fx1)/2, -1.2, (fz0+fz1)/2); g.add(slab);
+    const eg = new THREE.EdgesGeometry(slab.geometry);
+    const line = new THREE.LineSegments(eg,
+      new THREE.LineBasicMaterial({ color: COL.edge, transparent: true, opacity: .55 }));
+    line.position.copy(slab.position); g.add(line);
+  });
+
+  el('stat').textContent =
+    D.floors.length + ' floors\n' +
+    D.floors.reduce((a, f) => a + f.units.length, 0) + ' units\n' +
+    Math.round(verts / 1000) + 'k vertices\n' +
+    Math.round(performance.now() - t0) + ' ms to build';
+
+  /* THE BUILDING IS 543 WIDE AND 3,271 LONG — six times longer than it is
+     broad. A camera placed by the diagonal ends up inside it, which is exactly
+     what the first attempt did. The distance is taken from the bounding sphere
+     and the field of view instead, and the angle is set along the long side,
+     because that is the elevation a person recognises from the street. */
+  const stack = (D.floors.length - 1) * PITCH;
+  const target = new THREE.Vector3(CX, stack * .5, CZ);
+  const R = Math.hypot(W, H, stack) / 2;
+  /* the bounding sphere of a six-to-one block is mostly air: seen along the
+     diagonal the long axis foreshortens and a distance that fits the sphere
+     leaves the building small in the middle of the frame. Two thirds of it
+     fills the screen and still clears the corners. */
+  const dist = R / Math.sin(camera.fov * Math.PI / 360) * .62;
+  scene.fog.near = dist * .55; scene.fog.far = dist * 1.9;
+  /* low enough that the seven floors read as a building rather than as a
+     plan seen from a helicopter */
+  let a = 1.15, tilt = 1.16;
+  function place() {
+    camera.position.set(target.x + dist * Math.sin(tilt) * Math.sin(a),
+                        target.y + dist * Math.cos(tilt),
+                        target.z + dist * Math.sin(tilt) * Math.cos(a));
+    camera.lookAt(target);
+  }
+  function resize() {
+    /* the third argument tells three not to touch the canvas CSS size. With no
+       CSS size of its own the element then lays out at its buffer size — twice
+       the window on a retina screen — and the page shows one corner of the
+       render. Letting three set both keeps them the same thing. */
+    renderer.setSize(innerWidth, innerHeight);
+    camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  }
+  addEventListener('resize', resize); resize();
+
+  let drag = null;
+  addEventListener('pointerdown', e => drag = e.clientX);
+  addEventListener('pointerup', () => drag = null);
+  addEventListener('pointermove', e => { if (drag !== null) { a -= (e.clientX - drag) * .006; drag = e.clientX; } });
+
+  (function loop() { requestAnimationFrame(loop); place(); renderer.render(scene, camera); })();
+  window._twinReady = true;
+});
+</script>
