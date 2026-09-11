@@ -105,7 +105,14 @@ function inkSvg(rec) {
     const file = path.join(DIR, F.page + '-area.json');
     if (!fs.existsSync(file)) return;
     const sheet = JSON.parse(fs.readFileSync(file, 'utf8'));
-    const names = JSON.parse(fs.readFileSync(path.join(DIR, F.page + '-read.json'), 'utf8')).map(u => u.u);
+    /* A STRAY MARK IS NOT A SHOP. The First Floor carries two smudges the
+       number-reader took for labels, named '.' and '..', and one of them sat
+       close enough to FF-160 to be handed that shop's printed area. They are
+       not in the register, so they are dropped here — and dropping them is
+       safe precisely because anything genuinely missing from the register
+       would show up as a unit with no row at all. */
+    const names = JSON.parse(fs.readFileSync(path.join(DIR, F.page + '-read.json'), 'utf8'))
+      .map(u => u.u).filter(u => reg[u] != null);
 
     /* A THIRD NUMBER, OWED TO THE UNITS THE SHEET DOES NOT LABEL. Not every
        commercial shop has its area printed — on the Ground Floor thirty-two do
