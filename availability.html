@@ -53,6 +53,8 @@
   --held:#8A6224;
   --held-bg:#F3EEE5;
   --warn:#8A5300;
+  /* the one green on the page: alive, and a shop that came back */
+  --ok:#1F9D55;
 
   --r:12px;
   --r-lg:20px;
@@ -254,6 +256,53 @@ button{cursor:pointer;background:none;border:0}
                    animation-delay:calc(var(--i,0) * 30ms)}
 @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes fade{from{opacity:0}to{opacity:1}}
+
+/* ══ LIVE ════════════════════════════════════════════════════════════════
+   A screen is not live because it says so. It is live because things on it
+   move when the building moves: the reading climbs, the floor bars slide, the
+   shop that just went is named, and the clock in the corner counts up between
+   fetches so the page is visibly awake even when nothing has happened. */
+#upd{display:inline-flex;align-items:center;gap:6px}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--ok);display:block;
+       box-shadow:0 0 0 0 rgba(31,157,85,.55);animation:beat 2.4s var(--ease) infinite}
+#upd.stale .pulse{background:var(--held);animation-duration:1.1s}
+@keyframes beat{
+  0%{box-shadow:0 0 0 0 rgba(31,157,85,.5)}
+  55%{box-shadow:0 0 0 7px rgba(31,157,85,0)}
+  100%{box-shadow:0 0 0 0 rgba(31,157,85,0)}
+}
+/* the feed — what moved, newest first, and never more than five */
+#news{margin:0 0 13px;background:var(--card);border-radius:var(--r);padding:9px 12px 10px}
+.nw-h{font-size:10.5px;font-weight:650;letter-spacing:.11em;text-transform:uppercase;
+      color:var(--mut);margin-bottom:6px}
+.nw-r{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px;
+      animation:slide 320ms var(--ease) both}
+.nw-r i{width:7px;height:7px;border-radius:2px;flex:none;display:block}
+.nw-r b{font-weight:650;letter-spacing:-.01em;flex:none}
+.nw-r span{color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nw-r em{margin-left:auto;font-style:normal;color:var(--mut);font-size:11px;flex:none}
+.nw-r.fresh b{color:var(--accent)}
+@keyframes slide{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+/* A BAR THAT ARRIVES AT A NEW WIDTH rather than appearing at it — and inside
+   the same 300ms the whole page is held to. The heartbeat is the one thing on
+   this screen allowed to run longer, because it is the claim "live" being
+   kept; a slide that outlasts the budget would just be the page being slow. */
+.bar i,.fl .fb i{transition:width 300ms var(--ease)}
+/* the floor that just moved holds a moment, then lets go */
+/* the floor that just moved holds a moment, then lets go — and does it
+   inside the budget, because a flash is a signal and not a light show */
+.fl button.moved{animation:moved 300ms var(--ease) both}
+@keyframes moved{
+  0%{background:var(--accent-soft)}
+  22%{background:var(--accent-soft)}
+  100%{background:var(--card)}
+}
+@media (prefers-reduced-motion:reduce){
+  .pulse{animation:none}
+  .nw-r{animation:none}
+  .fl button.moved{animation:none}
+  .bar i,.fl .fb i{transition:none}
+}
 
 /* ══ THE BUILDING ═════════════════════════════════════════════════════════
    Dark, because a model is lit and a document is not: the units are the light
@@ -1205,6 +1254,7 @@ button{cursor:pointer;background:none;border:0}
          It sits above the search because it is a reading, not an action — the
          search is still the first thing anyone can touch. -->
     <div class="hero" id="hero"></div>
+    <div id="news" hidden></div>
     <div class="sr">
       <input id="q" type="search" inputmode="search" autocomplete="off"
              autocapitalize="characters" spellcheck="false"
@@ -1622,7 +1672,18 @@ async function load(first) {
     return;
   }
 
+  /* WHAT MOVED SINCE THE LAST LOOK. A dashboard that redraws itself with new
+     numbers is not live, it is just correct — nobody watching it sees
+     anything happen. So the position before this fetch is kept and compared
+     with the one after it, and the difference is the news: which shop went,
+     which came back, on whose word. Everything that moves on this screen
+     moves because of a line in this list. */
+  var was = {};
+  (P && P.floors || []).forEach(function (f) {
+    (f.units || []).forEach(function (u) { was[u.n] = (u.s === 'available') ? 'a' : ('x' + (u.k || '')); });
+  });
   P = d; FETCHED = Date.now(); STALE = false;
+  if (!first) noteChanges(was);
   refreshMyReqs();          // a decision reaches the dealer on the same rhythm
 
   if (first) {
@@ -2030,18 +2091,106 @@ function dead() {
     'Ask whoever shared it for the current link.</span></div>';
 }
 
+/* A TIME THAT COUNTS UP, because "Updated 22:19" is a fact and "12s ago" is a
+   pulse. It is the cheapest thing on the page that makes it feel awake. */
+/* ══ WHAT JUST HAPPENED ═══════════════════════════════════════════════════
+   Rashid: "make a LIVE dashboard. Animated and amazing." Live is not a word
+   you put on a screen, it is something the screen does: a number that climbs
+   to its new value instead of jumping there, a bar that slides to its new
+   width, and a line that says out loud what moved — which shop, which way,
+   and on whose word, because the payload already carries the name behind a
+   hold.
+
+   Nothing here invents news. Every line comes from comparing the position
+   before a fetch with the one after it, so a quiet market shows a quiet
+   screen rather than a busy one. */
+var NEWS = [];                     // newest first, the last half hour
+var FLASH = {};                    // unit -> when it changed, for the glow
+
+function noteChanges(was) {
+  var now = Date.now(), fresh = [];
+  (P.floors || []).forEach(function (f) {
+    (f.units || []).forEach(function (u) {
+      var key = (u.s === 'available') ? 'a' : ('x' + (u.k || ''));
+      var old = was[u.n];
+      if (old === undefined || old === key) return;
+      var s = stat(u);
+      fresh.push({ n: u.n, at: now, free: s.free, label: s.label, who: s.who, tint: s.tint });
+      FLASH[u.n] = now;
+    });
+  });
+  if (!fresh.length) return;
+  /* never more than a screenful kept — a feed nobody can read is a screensaver */
+  NEWS = fresh.concat(NEWS).slice(0, 24);
+  paintNews();
+}
+
+function ago(ms) {
+  var s = Math.round((Date.now() - ms) / 1000);
+  return s < 10 ? 'just now' : s < 60 ? s + 's ago' :
+         s < 3600 ? Math.round(s / 60) + ' min ago' : Math.round(s / 3600) + 'h ago';
+}
+
+function paintNews() {
+  var box = $('news'); if (!box) return;
+  /* half an hour is as far back as "just now" can honestly reach */
+  NEWS = NEWS.filter(function (x) { return Date.now() - x.at < 1800000; });
+  if (!NEWS.length) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  box.innerHTML = '<div class="nw-h">Just now</div>' +
+    NEWS.slice(0, 5).map(function (x) {
+      return '<div class="nw-r' + (Date.now() - x.at < 30000 ? ' fresh' : '') + '">' +
+        '<i style="background:' + (x.free ? '#1f9d55' : (x.tint || '#8a8a8a')) + '"></i>' +
+        '<b>' + esc(x.n) + '</b>' +
+        '<span>' + (x.free ? 'came back' : esc(String(x.label).toLowerCase())) +
+          (x.who ? ' · ' + esc(x.who) : '') + '</span>' +
+        '<em>' + ago(x.at) + '</em></div>';
+    }).join('');
+}
+setInterval(function () { if (!document.hidden && NEWS.length) paintNews(); }, 5000);
+
+/* A NUMBER THAT CLIMBS. Given a target it walks there over a few frames, so a
+   count moving from 1,315 to 1,314 is SEEN to move. A large jump is set
+   outright — nobody watches a counter spin up to a thousand. */
+function countTo(el, to) {
+  if (!el) return;
+  var from = Number(String(el.getAttribute('data-v') || el.textContent).replace(/[^0-9-]/g, '')) || 0;
+  el.setAttribute('data-v', to);
+  if (from === to || Math.abs(to - from) > 60 ||
+      matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.textContent = Number(to).toLocaleString('en-US');
+    return;
+  }
+  var t0 = performance.now(), span = 520;
+  requestAnimationFrame(function step(now) {
+    var k = Math.min(1, (now - t0) / span);
+    var v = Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3)));
+    el.textContent = v.toLocaleString('en-US');
+    if (k < 1) requestAnimationFrame(step);
+  });
+}
+
 function paintUpdated() {
   var el = $('upd');
   if (!FETCHED) { el.textContent = ''; return; }
-  el.textContent = 'Updated ' + hhmm(FETCHED);
+  var s = Math.max(0, Math.round((Date.now() - FETCHED) / 1000));
+  el.innerHTML = '<i class="pulse"></i>' +
+    (STALE ? 'Reconnecting…'
+           : s < 8 ? 'Live · just now'
+           : s < 60 ? 'Live · ' + s + 's ago'
+           : 'Live · ' + Math.round(s / 60) + ' min ago');
   el.classList.toggle('stale', STALE);
-  el.title = STALE ? 'Could not refresh — showing the last known position' : '';
 }
+setInterval(function () { if (!document.hidden && FETCHED) paintUpdated(); }, 1000);
 
 function schedule() {
   clearTimeout(TIMER);
   if (document.hidden) return;
-  TIMER = setTimeout(function () { load(false).then(schedule); }, 120000);
+  /* TWENTY-FIVE SECONDS, NOT TWO MINUTES. A screen that says LIVE has to be
+     able to show something happening while somebody is watching it; at two
+     minutes the news is always older than the person's patience. The tab is
+     still left alone the moment it is hidden. */
+  TIMER = setTimeout(function () { load(false).then(schedule); }, 25000);
 }
 document.addEventListener('visibilitychange', function () {
   if (document.hidden) { clearTimeout(TIMER); return; }
@@ -2130,6 +2279,14 @@ function renderHome() {
   if (BACKING) { BACKING = false; playScr($('home'), 'scr-out'); }
 
   var tot = 0, av = 0;
+  /* WHAT EACH FLOOR SAID A MOMENT AGO. The rows are rebuilt wholesale, which
+     loses the number that was on screen — so it is taken first, and each new
+     row is walked from it rather than snapping to the new figure. */
+  var before = {};
+  [].forEach.call(document.querySelectorAll('#floors button'), function (b) {
+    var v = b.querySelector('.fv');
+    if (v) before[b.getAttribute('data-f')] = Number(String(v.textContent).replace(/[^0-9]/g, ''));
+  });
   $('floors').innerHTML = (P.floors || []).map(function (f, i) {
     tot += Number(f.total || 0); av += Number(f.available || 0);
     var n = Number(f.available || 0), t = Number(f.total || 0);
@@ -2189,6 +2346,16 @@ function renderHome() {
       '<span class="ac-x"><i></i></span>' +
     '</button>';
 
+  /* each floor walks to its new count from the one it was showing */
+  [].forEach.call(document.querySelectorAll("#floors button"), function (btn) {
+    var v = btn.querySelector(".fv"); if (!v) return;
+    var was = before[btn.getAttribute("data-f")];
+    var now = Number(String(v.textContent).replace(/[^0-9]/g, ""));
+    if (was === undefined || !isFinite(now)) return;
+    v.setAttribute("data-v", was); countTo(v, now);
+    /* and the floor that moved says so for a moment */
+    if (was !== now) { btn.classList.add("moved"); setTimeout(function () { btn.classList.remove("moved"); }, 1400); }
+  });
   paintHero(av, tot);
 
   /* ONCE. The entrance belongs to the first time these chips exist, not to
@@ -2223,10 +2390,11 @@ function paintHero(av, tot) {
      alongside the count instead. The bar stays — it is the only place the
      whole building is one shape — but it closes the block rather than sitting
      in the middle of it. */
+  var hadHero = $('hero-n');
   $('hero').innerHTML =
     '<div class="hero-l">Available now</div>' +
     '<div class="hero-top">' +
-      '<div class="hero-n">' + av + '</div>' +
+      '<div class="hero-n" id="hero-n">' + av + '</div>' +
       '<div class="hero-p">of ' + tot + (tot ? ' · ' + pct + '%' : '') + '</div>' +
       '<div class="hero-f">' +
         (held ? kinds.map(function (k) {
@@ -2241,6 +2409,10 @@ function paintHero(av, tot) {
         return '<i style="width:' + (tot ? k.n * 100 / tot : 0) + '%;background:' + k.tint + '"></i>';
       }).join('') +
     '</div>';
+  /* the reading walks to its new value; the bars slide because CSS says so */
+  var hn = $('hero-n');
+  if (hadHero) countTo(hn, av);
+  else if (hn) hn.setAttribute('data-v', av);
 }
 
 /* ── THE WHOLE BUILDING ───────────────────────────────────────────────────
@@ -3912,7 +4084,18 @@ else { load(true).then(schedule); }
 /* the harness renders against a captured payload so the scale screens can be
    photographed without an Awami link being created */
 window._availPreview = function (payload) {
+  /* THE SAME DOOR AS A REAL FETCH. The news on this page comes from comparing
+     the position before a payload with the one after it, and that comparison
+     lived only inside load() — so a second payload handed straight to the
+     page changed every number without the page noticing anything had
+     happened. Both ways in take the snapshot now. */
+  var was = {};
+  (P && P.floors || []).forEach(function (f) {
+    (f.units || []).forEach(function (u) { was[u.n] = (u.s === 'available') ? 'a' : ('x' + (u.k || '')); });
+  });
+  var second = !!(P && P.floors);
   P = payload; FETCHED = Date.now(); STALE = false;
+  if (second) noteChanges(was);
   $('boot').hidden = true; $('app').hidden = false;
   FLOOR = null; SHEET = null; SHOWALL = false;
   REQS = readReqs();

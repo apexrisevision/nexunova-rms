@@ -470,6 +470,13 @@ function serve() {
       const secs = t => Math.max(...String(t).split(',').map(x => parseFloat(x) || 0));
       let worst = 0, where = '';
       [...document.querySelectorAll('*')].forEach(el => {
+        /* THE HEARTBEAT IS THE ONE THING ALLOWED TO RUN ON. This budget exists
+           so that nothing fidgets at the reader, and it has caught real
+           fidgeting. But the page now says it is LIVE, and a page that claims
+           that has to be seen to be breathing — a pulse that beats once every
+           two and a half seconds is the claim being kept. It is exempt by
+           name, one class, so that nothing else can slip through beside it. */
+        if (el.classList && el.classList.contains('pulse')) return;
         const c = getComputedStyle(el);
         const m = Math.max(secs(c.animationDuration), secs(c.transitionDuration));
         if (m > worst) { worst = m; where = el.id || el.className || el.tagName; }
@@ -1234,8 +1241,13 @@ function serve() {
     (failState.chipsAfter === failState.chipsBefore && failState.totalAfter === failState.totalBefore)
       ? ok('the last good data is still on screen after a failed refetch')
       : bad('a failed refetch changed the screen');
-    failState.stale && /Updated \d\d:\d\d/.test(failState.upd)
-      ? ok('and the timestamp is marked stale rather than blanked or silently kept: "' + failState.upd + '"')
+    /* THE WORDS CHANGED WHEN THE HEADER BECAME A LIVE CLOCK — it used to read
+       "Updated 22:19" and now counts up from the last good fetch. What is
+       asserted is unchanged and is the part that matters: a refetch that
+       failed must SAY so, rather than blanking or quietly going on showing a
+       time that is no longer true. */
+    failState.stale && /Reconnect/i.test(failState.upd)
+      ? ok('and the header admits the failure rather than blanking or keeping the old time: "' + failState.upd + '"')
       : bad('the timestamp did not admit the failure: ' + JSON.stringify(failState));
     await page.screenshot({ path: path.join(OUT, 'f-stale-refetch.png') });
 
