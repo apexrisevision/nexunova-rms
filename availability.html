@@ -255,6 +255,65 @@ button{cursor:pointer;background:none;border:0}
 @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 
+/* ══ THE BUILDING ═════════════════════════════════════════════════════════
+   Dark, because a model is lit and a document is not: the units are the light
+   in this picture and everything else gets out of their way. The furniture
+   floats over the canvas at the edges, so the middle of the screen is only
+   ever the building. */
+#twin{position:fixed;inset:0;z-index:40;background:#0E1630;color:#EFE7D8;
+      font-family:inherit;overscroll-behavior:none}
+#tw-c{display:block;width:100%;height:100%;touch-action:none}
+.tw-hd{position:absolute;left:16px;top:14px;pointer-events:none}
+.tw-t{font-size:19px;font-weight:650;letter-spacing:-.02em;line-height:1.15}
+.tw-s{margin-top:3px;font-size:12.5px;opacity:.66;display:flex;gap:6px;align-items:baseline}
+.tw-s b{font-size:17px;font-weight:650;opacity:1;letter-spacing:-.02em}
+/* the rail, on the right where a thumb reaches, top floor at the top */
+.tw-lift{position:absolute;right:10px;top:50%;transform:translateY(-50%);
+         display:flex;flex-direction:column;gap:5px}
+.tw-lift button{-webkit-appearance:none;appearance:none;border:0;cursor:pointer;
+  width:46px;min-height:38px;border-radius:11px;background:rgba(239,231,216,.10);
+  color:#EFE7D8;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:1px;font:inherit;transition:background var(--t-fast) var(--ease)}
+.tw-lift button .n{font-size:12.5px;font-weight:650;letter-spacing:-.01em}
+.tw-lift button .c{font-size:10px;opacity:.6;font-variant-numeric:tabular-nums}
+.tw-lift button[aria-pressed="true"]{background:#EFE7D8;color:#15204A}
+.tw-lift button[aria-pressed="true"] .c{opacity:.72}
+@media (hover:hover){ .tw-lift button:hover{background:rgba(239,231,216,.2)} }
+.tw-lift button:active{transform:scale(.94)}
+/* the dock — what you DO, kept along the bottom and off the model */
+.tw-dock{position:absolute;left:0;right:0;bottom:0;padding:12px 14px calc(12px + env(safe-area-inset-bottom));
+         display:flex;flex-direction:column;gap:9px;
+         background:linear-gradient(to top,rgba(14,22,48,.92) 55%,rgba(14,22,48,0))}
+.tw-key{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;opacity:.72}
+.tw-key span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.tw-key i{width:9px;height:9px;border-radius:3px;display:block}
+.tw-sr input{width:100%;height:52px;padding:0 16px;border-radius:14px;font:inherit;font-size:15px;
+  border:1px solid rgba(239,231,216,.18);background:rgba(239,231,216,.07);color:#EFE7D8;
+  -webkit-appearance:none;appearance:none}
+.tw-sr input::placeholder{color:rgba(239,231,216,.45)}
+.tw-sr input:focus{outline:none;border-color:rgba(239,231,216,.5);background:rgba(239,231,216,.12)}
+.tw-sr{position:relative}
+#tw-res{position:absolute;left:0;right:0;bottom:58px;background:#1B2650;border-radius:13px;
+        overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.42)}
+#tw-res button{display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;
+  border:0;background:none;color:#EFE7D8;font:inherit;text-align:left;padding:11px 15px;cursor:pointer}
+#tw-res button+button{border-top:1px solid rgba(239,231,216,.09)}
+#tw-res button:active{background:rgba(239,231,216,.1)}
+#tw-res small{opacity:.6;font-size:11.5px}
+.tw-flat{-webkit-appearance:none;appearance:none;border:0;background:none;cursor:pointer;
+  color:rgba(239,231,216,.6);font:inherit;font-size:12.5px;padding:2px;text-align:left;
+  text-decoration:underline;text-underline-offset:3px}
+.tw-tip{position:fixed;pointer-events:none;opacity:0;transition:opacity 120ms var(--ease);
+        background:#EFE7D8;color:#15204A;font-size:12px;font-weight:600;padding:5px 9px;
+        border-radius:8px;transform:translate(12px,12px);z-index:41;white-space:nowrap}
+.tw-load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+         font-size:13.5px;opacity:.62;pointer-events:none}
+@media (min-width:760px){
+  .tw-hd{left:28px;top:24px} .tw-t{font-size:24px}
+  .tw-dock{padding:18px 28px 22px;max-width:520px}
+  .tw-lift{right:20px}
+}
+
 /* ── SKELETON ────────────────────────────────────────────────────────────
    Matched to the real thing's dimensions, so the page does not jump when the
    payload lands. It does not shimmer: a looping animation on a first paint is
@@ -1253,6 +1312,34 @@ button{cursor:pointer;background:none;border:0}
   </section>
 </div>
 
+<!-- ══ THE BUILDING ITSELF ═══════════════════════════════════════════════════
+     Rashid asked for the dashboard to become the building: seven floors of the
+     architect's own outlines, stacked as they stand. It sits OVER the page
+     rather than inside it, so the screens underneath keep working exactly as
+     they did — this is a way of looking at the same payload, not a different
+     page. Nothing here loads unless it is asked for: no canvas, no three.js
+     and no geometry until ?view=twin and a browser that can draw it. -->
+<section id="twin" hidden>
+  <canvas id="tw-c" aria-label="Three-dimensional model of Awami Market. Each block is a unit."></canvas>
+  <div class="tw-hd">
+    <div class="tw-t" id="tw-ttl">—</div>
+    <div class="tw-s"><b id="tw-open">—</b><span id="tw-of"></span></div>
+  </div>
+  <nav class="tw-lift" id="tw-lift" aria-label="Floors"></nav>
+  <div class="tw-dock">
+    <div class="tw-key" id="tw-key"></div>
+    <div class="tw-sr">
+      <input id="tw-q" type="search" inputmode="search" autocomplete="off"
+             autocapitalize="characters" spellcheck="false"
+             placeholder="Search unit — e.g. LG-12" aria-label="Search unit">
+      <div id="tw-res" hidden></div>
+    </div>
+    <button class="tw-flat" id="tw-list">See the list instead</button>
+  </div>
+  <div class="tw-tip" id="tw-tip"></div>
+  <div class="tw-load" id="tw-load">Building the model…</div>
+</section>
+
 <div class="scrim" id="scrim"></div>
 <aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-n"></aside>
 <div class="toast" id="toast"></div>
@@ -2008,6 +2095,9 @@ function render() {
   else if (ALLV) { renderAll(); }
   else if (FLOOR == null) { renderHome(); } else { renderFloor(); }
   if (SHEET) refreshSheet();
+  /* the building, if it is the thing being looked at, recolours from the same
+     payload the screens just read */
+  if (window._twinPaint) window._twinPaint();
 }
 
 /* One animation class, taken off when it finishes so it can be given again.
@@ -3827,6 +3917,476 @@ window._availPreview = function (payload) {
   render();
   return (P.floors || []).length;
 };
+</script>
+
+<script>
+/* ══ THE BUILDING, ON THE LINK ═════════════════════════════════════════════
+   Seven floors of the architect's own outlines, stacked as they stand, drawn
+   over the same payload the flat screens read. This is a way of LOOKING at
+   the page, not a second page: the unit sheet, the request, the name, the
+   reservations and the WhatsApp message are all the ones already here.
+
+   IT COSTS NOTHING UNLESS IT IS ASKED FOR. No canvas, no three.js and no
+   geometry are touched until ?view=twin, and if the browser cannot draw or
+   the model cannot be had, the flat page is already underneath, whole.
+   ?view=list turns it off for good on this phone.
+   ═════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  var THREE_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+  var GEOM_SRC  = 'assets/awami-twin.json?v=1';
+
+  var VIEW_KEY = 'avail.view';
+  function wanted() {
+    var q = new URLSearchParams(location.search).get('view');
+    if (q === 'twin' || q === 'list') { try { localStorage.setItem(VIEW_KEY, q); } catch (e) {} return q; }
+    try { return localStorage.getItem(VIEW_KEY) || 'list'; } catch (e) { return 'list'; }
+  }
+  /* asked BEFORE three.js is fetched — a phone that cannot draw should not
+     spend a megabyte finding that out */
+  function canDraw() {
+    try {
+      var c = document.createElement('canvas');
+      return !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl')));
+    } catch (e) { return false; }
+  }
+
+  if (wanted() !== 'twin' || !canDraw()) return;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var T = {
+    on: false, floors: [], index: {}, focus: null, sel: null, hov: null,
+    cam: null, goal: null, renderer: null, scene: null, camera: null,
+    W: 0, H: 0, CX: 0, CZ: 0, stack: 0, ready: false
+  };
+    /* A STOREY IS TEN FEET — 34 drawing units at 0.29 ft each — and that is what
+     the floors sit at when one is opened. In the overview they are pulled a
+     little further apart so the eye can get between them, but only a little:
+     at seventy-two the model grew so tall that the camera had to stand back
+     far enough to lose the shapes it exists to show. */
+  var UH = 24, PITCH = 34, SEP = 46;
+  var FREE = 0xF3EEE3, SLAB = 0x6E6A66, EDGE = 0x8E97C4, HI = 0xE3A33A;
+  var REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function fail(why) {
+    /* the flat page is already built underneath; all this has to do is leave */
+    try { localStorage.setItem(VIEW_KEY, 'list'); } catch (e) {}
+    var el = $('twin'); if (el) el.hidden = true;
+    if (window.console && why) console.warn('twin: ' + why);
+  }
+
+  function script(src) {
+    return new Promise(function (res, rej) {
+      var s = document.createElement('script');
+      s.src = src; s.async = true;
+      s.onload = res; s.onerror = function () { rej(new Error('could not load ' + src)); };
+      document.head.appendChild(s);
+    });
+  }
+
+  /* ── the one place a unit's colour is decided ─────────────────────────── */
+  function colourOf(u) {
+    var s = window.stat ? window.stat(u) : { free: true, tint: '' };
+    if (s.free) return FREE;
+    var hex = (s.tint || '').replace('#', '');
+    return hex ? parseInt(hex, 16) : 0x7E2F24;
+  }
+
+  /* ── build ────────────────────────────────────────────────────────────── */
+  function build(D) {
+    var S = D.s;
+    T.W = D.w; T.H = D.h; T.CX = D.w / 2; T.CZ = D.h / 2;
+
+    T.renderer = new THREE.WebGLRenderer({ canvas: $('tw-c'), antialias: true });
+    T.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    T.scene = new THREE.Scene();
+    T.scene.background = new THREE.Color(0x0E1630);
+    T.scene.fog = new THREE.Fog(0x0E1630, 1, 1e9);
+    T.camera = new THREE.PerspectiveCamera(30, 1, 5, 20000);
+    T.scene.add(new THREE.HemisphereLight(0xE6ECFF, 0x3A2F26, 1.0));
+    var sun = new THREE.DirectionalLight(0xFFE9C8, 0.62);
+    sun.position.set(600, 900, 420); T.scene.add(sun);
+
+    D.floors.forEach(function (f, fi) {
+      var g = new THREE.Group(); T.scene.add(g);
+      /* ONE GEOMETRY PER FLOOR. Fourteen hundred meshes is fourteen hundred
+         draw calls and no phone holds thirty frames through that. Each unit
+         remembers which stretch of the buffer is its own, so a single shop can
+         still change colour without rebuilding anything. */
+      var pos = [], nor = [], col = [], marks = [], at = 0;
+      var fx0 = 1e9, fz0 = 1e9, fx1 = -1e9, fz1 = -1e9;
+      f.units.forEach(function (u) {
+        var pts = [], i;
+        for (i = 0; i < u.p.length; i += 2) {
+          var x = u.p[i] / S, z = u.p[i + 1] / S;
+          pts.push(new THREE.Vector2(x, z));
+          if (x < fx0) fx0 = x; if (x > fx1) fx1 = x;
+          if (z < fz0) fz0 = z; if (z > fz1) fz1 = z;
+        }
+        var geo;
+        try {
+          geo = new THREE.ExtrudeGeometry(new THREE.Shape(pts),
+                  { depth: UH, bevelEnabled: false, curveSegments: 1 });
+        } catch (e) { return; }
+        /* the plan lies flat and the height goes up: turned the other way the
+           plan's own Y becomes negative Z and the building lands behind the
+           camera */
+        geo.rotateX(Math.PI / 2); geo.translate(0, UH, 0);
+        var p = geo.attributes.position.array, n = geo.attributes.normal.array;
+        for (i = 0; i < p.length; i++) { pos.push(p[i]); nor.push(n[i]); col.push(1, 1, 1); }
+        var count = p.length / 3;
+        marks.push({ n: u.n, at: at, count: count });
+        T.index[u.n] = { fi: fi, ui: marks.length - 1 };
+        at += count;
+        geo.dispose();
+      });
+      var bg = new THREE.BufferGeometry();
+      bg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      bg.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+      bg.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      var mesh = new THREE.Mesh(bg, new THREE.MeshLambertMaterial({
+        vertexColors: true, transparent: true }));
+      mesh.userData.fi = fi;
+      g.add(mesh);
+
+      /* the plate is this floor's own footprint — one size for all of them
+         hides the floors below and hides the massing besides */
+      var M = 7;
+      var slab = new THREE.Mesh(
+        new THREE.BoxGeometry(fx1 - fx0 + M * 2, 2.4, fz1 - fz0 + M * 2),
+        new THREE.MeshLambertMaterial({ color: SLAB, transparent: true }));
+      slab.position.set((fx0 + fx1) / 2, -1.2, (fz0 + fz1) / 2);
+      g.add(slab);
+      var line = new THREE.LineSegments(new THREE.EdgesGeometry(slab.geometry),
+        new THREE.LineBasicMaterial({ color: EDGE, transparent: true, opacity: .5 }));
+      line.position.copy(slab.position); g.add(line);
+
+      T.floors.push({ code: f.code, label: f.label, floor_no: f.floor_no,
+                      g: g, mesh: mesh, mat: mesh.material, slab: slab.material,
+                      edge: line.material, marks: marks,
+                      y: 0, ty: 0, op: 1, top: 1, delay: fi * 90 });
+    });
+
+    T.stack = (T.floors.length - 1) * SEP;
+    T.cam = { theta: 1.15, phi: 1.16, r: 1000, tx: T.CX, ty: 0, tz: T.CZ };
+    T.goal = {}; for (var k in T.cam) T.goal[k] = T.cam[k];
+    T.ready = true;
+  }
+
+  /* ── which floor of the payload is which floor of the model ───────────── */
+  function payloadFloor(code) {
+    var f = (window.P && P.floors) || [];
+    for (var i = 0; i < f.length; i++) {
+      var u = (f[i].units || [])[0];
+      if (u && String(u.n).indexOf(code + '-') === 0) return i;
+    }
+    return -1;
+  }
+
+  /* ── colour, counts, rail: everything that follows the payload ─────────── */
+  function repaint() {
+    if (!T.ready || !window.P) return;
+    var totOpen = 0, tot = 0;
+    T.floors.forEach(function (f) {
+      var pi = payloadFloor(f.code);
+      var pf = pi < 0 ? null : P.floors[pi];
+      f.pi = pi;
+      var by = {};
+      ((pf && pf.units) || []).forEach(function (u) { by[u.n] = u; });
+      var col = f.mesh.geometry.attributes.color, arr = col.array, open = 0;
+      f.marks.forEach(function (m) {
+        var u = by[m.n];
+        var c = new THREE.Color(colourOf(u));
+        if (T.sel === m.n) c = new THREE.Color(HI);
+        else if (T.hov === m.n) c = c.clone().lerp(new THREE.Color(HI), .45);
+        if (!u || u.s === 'available') open++;
+        for (var i = 0; i < m.count; i++) {
+          arr[(m.at + i) * 3] = c.r; arr[(m.at + i) * 3 + 1] = c.g; arr[(m.at + i) * 3 + 2] = c.b;
+        }
+      });
+      col.needsUpdate = true;
+      f.open = open; f.total = f.marks.length;
+      totOpen += open; tot += f.marks.length;
+    });
+    $('tw-ttl').textContent = (P.project || 'Availability');
+    $('tw-open').textContent = totOpen.toLocaleString('en-US');
+    $('tw-of').textContent = 'open of ' + tot.toLocaleString('en-US');
+    rail(); legend();
+  }
+
+  function rail() {
+    var host = $('tw-lift'); host.innerHTML = '';
+    var mk = function (label, count, pressed, fn, aria) {
+      var b = document.createElement('button');
+      b.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+      b.setAttribute('aria-label', aria);
+      b.innerHTML = '<span class="n"></span><span class="c"></span>';
+      b.firstChild.textContent = label;
+      b.lastChild.textContent = count;
+      b.onclick = fn; host.appendChild(b);
+    };
+    var all = T.floors.reduce(function (a, f) { return a + (f.open || 0); }, 0);
+    mk('All', all, T.focus === null, function () { focus(null); }, 'Whole building, ' + all + ' open');
+    for (var i = T.floors.length - 1; i >= 0; i--) (function (i) {
+      var f = T.floors[i];
+      mk(f.code, f.open || 0, T.focus === i, function () { focus(i); },
+         f.label + ', ' + (f.open || 0) + ' open');
+    })(i);
+  }
+
+  function legend() {
+    var all = [];
+    ((window.P && P.floors) || []).forEach(function (f) { all = all.concat(f.units || []); });
+    var kinds = window.tally ? window.tally(all) : [];
+    $('tw-key').innerHTML =
+      '<span><i style="background:#F3EEE3"></i>Open</span>' +
+      kinds.map(function (k) {
+        return '<span><i style="background:' + k.tint + '"></i>' + k.label + '</span>';
+      }).join('');
+  }
+
+  /* ── camera ───────────────────────────────────────────────────────────── */
+  function tanH() { return Math.tan(T.camera.fov * Math.PI / 360); }
+  function overview() {
+    var R = Math.hypot(T.W, T.H, T.stack) / 2;
+    T.goal.tx = T.CX; T.goal.ty = T.stack * .5; T.goal.tz = T.CZ;
+    T.goal.phi = 1.02; T.goal.r = R / Math.sin(T.camera.fov * Math.PI / 360) * .52;
+  }
+  function planView(fi) {
+    var f = T.floors[fi];
+    var land = innerWidth > innerHeight;
+    T.goal.tx = T.CX; T.goal.ty = fi * PITCH; T.goal.tz = T.CZ;
+    T.goal.theta = land ? Math.PI / 2 : 0; T.goal.phi = .03;
+    var r = land ? (T.H * .6) / (tanH() * T.camera.aspect) : (T.H * .56) / tanH();
+    T.goal.r = Math.max(r, 160);
+  }
+  function layout() {
+    T.floors.forEach(function (f, i) {
+      if (T.focus === null) { f.ty = i * SEP; f.top = 1; }
+      else if (i === T.focus) { f.ty = i * PITCH; f.top = 1; }
+      else if (i > T.focus) { f.ty = i * PITCH + 60; f.top = 0; }
+      else { f.ty = i * PITCH - (T.focus - i) * 8; f.top = .14; }
+    });
+  }
+  function focus(fi) {
+    T.focus = fi; T.sel = null; layout();
+    if (fi === null) overview(); else planView(fi);
+    repaint();
+  }
+  function applyCam() {
+    var s = Math.sin(T.cam.phi);
+    T.camera.position.set(T.cam.tx + T.cam.r * s * Math.sin(T.cam.theta),
+                          T.cam.ty + T.cam.r * Math.cos(T.cam.phi),
+                          T.cam.tz + T.cam.r * s * Math.cos(T.cam.theta));
+    T.camera.up.set(0, 1, 0);
+    if (T.cam.phi < .06) T.camera.up.set(-Math.sin(T.cam.theta), 0, -Math.cos(T.cam.theta));
+    T.camera.lookAt(T.cam.tx, T.cam.ty, T.cam.tz);
+  }
+  function resize() {
+    if (!T.renderer) return;
+    T.renderer.setSize(innerWidth, innerHeight);
+    T.camera.aspect = innerWidth / innerHeight; T.camera.updateProjectionMatrix();
+    T.scene.fog.near = T.goal.r * .55; T.scene.fog.far = T.goal.r * 2.1;
+    if (T.focus === null) overview(); else planView(T.focus);
+  }
+
+  /* ── pointer ──────────────────────────────────────────────────────────── */
+  var ray, ndc, ptrs = {}, nptr = 0, moved = 0, pinch0 = 0, r0 = 0;
+  function unitAt(x, y) {
+    ndc.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1);
+    ray.setFromCamera(ndc, T.camera);
+    var meshes = T.focus === null ? T.floors.map(function (f) { return f.mesh; })
+                                  : [T.floors[T.focus].mesh];
+    var hit = ray.intersectObjects(meshes, false)[0];
+    if (!hit) return null;
+    var f = T.floors[hit.object.userData.fi];
+    /* the face index says which triangle; the marks say whose it is */
+    var v = hit.faceIndex * 3;
+    for (var i = 0; i < f.marks.length; i++) {
+      var m = f.marks[i];
+      if (v >= m.at && v < m.at + m.count) return { code: m.n, fi: hit.object.userData.fi };
+    }
+    return null;
+  }
+  function wire() {
+    var c = $('tw-c');
+    ray = new THREE.Raycaster(); ndc = new THREE.Vector2();
+    c.addEventListener('pointerdown', function (e) {
+      c.setPointerCapture(e.pointerId);
+      ptrs[e.pointerId] = { x: e.clientX, y: e.clientY }; nptr++; moved = 0;
+      if (nptr === 2) {
+        var k = Object.keys(ptrs), a = ptrs[k[0]], b = ptrs[k[1]];
+        pinch0 = Math.hypot(a.x - b.x, a.y - b.y); r0 = T.goal.r;
+      }
+    });
+    c.addEventListener('pointermove', function (e) {
+      var p = ptrs[e.pointerId];
+      if (!p) { if (e.pointerType === 'mouse') hover(e.clientX, e.clientY); return; }
+      var dx = e.clientX - p.x, dy = e.clientY - p.y;
+      p.x = e.clientX; p.y = e.clientY; moved += Math.abs(dx) + Math.abs(dy);
+      if (nptr === 2) {
+        var k = Object.keys(ptrs), a = ptrs[k[0]], b = ptrs[k[1]];
+        var d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (pinch0) T.goal.r = T.cam.r = Math.min(9000, Math.max(80, r0 * pinch0 / d));
+        return;
+      }
+      if (T.focus === null) {
+        T.goal.theta = T.cam.theta -= dx * .006;
+        T.goal.phi = T.cam.phi = Math.min(1.45, Math.max(.25, T.cam.phi - dy * .005));
+      } else {
+        var s = 2 * T.cam.r * tanH() / innerHeight, th = T.cam.theta;
+        T.goal.tx = T.cam.tx = T.cam.tx - (Math.cos(th) * dx + Math.sin(th) * dy) * s;
+        T.goal.tz = T.cam.tz = T.cam.tz - (-Math.sin(th) * dx + Math.cos(th) * dy) * s;
+      }
+    });
+    var up = function (e) {
+      var tap = nptr === 1 && moved < 9;
+      if (ptrs[e.pointerId]) { delete ptrs[e.pointerId]; nptr--; }
+      if (nptr < 2) pinch0 = 0;
+      if (tap) {
+        var h = unitAt(e.clientX, e.clientY);
+        if (h) tap_(h); else if (T.focus !== null) { T.sel = null; repaint(); }
+      }
+    };
+    c.addEventListener('pointerup', up);
+    c.addEventListener('pointercancel', function (e) {
+      if (ptrs[e.pointerId]) { delete ptrs[e.pointerId]; nptr--; } });
+    c.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      T.goal.r = Math.min(9000, Math.max(80, T.goal.r * Math.exp(e.deltaY * .0012)));
+    }, { passive: false });
+    addEventListener('resize', resize);
+  }
+
+  /* TAPPING A UNIT OPENS THE SHEET THIS PAGE ALREADY HAS — the same request,
+     the same reference from the server, the same WhatsApp message. The model
+     is a way of pointing at a unit, nothing more. */
+  function tap_(h) {
+    T.sel = h.code;
+    if (T.focus === null) focus(h.fi); else repaint();
+    var f = T.floors[h.fi];
+    if (f.pi >= 0 && window.openSheet) window.openSheet(h.code, f.pi);
+  }
+
+  var hoverRAF = 0;
+  function hover(x, y) {
+    if (hoverRAF) return;
+    hoverRAF = requestAnimationFrame(function () {
+      hoverRAF = 0;
+      var h = unitAt(x, y), tip = $('tw-tip');
+      if ((h && h.code) !== T.hov) { T.hov = h ? h.code : null; repaint(); }
+      if (h) {
+        var f = T.floors[h.fi], u = null;
+        if (f.pi >= 0) (P.floors[f.pi].units || []).forEach(function (q) { if (q.n === h.code) u = q; });
+        var s = window.stat ? window.stat(u) : { label: '' };
+        tip.textContent = h.code + ' · ' + s.label;
+        tip.style.left = x + 'px'; tip.style.top = y + 'px'; tip.style.opacity = 1;
+        $('tw-c').style.cursor = 'pointer';
+      } else { tip.style.opacity = 0; $('tw-c').style.cursor = ''; }
+    });
+  }
+
+  /* ── search: the same normalising the flat page does ──────────────────── */
+  function search() {
+    var v = String($('tw-q').value || '').trim(), box = $('tw-res');
+    if (!v) { box.hidden = true; box.innerHTML = ''; return; }
+    var n = v.toUpperCase().replace(/\s+/g, '');
+    var hits = Object.keys(T.index).filter(function (c) {
+      return c.indexOf(n) === 0 || c.replace(/-/g, '').indexOf(n.replace(/-/g, '')) === 0;
+    }).sort().slice(0, 6);
+    if (!hits.length) {
+      box.hidden = false;
+      box.innerHTML = '<button disabled style="opacity:.6">No unit with that number</button>';
+      return;
+    }
+    box.hidden = false; box.innerHTML = '';
+    hits.forEach(function (c) {
+      var h = T.index[c], f = T.floors[h.fi], u = null;
+      if (f.pi >= 0) (P.floors[f.pi].units || []).forEach(function (q) { if (q.n === c) u = q; });
+      var s = window.stat ? window.stat(u) : { label: '' };
+      var b = document.createElement('button');
+      b.innerHTML = '<span></span><small></small>';
+      b.firstChild.textContent = c; b.lastChild.textContent = s.label;
+      b.onclick = function () {
+        $('tw-q').value = ''; $('tw-q').blur(); box.hidden = true; box.innerHTML = '';
+        tap_({ code: c, fi: h.fi });
+      };
+      box.appendChild(b);
+    });
+  }
+
+  /* ── loop ─────────────────────────────────────────────────────────────── */
+  var last = 0;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if (!T.ready) return;
+    var dt = Math.min(.05, (now - last) / 1000); last = now;
+    var e = REDUCE ? 1 : 1 - Math.exp(-dt * 5.5);
+    T.floors.forEach(function (f) {
+      f.y += (f.ty - f.y) * e;
+      f.op += (f.top - f.op) * (f.top < f.op ? Math.min(1, e * 3) : e);
+      f.g.position.y = f.y; f.g.visible = f.op > .02;
+      f.mat.opacity = f.op; f.slab.opacity = Math.min(1, f.op * 1.1); f.edge.opacity = .5 * f.op;
+      /* A TRANSPARENT THING IS DRAWN AFTER EVERYTHING ELSE AND SORTED BY ITS
+         CENTRE, and a floor's plate and its units share a centre — so the
+         plate was being drawn over the units it stands under, and the whole
+         building came out as seven blank grey sheets. Once a floor has
+         finished fading in there is nothing to blend, so it stops being
+         transparent and the depth buffer settles it properly. */
+      var solid = f.op > .98;
+      if (f.mat.transparent === solid) {
+        f.mat.transparent = !solid; f.slab.transparent = !solid;
+        f.mat.needsUpdate = true; f.slab.needsUpdate = true;
+      }
+      f.mat.depthWrite = true; f.slab.depthWrite = true;
+    });
+    ['theta', 'phi', 'r', 'tx', 'ty', 'tz'].forEach(function (k) {
+      T.cam[k] += (T.goal[k] - T.cam[k]) * e;
+    });
+    applyCam();
+    T.renderer.render(T.scene, T.camera);
+  }
+
+  /* ── go ───────────────────────────────────────────────────────────────── */
+  function start() {
+    $('twin').hidden = false;
+    $('app').hidden = true;
+    var boot = $('boot'); if (boot) boot.hidden = true;
+    script(THREE_SRC)
+      .then(function () { return fetch(GEOM_SRC).then(function (r) {
+        if (!r.ok) throw new Error('geometry ' + r.status); return r.json(); }); })
+      .then(function (D) {
+        build(D);
+        wire();
+        T.floors.forEach(function (f, i) { f.y = REDUCE ? i * SEP : -140 - i * 12; f.op = REDUCE ? 1 : 0; });
+        layout(); overview(); resize();
+        for (var k in T.goal) T.cam[k] = T.goal[k];
+        T.cam.r = T.goal.r * 1.22;
+        repaint();
+        $('tw-load').hidden = true;
+        requestAnimationFrame(frame);
+      })
+      .catch(function (err) { $('app').hidden = false; fail(err.message); });
+
+    $('tw-q').addEventListener('input', search);
+    $('tw-list').onclick = function () {
+      try { localStorage.setItem(VIEW_KEY, 'list'); } catch (e) {}
+      location.search = location.search.replace(/([?&])view=twin/, '$1view=list') ||
+                        '?view=list';
+    };
+  }
+
+  /* the payload has to be in hand before a single unit can be coloured, so the
+     model waits for the page's own first render rather than racing it */
+  window._twinPaint = function () { if (T.ready) repaint(); };
+  if (window.P && P.floors) start();
+  else {
+    var n = 0, wait = setInterval(function () {
+      if (window.P && P.floors) { clearInterval(wait); start(); }
+      else if (++n > 200) { clearInterval(wait); fail('no payload'); }
+    }, 50);
+  }
+})();
 </script>
 </body>
 </html>
