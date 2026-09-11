@@ -29,6 +29,12 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
 const server = http.createServer((q, res) => {
   let url = decodeURIComponent(q.url.split('?')[0]);
   if (url === '/favicon.ico') { res.writeHead(204); return res.end(); }
+  /* THE VERCEL REWRITE, COPIED. The page is served from /a/<token> and lives
+     at the root, so anything it asks for by a relative path resolves under
+     /a/ and is not there. Serving it from its own filename here hid exactly
+     that bug: the geometry 404'd in production and the model fell back to the
+     flat page without a word. The harness now opens the URL a dealer opens. */
+  if (/^\/a\/[A-Za-z0-9_-]+$/.test(url)) url = '/availability.html';
   const p = path.join(ROOT, url);
   if (!p.startsWith(ROOT) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end('nf'); }
   res.writeHead(200, { 'Content-Type': MIME[path.extname(p).toLowerCase()] || 'application/octet-stream' });
@@ -62,7 +68,7 @@ const server = http.createServer((q, res) => {
     page.on('pageerror', e => errs.push(e.message));
     page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
     await page.setViewport({ width: shot.w, height: shot.h, deviceScaleFactor: 2 });
-    await page.goto(`http://127.0.0.1:${PORT}/availability.html?preview=1&view=twin`,
+    await page.goto(`http://127.0.0.1:${PORT}/a/shot_twin_token?preview=1&view=twin`,
                     { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => typeof window._availPreview === 'function', { timeout: 20000 });
     await page.evaluate(p => window._availPreview(p), payload);

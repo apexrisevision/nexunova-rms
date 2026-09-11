@@ -3934,7 +3934,13 @@ window._availPreview = function (payload) {
 (function () {
   'use strict';
   var THREE_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
-  var GEOM_SRC  = 'assets/awami-twin.json?v=1';
+  /* ABSOLUTE, BECAUSE THIS PAGE IS NOT SERVED FROM WHERE IT LIVES. The link
+     is /a/<token> and the file is availability.html at the root, so a
+     relative path here asks for /a/assets/… and gets a 404 — the model then
+     failed silently and dropped to the flat page, which is exactly what it
+     looked like from outside: nothing happened. The page's own icons were
+     already absolute for the same reason. */
+  var GEOM_SRC  = '/assets/awami-twin.json?v=1';
 
   var VIEW_KEY = 'avail.view';
   function wanted() {
@@ -3969,8 +3975,10 @@ window._availPreview = function (payload) {
   var REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function fail(why) {
-    /* the flat page is already built underneath; all this has to do is leave */
-    try { localStorage.setItem(VIEW_KEY, 'list'); } catch (e) {}
+    /* THE FLAT PAGE IS ALREADY BUILT UNDERNEATH, so all this has to do is
+       leave — and NOT remember that it left. A CDN that times out once would
+       otherwise send this phone to the list for good, with the owner left
+       reloading a link that had quietly decided against him. */
     var el = $('twin'); if (el) el.hidden = true;
     if (window.console && why) console.warn('twin: ' + why);
   }
