@@ -80,7 +80,20 @@ const is = (c, m) => c ? ok(m) : bad(m);
   await page.waitForFunction(() => typeof window._availPreview === 'function', { timeout: 20000 });
   await page.evaluate(p => window._availPreview(p), first);
   await page.evaluate(() => { const s = document.getElementById('nm-skip'); if (s) s.click(); });
-  await new Promise(r => setTimeout(r, 600));
+  await new Promise(r => setTimeout(r, 120));
+
+  /* THE ENTRANCE, CAUGHT IN THE ACT. Everything else on this page moves only
+     when the building moves, which meant that on a quiet day the link opened
+     looking exactly as it always had. So the reading now climbs on arrival —
+     and a claim like that is worth nothing unless something checks that the
+     screen was still climbing a moment after it was handed its numbers. */
+  const mid = await page.evaluate(() => ({
+    hero: Number(String(document.querySelector('.hero-n').textContent).replace(/[^0-9]/g, '')),
+    to: Number(document.querySelector('.hero-n').getAttribute('data-v')),
+    bar: document.querySelector('.hero .bar i').style.width
+  }));
+  is(mid.hero < mid.to, 'the reading is caught still climbing on arrival (' + mid.hero + ' of ' + mid.to + ')');
+  await new Promise(r => setTimeout(r, 900));
 
   const was = await page.evaluate(() => ({
     hero: document.querySelector('.hero-n').textContent,
@@ -102,7 +115,7 @@ const is = (c, m) => c ? ok(m) : bad(m);
     heroTo: document.querySelector('.hero-n').getAttribute('data-v'),
     newsShown: !document.getElementById('news').hidden,
     newsText: document.getElementById('news').textContent,
-    moved: document.querySelectorAll('#floors button.moved').length
+    moved: document.querySelectorAll('.bd-f.moved').length
   }));
   is(now.newsShown, 'the page says something just happened');
   is(new RegExp(took).test(now.newsText), 'and names the shop: ' + took);

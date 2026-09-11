@@ -55,6 +55,8 @@
   --warn:#8A5300;
   /* the one green on the page: alive, and a shop that came back */
   --ok:#1F9D55;
+  /* a shop with nothing on it — the board's resting colour */
+  --free:#DDDEDF;
 
   --r:12px;
   --r-lg:20px;
@@ -291,79 +293,67 @@ button{cursor:pointer;background:none;border:0}
 /* the floor that just moved holds a moment, then lets go */
 /* the floor that just moved holds a moment, then lets go — and does it
    inside the budget, because a flash is a signal and not a light show */
-.fl button.moved{animation:moved 300ms var(--ease) both}
+.bd-f.moved{animation:moved 300ms var(--ease) both}
 @keyframes moved{
   0%{background:var(--accent-soft)}
-  22%{background:var(--accent-soft)}
+  40%{background:var(--accent-soft)}
   100%{background:var(--card)}
 }
 @media (prefers-reduced-motion:reduce){
   .pulse{animation:none}
   .nw-r{animation:none}
-  .fl button.moved{animation:none}
+  .bd-f.moved{animation:none}
   .bar i,.fl .fb i{transition:none}
 }
 
-/* ══ THE BUILDING ═════════════════════════════════════════════════════════
-   Dark, because a model is lit and a document is not: the units are the light
-   in this picture and everything else gets out of their way. The furniture
-   floats over the canvas at the edges, so the middle of the screen is only
-   ever the building. */
-#twin{position:fixed;inset:0;z-index:40;color:#EFE7D8;font-family:inherit;
-      overscroll-behavior:none;
-      /* dusk: the last of the light still on the horizon, night overhead */
-      background:linear-gradient(#070B18 0%,#0C142D 38%,#1B2547 68%,#3C3552 86%,#6B4A45 100%)}
-#tw-c{display:block;width:100%;height:100%;touch-action:none}
-.tw-hd{position:absolute;left:16px;top:14px;pointer-events:none}
-.tw-t{font-size:19px;font-weight:650;letter-spacing:-.02em;line-height:1.15}
-.tw-s{margin-top:3px;font-size:12.5px;opacity:.66;display:flex;gap:6px;align-items:baseline}
-.tw-s b{font-size:17px;font-weight:650;opacity:1;letter-spacing:-.02em}
-/* the rail, on the right where a thumb reaches, top floor at the top */
-.tw-lift{position:absolute;right:10px;top:50%;transform:translateY(-50%);
-         display:flex;flex-direction:column;gap:5px}
-.tw-lift button{-webkit-appearance:none;appearance:none;border:0;cursor:pointer;
-  width:46px;min-height:38px;border-radius:11px;background:rgba(239,231,216,.10);
-  color:#EFE7D8;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:1px;font:inherit;transition:background var(--t-fast) var(--ease)}
-.tw-lift button .n{font-size:12.5px;font-weight:650;letter-spacing:-.01em}
-.tw-lift button .c{font-size:10px;opacity:.6;font-variant-numeric:tabular-nums}
-.tw-lift button[aria-pressed="true"]{background:#EFE7D8;color:#15204A}
-.tw-lift button[aria-pressed="true"] .c{opacity:.72}
-@media (hover:hover){ .tw-lift button:hover{background:rgba(239,231,216,.2)} }
-.tw-lift button:active{transform:scale(.94)}
-/* the dock — what you DO, kept along the bottom and off the model */
-.tw-dock{position:absolute;left:0;right:0;bottom:0;padding:12px 14px calc(12px + env(safe-area-inset-bottom));
-         display:flex;flex-direction:column;gap:9px;
-         background:linear-gradient(to top,rgba(14,22,48,.92) 55%,rgba(14,22,48,0))}
-.tw-key{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;opacity:.72}
-.tw-key span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
-.tw-key i{width:9px;height:9px;border-radius:3px;display:block}
-.tw-sr input{width:100%;height:52px;padding:0 16px;border-radius:14px;font:inherit;font-size:15px;
-  border:1px solid rgba(239,231,216,.18);background:rgba(239,231,216,.07);color:#EFE7D8;
-  -webkit-appearance:none;appearance:none}
-.tw-sr input::placeholder{color:rgba(239,231,216,.45)}
-.tw-sr input:focus{outline:none;border-color:rgba(239,231,216,.5);background:rgba(239,231,216,.12)}
-.tw-sr{position:relative}
-#tw-res{position:absolute;left:0;right:0;bottom:58px;background:#1B2650;border-radius:13px;
-        overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.42)}
-#tw-res button{display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;
-  border:0;background:none;color:#EFE7D8;font:inherit;text-align:left;padding:11px 15px;cursor:pointer}
-#tw-res button+button{border-top:1px solid rgba(239,231,216,.09)}
-#tw-res button:active{background:rgba(239,231,216,.1)}
-#tw-res small{opacity:.6;font-size:11.5px}
-.tw-flat{-webkit-appearance:none;appearance:none;border:0;background:none;cursor:pointer;
-  color:rgba(239,231,216,.6);font:inherit;font-size:12.5px;padding:2px;text-align:left;
-  text-decoration:underline;text-underline-offset:3px}
-.tw-tip{position:fixed;pointer-events:none;opacity:0;transition:opacity 120ms var(--ease);
-        background:#EFE7D8;color:#15204A;font-size:12px;font-weight:600;padding:5px 9px;
-        border-radius:8px;transform:translate(12px,12px);z-index:41;white-space:nowrap}
-.tw-load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-         font-size:13.5px;opacity:.62;pointer-events:none}
+/* ══ THE BOARD ════════════════════════════════════════════════════════════
+   Rashid, at the end of a long day: "is dashboard ko change karo totally."
+   Fair. Every version until now was the same seven rows with a number and a
+   bar on each — a summary of the market, which is a thing you read.
+
+   This is not a summary. It is THE WHOLE MARKET, all 1,469 shops at once, one
+   small square each, laid out floor by floor. Nothing is aggregated and
+   nothing is hidden behind a tap: the Lower Ground being half gone and the
+   Fifth being untouched is not a sentence you read, it is a shape you see
+   before you have read anything at all.
+
+   It is also the only layout on which "live" means something. When a shop is
+   held, ITS OWN SQUARE changes colour in front of you — not a total, not a
+   bar, the actual unit. */
+.bd{display:flex;flex-direction:column;gap:11px}
+.bd-f{background:var(--card);border-radius:var(--r);padding:9px 11px 10px}
+.bd-h{display:flex;align-items:baseline;gap:8px;margin-bottom:7px}
+.bd-n{font-size:13px;font-weight:650;letter-spacing:-.015em;
+      background:none;border:0;padding:0;color:var(--ink);font-family:inherit;cursor:pointer}
+@media (hover:hover){ .bd-n:hover{color:var(--accent)} }
+.bd-c{font-size:11.5px;color:var(--mut);font-variant-numeric:tabular-nums}
+.bd-c b{font-weight:650;color:var(--soft)}
+.bd-k{margin-left:auto;display:flex;gap:7px;flex-wrap:nowrap;overflow:hidden}
+.bd-k span{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:650;
+           color:var(--t,var(--mut));white-space:nowrap}
+.bd-k i{width:6px;height:6px;border-radius:2px;background:var(--t);display:block}
+/* the shops themselves */
+/* BIG ENOUGH FOR A THUMB TO MEAN ONE OF THEM. At nine pixels the whole
+   market fits a phone screen without scrolling and nobody can tap a shop —
+   a board you can only look at is half a board. Thirteen with three between
+   costs a scroll and buys a target a person can actually hit, and the
+   search is still there for anyone who knows the number. */
+.bd-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(13px,1fr));gap:3px}
+.bd-u{aspect-ratio:1;border:0;padding:0;border-radius:2px;background:var(--free);
+      cursor:pointer;transition:transform 140ms var(--ease),box-shadow 140ms var(--ease)}
+.bd-u.off{cursor:default}
+@media (hover:hover){ .bd-u:not(.off):hover{transform:scale(1.55);box-shadow:0 2px 7px rgba(20,23,28,.22)} }
+.bd-u.hit{outline:2px solid var(--accent);outline-offset:1px;transform:scale(1.5);z-index:2}
+/* the square that just changed says so for a beat, then settles */
+.bd-u.just{animation:just 300ms var(--ease) both}
+@keyframes just{ from{transform:scale(2.1);box-shadow:0 0 0 4px var(--ring)} to{transform:none} }
+@media (min-width:560px){ .bd-g{grid-template-columns:repeat(auto-fill,minmax(16px,1fr))} }
 @media (min-width:760px){
-  .tw-hd{left:28px;top:24px} .tw-t{font-size:24px}
-  .tw-dock{padding:18px 28px 22px;max-width:520px}
-  .tw-lift{right:20px}
+  .bd{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+  .bd-f{padding:13px 15px 14px}
+  .bd-g{grid-template-columns:repeat(auto-fill,minmax(17px,1fr));gap:4px}
 }
+@media (prefers-reduced-motion:reduce){ .bd-u,.bd-u.just{animation:none;transition:none} }
 
 /* ── SKELETON ────────────────────────────────────────────────────────────
    Matched to the real thing's dimensions, so the page does not jump when the
@@ -1261,7 +1251,7 @@ button{cursor:pointer;background:none;border:0}
              placeholder="Search unit — e.g. LG-12" aria-label="Search unit">
       <div id="res" hidden></div>
     </div>
-    <div class="fl" id="floors"></div>
+    <div class="bd" id="board"></div>
     <!-- Deliberately outside #floors: it is not a floor, and every check
          that counts floors would have counted it. -->
     <div id="allrow"></div>
@@ -1364,33 +1354,7 @@ button{cursor:pointer;background:none;border:0}
   </section>
 </div>
 
-<!-- ══ THE BUILDING ITSELF ═══════════════════════════════════════════════════
-     Rashid asked for the dashboard to become the building: seven floors of the
-     architect's own outlines, stacked as they stand. It sits OVER the page
-     rather than inside it, so the screens underneath keep working exactly as
-     they did — this is a way of looking at the same payload, not a different
-     page. Nothing here loads unless it is asked for: no canvas, no three.js
-     and no geometry until ?view=twin and a browser that can draw it. -->
-<section id="twin" hidden>
-  <canvas id="tw-c" aria-label="Three-dimensional model of Awami Market. Each block is a unit."></canvas>
-  <div class="tw-hd">
-    <div class="tw-t" id="tw-ttl">—</div>
-    <div class="tw-s"><b id="tw-open">—</b><span id="tw-of"></span></div>
-  </div>
-  <nav class="tw-lift" id="tw-lift" aria-label="Floors"></nav>
-  <div class="tw-dock">
-    <div class="tw-key" id="tw-key"></div>
-    <div class="tw-sr">
-      <input id="tw-q" type="search" inputmode="search" autocomplete="off"
-             autocapitalize="characters" spellcheck="false"
-             placeholder="Search unit — e.g. LG-12" aria-label="Search unit">
-      <div id="tw-res" hidden></div>
-    </div>
-    <button class="tw-flat" id="tw-list">See the list instead</button>
-  </div>
-  <div class="tw-tip" id="tw-tip"></div>
-  <div class="tw-load" id="tw-load">Building the model…</div>
-</section>
+
 
 <div class="scrim" id="scrim"></div>
 <aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-n"></aside>
@@ -2152,16 +2116,67 @@ setInterval(function () { if (!document.hidden && NEWS.length) paintNews(); }, 5
 /* A NUMBER THAT CLIMBS. Given a target it walks there over a few frames, so a
    count moving from 1,315 to 1,314 is SEEN to move. A large jump is set
    outright — nobody watches a counter spin up to a thousand. */
-function countTo(el, to) {
+/* THE ENTRANCE. Every bar on screen one starts at nothing and runs out to its
+   own width, and every count climbs to its figure, one floor after another
+   from the top of the building down. The whole thing is over in a third of a
+   second — long enough to be seen, too short to be waited for.
+
+   It states nothing that was not already true. The widths and the numbers it
+   arrives at are the ones the payload gave; this only refuses to have them
+   appear fully formed, because a reading that was never seen to arrive is a
+   reading nobody reads. */
+function fillIn() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var rows = [].slice.call(document.querySelectorAll('.bd-f'));
+  var hero = $('hero-n');
+  var heroTo = Number(hero && hero.getAttribute('data-v')) || 0;
+
+  /* hold everything at zero for one frame, so the browser has a width to
+     animate FROM — set and unset in the same frame and nothing moves */
+  var bars = [].slice.call(document.querySelectorAll('.hero .bar i'));
+  var want = bars.map(function (b) { return b.style.width; });
+  bars.forEach(function (b) { b.style.width = '0%'; });
+  var counts = rows.map(function (r) {
+    var v = r.querySelector('.bd-c b');
+    var to = v ? Number(String(v.textContent).replace(/[^0-9]/g, '')) : null;
+    if (v && to) v.textContent = '0';
+    return { el: v, to: to };
+  });
+  if (hero && heroTo) hero.textContent = '0';
+
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      bars.forEach(function (b, i) { b.style.width = want[i]; });
+      if (hero && heroTo) countTo(hero, heroTo, true);
+      counts.forEach(function (c, i) {
+        if (!c.el || !c.to) return;
+        /* top floor first, down the building, a beat apart */
+        setTimeout(function () { countTo(c.el, c.to, true); }, 60 + i * 55);
+      });
+    });
+  });
+}
+
+function countTo(el, to, force) {
   if (!el) return;
-  var from = Number(String(el.getAttribute('data-v') || el.textContent).replace(/[^0-9-]/g, '')) || 0;
+  /* ON AN ENTRANCE THE STARTING FIGURE IS WHAT IS ON SCREEN. Everywhere else
+     it is the last target this element was given, which survives a rebuild of
+     the row it lives in; on arrival the row is new and the screen says zero. */
+  var from = force
+    ? (Number(String(el.textContent).replace(/[^0-9-]/g, '')) || 0)
+    : (Number(String(el.getAttribute('data-v') || el.textContent).replace(/[^0-9-]/g, '')) || 0);
   el.setAttribute('data-v', to);
-  if (from === to || Math.abs(to - from) > 60 ||
+  /* A BIG JUMP IS SET OUTRIGHT — nobody watches a counter spin to a thousand
+     because a fetch moved it by four hundred. The ARRIVAL is the exception
+     and says so: there the whole climb is the point, and it is the one place
+     that passes force. Without this the entrance defeated itself, every count
+     landing fully formed because zero to 1,315 is a big jump. */
+  if (from === to || (!force && Math.abs(to - from) > 60) ||
       matchMedia('(prefers-reduced-motion: reduce)').matches) {
     el.textContent = Number(to).toLocaleString('en-US');
     return;
   }
-  var t0 = performance.now(), span = 520;
+  var t0 = performance.now(), span = force ? 760 : 520;
   requestAnimationFrame(function step(now) {
     var k = Math.min(1, (now - t0) / span);
     var v = Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3)));
@@ -2246,9 +2261,6 @@ function render() {
   else if (ALLV) { renderAll(); }
   else if (FLOOR == null) { renderHome(); } else { renderFloor(); }
   if (SHEET) refreshSheet();
-  /* the building, if it is the thing being looked at, recolours from the same
-     payload the screens just read */
-  if (window._twinPaint) window._twinPaint();
 }
 
 /* One animation class, taken off when it finishes so it can be given again.
@@ -2278,84 +2290,27 @@ function renderHome() {
   $('home').hidden = false;
   if (BACKING) { BACKING = false; playScr($('home'), 'scr-out'); }
 
+  /* THE WHOLE MARKET, COUNTED AND DRAWN. The seven rows with a bar on each
+     are gone: this screen now carries every shop in the building as its own
+     square. The totals are still added up here because the reading above
+     them has to agree with what is drawn below. */
   var tot = 0, av = 0;
-  /* WHAT EACH FLOOR SAID A MOMENT AGO. The rows are rebuilt wholesale, which
-     loses the number that was on screen — so it is taken first, and each new
-     row is walked from it rather than snapping to the new figure. */
-  var before = {};
-  [].forEach.call(document.querySelectorAll('#floors button'), function (b) {
-    var v = b.querySelector('.fv');
-    if (v) before[b.getAttribute('data-f')] = Number(String(v.textContent).replace(/[^0-9]/g, ''));
+  (P.floors || []).forEach(function (f) {
+    tot += Number(f.total || (f.units || []).length);
+    av  += Number(f.available || 0);
   });
-  $('floors').innerHTML = (P.floors || []).map(function (f, i) {
-    tot += Number(f.total || 0); av += Number(f.available || 0);
-    var n = Number(f.available || 0), t = Number(f.total || 0);
-    /* The count is the headline of the chip and the floor name is the caption,
-       because nobody scans this grid looking for the word "Second". */
-    /* AND WHAT THE REST OF THE FLOOR IS. Rashid: "main dashboard pe b detail
-       ho k har floor pe kitnay hold kitnay sold kitnay pagri etc aur phir
-       cummulative detail b." A row of small coloured counts under the number,
-       in the same colours the plate uses, so a floor reads at a glance. */
-    var kinds = tally(f.units || []);
-    /* THE FLOOR AS A STRIP OF THE BUILDING. Free first, then a band for each
-       kind of hold in the same colours the plate paints the shops in, so the
-       bar reads the same way the map does. */
-    var bar = '<span class="fb">' +
-      (t ? '<i class="free" style="width:' + (n * 100 / t) + '%"></i>' : '') +
-      kinds.map(function (k) {
-        return '<i style="width:' + (t ? k.n * 100 / t : 0) + '%;background:' + k.tint + '"></i>';
-      }).join('') + '</span>';
-    return '<button data-f="' + i + '" style="--i:' + i + '"' +
-      (n ? '' : ' class="empty"') + '>' +
-      '<span class="fh-r">' +
-        '<span class="fn">' + esc(f.floor_label) + '</span>' +
-        '<span class="fr">' +
-          (n ? '<span class="fv num">' + n + '</span>' +
-               '<span class="fc">of ' + t + '</span>'
-             : '<span class="fv">None free</span>' +
-               '<span class="fc">of ' + t + '</span>') +
-        '</span>' +
-      '</span>' +
-      '<span class="fb-r">' + bar +
-        '<span class="fk">' + (kinds.length
-          ? kinds.map(function (k) {
-              return '<span class="fk-i" style="--t:' + k.tint + '" title="' + esc(k.label) + '">' +
-                     '<i></i>' + k.n + '</span>';
-            }).join('')
-          /* A FLOOR WITH NOTHING TAKEN SAYS SO. Left blank it reads as a floor
-             whose numbers have not loaded, which is the opposite of the truth. */
-          : '<span class="fk-n">all free</span>') + '</span>' +
-      '</span>' +
-      '</button>';
-  /* TOP FLOOR AT THE TOP. The register hands the floors up from the ground,
-     which is the right order for a list and the wrong one for a building —
-     drawn that way the tower is upside down. Only the drawing is reversed:
-     data-f still carries each floor's own index, so everything that opens a
-     floor by number is untouched. */
-  }).reverse().join('');
+  paintBoard();
 
-  /* One quiet line, because the seven chips above already carry the weight
-     and screen one has to stay whole on a phone. */
   $('allrow').innerHTML =
     '<button class="all-chip" data-all="1">' +
       '<span class="ac-w">' +
         '<span class="ac-t">All units</span>' +
-        '<span class="ac-m">Every floor in one list \u00b7 <b class="num">' + av +
+        '<span class="ac-m">Every floor in one list · <b class="num">' + av +
           '</b> of <span class="num">' + tot + '</span> available</span>' +
       '</span>' +
       '<span class="ac-x"><i></i></span>' +
     '</button>';
 
-  /* each floor walks to its new count from the one it was showing */
-  [].forEach.call(document.querySelectorAll("#floors button"), function (btn) {
-    var v = btn.querySelector(".fv"); if (!v) return;
-    var was = before[btn.getAttribute("data-f")];
-    var now = Number(String(v.textContent).replace(/[^0-9]/g, ""));
-    if (was === undefined || !isFinite(now)) return;
-    v.setAttribute("data-v", was); countTo(v, now);
-    /* and the floor that moved says so for a moment */
-    if (was !== now) { btn.classList.add("moved"); setTimeout(function () { btn.classList.remove("moved"); }, 1400); }
-  });
   paintHero(av, tot);
 
   /* ONCE. The entrance belongs to the first time these chips exist, not to
@@ -2363,9 +2318,21 @@ function renderHome() {
      is reading it is the page fidgeting. */
   if (!STAGGERED) {
     STAGGERED = true;
-    var fl = $('floors');
+    var fl = $('board');
     fl.classList.add('stagger');
     setTimeout(function () { fl.classList.remove('stagger'); }, 500);
+    /* ── ALIVE ON ARRIVAL, NOT ONLY ON CHANGE ────────────────────────────
+       Everything that moved on this screen moved because something in the
+       building moved — which meant that on a quiet afternoon the page opened
+       looking exactly as it always had, with a green dot on it. Rashid saw
+       precisely that: "sirf aik green dot new bana hai… oor kuch nahi howa."
+
+       A reading is worth watching arrive. So on the first paint the bars run
+       out to their widths and the counts climb from nothing, floor after
+       floor. It costs a third of a second, it happens every time the link is
+       opened, and it does not pretend anything has happened: the numbers it
+       arrives at are the numbers it would have shown anyway. */
+    fillIn();
   }
 
   runSearch();          // keep any query alive across a refetch
@@ -2374,6 +2341,82 @@ function renderHome() {
 /* One number, one bar, one line of legend. The bar is the same fact drawn a
    second time for the eye that does not read digits; it is never the only
    place a number appears, so colour is never load-bearing on its own. */
+/* ══ THE BOARD — every shop in the market, at once ════════════════════════
+   Seven floors, 1,469 squares, one per shop, in the order the register holds
+   them. A free shop is pale; a taken one carries the colour of what took it.
+   Tap one and its sheet opens; tap the floor's name and the floor opens.
+
+   WHY THE WHOLE THING AND NOT A SUMMARY. Because the question anyone opening
+   this link has is "what is left, and where" — and a number cannot answer the
+   second half. On this screen the answer is a shape: the Lower Ground half
+   coloured in, the top three floors clear, a block of holds running down one
+   side of the Ground Floor. Nobody reads that. They see it.
+
+   AND IT IS THE ONLY LAYOUT WHERE LIVE MEANS ANYTHING. When a shop goes, its
+   own square changes in front of you. */
+function paintBoard() {
+  var host = $('board'); if (!host) return;
+  var html = '';
+  (P.floors || []).forEach(function (f, fi) {
+    var units = f.units || [];
+    var free = Number(f.available || 0), tot = Number(f.total || units.length);
+    var kinds = tally(units);
+    html += '<div class="bd-f">' +
+      '<div class="bd-h">' +
+        '<button class="bd-n" data-fl="' + fi + '">' + esc(f.floor_label) + '</button>' +
+        '<span class="bd-c"><b class="num">' + free + '</b> of ' + tot + '</span>' +
+        (kinds.length ? '<span class="bd-k">' + kinds.map(function (k) {
+            return '<span style="--t:' + k.tint + '"><i></i>' + k.n + '</span>';
+          }).join('') + '</span>' : '') +
+      '</div>' +
+      '<div class="bd-g">' +
+        units.map(function (u) {
+          var s = stat(u);
+          /* the title is what a mouse gets; a thumb gets the sheet */
+          return '<button class="bd-u' + (s.free ? '' : ' off') + '" data-u="' + esc(u.n) +
+                 '" data-f="' + fi + '" title="' + esc(u.n + ' · ' + s.label) + '"' +
+                 (s.free ? '' : ' style="background:' + s.tint + '"') + '></button>';
+        }).join('') +
+      '</div></div>';
+  });
+  host.innerHTML = html;
+
+  /* the squares that moved since the last look, named by the same comparison
+     that feeds the line at the top — so the two can never disagree */
+  var now = Date.now();
+  Object.keys(FLASH).forEach(function (n) {
+    if (now - FLASH[n] > 4000) { delete FLASH[n]; return; }
+    var b = host.querySelector('[data-u="' + n.replace(/"/g, '') + '"]');
+    if (!b) return;
+    b.classList.add('just');
+    setTimeout(function () { b.classList.remove('just'); }, 340);
+    /* and the floor it sits on holds a tint for a beat, so an eye anywhere on
+       the board is told which way to look before the square has settled */
+    var card = b.closest('.bd-f');
+    if (card && !card.classList.contains('moved')) {
+      card.classList.add('moved');
+      setTimeout(function () { card.classList.remove('moved'); }, 1400);
+    }
+  });
+}
+
+/* one listener for fourteen hundred squares */
+document.getElementById('board').addEventListener('click', function (e) {
+  var u = e.target.closest('.bd-u');
+  if (u) { openSheet(u.getAttribute('data-u'), Number(u.getAttribute('data-f'))); return; }
+  var f = e.target.closest('.bd-n');
+  if (f) {
+    /* everything the old floor chip did, because the floor screen behind it is
+       unchanged and still expects to be entered cleanly: no stale search, and
+       the "show taken as well" toggle back down */
+    FLOOR = Number(f.getAttribute('data-fl'));
+    SHOWALL = false;
+    $('q').value = ''; runSearch();
+    renderFloor();
+    window.scrollTo(0, 0);
+  }
+});
+
 function paintHero(av, tot) {
   var held = Math.max(0, tot - av);
   var pct = tot ? Math.round(av * 1000 / tot) / 10 : 0;
@@ -3499,14 +3542,6 @@ $('res').addEventListener('click', function (e) {
   var r = hits[Number(b.getAttribute('data-i'))]; if (!r) return;
   openSheet(r.u.n, r.fi);
 });
-$('floors').addEventListener('click', function (e) {
-  var b = e.target.closest('button[data-f]'); if (!b) return;
-  FLOOR = Number(b.getAttribute('data-f'));
-  SHOWALL = false;
-  $('q').value = ''; runSearch();
-  renderFloor();
-  window.scrollTo(0, 0);
-});
 /* The chip lives inside the floor grid, so its click arrives on the same
    listener; it is read first because it carries no data-f. */
 $('allrow').addEventListener('click', function (e) {
@@ -4104,580 +4139,6 @@ window._availPreview = function (payload) {
 };
 </script>
 
-<script>
-/* ══ THE BUILDING, ON THE LINK ═════════════════════════════════════════════
-   Seven floors of the architect's own outlines, stacked as they stand, drawn
-   over the same payload the flat screens read. This is a way of LOOKING at
-   the page, not a second page: the unit sheet, the request, the name, the
-   reservations and the WhatsApp message are all the ones already here.
 
-   IT COSTS NOTHING UNLESS IT IS ASKED FOR. No canvas, no three.js and no
-   geometry are touched until ?view=twin, and if the browser cannot draw or
-   the model cannot be had, the flat page is already underneath, whole.
-   ?view=list turns it off for good on this phone.
-   ═════════════════════════════════════════════════════════════════════════ */
-(function () {
-  'use strict';
-  var THREE_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
-  /* ABSOLUTE, BECAUSE THIS PAGE IS NOT SERVED FROM WHERE IT LIVES. The link
-     is /a/<token> and the file is availability.html at the root, so a
-     relative path here asks for /a/assets/… and gets a 404 — the model then
-     failed silently and dropped to the flat page, which is exactly what it
-     looked like from outside: nothing happened. The page's own icons were
-     already absolute for the same reason. */
-  var GEOM_SRC  = '/assets/awami-twin.json?v=1';
-
-  var VIEW_KEY = 'avail.view';
-  function wanted() {
-    var q = new URLSearchParams(location.search).get('view');
-    if (q === 'twin' || q === 'list') { try { localStorage.setItem(VIEW_KEY, q); } catch (e) {} return q; }
-    try { return localStorage.getItem(VIEW_KEY) || 'list'; } catch (e) { return 'list'; }
-  }
-  /* asked BEFORE three.js is fetched — a phone that cannot draw should not
-     spend a megabyte finding that out */
-  function canDraw() {
-    try {
-      var c = document.createElement('canvas');
-      return !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl')));
-    } catch (e) { return false; }
-  }
-
-  if (wanted() !== 'twin' || !canDraw()) return;
-
-  var $ = function (id) { return document.getElementById(id); };
-  var T = {
-    on: false, floors: [], index: {}, focus: null, sel: null, hov: null,
-    cam: null, goal: null, renderer: null, scene: null, camera: null,
-    W: 0, H: 0, CX: 0, CZ: 0, stack: 0, ready: false
-  };
-    /* A STOREY IS TEN FEET — 34 drawing units at 0.29 ft each — and that is what
-     the floors sit at when one is opened. In the overview they are pulled a
-     little further apart so the eye can get between them, but only a little:
-     at seventy-two the model grew so tall that the camera had to stand back
-     far enough to lose the shapes it exists to show. */
-  /* THE SHOPS ARE WALLS NOW, NOT BLOCKS ON A TRAY. You are not above this
-     building any more, you are inside it: standing in the gallery with shops
-     to left and right. So a unit runs the full height of its storey, an eye
-     is five and a half feet off the floor, and a storey is ten feet — all of
-     it in drawing units, where one is about 0.29 ft. */
-  var CEIL = 34, EYE = 19, PITCH = 34, SEP = 46, UH = 34;
-  /* DUSK. The building is seen from the street after the light has gone, and
-     the only thing that is lit is what is still for sale. A shop that is free
-     has its lamp on; one that is sold or held is dark and cold. Nobody has to
-     read a legend to know which way round that is, and a floor that has gone
-     dark tells you it has gone without a single number on the screen. */
-  var LIT = 0xFFCE84, DARK = 0x243354, SLAB = 0x2E3550, EDGE = 0x3E4F7F, HI = 0xFFF3D6;
-  var REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  function fail(why) {
-    /* THE FLAT PAGE IS ALREADY BUILT UNDERNEATH, so all this has to do is
-       leave — and NOT remember that it left. A CDN that times out once would
-       otherwise send this phone to the list for good, with the owner left
-       reloading a link that had quietly decided against him. */
-    var el = $('twin'); if (el) el.hidden = true;
-    if (window.console && why) console.warn('twin: ' + why);
-  }
-
-  function script(src) {
-    return new Promise(function (res, rej) {
-      var s = document.createElement('script');
-      s.src = src; s.async = true;
-      s.onload = res; s.onerror = function () { rej(new Error('could not load ' + src)); };
-      document.head.appendChild(s);
-    });
-  }
-
-  /* ── the one place a unit's colour is decided ─────────────────────────── */
-  /* ONE QUESTION, ASKED OF EVERY SHOP: is your light on? A dealer opening
-     this wants what is left, and the kinds of hold are a second question that
-     the sheet answers when a unit is tapped. So the wall of lights says free
-     or gone, and the colours of hold, sold and pagri live in the tint that
-     the dark ones are given — close enough to read when you look for it,
-     quiet enough that the lit ones carry the picture. */
-  function colourOf(u) {
-    var s = window.stat ? window.stat(u) : { free: true, tint: '' };
-    if (s.free) return LIT;
-    var hex = (s.tint || '').replace('#', '');
-    if (!hex) return DARK;
-    var c = new THREE.Color(parseInt(hex, 16));
-    /* taken down to embers — the hue survives, the brightness does not */
-    return c.lerp(new THREE.Color(DARK), .55).getHex();
-  }
-
-  /* ── build ────────────────────────────────────────────────────────────── */
-  function build(D) {
-    var S = D.s;
-    T.W = D.w; T.H = D.h; T.CX = D.w / 2; T.CZ = D.h / 2;
-
-    /* THE SKY IS CSS, NOT A MESH. A dusk gradient behind a transparent canvas
-       costs nothing to draw and never banded the way a fogged flat colour did. */
-    T.renderer = new THREE.WebGLRenderer({ canvas: $('tw-c'), antialias: true, alpha: true });
-    T.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    T.scene = new THREE.Scene();
-    T.scene.fog = new THREE.Fog(0x0B1020, 1, 1e9);
-    /* a narrower lens, the way a building is photographed: at thirty degrees
-       a block this long bends away at the ends like a fisheye */
-    T.camera = new THREE.PerspectiveCamera(21, 1, 5, 30000);
-    /* the last of the daylight, low and from the side, so the concrete has
-       shape without competing with the lamps standing on it */
-    T.scene.add(new THREE.HemisphereLight(0x35507F, 0x090D18, .85));
-    var sun = new THREE.DirectionalLight(0x9FB4E8, .35);
-    sun.position.set(900, 400, 260); T.scene.add(sun);
-
-    D.floors.forEach(function (f, fi) {
-      var g = new THREE.Group(); T.scene.add(g);
-      /* ONE GEOMETRY PER FLOOR. Fourteen hundred meshes is fourteen hundred
-         draw calls and no phone holds thirty frames through that. Each unit
-         remembers which stretch of the buffer is its own, so a single shop can
-         still change colour without rebuilding anything. */
-      var pos = [], nor = [], col = [], marks = [], at = 0;
-      var fx0 = 1e9, fz0 = 1e9, fx1 = -1e9, fz1 = -1e9;
-      f.units.forEach(function (u) {
-        var pts = [], i;
-        for (i = 0; i < u.p.length; i += 2) {
-          var x = u.p[i] / S, z = u.p[i + 1] / S;
-          pts.push(new THREE.Vector2(x, z));
-          if (x < fx0) fx0 = x; if (x > fx1) fx1 = x;
-          if (z < fz0) fz0 = z; if (z > fz1) fz1 = z;
-        }
-        /* A GAP BETWEEN NEIGHBOURS, OR THERE ARE NO WINDOWS. Drawn at their
-           true size the units touch, and a row of touching lamps is one long
-           glowing bar — which is what the first dusk render was. Pulling each
-           shape a little towards its own middle leaves a dark line all round
-           it, and the wall becomes what it is: a grid of lit windows, one per
-           shop. The inset is a tenth, so a small unit keeps its shape and a
-           large one does not float away from its neighbours. */
-        var cx = 0, cz = 0;
-        pts.forEach(function (q) { cx += q.x; cz += q.y; });
-        cx /= pts.length; cz /= pts.length;
-        /* only a hair's inset now: inside the gallery the dark line between
-           two shopfronts is the join between them, and a tenth would open a
-           gap you could walk through */
-        pts = pts.map(function (q) {
-          return new THREE.Vector2(cx + (q.x - cx) * .985, cz + (q.y - cz) * .985);
-        });
-        var geo;
-        try {
-          geo = new THREE.ExtrudeGeometry(new THREE.Shape(pts),
-                  { depth: CEIL, bevelEnabled: false, curveSegments: 1 });
-        } catch (e) { return; }
-        /* the plan lies flat and the height goes up: turned the other way the
-           plan's own Y becomes negative Z and the building lands behind the
-           camera */
-        geo.rotateX(Math.PI / 2); geo.translate(0, CEIL, 0);
-        var p = geo.attributes.position.array, n = geo.attributes.normal.array;
-        for (i = 0; i < p.length; i++) { pos.push(p[i]); nor.push(n[i]); col.push(1, 1, 1); }
-        var count = p.length / 3;
-        marks.push({ n: u.n, at: at, count: count });
-        T.index[u.n] = { fi: fi, ui: marks.length - 1 };
-        at += count;
-        geo.dispose();
-      });
-      var bg = new THREE.BufferGeometry();
-      bg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      bg.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-      bg.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-      /* THE UNITS ARE LAMPS, NOT WALLS, so they are not shaded: a light that
-         gets darker because it faces away from the sun is not a light. The
-         slabs below them are lit normally, and it is that contrast — glowing
-         boxes standing on dark concrete — that makes the picture read as a
-         building at night rather than a diagram. */
-      var mesh = new THREE.Mesh(bg, new THREE.MeshBasicMaterial({
-        vertexColors: true, transparent: true }));
-      mesh.userData.fi = fi;
-      g.add(mesh);
-
-      /* the plate is this floor's own footprint — one size for all of them
-         hides the floors below and hides the massing besides */
-      var M = 7;
-      var slab = new THREE.Mesh(
-        new THREE.BoxGeometry(fx1 - fx0 + M * 2, 2.4, fz1 - fz0 + M * 2),
-        new THREE.MeshLambertMaterial({ color: SLAB, transparent: true }));
-      slab.position.set((fx0 + fx1) / 2, -1.2, (fz0 + fz1) / 2);
-      g.add(slab);
-      /* A CEILING, OR IT IS NOT A CORRIDOR. Standing in the gallery with
-         nothing overhead, the shopfronts read as free-standing boards in the
-         dark. A slab above closes the space, catches a little of the light
-         coming off the shops, and the gallery becomes somewhere you are
-         rather than something you are looking at. */
-      var roof = new THREE.Mesh(slab.geometry,
-        new THREE.MeshLambertMaterial({ color: 0x1A2340, transparent: true }));
-      roof.position.set(slab.position.x, CEIL + 1.2, slab.position.z);
-      g.add(roof);
-
-      /* WHERE THE GALLERY IS, found in the floor rather than guessed. Every
-         unit is laid along the building's width; the stretches of width that
-         no unit occupies are the corridors, and on the shop floors they come
-         out at seventeen or eighteen drawing units across — the five-foot
-         gallery Rashid said was common area and not saleable. The widest one
-         a person could actually walk is the one this floor is walked down. */
-      var W1 = Math.ceil(D.w) + 1, taken = new Uint8Array(W1);
-      f.units.forEach(function (u) {
-        var a0 = 1e9, a1 = -1e9, i;
-        for (i = 0; i < u.p.length; i += 2) { var x = u.p[i] / S; if (x < a0) a0 = x; if (x > a1) a1 = x; }
-        for (i = Math.floor(a0); i <= Math.ceil(a1) && i < W1; i++) taken[i] = 1;
-      });
-      var best = null, run = -1, j;
-      for (j = 0; j <= W1; j++) {
-        if (j < W1 && !taken[j]) { if (run < 0) run = j; }
-        else if (run >= 0) {
-          var wide = j - run;
-          /* a corridor, not the empty air past the end wall */
-          if (wide >= 8 && run > 2 && j < W1 - 2 && (!best || wide > best.w)) best = { at: (run + j) / 2, w: wide };
-          run = -1;
-        }
-      }
-      /* a floor whose plan leaves no walkable slot is walked up its middle */
-      var gallery = best ? best.at : (fx0 + fx1) / 2;
-
-      T.floors.push({ code: f.code, label: f.label, floor_no: f.floor_no,
-                      gallery: gallery, z0: fz0, z1: fz1,
-                      g: g, mesh: mesh, mat: mesh.material, slab: slab.material,
-                      edge: roof.material, marks: marks,
-                      y: 0, ty: 0, op: 1, top: 1, delay: fi * 90 });
-    });
-
-    T.stack = (T.floors.length - 1) * SEP;
-      T.cam = { theta: 1.45, phi: 1.40, r: 1000, tx: T.CX, ty: 0, tz: T.CZ };
-    T.goal = {}; for (var k in T.cam) T.goal[k] = T.cam[k];
-    T.ready = true;
-  }
-
-  /* ── which floor of the payload is which floor of the model ───────────── */
-  function payloadFloor(code) {
-    var f = (window.P && P.floors) || [];
-    for (var i = 0; i < f.length; i++) {
-      var u = (f[i].units || [])[0];
-      if (u && String(u.n).indexOf(code + '-') === 0) return i;
-    }
-    return -1;
-  }
-
-  /* ── colour, counts, rail: everything that follows the payload ─────────── */
-  function repaint() {
-    if (!T.ready || !window.P) return;
-    var totOpen = 0, tot = 0;
-    T.floors.forEach(function (f) {
-      var pi = payloadFloor(f.code);
-      var pf = pi < 0 ? null : P.floors[pi];
-      f.pi = pi;
-      var by = {};
-      ((pf && pf.units) || []).forEach(function (u) { by[u.n] = u; });
-      var col = f.mesh.geometry.attributes.color, arr = col.array, open = 0;
-      f.marks.forEach(function (m) {
-        var u = by[m.n];
-        var c = new THREE.Color(colourOf(u));
-        if (T.sel === m.n) c = new THREE.Color(HI);
-        else if (T.hov === m.n) c = c.clone().lerp(new THREE.Color(HI), .45);
-        if (!u || u.s === 'available') open++;
-        for (var i = 0; i < m.count; i++) {
-          arr[(m.at + i) * 3] = c.r; arr[(m.at + i) * 3 + 1] = c.g; arr[(m.at + i) * 3 + 2] = c.b;
-        }
-      });
-      col.needsUpdate = true;
-      f.open = open; f.total = f.marks.length;
-      totOpen += open; tot += f.marks.length;
-    });
-    $('tw-ttl').textContent = (P.project || 'Availability');
-    $('tw-open').textContent = totOpen.toLocaleString('en-US');
-    $('tw-of').textContent = 'open of ' + tot.toLocaleString('en-US');
-    rail(); legend();
-  }
-
-  function rail() {
-    var host = $('tw-lift'); host.innerHTML = '';
-    var mk = function (label, count, pressed, fn, aria) {
-      var b = document.createElement('button');
-      b.setAttribute('aria-pressed', pressed ? 'true' : 'false');
-      b.setAttribute('aria-label', aria);
-      b.innerHTML = '<span class="n"></span><span class="c"></span>';
-      b.firstChild.textContent = label;
-      b.lastChild.textContent = count;
-      b.onclick = fn; host.appendChild(b);
-    };
-    for (var i = T.floors.length - 1; i >= 0; i--) (function (i) {
-      var f = T.floors[i];
-      mk(f.code, f.open || 0, T.focus === i, function () { focus(i); },
-         f.label + ', ' + (f.open || 0) + ' open');
-    })(i);
-  }
-
-  function legend() {
-    var all = [];
-    ((window.P && P.floors) || []).forEach(function (f) { all = all.concat(f.units || []); });
-    var kinds = window.tally ? window.tally(all) : [];
-    $('tw-key').innerHTML =
-      '<span><i style="background:#F3EEE3"></i>Open</span>' +
-      kinds.map(function (k) {
-        return '<span><i style="background:' + k.tint + '"></i>' + k.label + '</span>';
-      }).join('');
-  }
-
-  /* ── camera ───────────────────────────────────────────────────────────── */
-  function tanH() { return Math.tan(T.camera.fov * Math.PI / 360); }
-  /* FROM THE STREET, NOT FROM A HELICOPTER. The whole point of the picture is
-     the elevation: a long wall of windows, some lit and some not. So the eye
-     is put nearly level with the building and swung round to look along its
-     face, and the distance is taken from the FACE — its length and its
-     height — rather than from a sphere that is mostly empty air above it. */
-  /* ══ YOU ARE IN THE GALLERY ═══════════════════════════════════════════
-     Three goes at this were the same picture with different paint: a stack of
-     floor plans, turned and tinted. Rashid, plainly: "concept hee change
-     karo." So the building is no longer something you look AT. You are
-     standing in it, on one floor, in the gallery, with shops down both sides.
-
-     Walking is the whole interface. Push forward and you go down the gallery
-     past shop after shop; the ones still for sale are lit and open, the ones
-     gone are dark. Turn your head to read a shutter. Take the stairs and you
-     are on the next floor, in its gallery, doing the same thing.
-
-     Nothing about this is a diagram, and nothing here is invented: the walls
-     are the shops as the architect drew them, and the gallery is the gap he
-     left between them. */
-  var WALK = { z: 0, yaw: 0 };
-
-  function walkTo(fi, atZ) {
-    var f = T.floors[fi];
-    WALK.z = atZ == null ? f.z0 + (f.z1 - f.z0) * .12 : Math.max(f.z0 + 8, Math.min(f.z1 - 8, atZ));
-    T.goal.tx = f.gallery; T.goal.ty = fi * PITCH + EYE; T.goal.tz = WALK.z;
-    T.goal.r = 0.01;                       // the camera IS the eye, not an orbit
-    T.goal.theta = WALK.yaw; T.goal.phi = Math.PI / 2;
-  }
-
-  /* the eye, and what it is pointed at — an orbit of nothing is a first person */
-  function applyCam() {
-    if (T.focus === null) T.focus = 0;
-    T.camera.position.set(T.cam.tx, T.cam.ty, T.cam.tz);
-    T.camera.up.set(0, 1, 0);
-    T.camera.lookAt(T.cam.tx + Math.sin(T.cam.theta) * 100,
-                    T.cam.ty - 6,
-                    T.cam.tz + Math.cos(T.cam.theta) * 100);
-  }
-
-  /* THE FLOORS SIT WHERE THEY SIT. Nothing fans out or floats any more —
-     that was furniture for looking down at a model. You are inside one of
-     them, so the others are simply above and below you, and the ones you are
-     not on are dropped entirely: a ceiling you can see through is not a
-     ceiling, and drawing six other floors costs a phone its frame rate for a
-     view nobody has. */
-  function layout() {
-    T.floors.forEach(function (f, i) {
-      f.ty = i * PITCH;
-      f.top = (i === T.focus) ? 1 : 0;
-    });
-  }
-  function focus(fi) {
-    if (fi === null) fi = T.focus === null ? 0 : T.focus;   // there is no 'above' any more
-    T.focus = fi; T.sel = null; layout(); walkTo(fi, null); repaint();
-  }
-  function resize() {
-    if (!T.renderer) return;
-    T.renderer.setSize(innerWidth, innerHeight);
-    T.camera.aspect = innerWidth / innerHeight; T.camera.updateProjectionMatrix();
-    /* the gallery runs away into the dark rather than ending at a wall of
-       background colour — it is a long building and it should feel long */
-    T.scene.fog.near = 140; T.scene.fog.far = 900;
-  }
-
-  /* ── pointer ──────────────────────────────────────────────────────────── */
-  var ray, ndc, ptrs = {}, nptr = 0, moved = 0, pinch0 = 0, r0 = 0;
-  function unitAt(x, y) {
-    ndc.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1);
-    ray.setFromCamera(ndc, T.camera);
-    var meshes = T.focus === null ? T.floors.map(function (f) { return f.mesh; })
-                                  : [T.floors[T.focus].mesh];
-    var hit = ray.intersectObjects(meshes, false)[0];
-    if (!hit) return null;
-    var f = T.floors[hit.object.userData.fi];
-    /* the face index says which triangle; the marks say whose it is */
-    var v = hit.faceIndex * 3;
-    for (var i = 0; i < f.marks.length; i++) {
-      var m = f.marks[i];
-      if (v >= m.at && v < m.at + m.count) return { code: m.n, fi: hit.object.userData.fi };
-    }
-    return null;
-  }
-  function wire() {
-    var c = $('tw-c');
-    ray = new THREE.Raycaster(); ndc = new THREE.Vector2();
-    c.addEventListener('pointerdown', function (e) {
-      c.setPointerCapture(e.pointerId);
-      ptrs[e.pointerId] = { x: e.clientX, y: e.clientY }; nptr++; moved = 0;
-      if (nptr === 2) {
-        var k = Object.keys(ptrs), a = ptrs[k[0]], b = ptrs[k[1]];
-        pinch0 = Math.hypot(a.x - b.x, a.y - b.y); r0 = T.goal.r;
-      }
-    });
-    c.addEventListener('pointermove', function (e) {
-      var p = ptrs[e.pointerId];
-      if (!p) { if (e.pointerType === 'mouse') hover(e.clientX, e.clientY); return; }
-      var dx = e.clientX - p.x, dy = e.clientY - p.y;
-      p.x = e.clientX; p.y = e.clientY; moved += Math.abs(dx) + Math.abs(dy);
-      if (nptr === 2) {
-        var k = Object.keys(ptrs), a = ptrs[k[0]], b = ptrs[k[1]];
-        var d = Math.hypot(a.x - b.x, a.y - b.y);
-        if (pinch0) T.goal.r = T.cam.r = Math.min(9000, Math.max(80, r0 * pinch0 / d));
-        return;
-      }
-      /* WALKING, NOT ORBITING. Up and down the screen is up and down the
-         gallery; left and right turns the head. It is the way every game on a
-         phone has worked for fifteen years, so nobody has to be told. The step
-         is scaled so a full swipe carries you past a dozen shops rather than
-         the length of the building. */
-      var f = T.floors[T.focus || 0];
-      WALK.yaw -= dx * .005;
-      WALK.z += Math.cos(WALK.yaw) * dy * .55;
-      T.goal.tx = f.gallery;
-      T.goal.tz = WALK.z = Math.max(f.z0 + 8, Math.min(f.z1 - 8, WALK.z));
-      T.goal.theta = WALK.yaw;
-    });
-    var up = function (e) {
-      var tap = nptr === 1 && moved < 9;
-      if (ptrs[e.pointerId]) { delete ptrs[e.pointerId]; nptr--; }
-      if (nptr < 2) pinch0 = 0;
-      if (tap) {
-        var h = unitAt(e.clientX, e.clientY);
-        if (h) tap_(h); else if (T.focus !== null) { T.sel = null; repaint(); }
-      }
-    };
-    c.addEventListener('pointerup', up);
-    c.addEventListener('pointercancel', function (e) {
-      if (ptrs[e.pointerId]) { delete ptrs[e.pointerId]; nptr--; } });
-    c.addEventListener('wheel', function (e) {
-      e.preventDefault();
-      T.goal.r = Math.min(9000, Math.max(80, T.goal.r * Math.exp(e.deltaY * .0012)));
-    }, { passive: false });
-    addEventListener('resize', resize);
-  }
-
-  /* TAPPING A UNIT OPENS THE SHEET THIS PAGE ALREADY HAS — the same request,
-     the same reference from the server, the same WhatsApp message. The model
-     is a way of pointing at a unit, nothing more. */
-  function tap_(h) {
-    T.sel = h.code;
-    if (T.focus === null) focus(h.fi); else repaint();
-    var f = T.floors[h.fi];
-    if (f.pi >= 0 && window.openSheet) window.openSheet(h.code, f.pi);
-  }
-
-  var hoverRAF = 0;
-  function hover(x, y) {
-    if (hoverRAF) return;
-    hoverRAF = requestAnimationFrame(function () {
-      hoverRAF = 0;
-      var h = unitAt(x, y), tip = $('tw-tip');
-      if ((h && h.code) !== T.hov) { T.hov = h ? h.code : null; repaint(); }
-      if (h) {
-        var f = T.floors[h.fi], u = null;
-        if (f.pi >= 0) (P.floors[f.pi].units || []).forEach(function (q) { if (q.n === h.code) u = q; });
-        var s = window.stat ? window.stat(u) : { label: '' };
-        tip.textContent = h.code + ' · ' + s.label;
-        tip.style.left = x + 'px'; tip.style.top = y + 'px'; tip.style.opacity = 1;
-        $('tw-c').style.cursor = 'pointer';
-      } else { tip.style.opacity = 0; $('tw-c').style.cursor = ''; }
-    });
-  }
-
-  /* ── search: the same normalising the flat page does ──────────────────── */
-  function search() {
-    var v = String($('tw-q').value || '').trim(), box = $('tw-res');
-    if (!v) { box.hidden = true; box.innerHTML = ''; return; }
-    var n = v.toUpperCase().replace(/\s+/g, '');
-    var hits = Object.keys(T.index).filter(function (c) {
-      return c.indexOf(n) === 0 || c.replace(/-/g, '').indexOf(n.replace(/-/g, '')) === 0;
-    }).sort().slice(0, 6);
-    if (!hits.length) {
-      box.hidden = false;
-      box.innerHTML = '<button disabled style="opacity:.6">No unit with that number</button>';
-      return;
-    }
-    box.hidden = false; box.innerHTML = '';
-    hits.forEach(function (c) {
-      var h = T.index[c], f = T.floors[h.fi], u = null;
-      if (f.pi >= 0) (P.floors[f.pi].units || []).forEach(function (q) { if (q.n === c) u = q; });
-      var s = window.stat ? window.stat(u) : { label: '' };
-      var b = document.createElement('button');
-      b.innerHTML = '<span></span><small></small>';
-      b.firstChild.textContent = c; b.lastChild.textContent = s.label;
-      b.onclick = function () {
-        $('tw-q').value = ''; $('tw-q').blur(); box.hidden = true; box.innerHTML = '';
-        tap_({ code: c, fi: h.fi });
-      };
-      box.appendChild(b);
-    });
-  }
-
-  /* ── loop ─────────────────────────────────────────────────────────────── */
-  var last = 0;
-  function frame(now) {
-    requestAnimationFrame(frame);
-    if (!T.ready) return;
-    var dt = Math.min(.05, (now - last) / 1000); last = now;
-    var e = REDUCE ? 1 : 1 - Math.exp(-dt * 5.5);
-    T.floors.forEach(function (f) {
-      f.y += (f.ty - f.y) * e;
-      f.op += (f.top - f.op) * (f.top < f.op ? Math.min(1, e * 3) : e);
-      f.g.position.y = f.y; f.g.visible = f.op > .02;
-      f.mat.opacity = f.op; f.slab.opacity = Math.min(1, f.op * 1.1); f.edge.opacity = .5 * f.op;
-      /* A TRANSPARENT THING IS DRAWN AFTER EVERYTHING ELSE AND SORTED BY ITS
-         CENTRE, and a floor's plate and its units share a centre — so the
-         plate was being drawn over the units it stands under, and the whole
-         building came out as seven blank grey sheets. Once a floor has
-         finished fading in there is nothing to blend, so it stops being
-         transparent and the depth buffer settles it properly. */
-      var solid = f.op > .98;
-      if (f.mat.transparent === solid) {
-        f.mat.transparent = !solid; f.slab.transparent = !solid;
-        f.mat.needsUpdate = true; f.slab.needsUpdate = true;
-      }
-      f.mat.depthWrite = true; f.slab.depthWrite = true;
-    });
-    ['theta', 'phi', 'r', 'tx', 'ty', 'tz'].forEach(function (k) {
-      T.cam[k] += (T.goal[k] - T.cam[k]) * e;
-    });
-    applyCam();
-    T.renderer.render(T.scene, T.camera);
-  }
-
-  /* ── go ───────────────────────────────────────────────────────────────── */
-  function start() {
-    $('twin').hidden = false;
-    $('app').hidden = true;
-    var boot = $('boot'); if (boot) boot.hidden = true;
-    script(THREE_SRC)
-      .then(function () { return fetch(GEOM_SRC).then(function (r) {
-        if (!r.ok) throw new Error('geometry ' + r.status); return r.json(); }); })
-      .then(function (D) {
-        build(D);
-        wire();
-        T.floors.forEach(function (f, i) { f.y = i * PITCH; f.op = i === 0 ? 1 : 0; });
-        layout(); focus(0); resize();
-        for (var k in T.goal) T.cam[k] = T.goal[k];
-        repaint();
-        $('tw-load').hidden = true;
-        requestAnimationFrame(frame);
-      })
-      .catch(function (err) { $('app').hidden = false; fail(err.message); });
-
-    $('tw-q').addEventListener('input', search);
-    $('tw-list').onclick = function () {
-      try { localStorage.setItem(VIEW_KEY, 'list'); } catch (e) {}
-      location.search = location.search.replace(/([?&])view=twin/, '$1view=list') ||
-                        '?view=list';
-    };
-  }
-
-  /* the payload has to be in hand before a single unit can be coloured, so the
-     model waits for the page's own first render rather than racing it */
-  window._twinPaint = function () { if (T.ready) repaint(); };
-  if (window.P && P.floors) start();
-  else {
-    var n = 0, wait = setInterval(function () {
-      if (window.P && P.floors) { clearInterval(wait); start(); }
-      else if (++n > 200) { clearInterval(wait); fail('no payload'); }
-    }, 50);
-  }
-})();
-</script>
 </body>
 </html>

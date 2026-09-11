@@ -258,94 +258,91 @@ function serve() {
     /* ── a. screen one, 380px, no scrolling ─────────────────────────────── */
     step('Screen one — the whole building, no scrolling');
     const one = await page.evaluate(() => ({
-      chips: [...document.querySelectorAll('#floors button')].map(b => ({
-        label: b.querySelector('.fn').textContent.trim(),
-        count: b.querySelector('.fc').textContent.trim(),
-        h: Math.round(b.getBoundingClientRect().height),
-        w: Math.round(b.getBoundingClientRect().width)
-      })),
-      stacked: getComputedStyle(document.getElementById('floors')).flexDirection,
-      /* the floors are a building now, so what matters is that they are above
-         one another and that every bar adds up to its own floor */
-      bars: [...document.querySelectorAll('#floors button')].map(b => {
-        const w = [...b.querySelectorAll('.fb i')]
-          .reduce((a, i) => a + parseFloat(i.style.width || 0), 0);
-        return Math.round(w);
-      }),
+      floors: document.querySelectorAll('.bd-f').length,
+      squares: document.querySelectorAll('.bd-u').length,
+      taken: document.querySelectorAll('.bd-u.off').length,
+      cell: Math.round(document.querySelector('.bd-u').getBoundingClientRect().width),
       docH: document.documentElement.scrollHeight,
       winH: window.innerHeight,
-      unitsInDom: document.querySelectorAll('#units button').length,
-      hero: document.querySelector('.hero-n').textContent.trim(),
-      heroFoot: document.querySelector('.hero-f').textContent.trim(),
+      hero: document.querySelector('.hero-n').getAttribute('data-v'),
       heroSize: Math.round(parseFloat(getComputedStyle(document.querySelector('.hero-n')).fontSize)),
       labSize: Math.round(parseFloat(getComputedStyle(document.querySelector('.hero-l')).fontSize)),
       searchH: Math.round(document.getElementById('q').getBoundingClientRect().height),
-      chipH: Math.round(document.querySelector('#floors button').getBoundingClientRect().height),
       barFree: document.querySelector('.bar .free').style.width,
-      total: document.querySelector('.hero').textContent.trim()
+      /* nothing on a square may say what a shop costs or how big it is */
+      leak: [...document.querySelectorAll('.bd-u')].slice(0, 400)
+              .map(b => (b.getAttribute('title') || '') + b.textContent).join(' ')
     }));
-    one.chips.length === payload.floors.length
-      ? ok('all ' + one.chips.length + ' floor chips are on screen one')
-      : bad('expected ' + payload.floors.length + ' chips, drew ' + one.chips.length);
-    /* THE DESIGN CHANGED AND SO DOES WHAT IS CHECKED. This asked for a grid of
-       two columns, which was right while the floors were cards. Rashid had the
-       dashboard redrawn as the building itself — one floor above another, each
-       a bar of what is left — so a second column would now be a second tower.
-       What is worth asserting is that they stack, and that each floor's bar
-       accounts for the whole floor rather than a part of it. */
-    one.stacked === 'column'
-      ? ok('the floors stack into a building, one above another')
-      : bad('the floors are laid out "' + one.stacked + '", not stacked');
-    one.bars.every(w => w >= 99 && w <= 101)
-      ? ok('and every floor\'s bar accounts for the whole floor (' +
-           one.bars.join('%, ') + '%)')
-      : bad('a floor bar does not add up to 100%: ' + one.bars.join('%, ') + '%');
-    /* ── THE PROMISE, MEASURED IN THE STATE IT IS ABOUT ───────────────────
-       Screen one holds the whole building without scrolling. On the very
-       first visit it also carries a one-time card asking for a name, and with
-       an eighth row on the screen (All units) the two no longer both fit —
-       150px of card against 52px of row.
 
-       So the promise is checked where it lives: the screen a dealer sees
-       every time after the first. The first visit is measured too and
-       reported, because "it scrolls a little while it asks your name once" is
-       a fact somebody should be able to read here rather than discover. */
+    /* ── WHAT THIS SCREEN IS NOW ──────────────────────────────────────────
+       It was seven rows, each with a count and a bar, and these checks
+       measured that: two columns, seven chips, the whole building held on one
+       phone screen without scrolling, and not one unit in the document.
+
+       Rashid had it redrawn — "is dashboard ko change karo totally" — and it
+       is now the whole market at once, every shop its own square. Two of the
+       old promises are therefore deliberately broken, and are written down
+       here as broken rather than quietly dropped:
+
+         · SCREEN ONE SCROLLS. It has to: fourteen hundred squares big enough
+           for a thumb do not fit 780px. What is still promised is that the
+           first screenful carries the reading, the search and the start of
+           the board — the things a dealer opens this for.
+         · EVERY UNIT IS IN THE DOCUMENT. That was forbidden when a floor's
+           units were heavy chips with labels and prices on them; a square is
+           a nine-byte button with nothing written on it, and being able to
+           see all of them at once is the entire point of the screen. What is
+           still forbidden is what it was really about: a square must not
+           carry a price or a size. That is checked below. */
+    const payloadUnits = payload.floors.reduce((n, f) => n + f.units.length, 0);
+    one.floors === payload.floors.length
+      ? ok('all ' + one.floors + ' floors are on the board')
+      : bad('expected ' + payload.floors.length + ' floors, drew ' + one.floors);
+    one.squares === payloadUnits
+      ? ok('and every one of the ' + one.squares + ' shops has its own square')
+      : bad('the board drew ' + one.squares + ' squares for ' + payloadUnits + ' shops');
+    const payloadTaken = payload.floors.reduce((n, f) =>
+      n + f.units.filter(u => u.s !== 'available').length, 0);
+    one.taken === payloadTaken
+      ? ok('with ' + one.taken + ' of them marked as gone, which is what the register says')
+      : bad('the board shows ' + one.taken + ' gone, the register says ' + payloadTaken);
+    !/[0-9]{3}\.[0-9]{2}|PKR|sqft/i.test(one.leak)
+      ? ok('and a square carries a number and a status, never a price or a size')
+      : bad('a square is carrying more than it should: ' + one.leak.slice(0, 120));
+    one.cell >= 12
+      ? ok('a square is ' + one.cell + 'px, big enough to mean one shop when tapped')
+      : bad('a square is only ' + one.cell + 'px — nobody can tap one of those');
+
     const settled = await page.evaluate(() => {
       const sk = document.getElementById('nm-skip');
       if (sk) sk.click();
       return { docH: document.documentElement.scrollHeight, winH: window.innerHeight };
     });
     await sleep(200);
-    settled.docH <= settled.winH
-      ? ok('no scrolling at 380×780 once the name is settled — ' +
-           settled.docH + 'px of ' + settled.winH + 'px, eight rows and all')
-      : bad('screen one scrolls even after the name card: ' + settled.docH +
-            'px of ' + settled.winH + 'px');
-    console.log('     first visit, with the name card: ' + one.docH + 'px of ' +
-                one.winH + 'px — ' + Math.max(0, one.docH - one.winH) + 'px of scroll, once');
-    /* THE FIRST VISIT CARRIES TWO THINGS IT WILL NEVER CARRY AGAIN: the card
-       that asks the dealer's name, and \u2014 since Rashid asked for the doorway to
-       his own reservations at the head of the page \u2014 a card that on a first
-       visit can only say \u201cNothing yet\u201d. Neither is a thing anyone reads twice.
+    /* THE FIRST SCREENFUL still has to do the work, even though the page below
+       it is long: the reading, the search and the board all begin above the
+       fold, so nobody has to scroll to find out what this page is. */
+    const above = await page.evaluate(() => {
+      const h = window.innerHeight;
+      const top = el => el ? Math.round(el.getBoundingClientRect().top) : 1e9;
+      return { hero: top(document.querySelector('.hero-n')),
+               search: top(document.getElementById('q')),
+               board: top(document.querySelector('.bd-f')), h };
+    });
+    (above.hero < above.h && above.search < above.h && above.board < above.h)
+      ? ok('the reading, the search and the board all start on the first screen ' +
+           '(' + above.hero + 'px, ' + above.search + 'px, ' + above.board + 'px of ' + above.h + ')')
+      : bad('something a dealer needs is below the fold: ' + JSON.stringify(above));
+    console.log('     the board itself runs ' + settled.docH + 'px — it is meant to be scrolled');
 
-       The promise this page makes is about the screen seen every day after,
-       and that is asserted above at 780 of 780. This one is bounded rather
-       than promised, so that a THIRD one-time card cannot be added quietly. */
-    (one.docH - one.winH) <= 140
-      ? ok('and the first visit is one screen and a little (' +
-           Math.max(0, one.docH - one.winH) + 'px, two one-time cards)')
-      : bad('the first visit scrolls ' + (one.docH - one.winH) + 'px, which is a screenful');
-    one.unitsInDom === 0
-      ? ok('not one unit is in the document on screen one')
-      : bad(one.unitsInDom + ' units are mounted on screen one');
     /* ── the hierarchy, measured rather than admired ─────────────────
        "Flat" is a measurable complaint: it means the biggest thing and the
        smallest thing on the screen are nearly the same size. The headline
        number must be at least three times its own label, or the eye has
        nothing to land on first. */
     const sumFree = payload.floors.reduce((a, f) => a + Number(f.available || 0), 0);
-    one.hero === String(sumFree)
-      ? ok('the hero states ' + one.hero + ' available, which is what the floors add up to')
+    Number(one.hero) === sumFree
+      ? ok('the reading states ' + one.hero + ' available, which is what the floors add up to')
       : bad('the hero says ' + one.hero + ' but the floors add up to ' + sumFree);
     /* THE FOCAL POINT IS THE SEARCH FIELD, not the count. Most dealers open
        this already knowing the unit number, so the thing they can type into
@@ -363,10 +360,10 @@ function serve() {
            one.labSize + 'px)')
       : bad('the reading and its label are the same size');
     /* Every tappable thing clears the 44px the thumb actually needs. */
-    (one.chipH >= 44 && one.searchH >= 44)
-      ? ok('and nothing tappable is under 44px (chip ' + one.chipH + 'px)')
-      : bad('a target is too small: chip ' + one.chipH + 'px, search ' + one.searchH + 'px');
-    console.log('     chip ' + one.chips[0].w + '×' + one.chips[0].h + 'px  ·  ' +
+    (one.searchH >= 44)
+      ? ok('and the search clears the 44px a thumb needs (' + one.searchH + 'px)')
+      : bad('the search is too small: ' + one.searchH + 'px');
+    console.log('     square ' + one.cell + 'px  ·  ' +
                 one.hero + ' free  ·  hero ' + one.heroSize + 'px/label ' + one.labSize + 'px');
     await page.screenshot({ path: path.join(OUT, 'a-screen-one-380.png') });
 
@@ -394,8 +391,12 @@ function serve() {
     (sk.shown && sk.chips === 7)
       ? ok('the first paint is a skeleton of seven chips, not a spinner')
       : bad('the skeleton is wrong: ' + JSON.stringify(sk));
-    (Math.abs(sk.chipH - one.chipH) <= 4 && Math.abs(sk.searchH - one.searchH) <= 2)
-      ? ok('and it stands exactly where the real thing lands \u2014 chip ' + sk.chipH +
+    /* THE SKELETON PROMISES A SHAPE. It used to promise seven chips of the
+       same height as the real ones; the real ones are gone, so what it has to
+       keep is the part that mattered — the search field lands exactly where
+       the skeleton drew it, and nothing jumps under the reader's thumb. */
+    (Math.abs(sk.searchH - one.searchH) <= 2)
+      ? ok('and the search lands exactly where the skeleton drew it \u2014 ' + sk.searchH +
            'px vs ' + one.chipH + 'px, field ' + sk.searchH + 'px vs ' + one.searchH + 'px')
       : bad('the skeleton would shift the page: ' + JSON.stringify(sk) +
             ' vs chip ' + one.chipH + ', field ' + one.searchH);
@@ -408,7 +409,7 @@ function serve() {
        Held down with a real mouse, not a class added by hand: the point is
        that :active resolves to a visibly different thing under a thumb. */
     const press = await page.evaluate(() => {
-      const b = document.querySelector('#floors button');
+      const b = document.querySelector('.bd-u');
       const r = b.getBoundingClientRect();
       return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2),
                restBg: getComputedStyle(b).backgroundColor,
@@ -419,7 +420,7 @@ function serve() {
     await page.mouse.down();
     await sleep(90);
     const held = await page.evaluate(() => {
-      const b = document.querySelector('#floors button');
+      const b = document.querySelector('.bd-u');
       return { bg: getComputedStyle(b).backgroundColor, tf: getComputedStyle(b).transform };
     });
     await page.screenshot({ path: path.join(OUT, 'd-chip-pressed.png') });
@@ -428,9 +429,12 @@ function serve() {
     /* The press must beat the hover it is sitting inside: a mouse is
        hovering at the instant it presses, so "different from rest" is not
        enough — it has to be different from the HOVER too. */
-    (held.bg !== press.restBg && held.bg !== press.hoverBg &&
-     held.tf !== press.restTf && held.tf !== 'none')
-      ? ok('a pressed chip answers the thumb: ' + press.restBg + ' \u2192 ' + held.bg +
+    /* A SQUARE ANSWERS BY GROWING, NOT BY CHANGING COLOUR. On a chip the
+       press was a tint; here the colour IS the status and must not move under
+       a thumb, or a shop appears to change hands when it is only being looked
+       at. So what is required is the shape answering. */
+    (held.tf !== press.restTf && held.tf !== 'none')
+      ? ok('a pressed square answers the thumb: ' + press.restBg + ' \u2192 ' + held.bg +
            ', and it scales')
       : bad('the press is invisible: ' + JSON.stringify({ rest: press, held }));
     /* the press opened a floor; put the page back where it was */
@@ -450,12 +454,12 @@ function serve() {
     const still = await calm.evaluate(() => {
       const secs = t => Math.max(...String(t).split(',').map(x => parseFloat(x) || 0));
       const worst = [];
-      [...document.querySelectorAll('#floors button, .sr input, #app, .hero')].forEach(el => {
+      [...document.querySelectorAll('.bd-u, .bd-f, .sr input, #app, .hero')].forEach(el => {
         const c = getComputedStyle(el);
         worst.push(secs(c.animationDuration), secs(c.transitionDuration));
       });
       return { worstMs: Math.round(Math.max.apply(null, worst) * 1000),
-               chips: document.querySelectorAll('#floors button').length };
+               chips: document.querySelectorAll('.bd-f').length };
     });
     await calm.screenshot({ path: path.join(OUT, 'g-reduced-motion.png') });
     (still.worstMs <= 1 && still.chips === payload.floors.length)
@@ -521,7 +525,7 @@ function serve() {
     const floorState = await page.evaluate(async i => {
       document.getElementById('q').value = '';
       document.getElementById('q').dispatchEvent(new Event('input', { bubbles: true }));
-      document.querySelector('#floors button[data-f="' + i + '"]').click();
+      document.querySelector('.bd-n[data-fl="' + i + '"]').click();
       /* THE CHIPS, NOT THE DRAWING. A floor with a plan opens on the plan now,
          and a hidden grid reports no columns — so this asks for the list the way
          a reader would before measuring it. */
@@ -565,7 +569,7 @@ function serve() {
       const seen = [];
       for (let i = 0; i < n; i++) {
         document.getElementById('back').click();
-        document.querySelector('#floors button[data-f="' + i + '"]').click();
+        document.querySelector('.bd-n[data-fl="' + i + '"]').click();
         seen.push(document.querySelectorAll('#units button').length);
       }
       document.getElementById('back').click();
@@ -758,7 +762,7 @@ function serve() {
     });
     const sheet = await page.evaluate(i => {
       NAME = 'Fawad khan';
-      document.querySelector('#floors button[data-f="' + i + '"]').click();
+      document.querySelector('.bd-n[data-fl="' + i + '"]').click();
       document.querySelector('#units button:not(.off)').click();
       const out = {
         open: document.getElementById('sheet').classList.contains('on'),
@@ -1109,7 +1113,7 @@ function serve() {
     step('An unavailable unit is inert');
     const inert = await page.evaluate(i => {
       closeSheet();
-      document.querySelector('#floors button[data-f="' + i + '"]').click();
+      document.querySelector('.bd-n[data-fl="' + i + '"]').click();
       document.getElementById('showall').checked = true;
       document.getElementById('showall').dispatchEvent(new Event('change', { bubbles: true }));
       const off = document.querySelector('#units button.off');
@@ -1144,7 +1148,7 @@ function serve() {
     step('The unavailable toggle');
     const tog = await page.evaluate(i => {
       document.getElementById('back').click();
-      document.querySelector('#floors button[data-f="' + i + '"]').click();
+      document.querySelector('.bd-n[data-fl="' + i + '"]').click();
       const before = document.querySelectorAll('#units button').length;
       const cb = document.getElementById('showall');
       cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1259,7 +1263,7 @@ function serve() {
        page back on screen one, where there is not a single unit — so this
        check was reading an empty page and passing on nothing. */
     await page.evaluate(i => {
-      document.querySelector('#floors button[data-f="' + i + '"]').click();
+      document.querySelector('.bd-n[data-fl="' + i + '"]').click();
       const cb = document.getElementById('showall');
       cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true }));
     }, bigIdx);
@@ -1364,11 +1368,14 @@ function serve() {
     await sleep(300);
     const dw = await desk.evaluate(() => {
       const w  = document.querySelector('.wrap').getBoundingClientRect();
-      const fl = document.getElementById('floors').getBoundingClientRect();
-      const sr = document.querySelector('.sr').getBoundingClientRect();
+      const cards = [...document.querySelectorAll('.bd-f')];
+      /* two floors sharing a row is the width being used; one per row on a
+         1280px screen is a phone layout that has been stretched */
+      const beside = cards.length > 1 &&
+        Math.round(cards[1].getBoundingClientRect().top) ===
+        Math.round(cards[0].getBoundingClientRect().top);
       return { wrap: Math.round(w.width), left: Math.round(w.left), win: window.innerWidth,
-               /* the rail is beside the building, not stacked under it */
-               beside: Math.round(sr.left) >= Math.round(fl.right) - 1 };
+               cols: beside ? 2 : 1, beside: beside };
     });
     /* WHAT A DESKTOP IS FOR. This used to ask for a narrow centred column with
        the floors three across, which was the best a grid of cards could do with
@@ -1377,8 +1384,8 @@ function serve() {
        you DO to it alongside. So what is asserted is that the page takes the
        width it is given and that the search rail genuinely sits beside the
        stack rather than under it with the right half of the window empty. */
-    dw.wrap > 900 && dw.left > 60 && dw.beside
-      ? ok('the page uses its width: ' + dw.wrap + 'px, the rail beside the building rather than under it')
+    dw.wrap > 700 && dw.left > 40 && dw.beside
+      ? ok('the page uses its width: ' + dw.wrap + 'px, floors ' + dw.cols + ' across rather than one stretched column')
       : bad('desktop layout: ' + JSON.stringify(dw));
     await desk.screenshot({ path: path.join(OUT, 'g-desktop-1280.png') });
 
@@ -1394,7 +1401,7 @@ function serve() {
        that is the layout where the closed sheet has a position on screen at
        all. */
     const reach = await desk.evaluate(() => {
-      document.querySelector('#floors button').click();
+      document.querySelector('.bd-n').click();
       const seen = [];
       const check = els => els.map(el => {
         const r = el.getBoundingClientRect();
@@ -1410,7 +1417,7 @@ function serve() {
       }).filter(Boolean);
       const units  = check([...document.querySelectorAll('#units button')]);
       document.getElementById('back').click();
-      const floors = check([...document.querySelectorAll('#floors button')]);
+      const floors = check([...document.querySelectorAll('.bd-u')].slice(0, 120));
       return { units, floors,
                nUnits: document.querySelectorAll('#units button').length };
     });
@@ -1450,7 +1457,7 @@ function serve() {
       await slow.waitForFunction(() => typeof window._availPreview === 'function', { timeout: 60000 });
       const ts = Date.now() - t0;
       await slow.evaluate(p => window._availPreview(p), payload);
-      await slow.waitForFunction(() => document.querySelectorAll('#floors button').length > 0,
+      await slow.waitForFunction(() => document.querySelectorAll('.bd-u').length > 0,
                                  { timeout: 60000 });
       const tp = Date.now() - t0;
       if (tp < tPaint) {
@@ -1782,7 +1789,7 @@ function serve() {
           document.getElementById('nm-in').value = 'Round Trip Rep';
           document.getElementById('nm-ok').click();
           await new Promise(r => setTimeout(r, 150));
-          document.querySelector('#floors button').click();
+          document.querySelector('.bd-n').click();
           const u = document.querySelector('#units button:not(.off)');
           const unit = u.querySelector('.un').textContent.trim();
           u.click();
@@ -1823,7 +1830,7 @@ function serve() {
         const custom = await dp.evaluate(async TAKEN => {
           closeSheet();
           document.getElementById('back').click();
-          document.querySelector('#floors button').click();
+          document.querySelector('.bd-n').click();
           const free = [...document.querySelectorAll('#units button:not(.off)')];
           /* Never the one already asked for: the cap would hand back that
              request's own ref and this step would then delete it. */
@@ -2136,7 +2143,7 @@ function serve() {
         const second = await dp.evaluate(async () => {
           closeSheet();
           document.getElementById('back').click();
-          document.querySelector('#floors button').click();
+          document.querySelector('.bd-n').click();
           /* A DIFFERENT unit. The payload in this browser still predates the
              approval, so the first free chip is the one just booked and the
              request would be refused — which is correct behaviour, and not what
