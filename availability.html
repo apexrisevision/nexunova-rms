@@ -3972,13 +3972,18 @@ window._availPreview = function (payload) {
      little further apart so the eye can get between them, but only a little:
      at seventy-two the model grew so tall that the camera had to stand back
      far enough to lose the shapes it exists to show. */
-  var UH = 24, PITCH = 34, SEP = 46;
+  /* THE SHOPS ARE WALLS NOW, NOT BLOCKS ON A TRAY. You are not above this
+     building any more, you are inside it: standing in the gallery with shops
+     to left and right. So a unit runs the full height of its storey, an eye
+     is five and a half feet off the floor, and a storey is ten feet — all of
+     it in drawing units, where one is about 0.29 ft. */
+  var CEIL = 34, EYE = 19, PITCH = 34, SEP = 46, UH = 34;
   /* DUSK. The building is seen from the street after the light has gone, and
      the only thing that is lit is what is still for sale. A shop that is free
      has its lamp on; one that is sold or held is dark and cold. Nobody has to
      read a legend to know which way round that is, and a floor that has gone
      dark tells you it has gone without a single number on the screen. */
-  var LIT = 0xFFCE84, DARK = 0x243354, SLAB = 0x141C33, EDGE = 0x3E4F7F, HI = 0xFFF3D6;
+  var LIT = 0xFFCE84, DARK = 0x243354, SLAB = 0x2E3550, EDGE = 0x3E4F7F, HI = 0xFFF3D6;
   var REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function fail(why) {
@@ -4062,18 +4067,21 @@ window._availPreview = function (payload) {
         var cx = 0, cz = 0;
         pts.forEach(function (q) { cx += q.x; cz += q.y; });
         cx /= pts.length; cz /= pts.length;
+        /* only a hair's inset now: inside the gallery the dark line between
+           two shopfronts is the join between them, and a tenth would open a
+           gap you could walk through */
         pts = pts.map(function (q) {
-          return new THREE.Vector2(cx + (q.x - cx) * .9, cz + (q.y - cz) * .9);
+          return new THREE.Vector2(cx + (q.x - cx) * .985, cz + (q.y - cz) * .985);
         });
         var geo;
         try {
           geo = new THREE.ExtrudeGeometry(new THREE.Shape(pts),
-                  { depth: UH, bevelEnabled: false, curveSegments: 1 });
+                  { depth: CEIL, bevelEnabled: false, curveSegments: 1 });
         } catch (e) { return; }
         /* the plan lies flat and the height goes up: turned the other way the
            plan's own Y becomes negative Z and the building lands behind the
            camera */
-        geo.rotateX(Math.PI / 2); geo.translate(0, UH, 0);
+        geo.rotateX(Math.PI / 2); geo.translate(0, CEIL, 0);
         var p = geo.attributes.position.array, n = geo.attributes.normal.array;
         for (i = 0; i < p.length; i++) { pos.push(p[i]); nor.push(n[i]); col.push(1, 1, 1); }
         var count = p.length / 3;
@@ -4104,13 +4112,45 @@ window._availPreview = function (payload) {
         new THREE.MeshLambertMaterial({ color: SLAB, transparent: true }));
       slab.position.set((fx0 + fx1) / 2, -1.2, (fz0 + fz1) / 2);
       g.add(slab);
-      var line = new THREE.LineSegments(new THREE.EdgesGeometry(slab.geometry),
-        new THREE.LineBasicMaterial({ color: EDGE, transparent: true, opacity: .5 }));
-      line.position.copy(slab.position); g.add(line);
+      /* A CEILING, OR IT IS NOT A CORRIDOR. Standing in the gallery with
+         nothing overhead, the shopfronts read as free-standing boards in the
+         dark. A slab above closes the space, catches a little of the light
+         coming off the shops, and the gallery becomes somewhere you are
+         rather than something you are looking at. */
+      var roof = new THREE.Mesh(slab.geometry,
+        new THREE.MeshLambertMaterial({ color: 0x1A2340, transparent: true }));
+      roof.position.set(slab.position.x, CEIL + 1.2, slab.position.z);
+      g.add(roof);
+
+      /* WHERE THE GALLERY IS, found in the floor rather than guessed. Every
+         unit is laid along the building's width; the stretches of width that
+         no unit occupies are the corridors, and on the shop floors they come
+         out at seventeen or eighteen drawing units across — the five-foot
+         gallery Rashid said was common area and not saleable. The widest one
+         a person could actually walk is the one this floor is walked down. */
+      var W1 = Math.ceil(D.w) + 1, taken = new Uint8Array(W1);
+      f.units.forEach(function (u) {
+        var a0 = 1e9, a1 = -1e9, i;
+        for (i = 0; i < u.p.length; i += 2) { var x = u.p[i] / S; if (x < a0) a0 = x; if (x > a1) a1 = x; }
+        for (i = Math.floor(a0); i <= Math.ceil(a1) && i < W1; i++) taken[i] = 1;
+      });
+      var best = null, run = -1, j;
+      for (j = 0; j <= W1; j++) {
+        if (j < W1 && !taken[j]) { if (run < 0) run = j; }
+        else if (run >= 0) {
+          var wide = j - run;
+          /* a corridor, not the empty air past the end wall */
+          if (wide >= 8 && run > 2 && j < W1 - 2 && (!best || wide > best.w)) best = { at: (run + j) / 2, w: wide };
+          run = -1;
+        }
+      }
+      /* a floor whose plan leaves no walkable slot is walked up its middle */
+      var gallery = best ? best.at : (fx0 + fx1) / 2;
 
       T.floors.push({ code: f.code, label: f.label, floor_no: f.floor_no,
+                      gallery: gallery, z0: fz0, z1: fz1,
                       g: g, mesh: mesh, mat: mesh.material, slab: slab.material,
-                      edge: line.material, marks: marks,
+                      edge: roof.material, marks: marks,
                       y: 0, ty: 0, op: 1, top: 1, delay: fi * 90 });
     });
 
@@ -4172,8 +4212,6 @@ window._availPreview = function (payload) {
       b.lastChild.textContent = count;
       b.onclick = fn; host.appendChild(b);
     };
-    var all = T.floors.reduce(function (a, f) { return a + (f.open || 0); }, 0);
-    mk('All', all, T.focus === null, function () { focus(null); }, 'Whole building, ' + all + ' open');
     for (var i = T.floors.length - 1; i >= 0; i--) (function (i) {
       var f = T.floors[i];
       mk(f.code, f.open || 0, T.focus === i, function () { focus(i); },
@@ -4199,61 +4237,63 @@ window._availPreview = function (payload) {
      is put nearly level with the building and swung round to look along its
      face, and the distance is taken from the FACE — its length and its
      height — rather than from a sphere that is mostly empty air above it. */
-  /* A LIT BAZAAR, SEEN FROM JUST ABOVE THE ROOFS.
-     The first shape of this idea was a street elevation — and the building
-     refused it, for a reason worth writing down: the shops here open onto
-     INTERNAL galleries, not onto the outside. There is no wall of windows to
-     photograph; from the road all anyone sees is a long blank flank. Stood at
-     the corner it was worse, seven glowing ribbons running away.
+  /* ══ YOU ARE IN THE GALLERY ═══════════════════════════════════════════
+     Three goes at this were the same picture with different paint: a stack of
+     floor plans, turned and tinted. Rashid, plainly: "concept hee change
+     karo." So the building is no longer something you look AT. You are
+     standing in it, on one floor, in the gallery, with shops down both sides.
 
-     So the lamps are read the way they actually fall: from above. Each shop
-     lights its own floor, the galleries stay dark between them, and seven
-     storeys of that is a bazaar at night with its lights on. The question the
-     picture answers is unchanged — what is still lit is still for sale — and
-     now the building will let it be asked. */
-  function overview() {
-    var R = Math.hypot(T.W, T.H, T.stack) / 2;
-    T.goal.tx = T.CX; T.goal.ty = T.stack * .42; T.goal.tz = T.CZ;
-    T.goal.theta = (T.H >= T.W ? Math.PI / 2 : 0) - .58;
-    T.goal.phi = .92;                 // high enough to see into the floors
-    T.goal.r = R / Math.sin(T.camera.fov * Math.PI / 360) * .56;
-  }
-  function planView(fi) {
+     Walking is the whole interface. Push forward and you go down the gallery
+     past shop after shop; the ones still for sale are lit and open, the ones
+     gone are dark. Turn your head to read a shutter. Take the stairs and you
+     are on the next floor, in its gallery, doing the same thing.
+
+     Nothing about this is a diagram, and nothing here is invented: the walls
+     are the shops as the architect drew them, and the gallery is the gap he
+     left between them. */
+  var WALK = { z: 0, yaw: 0 };
+
+  function walkTo(fi, atZ) {
     var f = T.floors[fi];
-    var land = innerWidth > innerHeight;
-    T.goal.tx = T.CX; T.goal.ty = fi * PITCH; T.goal.tz = T.CZ;
-    T.goal.theta = land ? Math.PI / 2 : 0; T.goal.phi = .03;
-    var r = land ? (T.H * .6) / (tanH() * T.camera.aspect) : (T.H * .56) / tanH();
-    T.goal.r = Math.max(r, 160);
+    WALK.z = atZ == null ? f.z0 + (f.z1 - f.z0) * .12 : Math.max(f.z0 + 8, Math.min(f.z1 - 8, atZ));
+    T.goal.tx = f.gallery; T.goal.ty = fi * PITCH + EYE; T.goal.tz = WALK.z;
+    T.goal.r = 0.01;                       // the camera IS the eye, not an orbit
+    T.goal.theta = WALK.yaw; T.goal.phi = Math.PI / 2;
   }
+
+  /* the eye, and what it is pointed at — an orbit of nothing is a first person */
+  function applyCam() {
+    if (T.focus === null) T.focus = 0;
+    T.camera.position.set(T.cam.tx, T.cam.ty, T.cam.tz);
+    T.camera.up.set(0, 1, 0);
+    T.camera.lookAt(T.cam.tx + Math.sin(T.cam.theta) * 100,
+                    T.cam.ty - 6,
+                    T.cam.tz + Math.cos(T.cam.theta) * 100);
+  }
+
+  /* THE FLOORS SIT WHERE THEY SIT. Nothing fans out or floats any more —
+     that was furniture for looking down at a model. You are inside one of
+     them, so the others are simply above and below you, and the ones you are
+     not on are dropped entirely: a ceiling you can see through is not a
+     ceiling, and drawing six other floors costs a phone its frame rate for a
+     view nobody has. */
   function layout() {
     T.floors.forEach(function (f, i) {
-      if (T.focus === null) { f.ty = i * SEP; f.top = 1; }
-      else if (i === T.focus) { f.ty = i * PITCH; f.top = 1; }
-      else if (i > T.focus) { f.ty = i * PITCH + 60; f.top = 0; }
-      else { f.ty = i * PITCH - (T.focus - i) * 8; f.top = .14; }
+      f.ty = i * PITCH;
+      f.top = (i === T.focus) ? 1 : 0;
     });
   }
   function focus(fi) {
-    T.focus = fi; T.sel = null; layout();
-    if (fi === null) overview(); else planView(fi);
-    repaint();
-  }
-  function applyCam() {
-    var s = Math.sin(T.cam.phi);
-    T.camera.position.set(T.cam.tx + T.cam.r * s * Math.sin(T.cam.theta),
-                          T.cam.ty + T.cam.r * Math.cos(T.cam.phi),
-                          T.cam.tz + T.cam.r * s * Math.cos(T.cam.theta));
-    T.camera.up.set(0, 1, 0);
-    if (T.cam.phi < .06) T.camera.up.set(-Math.sin(T.cam.theta), 0, -Math.cos(T.cam.theta));
-    T.camera.lookAt(T.cam.tx, T.cam.ty, T.cam.tz);
+    if (fi === null) fi = T.focus === null ? 0 : T.focus;   // there is no 'above' any more
+    T.focus = fi; T.sel = null; layout(); walkTo(fi, null); repaint();
   }
   function resize() {
     if (!T.renderer) return;
     T.renderer.setSize(innerWidth, innerHeight);
     T.camera.aspect = innerWidth / innerHeight; T.camera.updateProjectionMatrix();
-    T.scene.fog.near = T.goal.r * .55; T.scene.fog.far = T.goal.r * 2.1;
-    if (T.focus === null) overview(); else planView(T.focus);
+    /* the gallery runs away into the dark rather than ending at a wall of
+       background colour — it is a long building and it should feel long */
+    T.scene.fog.near = 140; T.scene.fog.far = 900;
   }
 
   /* ── pointer ──────────────────────────────────────────────────────────── */
@@ -4296,14 +4336,17 @@ window._availPreview = function (payload) {
         if (pinch0) T.goal.r = T.cam.r = Math.min(9000, Math.max(80, r0 * pinch0 / d));
         return;
       }
-      if (T.focus === null) {
-        T.goal.theta = T.cam.theta -= dx * .006;
-        T.goal.phi = T.cam.phi = Math.min(1.45, Math.max(.25, T.cam.phi - dy * .005));
-      } else {
-        var s = 2 * T.cam.r * tanH() / innerHeight, th = T.cam.theta;
-        T.goal.tx = T.cam.tx = T.cam.tx - (Math.cos(th) * dx + Math.sin(th) * dy) * s;
-        T.goal.tz = T.cam.tz = T.cam.tz - (-Math.sin(th) * dx + Math.cos(th) * dy) * s;
-      }
+      /* WALKING, NOT ORBITING. Up and down the screen is up and down the
+         gallery; left and right turns the head. It is the way every game on a
+         phone has worked for fifteen years, so nobody has to be told. The step
+         is scaled so a full swipe carries you past a dozen shops rather than
+         the length of the building. */
+      var f = T.floors[T.focus || 0];
+      WALK.yaw -= dx * .005;
+      WALK.z += Math.cos(WALK.yaw) * dy * .55;
+      T.goal.tx = f.gallery;
+      T.goal.tz = WALK.z = Math.max(f.z0 + 8, Math.min(f.z1 - 8, WALK.z));
+      T.goal.theta = WALK.yaw;
     });
     var up = function (e) {
       var tap = nptr === 1 && moved < 9;
@@ -4424,10 +4467,9 @@ window._availPreview = function (payload) {
       .then(function (D) {
         build(D);
         wire();
-        T.floors.forEach(function (f, i) { f.y = REDUCE ? i * SEP : -140 - i * 12; f.op = REDUCE ? 1 : 0; });
-        layout(); overview(); resize();
+        T.floors.forEach(function (f, i) { f.y = i * PITCH; f.op = i === 0 ? 1 : 0; });
+        layout(); focus(0); resize();
         for (var k in T.goal) T.cam[k] = T.goal[k];
-        T.cam.r = T.goal.r * 1.22;
         repaint();
         $('tw-load').hidden = true;
         requestAnimationFrame(frame);
