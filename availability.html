@@ -260,8 +260,10 @@ button{cursor:pointer;background:none;border:0}
    in this picture and everything else gets out of their way. The furniture
    floats over the canvas at the edges, so the middle of the screen is only
    ever the building. */
-#twin{position:fixed;inset:0;z-index:40;background:#0E1630;color:#EFE7D8;
-      font-family:inherit;overscroll-behavior:none}
+#twin{position:fixed;inset:0;z-index:40;color:#EFE7D8;font-family:inherit;
+      overscroll-behavior:none;
+      /* dusk: the last of the light still on the horizon, night overhead */
+      background:linear-gradient(#070B18 0%,#0C142D 38%,#1B2547 68%,#3C3552 86%,#6B4A45 100%)}
 #tw-c{display:block;width:100%;height:100%;touch-action:none}
 .tw-hd{position:absolute;left:16px;top:14px;pointer-events:none}
 .tw-t{font-size:19px;font-weight:650;letter-spacing:-.02em;line-height:1.15}
@@ -3971,7 +3973,12 @@ window._availPreview = function (payload) {
      at seventy-two the model grew so tall that the camera had to stand back
      far enough to lose the shapes it exists to show. */
   var UH = 24, PITCH = 34, SEP = 46;
-  var FREE = 0xF3EEE3, SLAB = 0x6E6A66, EDGE = 0x8E97C4, HI = 0xE3A33A;
+  /* DUSK. The building is seen from the street after the light has gone, and
+     the only thing that is lit is what is still for sale. A shop that is free
+     has its lamp on; one that is sold or held is dark and cold. Nobody has to
+     read a legend to know which way round that is, and a floor that has gone
+     dark tells you it has gone without a single number on the screen. */
+  var LIT = 0xFFCE84, DARK = 0x243354, SLAB = 0x141C33, EDGE = 0x3E4F7F, HI = 0xFFF3D6;
   var REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function fail(why) {
@@ -3993,11 +4000,20 @@ window._availPreview = function (payload) {
   }
 
   /* ── the one place a unit's colour is decided ─────────────────────────── */
+  /* ONE QUESTION, ASKED OF EVERY SHOP: is your light on? A dealer opening
+     this wants what is left, and the kinds of hold are a second question that
+     the sheet answers when a unit is tapped. So the wall of lights says free
+     or gone, and the colours of hold, sold and pagri live in the tint that
+     the dark ones are given — close enough to read when you look for it,
+     quiet enough that the lit ones carry the picture. */
   function colourOf(u) {
     var s = window.stat ? window.stat(u) : { free: true, tint: '' };
-    if (s.free) return FREE;
+    if (s.free) return LIT;
     var hex = (s.tint || '').replace('#', '');
-    return hex ? parseInt(hex, 16) : 0x7E2F24;
+    if (!hex) return DARK;
+    var c = new THREE.Color(parseInt(hex, 16));
+    /* taken down to embers — the hue survives, the brightness does not */
+    return c.lerp(new THREE.Color(DARK), .55).getHex();
   }
 
   /* ── build ────────────────────────────────────────────────────────────── */
@@ -4005,15 +4021,20 @@ window._availPreview = function (payload) {
     var S = D.s;
     T.W = D.w; T.H = D.h; T.CX = D.w / 2; T.CZ = D.h / 2;
 
-    T.renderer = new THREE.WebGLRenderer({ canvas: $('tw-c'), antialias: true });
+    /* THE SKY IS CSS, NOT A MESH. A dusk gradient behind a transparent canvas
+       costs nothing to draw and never banded the way a fogged flat colour did. */
+    T.renderer = new THREE.WebGLRenderer({ canvas: $('tw-c'), antialias: true, alpha: true });
     T.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     T.scene = new THREE.Scene();
-    T.scene.background = new THREE.Color(0x0E1630);
-    T.scene.fog = new THREE.Fog(0x0E1630, 1, 1e9);
-    T.camera = new THREE.PerspectiveCamera(30, 1, 5, 20000);
-    T.scene.add(new THREE.HemisphereLight(0xE6ECFF, 0x3A2F26, 1.0));
-    var sun = new THREE.DirectionalLight(0xFFE9C8, 0.62);
-    sun.position.set(600, 900, 420); T.scene.add(sun);
+    T.scene.fog = new THREE.Fog(0x0B1020, 1, 1e9);
+    /* a narrower lens, the way a building is photographed: at thirty degrees
+       a block this long bends away at the ends like a fisheye */
+    T.camera = new THREE.PerspectiveCamera(21, 1, 5, 30000);
+    /* the last of the daylight, low and from the side, so the concrete has
+       shape without competing with the lamps standing on it */
+    T.scene.add(new THREE.HemisphereLight(0x35507F, 0x090D18, .85));
+    var sun = new THREE.DirectionalLight(0x9FB4E8, .35);
+    sun.position.set(900, 400, 260); T.scene.add(sun);
 
     D.floors.forEach(function (f, fi) {
       var g = new THREE.Group(); T.scene.add(g);
@@ -4031,6 +4052,19 @@ window._availPreview = function (payload) {
           if (x < fx0) fx0 = x; if (x > fx1) fx1 = x;
           if (z < fz0) fz0 = z; if (z > fz1) fz1 = z;
         }
+        /* A GAP BETWEEN NEIGHBOURS, OR THERE ARE NO WINDOWS. Drawn at their
+           true size the units touch, and a row of touching lamps is one long
+           glowing bar — which is what the first dusk render was. Pulling each
+           shape a little towards its own middle leaves a dark line all round
+           it, and the wall becomes what it is: a grid of lit windows, one per
+           shop. The inset is a tenth, so a small unit keeps its shape and a
+           large one does not float away from its neighbours. */
+        var cx = 0, cz = 0;
+        pts.forEach(function (q) { cx += q.x; cz += q.y; });
+        cx /= pts.length; cz /= pts.length;
+        pts = pts.map(function (q) {
+          return new THREE.Vector2(cx + (q.x - cx) * .9, cz + (q.y - cz) * .9);
+        });
         var geo;
         try {
           geo = new THREE.ExtrudeGeometry(new THREE.Shape(pts),
@@ -4052,7 +4086,12 @@ window._availPreview = function (payload) {
       bg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
       bg.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
       bg.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-      var mesh = new THREE.Mesh(bg, new THREE.MeshLambertMaterial({
+      /* THE UNITS ARE LAMPS, NOT WALLS, so they are not shaded: a light that
+         gets darker because it faces away from the sun is not a light. The
+         slabs below them are lit normally, and it is that contrast — glowing
+         boxes standing on dark concrete — that makes the picture read as a
+         building at night rather than a diagram. */
+      var mesh = new THREE.Mesh(bg, new THREE.MeshBasicMaterial({
         vertexColors: true, transparent: true }));
       mesh.userData.fi = fi;
       g.add(mesh);
@@ -4076,7 +4115,7 @@ window._availPreview = function (payload) {
     });
 
     T.stack = (T.floors.length - 1) * SEP;
-    T.cam = { theta: 1.15, phi: 1.16, r: 1000, tx: T.CX, ty: 0, tz: T.CZ };
+      T.cam = { theta: 1.45, phi: 1.40, r: 1000, tx: T.CX, ty: 0, tz: T.CZ };
     T.goal = {}; for (var k in T.cam) T.goal[k] = T.cam[k];
     T.ready = true;
   }
@@ -4155,10 +4194,29 @@ window._availPreview = function (payload) {
 
   /* ── camera ───────────────────────────────────────────────────────────── */
   function tanH() { return Math.tan(T.camera.fov * Math.PI / 360); }
+  /* FROM THE STREET, NOT FROM A HELICOPTER. The whole point of the picture is
+     the elevation: a long wall of windows, some lit and some not. So the eye
+     is put nearly level with the building and swung round to look along its
+     face, and the distance is taken from the FACE — its length and its
+     height — rather than from a sphere that is mostly empty air above it. */
+  /* A LIT BAZAAR, SEEN FROM JUST ABOVE THE ROOFS.
+     The first shape of this idea was a street elevation — and the building
+     refused it, for a reason worth writing down: the shops here open onto
+     INTERNAL galleries, not onto the outside. There is no wall of windows to
+     photograph; from the road all anyone sees is a long blank flank. Stood at
+     the corner it was worse, seven glowing ribbons running away.
+
+     So the lamps are read the way they actually fall: from above. Each shop
+     lights its own floor, the galleries stay dark between them, and seven
+     storeys of that is a bazaar at night with its lights on. The question the
+     picture answers is unchanged — what is still lit is still for sale — and
+     now the building will let it be asked. */
   function overview() {
     var R = Math.hypot(T.W, T.H, T.stack) / 2;
-    T.goal.tx = T.CX; T.goal.ty = T.stack * .5; T.goal.tz = T.CZ;
-    T.goal.phi = 1.02; T.goal.r = R / Math.sin(T.camera.fov * Math.PI / 360) * .52;
+    T.goal.tx = T.CX; T.goal.ty = T.stack * .42; T.goal.tz = T.CZ;
+    T.goal.theta = (T.H >= T.W ? Math.PI / 2 : 0) - .58;
+    T.goal.phi = .92;                 // high enough to see into the floors
+    T.goal.r = R / Math.sin(T.camera.fov * Math.PI / 360) * .56;
   }
   function planView(fi) {
     var f = T.floors[fi];
