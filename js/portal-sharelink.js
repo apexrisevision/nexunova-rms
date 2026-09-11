@@ -14,7 +14,7 @@
 (function () {
   'use strict';
 
-  var SL = { links: [], projects: [], fresh: {} };   // fresh = tokens minted this session
+  var SL = { links: [], projects: [], fresh: {}, editing: null };  // fresh = tokens minted this session
 
   (function () {
     var st = document.createElement('style');
@@ -39,7 +39,26 @@
         "padding:9px 11px;font-size:var(--fs-caption);word-break:break-all;font-family:inherit}" +
       ".sl-url b{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;" +
         "color:var(--fk-text-muted);margin-bottom:4px}" +
-      ".sl-note{margin-top:9px;font-size:var(--fs-caption);color:var(--fk-text-muted);line-height:1.5}";
+      ".sl-note{margin-top:9px;font-size:var(--fs-caption);color:var(--fk-text-muted);line-height:1.5}" +
+      /* the directors' room, and what guards it */
+      ".sl-rep{margin-top:12px;padding-top:11px;border-top:1px solid var(--fk-border)}" +
+      ".sl-rep-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}" +
+      ".sl-rep-t{font-weight:600;font-size:var(--fs-caption)}" +
+      ".sl-lock{display:inline-flex;align-items:center;height:21px;padding:0 9px;border-radius:999px;" +
+        "font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}" +
+      ".sl-lk-on{background:rgba(22,101,52,.13);color:#166534}" +
+      "html[data-theme=dark] .sl-lk-on{background:rgba(134,239,172,.16);color:#86EFAC}" +
+      ".sl-lk-off{background:var(--fk-bg-subtle);color:var(--fk-text-muted)}" +
+      ".sl-form{margin-top:10px;display:grid;gap:8px;max-width:340px}" +
+      ".sl-form label{font-size:11px;letter-spacing:.05em;text-transform:uppercase;" +
+        "color:var(--fk-text-muted);display:block;margin-bottom:3px}" +
+      ".sl-form input{width:100%;height:38px;padding:0 11px;border:1px solid var(--fk-border);" +
+        "border-radius:8px;background:var(--fk-bg-card);color:inherit;font:inherit}" +
+      ".sl-form input:focus{outline:2px solid var(--fk-primary);outline-offset:-1px}" +
+      ".sl-see{display:flex;align-items:center;gap:7px;font-size:var(--fs-caption);" +
+        "color:var(--fk-text-muted);cursor:pointer}" +
+      ".sl-see input{width:auto;height:auto}" +
+      ".sl-why{font-size:var(--fs-caption);color:var(--fk-text-muted);line-height:1.5;margin-top:2px}";
     document.head.appendChild(st);
   })();
 
@@ -114,6 +133,8 @@
         h += '<div class="sl-note">The link itself is not kept — only a fingerprint of it. ' +
              'If you no longer have it, make a new one.</div>';
       }
+
+      h += _report(p);
       return h + '</div>';
     }).join('');
 
@@ -126,6 +147,111 @@
         (rows || '<div class="sl-msg">No projects to share.</div>') +
       '</div>';
   }
+
+  /* ── THE DIRECTORS' ROOM, AND THE PASSWORD THAT OPENS IT ─────────────────
+     Behind the same link there is a room that reads the building back to the
+     directors — who is holding what, what each floor is worth, what lapses
+     this week. It has been password-protected since the day it was built, but
+     nothing on any screen could set that password, so changing it meant asking
+     me. Rashid's answer to that: "field bana do, mai khud set kar lunga."
+
+     WITH NO PASSWORD THE ROOM IS SHUT, not open — get_availability_report
+     refuses outright when the hash is null. So "Not set" is a closed door, and
+     the wording here says so rather than implying a hole.
+
+     Two boxes, not one. A director who mistypes a password he cannot see has
+     locked his own board out of the room, and the only way back is through me
+     — which is the thing being fixed. */
+  function _report(p) {
+    var open = SL.editing === p.id;
+    var h = '<div class="sl-rep"><div class="sl-rep-h">' +
+      '<span class="sl-rep-t">Directors\' report</span>' +
+      '<span class="sl-lock ' + (p.report_locked ? 'sl-lk-on' : 'sl-lk-off') + '">' +
+      (p.report_locked ? 'Password set' : 'Not set') + '</span></div>';
+
+    h += '<div class="sl-why">' + (p.report_locked
+      ? 'Anyone with the link can open the report by typing this password.' +
+        (p.report_set_at ? ' Set ' + when(p.report_set_at) +
+          (p.report_set_by ? ' by ' + esc(p.report_set_by) : '') + '.' : '')
+      : 'Until a password is set the report stays shut — the link shows only the ' +
+        'units, as it always has.') + '</div>';
+
+    if (open) {
+      h += '<div class="sl-form">' +
+        '<div><label for="sl-p1-' + esc(p.id) + '">New password</label>' +
+        '<input id="sl-p1-' + esc(p.id) + '" type="password" autocomplete="new-password" ' +
+        'spellcheck="false" placeholder="at least 12 characters"></div>' +
+        '<div><label for="sl-p2-' + esc(p.id) + '">Type it again</label>' +
+        '<input id="sl-p2-' + esc(p.id) + '" type="password" autocomplete="new-password" ' +
+        'spellcheck="false"></div>' +
+        '<label class="sl-see"><input type="checkbox" ' +
+        'onchange="_slSee(\'' + esc(p.id) + '\',this.checked)"> Show what I typed</label>' +
+        '<div class="sl-act">' +
+        '<button class="btn btn-primary" onclick="_slPassSave(\'' + esc(p.id) + '\')">Save password</button>' +
+        '<button class="btn btn-secondary" onclick="_slPassCancel()">Cancel</button>' +
+        '</div></div>';
+    } else {
+      h += '<div class="sl-act">' +
+        '<button class="btn btn-secondary" onclick="_slPass(\'' + esc(p.id) + '\')">' +
+        (p.report_locked ? 'Change password' : 'Set a password') + '</button>' +
+        (p.report_locked ? '<button class="btn btn-secondary" onclick="_slPassOff(\'' +
+          esc(p.id) + '\',\'' + esc(p.name) + '\')">Shut the report</button>' : '') +
+        '</div>';
+    }
+    return h + '</div>';
+  }
+
+  window._slPass = function (projectId) {
+    SL.editing = projectId;
+    _paint();
+    var f = $('sl-p1-' + projectId); if (f) f.focus();
+  };
+  window._slPassCancel = function () { SL.editing = null; _paint(); };
+
+  /* on a phone, a password nobody can see is a password nobody types right */
+  window._slSee = function (projectId, on) {
+    ['sl-p1-', 'sl-p2-'].forEach(function (k) {
+      var el = $(k + projectId); if (el) el.type = on ? 'text' : 'password';
+    });
+  };
+
+  window._slPassSave = async function (projectId) {
+    var a = $('sl-p1-' + projectId), b = $('sl-p2-' + projectId);
+    if (!a || !b) return;
+    var pw = a.value, again = b.value;
+    /* said here as well as by the server, because being told "too short" after
+       typing it twice is a worse way to learn the rule */
+    if (pw.trim().length < 12) return toast('Use at least 12 characters', 'warn');
+    if (pw !== again) return toast('The two do not match', 'warn');
+    var r;
+    try { r = await sb.rpc('set_availability_report_password', {
+      p_session_token: TOKEN, p_project_id: projectId, p_password: pw }); }
+    catch (e) { return toast('Could not save the password', 'err'); }
+    var d = r.data;
+    if (d && d.error === 'session_expired') return sessionGone();
+    if (!d || !d.success) return toast(
+      d && d.error === 'too_short' ? 'Use at least 12 characters'
+      : d && d.error === 'not_allowed' ? 'Only a director can set this'
+      : 'Could not save the password', 'err');
+    SL.editing = null;
+    toast('Password saved', 'ok');
+    await renderShareLinks();
+  };
+
+  window._slPassOff = async function (projectId, name) {
+    if (!confirm('Shut the directors\' report for ' + name + '?\n\n' +
+                 'The link keeps working and still shows the units. The report itself ' +
+                 'stops opening for everyone until a new password is set.')) return;
+    var r;
+    try { r = await sb.rpc('set_availability_report_password', {
+      p_session_token: TOKEN, p_project_id: projectId, p_password: '' }); }
+    catch (e) { return toast('Could not shut the report', 'err'); }
+    var d = r.data;
+    if (d && d.error === 'session_expired') return sessionGone();
+    if (!d || !d.success) return toast('Could not shut the report', 'err');
+    toast('The report is shut', 'ok');
+    await renderShareLinks();
+  };
 
   window._slNew = async function (projectId) {
     var p = SL.projects.filter(function (x) { return x.id === projectId; })[0];

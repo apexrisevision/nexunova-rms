@@ -51,6 +51,11 @@ function serve() {
     const s = http.createServer((q, res) => {
       let url = decodeURIComponent(q.url.split('?')[0]);
       if (/^\/a\/[A-Za-z0-9_-]+$/.test(url)) url = '/availability.html';   // the vercel rewrite
+      /* the browser asks for this of its own accord and the site does not have
+         one — it declares /assets/favicon-64.png instead. Answering "nothing
+         here" rather than "not found" keeps a harness artefact out of the
+         console-error count, without hiding anything the page really asked for. */
+      if (url === '/favicon.ico') { res.writeHead(204); return res.end(); }
       const p = path.join(ROOT, url);
       if (!p.startsWith(ROOT) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end('nf'); }
       res.writeHead(200, { 'Content-Type': MIME[path.extname(p).toLowerCase()] || 'application/octet-stream' });
@@ -89,15 +94,30 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
     const page = await ctx.newPage();
     await page.setViewport({ width: 1320, height: 940, deviceScaleFactor: 2 });
     const errs = [];
-    page.on('pageerror', e => errs.push(e.message));
-    page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
     page.on('dialog', async d => { await d.accept(); });        // confirm() → yes
     await page.goto(PAGE, { waitUntil: 'domcontentloaded' });
+    /* THE PORTAL HANDS ITSELF TO THE INSTALLED-APP HUB ON A PLAIN LAUNCH, and
+       under a driver that turns into a 404: the hop pushes /hub onto the URL, so
+       the reload below asked the harness for sales-portal.html/hub and got
+       nothing. Nothing on this screen had loaded for a while because of it, and
+       the rep check passed anyway — a sidebar with no Share link in it looks
+       exactly like a sidebar that never rendered, which is why the run only
+       fell over one step later. 'nx.hub.bounce' is the page's own guard against
+       hopping twice; setting it makes every load here behave like the second
+       one, the same way verify-reserve-desk.js does. */
     await page.evaluate(t => { localStorage.setItem('rms.sales.token', t);
                                localStorage.setItem('rms.sales.active', String(Date.now()));
+                               sessionStorage.setItem('nx.hub.bounce', '1');
                                sessionStorage.setItem('nx.loc.dismissed', '1');
                                sessionStorage.setItem('nx.pwa.dismissed', '1'); }, token);
-    await page.reload({ waitUntil: 'networkidle2' });
+    /* ERRORS ARE COUNTED FROM HERE, not from the load above. That first load is
+       deliberately unprepared — it exists only to reach the page's storage — and
+       it is the one that hops to the hub and 404s on the way. Counting its noise
+       would mean the run either fails for a thing the harness caused or, worse,
+       gets taught to ignore 404s in general. */
+    page.on('pageerror', e => errs.push(e.message));
+    page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
+    await page.goto(PAGE, { waitUntil: 'networkidle2' });
     await sleep(1600);
     try {
       await until(page, () => { const b = document.getElementById('app-body');
@@ -120,6 +140,12 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
   // ══ a rep must not even see the door ═══════════════════════════════════════
   stepH('ZZ Rep One opens the portal');
   const R = await portal('zz-share-rep');
+  /* AN ABSENCE PROVES NOTHING UNTIL THE THING IT IS ABSENT FROM IS THERE. This
+     check passed for the whole time the page was not loading at all, because a
+     sidebar that never rendered has no Share link in it either. So the sidebar
+     is counted first, and only then is the missing item worth asserting. */
+  const repSide = await R.page.evaluate(() => document.querySelectorAll('.sb .ni').length);
+  assert(repSide > 0, 'the rep\'s sidebar actually rendered (' + repSide + ' items)');
   const repNav = await navItem(R.page);
   assert(!repNav || !repNav.visible, 'a rep has no "Share link" in the sidebar');
   const repTry = await R.page.evaluate(async () => {
@@ -152,7 +178,8 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
     cards: [...document.querySelectorAll('.sl-card')].map(c => ({
       name: c.querySelector('.sl-nm').textContent,
       state: c.querySelector('.sl-state').textContent.trim(),
-      buttons: [...c.querySelectorAll('button')].map(b => b.textContent.trim())
+      // the first .sl-act is the link's own row; the report password has its own
+      buttons: [...c.querySelector('.sl-act').querySelectorAll('button')].map(b => b.textContent.trim())
     }))
   }));
   assert(before.title === 'Share availability', 'the screen opened: "' + before.title + '"');
@@ -182,7 +209,7 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
     return { url: box.textContent.replace(/^Copy this now/, '').trim(),
              state: card.querySelector('.sl-state').textContent.trim(),
              use: (card.querySelector('.sl-use') || {}).textContent || '',
-             buttons: [...card.querySelectorAll('button')].map(b => b.textContent.trim()) };
+             buttons: [...card.querySelector('.sl-act').querySelectorAll('button')].map(b => b.textContent.trim()) };
   });
   const URL_RE = /^http:\/\/127\.0\.0\.1:\d+\/a\/[0-9a-f]{32}$/;
   assert(URL_RE.test(made.url), 'it shows a full URL: ' + made.url);
@@ -217,19 +244,25 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
   const pubErr = [];
   pub.on('pageerror', e => pubErr.push(e.message));
   await pub.goto(made.url, { waitUntil: 'networkidle0' });
-  await until(pub, () => document.querySelectorAll('.win').length > 0);
-  await pub.waitForFunction(() =>
-    [...document.querySelectorAll('.win')].every(w => parseFloat(getComputedStyle(w).opacity) > 0.99),
-    { timeout: 12000, polling: 150 });
+  /* THE PUBLIC PAGE STOPPED BEING A WALL OF WINDOWS. It used to paint every
+     unit as a lit tile — class "win" — and this waited for those to fade in.
+     The page has since been rebuilt around floors, with the units behind one,
+     and "win" is not in the file at all any more, so the wait could only ever
+     time out. What this step is for is narrower than counting units, which is
+     shot-availability.js's work across two hundred assertions: it has to show
+     that a link a director made moments ago opens the right tower to somebody
+     with no login. The title and the floors prove exactly that. */
+  await until(pub, () => document.querySelectorAll('#floors button').length > 0);
+  await sleep(600);
   await pub.screenshot({ path: path.join(SHOTS, '03-link-opens.png') });
   console.log('  📸 03-link-opens');
   const opened = await pub.evaluate(() => ({
     title: document.getElementById('ttl').textContent,
-    units: document.querySelectorAll('.win').length,
+    floors: document.querySelectorAll('#floors button').length,
     stored: Object.keys(localStorage).length
   }));
-  assert(opened.title === 'ZZ Map Tower' && opened.units === 30,
-    'the shared link opens the tower: ' + opened.title + ', ' + opened.units + ' units');
+  assert(opened.title === 'ZZ Map Tower' && opened.floors > 0,
+    'the shared link opens the tower: ' + opened.title + ', ' + opened.floors + ' floor(s)');
   assert(opened.stored === 0, 'and the visitor is still not logged in to anything');
   assert(pubErr.length === 0, 'no console errors on the public page');
   await ctx2.close();
@@ -285,6 +318,100 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
   const newNow = await sql(`SELECT (public.get_public_availability('${TOKEN2}')->>'success') AS s`);
   assert(oldNow[0].s === 'false', 'the link shared earlier stopped working');
   assert(newNow[0].s === 'true', 'and the fresh one works');
+
+  // ══ the password that opens the directors' room ════════════════════════════
+  // Rashid had no way to change this without asking me, which is the dependence
+  // the whole of today was about. So it is driven here the way he will drive it:
+  // by clicking, with the wrong things typed first.
+  stepH("The directors' report password");
+
+  const repBefore = await D.page.evaluate(() => {
+    const c = [...document.querySelectorAll('.sl-card')]
+      .find(x => /ZZ Map Tower/.test(x.querySelector('.sl-nm').textContent));
+    return { lock: c.querySelector('.sl-lock').textContent.trim(),
+             why: c.querySelector('.sl-why').textContent.trim(),
+             buttons: [...c.querySelectorAll('.sl-rep button')].map(b => b.textContent.trim()) };
+  });
+  assert(repBefore.lock === 'Not set', 'it starts unlocked: "' + repBefore.lock + '"');
+  assert(/stays shut/.test(repBefore.why),
+    'and says the report is SHUT, not open: "' + repBefore.why + '"');
+  assert(repBefore.buttons.join() === 'Set a password',
+    'with one thing to do: ' + repBefore.buttons.join(', '));
+
+  const clickText = async (t) => {
+    const at = await D.page.evaluate(t => {
+      const b = [...document.querySelectorAll('.sl-card button')].find(x => x.textContent.trim() === t);
+      const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }, t);
+    await D.page.mouse.click(at.x, at.y);
+  };
+  const typePair = async (a, b) => D.page.evaluate((a, b) => {
+    const f = document.querySelectorAll('.sl-form input[type=password], .sl-form input[type=text]');
+    f[0].value = a; f[1].value = b;
+  }, a, b);
+  /* ASK FOR TEXT, NOT A BOOLEAN. The management API hands a real boolean back as
+     JSON true, and comparing that to the string 'true' is false forever — which
+     made every "nothing was stored" check below pass without ever looking.
+     Casting in SQL keeps one type coming back and the comparison honest. */
+  const hashNow = async () => (await sql(
+    `SELECT (report_password_hash IS NOT NULL)::text AS set FROM public.projects
+      WHERE project_name = 'ZZ Map Tower'`))[0].set === 'true';
+
+  await clickText('Set a password');
+  await until(D.page, () => !!document.querySelector('.sl-form'));
+  ok('the form opens in the card');
+
+  // too short — refused before it ever reaches the server
+  await typePair('short', 'short');
+  await clickText('Save password');
+  await sleep(400);
+  assert(!(await hashNow()), 'a short password is refused and nothing is stored');
+
+  // mistyped — the reason the second box exists
+  await typePair('LongEnoughOne1', 'LongEnoughTwo2');
+  await clickText('Save password');
+  await sleep(400);
+  assert(!(await hashNow()), 'two that do not match are refused too');
+
+  // and the real one
+  const PW = 'ZZ-report-' + Date.now();
+  await typePair(PW, PW);
+  await clickText('Save password');
+  await until(D.page, () => {
+    const c = [...document.querySelectorAll('.sl-card')]
+      .find(x => /ZZ Map Tower/.test(x.querySelector('.sl-nm').textContent));
+    return c && c.querySelector('.sl-lock').textContent.trim() === 'Password set';
+  });
+  await sleep(500);
+  await D.page.screenshot({ path: path.join(SHOTS, '06-password-set.png') });
+  console.log('  📸 06-password-set');
+  assert(await hashNow(), 'the password he typed is stored');
+
+  const raw2 = await sql(`SELECT count(*) AS n FROM public.projects
+                           WHERE project_name = 'ZZ Map Tower' AND report_password_hash = '${PW}'`);
+  assert(Number(raw2[0].n) === 0, 'as a fingerprint — the password itself is not in the table');
+
+  const onScreen = await D.page.content();
+  assert(!new RegExp(PW).test(onScreen), 'and it is not left sitting on the screen');
+
+  // the door it actually opens
+  const good = await sql(`SELECT (public.get_availability_report('${TOKEN2}','${PW}')->>'success') AS s`);
+  assert(good[0].s === 'true', 'the report opens with it');
+  const bad1 = await sql(`SELECT (public.get_availability_report('${TOKEN2}','${PW}x')->>'success') AS s`);
+  assert(bad1[0].s === 'false', 'and refuses anything else');
+
+  // shutting it again
+  await clickText('Shut the report');
+  await until(D.page, () => {
+    const c = [...document.querySelectorAll('.sl-card')]
+      .find(x => /ZZ Map Tower/.test(x.querySelector('.sl-nm').textContent));
+    return c && c.querySelector('.sl-lock').textContent.trim() === 'Not set';
+  });
+  assert(!(await hashNow()), 'Shut the report clears it');
+  const shut = await sql(`SELECT (public.get_availability_report('${TOKEN2}','${PW}')->>'success') AS s`);
+  assert(shut[0].s === 'false', 'and the room no longer opens with the old password');
+  const stillUnits = await sql(`SELECT (public.get_public_availability('${TOKEN2}')->>'success') AS s`);
+  assert(stillUnits[0].s === 'true', 'while the link itself keeps showing the units');
 
   // ══ turn it off ════════════════════════════════════════════════════════════
   stepH('Turn off');
