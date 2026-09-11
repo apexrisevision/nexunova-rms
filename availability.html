@@ -53,10 +53,6 @@
   --held:#8A6224;
   --held-bg:#F3EEE5;
   --warn:#8A5300;
-  /* the one green on the page: alive, and a shop that came back */
-  --ok:#1F9D55;
-  /* a shop with nothing on it — the board's resting colour */
-  --free:#DDDEDF;
 
   --r:12px;
   --r-lg:20px;
@@ -258,102 +254,6 @@ button{cursor:pointer;background:none;border:0}
                    animation-delay:calc(var(--i,0) * 30ms)}
 @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes fade{from{opacity:0}to{opacity:1}}
-
-/* ══ LIVE ════════════════════════════════════════════════════════════════
-   A screen is not live because it says so. It is live because things on it
-   move when the building moves: the reading climbs, the floor bars slide, the
-   shop that just went is named, and the clock in the corner counts up between
-   fetches so the page is visibly awake even when nothing has happened. */
-#upd{display:inline-flex;align-items:center;gap:6px}
-.pulse{width:7px;height:7px;border-radius:50%;background:var(--ok);display:block;
-       box-shadow:0 0 0 0 rgba(31,157,85,.55);animation:beat 2.4s var(--ease) infinite}
-#upd.stale .pulse{background:var(--held);animation-duration:1.1s}
-@keyframes beat{
-  0%{box-shadow:0 0 0 0 rgba(31,157,85,.5)}
-  55%{box-shadow:0 0 0 7px rgba(31,157,85,0)}
-  100%{box-shadow:0 0 0 0 rgba(31,157,85,0)}
-}
-/* the feed — what moved, newest first, and never more than five */
-#news{margin:0 0 13px;background:var(--card);border-radius:var(--r);padding:9px 12px 10px}
-.nw-h{font-size:10.5px;font-weight:650;letter-spacing:.11em;text-transform:uppercase;
-      color:var(--mut);margin-bottom:6px}
-.nw-r{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px;
-      animation:slide 320ms var(--ease) both}
-.nw-r i{width:7px;height:7px;border-radius:2px;flex:none;display:block}
-.nw-r b{font-weight:650;letter-spacing:-.01em;flex:none}
-.nw-r span{color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.nw-r em{margin-left:auto;font-style:normal;color:var(--mut);font-size:11px;flex:none}
-.nw-r.fresh b{color:var(--accent)}
-@keyframes slide{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
-/* A BAR THAT ARRIVES AT A NEW WIDTH rather than appearing at it — and inside
-   the same 300ms the whole page is held to. The heartbeat is the one thing on
-   this screen allowed to run longer, because it is the claim "live" being
-   kept; a slide that outlasts the budget would just be the page being slow. */
-.bar i,.fl .fb i{transition:width 300ms var(--ease)}
-/* the floor that just moved holds a moment, then lets go */
-/* the floor that just moved holds a moment, then lets go — and does it
-   inside the budget, because a flash is a signal and not a light show */
-.bd-f.moved{animation:moved 300ms var(--ease) both}
-@keyframes moved{
-  0%{background:var(--accent-soft)}
-  40%{background:var(--accent-soft)}
-  100%{background:var(--card)}
-}
-@media (prefers-reduced-motion:reduce){
-  .pulse{animation:none}
-  .nw-r{animation:none}
-  .bd-f.moved{animation:none}
-  .bar i,.fl .fb i{transition:none}
-}
-
-/* ══ THE BOARD ════════════════════════════════════════════════════════════
-   Rashid, at the end of a long day: "is dashboard ko change karo totally."
-   Fair. Every version until now was the same seven rows with a number and a
-   bar on each — a summary of the market, which is a thing you read.
-
-   This is not a summary. It is THE WHOLE MARKET, all 1,469 shops at once, one
-   small square each, laid out floor by floor. Nothing is aggregated and
-   nothing is hidden behind a tap: the Lower Ground being half gone and the
-   Fifth being untouched is not a sentence you read, it is a shape you see
-   before you have read anything at all.
-
-   It is also the only layout on which "live" means something. When a shop is
-   held, ITS OWN SQUARE changes colour in front of you — not a total, not a
-   bar, the actual unit. */
-.bd{display:flex;flex-direction:column;gap:11px}
-.bd-f{background:var(--card);border-radius:var(--r);padding:9px 11px 10px}
-.bd-h{display:flex;align-items:baseline;gap:8px;margin-bottom:7px}
-.bd-n{font-size:13px;font-weight:650;letter-spacing:-.015em;
-      background:none;border:0;padding:0;color:var(--ink);font-family:inherit;cursor:pointer}
-@media (hover:hover){ .bd-n:hover{color:var(--accent)} }
-.bd-c{font-size:11.5px;color:var(--mut);font-variant-numeric:tabular-nums}
-.bd-c b{font-weight:650;color:var(--soft)}
-.bd-k{margin-left:auto;display:flex;gap:7px;flex-wrap:nowrap;overflow:hidden}
-.bd-k span{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:650;
-           color:var(--t,var(--mut));white-space:nowrap}
-.bd-k i{width:6px;height:6px;border-radius:2px;background:var(--t);display:block}
-/* the shops themselves */
-/* BIG ENOUGH FOR A THUMB TO MEAN ONE OF THEM. At nine pixels the whole
-   market fits a phone screen without scrolling and nobody can tap a shop —
-   a board you can only look at is half a board. Thirteen with three between
-   costs a scroll and buys a target a person can actually hit, and the
-   search is still there for anyone who knows the number. */
-.bd-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(13px,1fr));gap:3px}
-.bd-u{aspect-ratio:1;border:0;padding:0;border-radius:2px;background:var(--free);
-      cursor:pointer;transition:transform 140ms var(--ease),box-shadow 140ms var(--ease)}
-.bd-u.off{cursor:default}
-@media (hover:hover){ .bd-u:not(.off):hover{transform:scale(1.55);box-shadow:0 2px 7px rgba(20,23,28,.22)} }
-.bd-u.hit{outline:2px solid var(--accent);outline-offset:1px;transform:scale(1.5);z-index:2}
-/* the square that just changed says so for a beat, then settles */
-.bd-u.just{animation:just 300ms var(--ease) both}
-@keyframes just{ from{transform:scale(2.1);box-shadow:0 0 0 4px var(--ring)} to{transform:none} }
-@media (min-width:560px){ .bd-g{grid-template-columns:repeat(auto-fill,minmax(16px,1fr))} }
-@media (min-width:760px){
-  .bd{display:grid;grid-template-columns:1fr 1fr;gap:13px}
-  .bd-f{padding:13px 15px 14px}
-  .bd-g{grid-template-columns:repeat(auto-fill,minmax(17px,1fr));gap:4px}
-}
-@media (prefers-reduced-motion:reduce){ .bd-u,.bd-u.just{animation:none;transition:none} }
 
 /* ── SKELETON ────────────────────────────────────────────────────────────
    Matched to the real thing's dimensions, so the page does not jump when the
@@ -1244,14 +1144,13 @@ button{cursor:pointer;background:none;border:0}
          It sits above the search because it is a reading, not an action — the
          search is still the first thing anyone can touch. -->
     <div class="hero" id="hero"></div>
-    <div id="news" hidden></div>
     <div class="sr">
       <input id="q" type="search" inputmode="search" autocomplete="off"
              autocapitalize="characters" spellcheck="false"
              placeholder="Search unit — e.g. LG-12" aria-label="Search unit">
       <div id="res" hidden></div>
     </div>
-    <div class="bd" id="board"></div>
+    <div class="fl" id="floors"></div>
     <!-- Deliberately outside #floors: it is not a floor, and every check
          that counts floors would have counted it. -->
     <div id="allrow"></div>
@@ -1353,8 +1252,6 @@ button{cursor:pointer;background:none;border:0}
     <div class="empty" id="fempty" hidden></div>
   </section>
 </div>
-
-
 
 <div class="scrim" id="scrim"></div>
 <aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-n"></aside>
@@ -1636,18 +1533,7 @@ async function load(first) {
     return;
   }
 
-  /* WHAT MOVED SINCE THE LAST LOOK. A dashboard that redraws itself with new
-     numbers is not live, it is just correct — nobody watching it sees
-     anything happen. So the position before this fetch is kept and compared
-     with the one after it, and the difference is the news: which shop went,
-     which came back, on whose word. Everything that moves on this screen
-     moves because of a line in this list. */
-  var was = {};
-  (P && P.floors || []).forEach(function (f) {
-    (f.units || []).forEach(function (u) { was[u.n] = (u.s === 'available') ? 'a' : ('x' + (u.k || '')); });
-  });
   P = d; FETCHED = Date.now(); STALE = false;
-  if (!first) noteChanges(was);
   refreshMyReqs();          // a decision reaches the dealer on the same rhythm
 
   if (first) {
@@ -2055,157 +1941,18 @@ function dead() {
     'Ask whoever shared it for the current link.</span></div>';
 }
 
-/* A TIME THAT COUNTS UP, because "Updated 22:19" is a fact and "12s ago" is a
-   pulse. It is the cheapest thing on the page that makes it feel awake. */
-/* ══ WHAT JUST HAPPENED ═══════════════════════════════════════════════════
-   Rashid: "make a LIVE dashboard. Animated and amazing." Live is not a word
-   you put on a screen, it is something the screen does: a number that climbs
-   to its new value instead of jumping there, a bar that slides to its new
-   width, and a line that says out loud what moved — which shop, which way,
-   and on whose word, because the payload already carries the name behind a
-   hold.
-
-   Nothing here invents news. Every line comes from comparing the position
-   before a fetch with the one after it, so a quiet market shows a quiet
-   screen rather than a busy one. */
-var NEWS = [];                     // newest first, the last half hour
-var FLASH = {};                    // unit -> when it changed, for the glow
-
-function noteChanges(was) {
-  var now = Date.now(), fresh = [];
-  (P.floors || []).forEach(function (f) {
-    (f.units || []).forEach(function (u) {
-      var key = (u.s === 'available') ? 'a' : ('x' + (u.k || ''));
-      var old = was[u.n];
-      if (old === undefined || old === key) return;
-      var s = stat(u);
-      fresh.push({ n: u.n, at: now, free: s.free, label: s.label, who: s.who, tint: s.tint });
-      FLASH[u.n] = now;
-    });
-  });
-  if (!fresh.length) return;
-  /* never more than a screenful kept — a feed nobody can read is a screensaver */
-  NEWS = fresh.concat(NEWS).slice(0, 24);
-  paintNews();
-}
-
-function ago(ms) {
-  var s = Math.round((Date.now() - ms) / 1000);
-  return s < 10 ? 'just now' : s < 60 ? s + 's ago' :
-         s < 3600 ? Math.round(s / 60) + ' min ago' : Math.round(s / 3600) + 'h ago';
-}
-
-function paintNews() {
-  var box = $('news'); if (!box) return;
-  /* half an hour is as far back as "just now" can honestly reach */
-  NEWS = NEWS.filter(function (x) { return Date.now() - x.at < 1800000; });
-  if (!NEWS.length) { box.hidden = true; box.innerHTML = ''; return; }
-  box.hidden = false;
-  box.innerHTML = '<div class="nw-h">Just now</div>' +
-    NEWS.slice(0, 5).map(function (x) {
-      return '<div class="nw-r' + (Date.now() - x.at < 30000 ? ' fresh' : '') + '">' +
-        '<i style="background:' + (x.free ? '#1f9d55' : (x.tint || '#8a8a8a')) + '"></i>' +
-        '<b>' + esc(x.n) + '</b>' +
-        '<span>' + (x.free ? 'came back' : esc(String(x.label).toLowerCase())) +
-          (x.who ? ' · ' + esc(x.who) : '') + '</span>' +
-        '<em>' + ago(x.at) + '</em></div>';
-    }).join('');
-}
-setInterval(function () { if (!document.hidden && NEWS.length) paintNews(); }, 5000);
-
-/* A NUMBER THAT CLIMBS. Given a target it walks there over a few frames, so a
-   count moving from 1,315 to 1,314 is SEEN to move. A large jump is set
-   outright — nobody watches a counter spin up to a thousand. */
-/* THE ENTRANCE. Every bar on screen one starts at nothing and runs out to its
-   own width, and every count climbs to its figure, one floor after another
-   from the top of the building down. The whole thing is over in a third of a
-   second — long enough to be seen, too short to be waited for.
-
-   It states nothing that was not already true. The widths and the numbers it
-   arrives at are the ones the payload gave; this only refuses to have them
-   appear fully formed, because a reading that was never seen to arrive is a
-   reading nobody reads. */
-function fillIn() {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  var rows = [].slice.call(document.querySelectorAll('.bd-f'));
-  var hero = $('hero-n');
-  var heroTo = Number(hero && hero.getAttribute('data-v')) || 0;
-
-  /* hold everything at zero for one frame, so the browser has a width to
-     animate FROM — set and unset in the same frame and nothing moves */
-  var bars = [].slice.call(document.querySelectorAll('.hero .bar i'));
-  var want = bars.map(function (b) { return b.style.width; });
-  bars.forEach(function (b) { b.style.width = '0%'; });
-  var counts = rows.map(function (r) {
-    var v = r.querySelector('.bd-c b');
-    var to = v ? Number(String(v.textContent).replace(/[^0-9]/g, '')) : null;
-    if (v && to) v.textContent = '0';
-    return { el: v, to: to };
-  });
-  if (hero && heroTo) hero.textContent = '0';
-
-  requestAnimationFrame(function () {
-    requestAnimationFrame(function () {
-      bars.forEach(function (b, i) { b.style.width = want[i]; });
-      if (hero && heroTo) countTo(hero, heroTo, true);
-      counts.forEach(function (c, i) {
-        if (!c.el || !c.to) return;
-        /* top floor first, down the building, a beat apart */
-        setTimeout(function () { countTo(c.el, c.to, true); }, 60 + i * 55);
-      });
-    });
-  });
-}
-
-function countTo(el, to, force) {
-  if (!el) return;
-  /* ON AN ENTRANCE THE STARTING FIGURE IS WHAT IS ON SCREEN. Everywhere else
-     it is the last target this element was given, which survives a rebuild of
-     the row it lives in; on arrival the row is new and the screen says zero. */
-  var from = force
-    ? (Number(String(el.textContent).replace(/[^0-9-]/g, '')) || 0)
-    : (Number(String(el.getAttribute('data-v') || el.textContent).replace(/[^0-9-]/g, '')) || 0);
-  el.setAttribute('data-v', to);
-  /* A BIG JUMP IS SET OUTRIGHT — nobody watches a counter spin to a thousand
-     because a fetch moved it by four hundred. The ARRIVAL is the exception
-     and says so: there the whole climb is the point, and it is the one place
-     that passes force. Without this the entrance defeated itself, every count
-     landing fully formed because zero to 1,315 is a big jump. */
-  if (from === to || (!force && Math.abs(to - from) > 60) ||
-      matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    el.textContent = Number(to).toLocaleString('en-US');
-    return;
-  }
-  var t0 = performance.now(), span = force ? 760 : 520;
-  requestAnimationFrame(function step(now) {
-    var k = Math.min(1, (now - t0) / span);
-    var v = Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3)));
-    el.textContent = v.toLocaleString('en-US');
-    if (k < 1) requestAnimationFrame(step);
-  });
-}
-
 function paintUpdated() {
   var el = $('upd');
   if (!FETCHED) { el.textContent = ''; return; }
-  var s = Math.max(0, Math.round((Date.now() - FETCHED) / 1000));
-  el.innerHTML = '<i class="pulse"></i>' +
-    (STALE ? 'Reconnecting…'
-           : s < 8 ? 'Live · just now'
-           : s < 60 ? 'Live · ' + s + 's ago'
-           : 'Live · ' + Math.round(s / 60) + ' min ago');
+  el.textContent = 'Updated ' + hhmm(FETCHED);
   el.classList.toggle('stale', STALE);
+  el.title = STALE ? 'Could not refresh — showing the last known position' : '';
 }
-setInterval(function () { if (!document.hidden && FETCHED) paintUpdated(); }, 1000);
 
 function schedule() {
   clearTimeout(TIMER);
   if (document.hidden) return;
-  /* TWENTY-FIVE SECONDS, NOT TWO MINUTES. A screen that says LIVE has to be
-     able to show something happening while somebody is watching it; at two
-     minutes the news is always older than the person's patience. The tab is
-     still left alone the moment it is hidden. */
-  TIMER = setTimeout(function () { load(false).then(schedule); }, 25000);
+  TIMER = setTimeout(function () { load(false).then(schedule); }, 120000);
 }
 document.addEventListener('visibilitychange', function () {
   if (document.hidden) { clearTimeout(TIMER); return; }
@@ -2290,22 +2037,61 @@ function renderHome() {
   $('home').hidden = false;
   if (BACKING) { BACKING = false; playScr($('home'), 'scr-out'); }
 
-  /* THE WHOLE MARKET, COUNTED AND DRAWN. The seven rows with a bar on each
-     are gone: this screen now carries every shop in the building as its own
-     square. The totals are still added up here because the reading above
-     them has to agree with what is drawn below. */
   var tot = 0, av = 0;
-  (P.floors || []).forEach(function (f) {
-    tot += Number(f.total || (f.units || []).length);
-    av  += Number(f.available || 0);
-  });
-  paintBoard();
+  $('floors').innerHTML = (P.floors || []).map(function (f, i) {
+    tot += Number(f.total || 0); av += Number(f.available || 0);
+    var n = Number(f.available || 0), t = Number(f.total || 0);
+    /* The count is the headline of the chip and the floor name is the caption,
+       because nobody scans this grid looking for the word "Second". */
+    /* AND WHAT THE REST OF THE FLOOR IS. Rashid: "main dashboard pe b detail
+       ho k har floor pe kitnay hold kitnay sold kitnay pagri etc aur phir
+       cummulative detail b." A row of small coloured counts under the number,
+       in the same colours the plate uses, so a floor reads at a glance. */
+    var kinds = tally(f.units || []);
+    /* THE FLOOR AS A STRIP OF THE BUILDING. Free first, then a band for each
+       kind of hold in the same colours the plate paints the shops in, so the
+       bar reads the same way the map does. */
+    var bar = '<span class="fb">' +
+      (t ? '<i class="free" style="width:' + (n * 100 / t) + '%"></i>' : '') +
+      kinds.map(function (k) {
+        return '<i style="width:' + (t ? k.n * 100 / t : 0) + '%;background:' + k.tint + '"></i>';
+      }).join('') + '</span>';
+    return '<button data-f="' + i + '" style="--i:' + i + '"' +
+      (n ? '' : ' class="empty"') + '>' +
+      '<span class="fh-r">' +
+        '<span class="fn">' + esc(f.floor_label) + '</span>' +
+        '<span class="fr">' +
+          (n ? '<span class="fv num">' + n + '</span>' +
+               '<span class="fc">of ' + t + '</span>'
+             : '<span class="fv">None free</span>' +
+               '<span class="fc">of ' + t + '</span>') +
+        '</span>' +
+      '</span>' +
+      '<span class="fb-r">' + bar +
+        '<span class="fk">' + (kinds.length
+          ? kinds.map(function (k) {
+              return '<span class="fk-i" style="--t:' + k.tint + '" title="' + esc(k.label) + '">' +
+                     '<i></i>' + k.n + '</span>';
+            }).join('')
+          /* A FLOOR WITH NOTHING TAKEN SAYS SO. Left blank it reads as a floor
+             whose numbers have not loaded, which is the opposite of the truth. */
+          : '<span class="fk-n">all free</span>') + '</span>' +
+      '</span>' +
+      '</button>';
+  /* TOP FLOOR AT THE TOP. The register hands the floors up from the ground,
+     which is the right order for a list and the wrong one for a building —
+     drawn that way the tower is upside down. Only the drawing is reversed:
+     data-f still carries each floor's own index, so everything that opens a
+     floor by number is untouched. */
+  }).reverse().join('');
 
+  /* One quiet line, because the seven chips above already carry the weight
+     and screen one has to stay whole on a phone. */
   $('allrow').innerHTML =
     '<button class="all-chip" data-all="1">' +
       '<span class="ac-w">' +
         '<span class="ac-t">All units</span>' +
-        '<span class="ac-m">Every floor in one list · <b class="num">' + av +
+        '<span class="ac-m">Every floor in one list \u00b7 <b class="num">' + av +
           '</b> of <span class="num">' + tot + '</span> available</span>' +
       '</span>' +
       '<span class="ac-x"><i></i></span>' +
@@ -2318,21 +2104,9 @@ function renderHome() {
      is reading it is the page fidgeting. */
   if (!STAGGERED) {
     STAGGERED = true;
-    var fl = $('board');
+    var fl = $('floors');
     fl.classList.add('stagger');
     setTimeout(function () { fl.classList.remove('stagger'); }, 500);
-    /* ── ALIVE ON ARRIVAL, NOT ONLY ON CHANGE ────────────────────────────
-       Everything that moved on this screen moved because something in the
-       building moved — which meant that on a quiet afternoon the page opened
-       looking exactly as it always had, with a green dot on it. Rashid saw
-       precisely that: "sirf aik green dot new bana hai… oor kuch nahi howa."
-
-       A reading is worth watching arrive. So on the first paint the bars run
-       out to their widths and the counts climb from nothing, floor after
-       floor. It costs a third of a second, it happens every time the link is
-       opened, and it does not pretend anything has happened: the numbers it
-       arrives at are the numbers it would have shown anyway. */
-    fillIn();
   }
 
   runSearch();          // keep any query alive across a refetch
@@ -2341,82 +2115,6 @@ function renderHome() {
 /* One number, one bar, one line of legend. The bar is the same fact drawn a
    second time for the eye that does not read digits; it is never the only
    place a number appears, so colour is never load-bearing on its own. */
-/* ══ THE BOARD — every shop in the market, at once ════════════════════════
-   Seven floors, 1,469 squares, one per shop, in the order the register holds
-   them. A free shop is pale; a taken one carries the colour of what took it.
-   Tap one and its sheet opens; tap the floor's name and the floor opens.
-
-   WHY THE WHOLE THING AND NOT A SUMMARY. Because the question anyone opening
-   this link has is "what is left, and where" — and a number cannot answer the
-   second half. On this screen the answer is a shape: the Lower Ground half
-   coloured in, the top three floors clear, a block of holds running down one
-   side of the Ground Floor. Nobody reads that. They see it.
-
-   AND IT IS THE ONLY LAYOUT WHERE LIVE MEANS ANYTHING. When a shop goes, its
-   own square changes in front of you. */
-function paintBoard() {
-  var host = $('board'); if (!host) return;
-  var html = '';
-  (P.floors || []).forEach(function (f, fi) {
-    var units = f.units || [];
-    var free = Number(f.available || 0), tot = Number(f.total || units.length);
-    var kinds = tally(units);
-    html += '<div class="bd-f">' +
-      '<div class="bd-h">' +
-        '<button class="bd-n" data-fl="' + fi + '">' + esc(f.floor_label) + '</button>' +
-        '<span class="bd-c"><b class="num">' + free + '</b> of ' + tot + '</span>' +
-        (kinds.length ? '<span class="bd-k">' + kinds.map(function (k) {
-            return '<span style="--t:' + k.tint + '"><i></i>' + k.n + '</span>';
-          }).join('') + '</span>' : '') +
-      '</div>' +
-      '<div class="bd-g">' +
-        units.map(function (u) {
-          var s = stat(u);
-          /* the title is what a mouse gets; a thumb gets the sheet */
-          return '<button class="bd-u' + (s.free ? '' : ' off') + '" data-u="' + esc(u.n) +
-                 '" data-f="' + fi + '" title="' + esc(u.n + ' · ' + s.label) + '"' +
-                 (s.free ? '' : ' style="background:' + s.tint + '"') + '></button>';
-        }).join('') +
-      '</div></div>';
-  });
-  host.innerHTML = html;
-
-  /* the squares that moved since the last look, named by the same comparison
-     that feeds the line at the top — so the two can never disagree */
-  var now = Date.now();
-  Object.keys(FLASH).forEach(function (n) {
-    if (now - FLASH[n] > 4000) { delete FLASH[n]; return; }
-    var b = host.querySelector('[data-u="' + n.replace(/"/g, '') + '"]');
-    if (!b) return;
-    b.classList.add('just');
-    setTimeout(function () { b.classList.remove('just'); }, 340);
-    /* and the floor it sits on holds a tint for a beat, so an eye anywhere on
-       the board is told which way to look before the square has settled */
-    var card = b.closest('.bd-f');
-    if (card && !card.classList.contains('moved')) {
-      card.classList.add('moved');
-      setTimeout(function () { card.classList.remove('moved'); }, 1400);
-    }
-  });
-}
-
-/* one listener for fourteen hundred squares */
-document.getElementById('board').addEventListener('click', function (e) {
-  var u = e.target.closest('.bd-u');
-  if (u) { openSheet(u.getAttribute('data-u'), Number(u.getAttribute('data-f'))); return; }
-  var f = e.target.closest('.bd-n');
-  if (f) {
-    /* everything the old floor chip did, because the floor screen behind it is
-       unchanged and still expects to be entered cleanly: no stale search, and
-       the "show taken as well" toggle back down */
-    FLOOR = Number(f.getAttribute('data-fl'));
-    SHOWALL = false;
-    $('q').value = ''; runSearch();
-    renderFloor();
-    window.scrollTo(0, 0);
-  }
-});
-
 function paintHero(av, tot) {
   var held = Math.max(0, tot - av);
   var pct = tot ? Math.round(av * 1000 / tot) / 10 : 0;
@@ -2433,11 +2131,10 @@ function paintHero(av, tot) {
      alongside the count instead. The bar stays — it is the only place the
      whole building is one shape — but it closes the block rather than sitting
      in the middle of it. */
-  var hadHero = $('hero-n');
   $('hero').innerHTML =
     '<div class="hero-l">Available now</div>' +
     '<div class="hero-top">' +
-      '<div class="hero-n" id="hero-n">' + av + '</div>' +
+      '<div class="hero-n">' + av + '</div>' +
       '<div class="hero-p">of ' + tot + (tot ? ' · ' + pct + '%' : '') + '</div>' +
       '<div class="hero-f">' +
         (held ? kinds.map(function (k) {
@@ -2452,10 +2149,6 @@ function paintHero(av, tot) {
         return '<i style="width:' + (tot ? k.n * 100 / tot : 0) + '%;background:' + k.tint + '"></i>';
       }).join('') +
     '</div>';
-  /* the reading walks to its new value; the bars slide because CSS says so */
-  var hn = $('hero-n');
-  if (hadHero) countTo(hn, av);
-  else if (hn) hn.setAttribute('data-v', av);
 }
 
 /* ── THE WHOLE BUILDING ───────────────────────────────────────────────────
@@ -3542,6 +3235,14 @@ $('res').addEventListener('click', function (e) {
   var r = hits[Number(b.getAttribute('data-i'))]; if (!r) return;
   openSheet(r.u.n, r.fi);
 });
+$('floors').addEventListener('click', function (e) {
+  var b = e.target.closest('button[data-f]'); if (!b) return;
+  FLOOR = Number(b.getAttribute('data-f'));
+  SHOWALL = false;
+  $('q').value = ''; runSearch();
+  renderFloor();
+  window.scrollTo(0, 0);
+});
 /* The chip lives inside the floor grid, so its click arrives on the same
    listener; it is read first because it carries no data-f. */
 $('allrow').addEventListener('click', function (e) {
@@ -4119,18 +3820,7 @@ else { load(true).then(schedule); }
 /* the harness renders against a captured payload so the scale screens can be
    photographed without an Awami link being created */
 window._availPreview = function (payload) {
-  /* THE SAME DOOR AS A REAL FETCH. The news on this page comes from comparing
-     the position before a payload with the one after it, and that comparison
-     lived only inside load() — so a second payload handed straight to the
-     page changed every number without the page noticing anything had
-     happened. Both ways in take the snapshot now. */
-  var was = {};
-  (P && P.floors || []).forEach(function (f) {
-    (f.units || []).forEach(function (u) { was[u.n] = (u.s === 'available') ? 'a' : ('x' + (u.k || '')); });
-  });
-  var second = !!(P && P.floors);
   P = payload; FETCHED = Date.now(); STALE = false;
-  if (second) noteChanges(was);
   $('boot').hidden = true; $('app').hidden = false;
   FLOOR = null; SHEET = null; SHOWALL = false;
   REQS = readReqs();
@@ -4138,7 +3828,5 @@ window._availPreview = function (payload) {
   return (P.floors || []).length;
 };
 </script>
-
-
 </body>
 </html>
