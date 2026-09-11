@@ -264,7 +264,14 @@ function serve() {
         h: Math.round(b.getBoundingClientRect().height),
         w: Math.round(b.getBoundingClientRect().width)
       })),
-      cols: getComputedStyle(document.getElementById('floors')).gridTemplateColumns.split(' ').length,
+      stacked: getComputedStyle(document.getElementById('floors')).flexDirection,
+      /* the floors are a building now, so what matters is that they are above
+         one another and that every bar adds up to its own floor */
+      bars: [...document.querySelectorAll('#floors button')].map(b => {
+        const w = [...b.querySelectorAll('.fb i')]
+          .reduce((a, i) => a + parseFloat(i.style.width || 0), 0);
+        return Math.round(w);
+      }),
       docH: document.documentElement.scrollHeight,
       winH: window.innerHeight,
       unitsInDom: document.querySelectorAll('#units button').length,
@@ -280,9 +287,19 @@ function serve() {
     one.chips.length === payload.floors.length
       ? ok('all ' + one.chips.length + ' floor chips are on screen one')
       : bad('expected ' + payload.floors.length + ' chips, drew ' + one.chips.length);
-    one.cols === 2
-      ? ok('laid out in two columns')
-      : bad('the floor grid has ' + one.cols + ' columns, not 2');
+    /* THE DESIGN CHANGED AND SO DOES WHAT IS CHECKED. This asked for a grid of
+       two columns, which was right while the floors were cards. Rashid had the
+       dashboard redrawn as the building itself — one floor above another, each
+       a bar of what is left — so a second column would now be a second tower.
+       What is worth asserting is that they stack, and that each floor's bar
+       accounts for the whole floor rather than a part of it. */
+    one.stacked === 'column'
+      ? ok('the floors stack into a building, one above another')
+      : bad('the floors are laid out "' + one.stacked + '", not stacked');
+    one.bars.every(w => w >= 99 && w <= 101)
+      ? ok('and every floor\'s bar accounts for the whole floor (' +
+           one.bars.join('%, ') + '%)')
+      : bad('a floor bar does not add up to 100%: ' + one.bars.join('%, ') + '%');
     /* ── THE PROMISE, MEASURED IN THE STATE IT IS ABOUT ───────────────────
        Screen one holds the whole building without scrolling. On the very
        first visit it also carries a one-time card asking for a name, and with
@@ -1334,12 +1351,22 @@ function serve() {
     await desk.evaluate(p => window._availPreview(p), payload);
     await sleep(300);
     const dw = await desk.evaluate(() => {
-      const w = document.querySelector('.wrap').getBoundingClientRect();
+      const w  = document.querySelector('.wrap').getBoundingClientRect();
+      const fl = document.getElementById('floors').getBoundingClientRect();
+      const sr = document.querySelector('.sr').getBoundingClientRect();
       return { wrap: Math.round(w.width), left: Math.round(w.left), win: window.innerWidth,
-               cols: getComputedStyle(document.getElementById('floors')).gridTemplateColumns.split(' ').length };
+               /* the rail is beside the building, not stacked under it */
+               beside: Math.round(sr.left) >= Math.round(fl.right) - 1 };
     });
-    dw.wrap <= 760 && dw.left > 100 && dw.cols >= 3
-      ? ok('the column is held at ' + dw.wrap + 'px, centred, floors ' + dw.cols + ' across \u2014 not a stretched phone')
+    /* WHAT A DESKTOP IS FOR. This used to ask for a narrow centred column with
+       the floors three across, which was the best a grid of cards could do with
+       the width. The dashboard is the building itself now, and a building does
+       not want a second column of itself \u2014 it wants to be tall, with everything
+       you DO to it alongside. So what is asserted is that the page takes the
+       width it is given and that the search rail genuinely sits beside the
+       stack rather than under it with the right half of the window empty. */
+    dw.wrap > 900 && dw.left > 60 && dw.beside
+      ? ok('the page uses its width: ' + dw.wrap + 'px, the rail beside the building rather than under it')
       : bad('desktop layout: ' + JSON.stringify(dw));
     await desk.screenshot({ path: path.join(OUT, 'g-desktop-1280.png') });
 

@@ -114,20 +114,25 @@ button{cursor:pointer;background:none;border:0}
 /* ── the reading ─────────────────────────────────────────────────────────
    Not a card and not a headline. The search below is the focal point of this
    screen, so this states the position and gets out of the way. */
-.hero{margin-bottom:15px}
-.hero-top{display:flex;align-items:baseline;gap:10px}
+/* THE READING, NOW THAT THE FLOORS CARRY THEIR OWN. Every floor below states
+   its own split, so the summary no longer needs a paragraph of its own: the
+   count, what it is out of, and the tally of what is held all sit on one
+   line, with the whole-building bar under it. That is thirty pixels given
+   back to the stack, which is where they were needed. */
+.hero{margin-bottom:13px}
+.hero-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .hero-l{font-size:10.5px;font-weight:650;letter-spacing:.11em;text-transform:uppercase;
-        color:var(--mut);line-height:1.2;margin-bottom:6px}
+        color:var(--mut);line-height:1.2;margin-bottom:4px}
 .hero-n{font-size:22px;font-weight:650;letter-spacing:-.02em;line-height:1.15}
 .hero-p{font-size:12px;color:var(--mut)}
 /* Ink at two strengths, not two hues. Availability is contrast here. */
 .bar{display:flex;height:3px;border-radius:999px;overflow:hidden;background:var(--sunk);
-     margin:9px 0 7px}
+     margin:8px 0 0}
 .bar i{display:block;height:100%}
 .bar .free{background:var(--ink);opacity:.28}
 .bar .held{background:transparent}
 .hero-f{display:flex;align-items:center;gap:11px;flex-wrap:wrap;font-size:11.5px;
-        color:var(--mut);line-height:1.4}
+        color:var(--mut);line-height:1.4;margin-left:auto}
 .hero-f b{font-weight:650;color:var(--soft)}
 .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;
      vertical-align:1px}
@@ -170,16 +175,46 @@ button{cursor:pointer;background:none;border:0}
 .res-none{padding:26px 16px;font-size:13.5px;color:var(--mut);text-align:center;line-height:1.6}
 
 /* ── floor chips ────────────────────────────────────────────────────────── */
-.fl{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-/* The chip carries a fourth line now — what the rest of the floor is — so it
-   is a little taller and a little tighter. Screen one still has to hold the
-   whole building without becoming a scroll, and the harness measures that. */
+/* ── THE BUILDING, DRAWN AS A BUILDING ───────────────────────────────────
+   This was two columns of cards, which is a list of places that happens to
+   have numbers on it. Rashid asked for the dashboard to be redesigned and
+   chose the one thing the old screen never said out loud: THIS IS A TOWER.
+   Seven floors, stacked the way they are stacked in the street — Fifth at the
+   top, Lower Ground at the bottom — each one a bar showing how much of it is
+   still to sell.
+
+   The bar is the point. A number tells you 94 of 168; a bar tells you the
+   Lower Ground is half gone and the Fifth has not been touched, and it tells
+   you both at a glance across seven floors at once, which is the actual
+   question anyone opening this link is asking.
+
+   ONE COLUMN, NOT TWO. A stack only reads as a building if the floors are
+   above one another. Seven rows cost more height than four cards did, so the
+   height comes back out of the row itself: the count moved up beside the
+   floor's name instead of sitting under it, and the kinds moved down beside
+   the bar. Screen one still has to hold the whole building without scrolling
+   on a 380px phone, and the harness still measures exactly that. */
+.fl{display:flex;flex-direction:column;gap:3px}
 .fl button{
-  padding:9px 14px 8px;border:0;border-radius:var(--r);
-  background:var(--card);text-align:left;min-height:74px;
-  display:flex;flex-direction:column;justify-content:center;
+  padding:5px 13px 6px;border:0;border-radius:var(--r);
+  background:var(--card);text-align:left;min-height:46px;
+  display:block;
   transition:background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
 }
+/* name on the left, the count on the right, on one line */
+.fl .fh-r{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+/* TWO LINES, NOT THREE. The bar and the tally share the second line — the bar
+   taking what is left of the width — because a third line costs fifteen pixels
+   on every floor and seven floors of that is a screenful of scrolling. */
+.fl .fb-r{display:flex;align-items:center;gap:9px;margin-top:5px}
+/* the floor's own bar, and what is on it */
+.fl .fb{display:flex;height:6px;border-radius:999px;overflow:hidden;
+        background:var(--sunk);flex:1;min-width:0}
+.fl .fb i{display:block;height:100%}
+.fl .fb .free{background:var(--ink);opacity:.26}
+/* A FLOOR WITH NOTHING TAKEN STILL GETS A FULL BAR, not an empty one. An
+   untouched floor reading as a blank strip looks like missing data; reading
+   as a full one says what it is — all of it still there. */
 /* The tactile press. This, more than anything else here, is what makes a page
    feel like an application rather than a document on a phone. */
 @media (hover:hover){ .fl button:hover{background:#FDFDFD} }
@@ -190,25 +225,28 @@ button{cursor:pointer;background:none;border:0}
 .fl button:active{transform:scale(.975);background:var(--sunk)}
 .fl .fn{font-size:14.5px;font-weight:650;letter-spacing:-.015em;line-height:1.25;
         color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fl .fr{display:flex;align-items:baseline;gap:6px;margin-top:2px}
-.fl .fv{font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
-.fl .fc{font-size:11.5px;color:var(--mut);line-height:1.4}
-/* WHAT THE REST OF THE FLOOR IS, under the number a dealer came for. Small
-   enough that the count still reads first, coloured the same way the plate
-   colours the shops themselves. */
-.fl .fk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:3px}
-.fl .fk-i{display:inline-flex;align-items:center;gap:4px;font-size:10px;
-          font-weight:650;color:var(--t,var(--mut));line-height:1.2}
+.fl .fr{display:flex;align-items:baseline;gap:5px;flex:none}
+.fl .fv{font-size:17px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.fl .fc{font-size:11.5px;color:var(--mut);line-height:1.4;white-space:nowrap}
+/* WHAT THE REST OF THE FLOOR IS. Rashid asked for this on the dashboard by
+   name — how many held, sold, pagri, per floor — and it now sits beside the
+   bar it describes rather than under the number, which is both where it
+   belongs and where it costs no height. */
+.fl .fk{display:flex;align-items:center;gap:7px;flex-wrap:nowrap;flex:none}
+.fl .fk-i{display:inline-flex;align-items:center;gap:3px;font-size:10px;
+          font-weight:650;color:var(--t,var(--mut));line-height:1.2;white-space:nowrap}
 .fl .fk-i i{width:6px;height:6px;border-radius:2px;background:var(--t,var(--mut));display:block}
+.fl .fk-n{font-size:10px;color:var(--mut);line-height:1.2;white-space:nowrap}
 .fl button.empty .fk-i{opacity:.9}
 /* A floor with nothing free is not an error, it is just finished. It sinks
    rather than shouting. */
 .fl button.empty{background:var(--held-bg)}
 @media (hover:hover){ .fl button.empty:hover{background:var(--held-bg)} }
 .fl button.empty:active{background:var(--held-bg);transform:scale(.975)}
-.fl button.empty .fv{font-size:14.5px;font-weight:600;color:var(--held);letter-spacing:-.01em}
+.fl button.empty .fv{font-size:13.5px;font-weight:600;color:var(--held);letter-spacing:-.01em}
 .fl button.empty .fc{color:var(--held);opacity:.75}
 .fl button.empty .fn{color:var(--held)}
+.fl button.empty .fb .free{display:none}
 
 /* A BRIEF ENTRANCE, ONCE. Added by the first paint and taken off immediately,
    so a refetch two minutes later never repeats it. */
@@ -229,8 +267,12 @@ button{cursor:pointer;background:none;border:0}
 .sk-bar{height:3px;width:100%;border-radius:999px;margin-bottom:8px}
 .sk-leg{height:13px;width:56%;margin-bottom:15px}
 .sk-sr{height:58px;width:100%;margin-bottom:17px;border-radius:var(--r)}
-.sk-fl{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.sk-ch{height:74px;border-radius:var(--r)}
+/* THE SKELETON IS A PROMISE ABOUT WHAT IS COMING, so it has to be the shape
+   of what is coming. It was two columns of 74px cards; the floors are now a
+   stack, and a skeleton that lies about the layout makes the page jump at the
+   moment it fills — which the harness measures to the pixel. */
+.sk-fl{display:flex;flex-direction:column;gap:3px}
+.sk-ch{height:50px;border-radius:var(--r)}
 
 /* ── SCREEN TRANSITION — user-initiated, one way in, one way back ───────── */
 .scr-in {animation:scrIn  var(--t) var(--ease) both}
@@ -320,11 +362,38 @@ button{cursor:pointer;background:none;border:0}
   .hd-t{font-size:28px}
   .hero{margin-bottom:26px}
   .sr{margin-bottom:30px}
-  .fl{grid-template-columns:repeat(3,1fr);gap:12px}
-  .fl button{min-height:92px;padding:17px 18px}
+  /* the stack gets room to breathe rather than becoming a grid again — it is
+     a building on a desktop too */
+  .fl{gap:7px}
+  .fl button{min-height:58px;padding:12px 18px 15px}
+  .fl .fv{font-size:19px}
+  .fl .fb{height:8px;margin-top:8px}
   .sr input{height:60px}
   .ug{grid-template-columns:repeat(8,1fr);gap:9px}
   .ug.money{grid-template-columns:repeat(6,1fr)}
+}
+/* ── A DESKTOP IS NOT A TALL PHONE ────────────────────────────────────────
+   At 1280px the old screen was a 760px column with half the window empty
+   beside it. Given real width the page splits: the building on the left,
+   because it is the thing being looked at, and everything you do — the
+   search, your own reservations, the whole list — in a rail beside it. Order
+   in the markup is unchanged, so a phone and a screen reader still read it
+   top to bottom in the order it was written. */
+@media (min-width:1080px){
+  .wrap{max-width:1120px}
+  #home{display:grid;grid-template-columns:minmax(0,1fr) 340px;
+        gap:0 44px;align-items:start}
+  /* placed by row and column rather than nudged with margins, so nothing
+     depends on how tall its neighbour happens to be */
+  #home .hero   {grid-column:1;grid-row:1;margin-bottom:18px}
+  #home .fl     {grid-column:1;grid-row:2/span 3}
+  #home #myq    {grid-column:2;grid-row:1;margin-bottom:18px}
+  #home .sr     {grid-column:2;grid-row:2;margin-bottom:18px}
+  #home #allrow {grid-column:2;grid-row:3;margin-top:0}
+  .fl button{min-height:64px}
+  .fl .fb{height:10px}
+  .fl .fn{font-size:15.5px}
+  .fl .fv{font-size:21px}
 }
 
 /* ── one floor ──────────────────────────────────────────────────────────── */
@@ -979,9 +1048,9 @@ button{cursor:pointer;background:none;border:0}
 .done-s{font-size:13px;color:var(--mut);margin-top:7px;line-height:1.55}
 
 /* ── the name, asked once ───────────────────────────────────────────────── */
-.nm{border-radius:var(--r);background:var(--card);padding:14px;margin-bottom:15px}
+.nm{border-radius:var(--r);background:var(--card);padding:12px 14px;margin-bottom:11px}
 .nm-t{font-size:14px;font-weight:650;margin-bottom:5px;letter-spacing:-.01em}
-.nm-s{font-size:12.5px;color:var(--mut);margin-bottom:11px;line-height:1.5}
+.nm-s{font-size:12.5px;color:var(--mut);margin-bottom:9px;line-height:1.45}
 .nm-r{display:flex;gap:9px;align-items:center}
 .nm-r input{min-width:0}
 .nm-r input{flex:1;height:46px;padding:0 14px;border:1px solid var(--line);
@@ -1979,21 +2048,42 @@ function renderHome() {
        cummulative detail b." A row of small coloured counts under the number,
        in the same colours the plate uses, so a floor reads at a glance. */
     var kinds = tally(f.units || []);
+    /* THE FLOOR AS A STRIP OF THE BUILDING. Free first, then a band for each
+       kind of hold in the same colours the plate paints the shops in, so the
+       bar reads the same way the map does. */
+    var bar = '<span class="fb">' +
+      (t ? '<i class="free" style="width:' + (n * 100 / t) + '%"></i>' : '') +
+      kinds.map(function (k) {
+        return '<i style="width:' + (t ? k.n * 100 / t : 0) + '%;background:' + k.tint + '"></i>';
+      }).join('') + '</span>';
     return '<button data-f="' + i + '" style="--i:' + i + '"' +
       (n ? '' : ' class="empty"') + '>' +
-      '<span class="fn">' + esc(f.floor_label) + '</span>' +
-      '<span class="fr">' +
-        (n ? '<span class="fv num">' + n + '</span>' +
-             '<span class="fc">of ' + t + '</span>'
-           : '<span class="fv">None free</span>' +
-             '<span class="fc">of ' + t + '</span>') +
+      '<span class="fh-r">' +
+        '<span class="fn">' + esc(f.floor_label) + '</span>' +
+        '<span class="fr">' +
+          (n ? '<span class="fv num">' + n + '</span>' +
+               '<span class="fc">of ' + t + '</span>'
+             : '<span class="fv">None free</span>' +
+               '<span class="fc">of ' + t + '</span>') +
+        '</span>' +
       '</span>' +
-      (kinds.length ? '<span class="fk">' + kinds.map(function (k) {
-          return '<span class="fk-i" style="--t:' + k.tint + '" title="' + esc(k.label) + '">' +
-                 '<i></i>' + k.n + '</span>';
-        }).join('') + '</span>' : '') +
+      '<span class="fb-r">' + bar +
+        '<span class="fk">' + (kinds.length
+          ? kinds.map(function (k) {
+              return '<span class="fk-i" style="--t:' + k.tint + '" title="' + esc(k.label) + '">' +
+                     '<i></i>' + k.n + '</span>';
+            }).join('')
+          /* A FLOOR WITH NOTHING TAKEN SAYS SO. Left blank it reads as a floor
+             whose numbers have not loaded, which is the opposite of the truth. */
+          : '<span class="fk-n">all free</span>') + '</span>' +
+      '</span>' +
       '</button>';
-  }).join('');
+  /* TOP FLOOR AT THE TOP. The register hands the floors up from the ground,
+     which is the right order for a list and the wrong one for a building —
+     drawn that way the tower is upside down. Only the drawing is reversed:
+     data-f still carries each floor's own index, so everything that opens a
+     floor by number is untouched. */
+  }).reverse().join('');
 
   /* One quiet line, because the seven chips above already carry the weight
      and screen one has to stay whole on a phone. */
@@ -2036,23 +2126,28 @@ function paintHero(av, tot) {
   var all = [];
   (P.floors || []).forEach(function (f) { all = all.concat(f.units || []); });
   var kinds = tally(all);
+  /* ONE LINE, NOT FOUR. The tally used to sit on its own row beneath the bar;
+     every floor in the stack below now states its own, so up here it rides
+     alongside the count instead. The bar stays — it is the only place the
+     whole building is one shape — but it closes the block rather than sitting
+     in the middle of it. */
   $('hero').innerHTML =
     '<div class="hero-l">Available now</div>' +
     '<div class="hero-top">' +
       '<div class="hero-n">' + av + '</div>' +
       '<div class="hero-p">of ' + tot + (tot ? ' · ' + pct + '%' : '') + '</div>' +
+      '<div class="hero-f">' +
+        (held ? kinds.map(function (k) {
+                  return '<span><i class="dot" style="background:' + k.tint + '"></i><b>' +
+                         k.n + '</b> ' + esc(k.label.toLowerCase()) + '</span>';
+                }).join('')
+              : '<span>Every unit is free</span>') +
+      '</div>' +
     '</div>' +
     '<div class="bar"><i class="free" style="width:' + fw + '%"></i>' +
       kinds.map(function (k) {
         return '<i style="width:' + (tot ? k.n * 100 / tot : 0) + '%;background:' + k.tint + '"></i>';
       }).join('') +
-    '</div>' +
-    '<div class="hero-f">' +
-      (held ? kinds.map(function (k) {
-                return '<span><i class="dot" style="background:' + k.tint + '"></i><b>' +
-                       k.n + '</b> ' + esc(k.label.toLowerCase()) + '</span>';
-              }).join('')
-            : '<span>Every unit is free</span>') +
     '</div>';
 }
 
