@@ -2243,7 +2243,16 @@ function paintTicker(av, tot) {
   el.innerHTML = '<span class="tk-i">' + TICK.items[TICK.at] + '</span>';
   clearInterval(TICK.timer);
   if (TICK.items.length < 2) return;
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  /* STILLNESS IS NOT SILENCE. This used to stop the ticker dead for anyone who
+     had asked for reduced motion — it painted the first line and never moved
+     again, which on screen looks exactly like the old static tally: Rashid
+     turned the page over after the deploy and said the ticker still was not
+     there. Windows with "Animation effects" off, or a phone with Reduce
+     Motion on, is a very ordinary way to read this page. What that setting
+     asks for is that nothing SLIDES or FADES, not that the news stop. So the
+     line still steps on its own; the arrival animation is the only thing
+     dropped, both here and in the stylesheet. */
+  var CALM = matchMedia('(prefers-reduced-motion: reduce)').matches;
   TICK.timer = setInterval(function () {
     /* a tab nobody is looking at is not read to, and neither is a screen
        nobody is on: the line lives on screen one, so while a director is
@@ -2254,10 +2263,11 @@ function paintTicker(av, tot) {
     var box = $('hero-f'); if (!box) { clearInterval(TICK.timer); return; }
     TICK.at = (TICK.at + 1) % TICK.items.length;
     var line = document.createElement('span');
-    line.className = 'tk-i in';
+    line.className = CALM ? 'tk-i' : 'tk-i in';
     line.innerHTML = TICK.items[TICK.at];
     box.innerHTML = '';
     box.appendChild(line);
+    if (CALM) return;
     /* taken off the moment it has arrived, so the class is free to be given
        again — the page must never be left with an animation still declared */
     setTimeout(function () { line.classList.remove('in'); }, 320);

@@ -599,6 +599,32 @@ function serve() {
     (still.worstMs <= 1 && still.chips === payload.floors.length)
       ? ok('with reduced motion asked for, nothing moves at all \u2014 and the page is whole')
       : bad('reduced motion still runs animation: ' + JSON.stringify(still));
+
+    /* BUT STILLNESS IS NOT SILENCE. The first cut of the news line stopped it
+       dead in this mode: it painted the first sentence and never moved again,
+       which on screen is indistinguishable from the static tally that was
+       there before it. That shipped, and Rashid opened the deployed link and
+       said the ticker still was not there — Windows with "Animation effects"
+       off, or a phone with Reduce Motion on, is an ordinary way to read this
+       page, and on it the feature was simply absent. The preference asks that
+       nothing slide or fade, not that the news stop, so both halves are
+       asserted: no animation (above) and the line still moving on (here). */
+    const calmSaid = await calm.evaluate(async () => {
+      const box = document.getElementById('hero-f');
+      const said = [];
+      const t = Date.now();
+      while (Date.now() - t < 12000) {
+        const txt = (box.textContent || '').trim();
+        if (said[said.length - 1] !== txt) said.push(txt);
+        if (said.length >= 3) break;
+        await new Promise(r => setTimeout(r, 150));
+      }
+      return said;
+    });
+    calmSaid.length >= 3
+      ? ok('and the news still moves on for that reader — it just arrives without sliding')
+      : bad('the news line is frozen under reduced motion, which looks exactly like the ' +
+            'feature missing: in 12s it only said ' + JSON.stringify(calmSaid));
     await calm.close();
 
     /* ── THE MOTION BUDGET ────────────────────────────────────────────────
