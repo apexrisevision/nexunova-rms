@@ -370,6 +370,144 @@ function serve() {
                 one.hero + ' free  ·  hero ' + one.heroSize + 'px/label ' + one.labSize + 'px');
     await page.screenshot({ path: path.join(OUT, 'a-screen-one-380.png') });
 
+    /* ── b. THE NEWS LINE ─────────────────────────────────────────────────
+       Rashid asked for a ticker on the dashboard: how many are sold, held,
+       reserved, how many the building has, what a floor costs. It is put in
+       the line that was already under the reading, so it costs no height —
+       which is the thing most likely to be lost by accident later, and is
+       asserted here against the same 780px screen. It steps rather than
+       crawls, because nothing on this page may animate for longer than
+       300ms, and it holds its place while the reader is on another screen. */
+    step('The news line — what it says, and that it costs nothing');
+    const tk = await page.evaluate(() => {
+      const box = document.getElementById('hero-f');
+      const line = box && box.querySelector('.tk-i');
+      return {
+        there: !!line,
+        items: (window.TICK && TICK.items || []).length,
+        all: (window.TICK && TICK.items || []).join(' ~ ').replace(/<[^>]*>/g, ''),
+        text: line ? line.textContent.trim() : '',
+        rows: box ? Math.round(box.getBoundingClientRect().height) : 0,
+        lineH: line ? Math.round(parseFloat(getComputedStyle(box).lineHeight) || 0) : 0,
+        pageW: document.documentElement.scrollWidth,
+        clipped: box ? getComputedStyle(box).overflow : '',
+        docH: document.documentElement.scrollHeight
+      };
+    });
+    (tk.there && tk.items >= 6)
+      ? ok('the news line is on screen one and has ' + tk.items + ' things to say')
+      : bad('the news line is missing or has nothing to say: ' + JSON.stringify(tk));
+    /* WHAT HE ASKED FOR, BY NAME. Each of these is a sentence he named: the
+       tally by kind, the size of the building, a floor's own count, and — only
+       where the link is allowed to show money — what a floor costs. */
+    const says = {
+      'the tally by kind': /sold|hold|pagri|reserved/i.test(tk.all),
+      'the size of the building': /units in all/i.test(tk.all),
+      'a floor, and what is left on it': / of [0-9,]+ open|all [0-9,]+ taken/i.test(tk.all),
+      'which floor is going fastest': /going fastest/i.test(tk.all),
+      'how much floor space is left': /still available across/i.test(tk.all)
+    };
+    if (payload.show_price) says['what a floor costs'] = /about .* per /i.test(tk.all);
+    const dumb = Object.keys(says).filter(k => !says[k]);
+    dumb.length === 0
+      ? ok('and it says every one of them — ' + Object.keys(says).join(', '))
+      : bad('the news line never says: ' + dumb.join(', ') + ' (it says: ' +
+            tk.all.slice(0, 200) + ')');
+    /* IT COSTS NO HEIGHT. One line, clipped, and the page is no wider for it. */
+    (tk.rows <= 40 && tk.pageW <= 380 && tk.clipped === 'hidden')
+      ? ok('and it costs no height — one ' + tk.rows + 'px line, clipped, page still ' +
+           tk.pageW + 'px wide')
+      : bad('the news line changed the shape of screen one: ' + JSON.stringify(
+            { rows: tk.rows, pageW: tk.pageW, clipped: tk.clipped }));
+
+    /* AND EVERY LINE OF IT FITS. This is the check that would have caught the
+       first cut of this feature: the line rode to the right of the count with
+       206px, and fourteen of its nineteen sentences were wider than that. The
+       box clips, and the box was right-aligned, so what was lost was the START
+       of each sentence — "…193 taken · 66.4% open" with no subject. Nothing on
+       screen said anything was wrong. scrollWidth cannot see it either, since
+       overflow past the inline START is not counted, so each item is measured
+       on a copy of itself laid out with no width limit at all. */
+    const tkFit = await page.evaluate(() => {
+      const box = document.getElementById('hero-f');
+      const was = box.innerHTML;
+      const over = [];
+      for (let i = 0; i < TICK.items.length; i++) {
+        const ghost = document.createElement('span');
+        ghost.className = 'tk-i';
+        ghost.innerHTML = TICK.items[i];
+        ghost.style.position = 'absolute';
+        ghost.style.left = '-9999px';
+        ghost.style.width = 'max-content';
+        box.appendChild(ghost);
+        const need = Math.round(ghost.getBoundingClientRect().width);
+        ghost.remove();
+        if (need > box.clientWidth)
+          over.push({ by: need - Math.round(box.clientWidth),
+                      t: (TICK.items[i] || '').replace(/<[^>]*>/g, '').slice(0, 50) });
+      }
+      box.innerHTML = was;
+      return { box: Math.round(box.clientWidth), n: TICK.items.length, over: over };
+    });
+    tkFit.over.length === 0
+      ? ok('and all ' + tkFit.n + ' of them fit the ' + tkFit.box + 'px it has, start to finish')
+      : bad(tkFit.over.length + ' of ' + tkFit.n + ' news lines are cut off in a ' + tkFit.box +
+            'px box: ' + tkFit.over.map(o => '"' + o.t + '" by ' + o.by + 'px').join('; '));
+
+    /* IT STEPS, AND THE STEP IS INSIDE THE PAGE'S OWN 300ms BUDGET. */
+    const stepped = await page.evaluate(async first => {
+      const t = Date.now();
+      while (Date.now() - t < 9000) {
+        await new Promise(r => setTimeout(r, 200));
+        const l = document.querySelector('#hero-f .tk-i');
+        if (l && l.textContent.trim() !== first) {
+          /* THE DURATION IS READ OFF THE RULE, NOT OFF THE ELEMENT. The
+             arrival class is taken off again once it has arrived, so reading
+             a live line gives 300ms or 0s depending on which side of that the
+             poll landed on — a check that passes or fails by luck. A throwaway
+             span wearing the same classes answers the same question and always
+             gives the same answer. */
+          const probe = document.createElement('span');
+          probe.className = 'tk-i in';
+          probe.style.position = 'absolute';
+          probe.style.visibility = 'hidden';
+          document.body.appendChild(probe);
+          const ms = Math.round(parseFloat(getComputedStyle(probe).animationDuration) * 1000);
+          probe.remove();
+          return { moved: true, to: l.textContent.trim(), ms: ms, waited: Date.now() - t };
+        }
+      }
+      return { moved: false };
+    }, tk.text);
+    (stepped.moved && stepped.waited < 9000)
+      ? ok('and it moves on by itself after ' + (stepped.waited / 1000).toFixed(1) +
+           's — “' + stepped.to.slice(0, 60) + '”')
+      : bad('the news line never moved on: ' + JSON.stringify(stepped));
+    (stepped.moved && stepped.ms > 0 && stepped.ms <= 300)
+      ? ok('and the step arrives in ' + stepped.ms + 'ms, inside this page’s 300ms budget')
+      : bad('the step is outside the animation budget: ' + JSON.stringify(stepped.ms));
+
+    /* AND IT HOLDS ITS PLACE WHILE THE READER IS SOMEWHERE ELSE. The line
+       lives on screen one; stepping through news at a hidden element while a
+       floor or the directors' room is open is work nobody asked for. */
+    const tkHeld = await page.evaluate(async () => {
+      document.querySelector('#floors button').click();
+      await new Promise(r => setTimeout(r, 300));
+      const was = (document.querySelector('#hero-f .tk-i') || {}).textContent || '';
+      const at = window.TICK ? TICK.at : -1;
+      await new Promise(r => setTimeout(r, 6000));
+      const now = (document.querySelector('#hero-f .tk-i') || {}).textContent || '';
+      const at2 = window.TICK ? TICK.at : -1;
+      document.getElementById('back').click();
+      await new Promise(r => setTimeout(r, 300));
+      return { onAFloor: true, same: was === now, at, at2 };
+    });
+    (tkHeld.same && tkHeld.at === tkHeld.at2)
+      ? ok('and it holds its place while a floor is open, instead of talking to nobody')
+      : bad('the news line kept stepping on a screen it is not on: ' + JSON.stringify(tkHeld));
+    await page.evaluate(p => window._availPreview(p), payload);
+    await sleep(350);
+
     /* ── THE STATES, PHOTOGRAPHED AND MEASURED ────────────────────────────
        A skeleton is only worth having if it stands where the real thing will
        stand; one that is a different height moves the page under the reader
@@ -1128,10 +1266,17 @@ function serve() {
        turned that over on 2026-09-10: "pehle ham ne decide kia tha k just Not
        available likhaingay magar ab hamain zaroorat hai status ki proper". So
        the chip must now name the kind, and name whose word it was held on. */
-    (!inert.none && /Hold|Sold|Pagri/.test(inert.label) &&
-     /Akbar Shah|Waqar Landlord|Haseeb/.test(inert.label))
-      ? ok('and it names the hold and whose word it was on \u2014 "' + inert.label + '"')
-      : bad('an unavailable unit is labelled "' + inert.label + '"');
+    /* THE KIND IS ALWAYS REQUIRED. THE NAME ONLY IF ANYBODY KNOWS IT.
+       This asked for both, which held while every taken unit had a reservation
+       row behind it carrying the name it was held on. On 2026-09-12 Rashid's
+       own sheet brought in 341 units already sold, and it does not say who
+       bought them — so they are sold, correctly, with nobody's word attached.
+       Requiring a name here would mean failing on the truth or inventing a
+       buyer. The kind stays required: "not available" without saying which
+       kind is the thing he overturned. */
+    (!inert.none && /Hold|Sold|Pagri|Reserved/.test(inert.label))
+      ? ok('and it names the kind of hold \u2014 "' + inert.label + '"')
+      : bad('an unavailable unit does not say what kind it is: "' + inert.label + '"');
 
     /* ── e. the toggle ──────────────────────────────────────────────────── */
     step('The unavailable toggle');
@@ -1202,11 +1347,17 @@ function serve() {
       const inks = kinds.map(k => tog.byKind[k].ink);
       const pills = kinds.map(k => tog.byKind[k].pill);
       const named = kinds.filter(k => (tog.byKind[k].who || '').trim());
+      /* EVERY KIND ITS OWN COLOUR is the part that matters, and it is
+         unchanged. What is no longer demanded of every kind is a holder's
+         name: Rashid's sheet of 2026-09-12 brought in 341 units already sold
+         and does not say who bought them, so a screen telling the truth about
+         those would have failed here. At least one kind must still carry a
+         name, which still catches a payload that stopped sending it. */
       (kinds.length >= 2 && new Set(inks).size === kinds.length &&
-       new Set(pills).size === kinds.length && named.length === kinds.length)
+       new Set(pills).size === kinds.length && named.length >= 1)
         ? ok('and each kind is its own colour — ' +
              kinds.map(k => k + ' ' + tog.byKind[k].ink).join(', ') +
-             ', every one naming whose word it was on')
+             '; ' + named.length + ' of ' + kinds.length + ' name whose word it was on')
         : bad('the kinds are not told apart: ' + JSON.stringify(tog.byKind));
     }
     /* the sheet from the step before is still up; a screenshot of a toggle with a
@@ -2564,7 +2715,22 @@ function serve() {
             document.getElementById('dir-pw').value = 'wrong-wrong-wrong';
             document.getElementById('dir-go').click();
           });
-          await sleep(1400);
+          /* WAIT FOR THE PAGE TO HAVE ANSWERED, NOT FOR A GUESSED NUMBER OF
+             MILLISECONDS. This slept 1400ms. Measured on an idle machine the
+             page's first get_availability_report call takes ~1280ms (a second
+             one ~510ms), so under a suite that is already working the database
+             this landed mid-call: the field was still full, nothing was shown
+             yet, and — the part that did the real damage — repOpen had set
+             dir-go.disabled while it waited, so the NEXT click, the one with
+             the right password, was swallowed. The room never opened and every
+             check behind the door failed with it: nine failures out of one
+             guessed number. The page re-enables the button when the call is
+             done, so that is what is waited on. If it never answers, this
+             times out and the assertion below still fails, printing the same
+             evidence it always would. */
+          await rpg.waitForFunction(
+            () => !document.getElementById('dir-go').disabled,
+            { timeout: 25000 }).catch(() => {});
           const refused = await rpg.evaluate(() => ({
             err: (document.getElementById('dir-err').textContent || '').trim(),
             shown: !document.getElementById('dir-err').hidden,
@@ -2575,6 +2741,10 @@ function serve() {
             ? ok('a wrong password on the page says so, shows nothing, and clears the field')
             : bad('the page let a wrong password through: ' + JSON.stringify(refused));
 
+          /* and do not knock on a door the page is still holding shut */
+          await rpg.waitForFunction(
+            () => !document.getElementById('dir-go').disabled,
+            { timeout: 25000 }).catch(() => {});
           await rpg.evaluate(pw => {
             document.getElementById('dir-pw').value = pw;
             document.getElementById('dir-go').click();

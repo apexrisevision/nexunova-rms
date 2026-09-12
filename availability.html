@@ -99,7 +99,11 @@ button{cursor:pointer;background:none;border:0}
            text-transform:uppercase;color:var(--mut);line-height:1.2}
 
 /* ── the frame ──────────────────────────────────────────────────────────── */
-.wrap{max-width:520px;margin:0 auto;padding:15px var(--pad) 40px}
+/* THE BOTTOM PADDING IS WHERE THE NEWS LINE CAME FROM. It was 40px of air
+   below the last card; the ticker's own row needs about 23 of them, and the
+   one rule of this screen is that it does not scroll at 380×780. Air below
+   the fold is worth less than a line of news above it. */
+.wrap{max-width:520px;margin:0 auto;padding:15px var(--pad) 16px}
 
 .hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
     margin-bottom:15px}
@@ -131,9 +135,28 @@ button{cursor:pointer;background:none;border:0}
 .bar i{display:block;height:100%}
 .bar .free{background:var(--ink);opacity:.28}
 .bar .held{background:transparent}
-.hero-f{display:flex;align-items:center;gap:11px;flex-wrap:wrap;font-size:11.5px;
-        color:var(--mut);line-height:1.4;margin-left:auto}
+.hero-f{display:flex;align-items:center;gap:11px;font-size:11.5px;
+        color:var(--mut);line-height:1.4}
 .hero-f b{font-weight:650;color:var(--soft)}
+/* THE TICKER STEPS, IT DOES NOT CRAWL. A marquee is an animation that never
+   ends, and nothing on this page is allowed to fidget at the reader; each item
+   arrives in 300ms and then holds still for four seconds. One line, and it
+   never wraps — a ticker that changes height moves the page under a thumb.
+
+   AND IT HAS THE WHOLE WIDTH OF THE CARD. It first rode to the right of the
+   count, on the same row, which left it 206px: measured against the real
+   Awami payload, fourteen of its nineteen lines were cut off there, one of
+   them by 166px — and because that row is right-aligned, what was cut was the
+   BEGINNING of each sentence. A ticker nobody can read is not a ticker. It
+   now has its own row under the bar with all 344px of the card, and the room
+   for that row is taken back from the page's bottom padding rather than from
+   the stack of floors, so screen one still does not scroll. */
+.hero-f{overflow:hidden;white-space:nowrap;min-width:0;
+        margin-top:7px;justify-content:flex-start}
+.tk-i{display:inline-flex;align-items:center;gap:11px;white-space:nowrap}
+.tk-i.in{animation:tkIn 300ms var(--ease) both}
+@keyframes tkIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){ .tk-i.in{animation:none} }
 .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;
      vertical-align:1px}
 .dot.free{background:var(--ink);opacity:.28}
@@ -2115,6 +2138,132 @@ function renderHome() {
 /* One number, one bar, one line of legend. The bar is the same fact drawn a
    second time for the eye that does not read digits; it is never the only
    place a number appears, so colour is never load-bearing on its own. */
+/* ══ THE TICKER ═══════════════════════════════════════════════════════════
+   Rashid: "dashboard pe aik ticker chalwao jis mai news chalti rahay… kitnay
+   units sold hain kitnay hold, total kitnay units hain, price floor wise aur
+   is k sath sath oor aisi information."
+
+   IT TAKES NO NEW ROOM. Screen one holds the whole building on a 380px phone
+   without scrolling, and that is measured to the pixel — a row added anywhere
+   breaks it. The hero already carried one line of tally ("123 hold · 28 sold")
+   and it was the least of what could be said there, so the ticker IS that
+   line: the tally is the first thing it says and then it keeps going.
+
+   IT STEPS, IT DOES NOT CRAWL. A marquee sliding continuously is an animation
+   that never stops, which this page forbids for good reason — nothing may
+   fidget at a reader. Each item arrives in 300ms and then holds still for four
+   seconds, which is long enough to read and short enough to come round again.
+
+   EVERYTHING IT SAYS COMES OUT OF THE PAYLOAD. Nothing is fetched for it and
+   nothing is estimated: the counts are the counts, the rate is the register's
+   own price divided by the register's own area, and a floor with no price on
+   the wire is simply not spoken about. */
+var TICK = { at: 0, items: [], timer: null };
+
+function tickerItems(av, tot) {
+  var out = [], all = [];
+  (P.floors || []).forEach(function (f) { all = all.concat(f.units || []); });
+  var kinds = tally(all);
+  var pct = tot ? Math.round(av * 1000 / tot) / 10 : 0;
+
+  /* 1. the tally this line always carried */
+  if (kinds.length) {
+    out.push(kinds.map(function (k) {
+      return '<span><i class="dot" style="background:' + k.tint + '"></i><b>' +
+             k.n + '</b> ' + esc(String(k.label).toLowerCase()) + '</span>';
+    }).join(''));
+  } else {
+    out.push('<span>Every unit is free</span>');
+  }
+
+  /* 2. the building in one sentence — and it has to BE one sentence: measured
+        against the real payload on a 380px phone, "units in the building …
+        still open" wanted 372px of a 344px card and was the only line of the
+        nineteen that did not fit. Shorter says the same thing. */
+  out.push('<span><b>' + num0(tot) + '</b> units in all · <b>' +
+           num0(tot - av) + '</b> taken · <b>' + pct + '%</b> open</span>');
+
+  /* 3. every floor, how much is left */
+  (P.floors || []).forEach(function (f) {
+    var a = Number(f.available || 0), t = Number(f.total || (f.units || []).length);
+    out.push('<span><b>' + esc(f.floor_label) + '</b> · ' +
+             (a ? '<b>' + num0(a) + '</b> of ' + num0(t) + ' open' : 'all ' + num0(t) + ' taken') +
+             '</span>');
+  });
+
+  /* 4. what a floor costs, from the register's own numbers. The rate is
+        price over area on the units that carry both; the middle one is taken
+        rather than the average, so one odd corner shop cannot move it. */
+  if (P.show_price) {
+    (P.floors || []).forEach(function (f) {
+      var rates = (f.units || []).map(function (u) {
+        var v = Number(u.v), a = Number(u.a);
+        return (v > 0 && a > 0) ? v / a : 0;
+      }).filter(function (x) { return x > 0; }).sort(function (x, y) { return x - y; });
+      if (!rates.length) return;
+      var mid = rates[Math.floor(rates.length / 2)];
+      out.push('<span><b>' + esc(f.floor_label) + '</b> · about <b>' +
+               num0(Math.round(mid / 500) * 500) + '</b> per ' +
+               esc(P.area_unit || 'sqft') + '</span>');
+    });
+  }
+
+  /* 5. which floor is going fastest, and which has most left */
+  var fl = (P.floors || []).filter(function (f) { return Number(f.total) > 0; });
+  if (fl.length > 1) {
+    var fullest = fl.slice().sort(function (a, b) {
+      return (b.total - b.available) / b.total - (a.total - a.available) / a.total; })[0];
+    var freest = fl.slice().sort(function (a, b) { return b.available - a.available; })[0];
+    var fpc = Math.round((fullest.total - fullest.available) * 100 / fullest.total);
+    if (fpc > 0) out.push('<span>Going fastest · <b>' + esc(fullest.floor_label) +
+                          '</b>, ' + fpc + '% taken</span>');
+    out.push('<span>Most to choose from · <b>' + esc(freest.floor_label) +
+             '</b>, ' + num0(freest.available) + ' open</span>');
+  }
+
+  /* 6. the size of what is still on the shelf */
+  var freeArea = 0, freeUnits = 0;
+  all.forEach(function (u) {
+    if (u.s !== 'available') return;
+    freeUnits++; if (Number(u.a) > 0) freeArea += Number(u.a);
+  });
+  if (freeArea > 0) {
+    out.push('<span><b>' + num0(Math.round(freeArea)) + '</b> ' + esc(P.area_unit || 'sqft') +
+             ' still available across <b>' + num0(freeUnits) + '</b> units</span>');
+  }
+  return out;
+}
+
+function num0(n) { return Number(n || 0).toLocaleString('en-US'); }
+
+function paintTicker(av, tot) {
+  var el = $('hero-f'); if (!el) return;
+  TICK.items = tickerItems(av, tot);
+  if (TICK.at >= TICK.items.length) TICK.at = 0;
+  el.innerHTML = '<span class="tk-i">' + TICK.items[TICK.at] + '</span>';
+  clearInterval(TICK.timer);
+  if (TICK.items.length < 2) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  TICK.timer = setInterval(function () {
+    /* a tab nobody is looking at is not read to, and neither is a screen
+       nobody is on: the line lives on screen one, so while a director is
+       reading the room behind the password, or a floor is open over it, the
+       ticker holds its place instead of stepping through news at a hidden
+       element. It picks up from where it stopped when screen one comes back. */
+    if (document.hidden || REPV || ALLV || MINEV || FLOOR != null) return;
+    var box = $('hero-f'); if (!box) { clearInterval(TICK.timer); return; }
+    TICK.at = (TICK.at + 1) % TICK.items.length;
+    var line = document.createElement('span');
+    line.className = 'tk-i in';
+    line.innerHTML = TICK.items[TICK.at];
+    box.innerHTML = '';
+    box.appendChild(line);
+    /* taken off the moment it has arrived, so the class is free to be given
+       again — the page must never be left with an animation still declared */
+    setTimeout(function () { line.classList.remove('in'); }, 320);
+  }, 4500);
+}
+
 function paintHero(av, tot) {
   var held = Math.max(0, tot - av);
   var pct = tot ? Math.round(av * 1000 / tot) / 10 : 0;
@@ -2136,19 +2285,20 @@ function paintHero(av, tot) {
     '<div class="hero-top">' +
       '<div class="hero-n">' + av + '</div>' +
       '<div class="hero-p">of ' + tot + (tot ? ' · ' + pct + '%' : '') + '</div>' +
-      '<div class="hero-f">' +
-        (held ? kinds.map(function (k) {
-                  return '<span><i class="dot" style="background:' + k.tint + '"></i><b>' +
-                         k.n + '</b> ' + esc(k.label.toLowerCase()) + '</span>';
-                }).join('')
-              : '<span>Every unit is free</span>') +
-      '</div>' +
     '</div>' +
     '<div class="bar"><i class="free" style="width:' + fw + '%"></i>' +
       kinds.map(function (k) {
         return '<i style="width:' + (tot ? k.n * 100 / tot : 0) + '%;background:' + k.tint + '"></i>';
       }).join('') +
-    '</div>';
+    '</div>' +
+    /* THE LINE THAT SAID ONE THING NOW SAYS EVERYTHING IT CAN, in turn — the
+       tally that used to ride beside the count is still the first thing it
+       says, and paintTicker below has the rest. It sits under the bar, across
+       the whole card, because beside the count it had 206px and most of what
+       it had to say did not fit in them. */
+    '<div class="hero-f" id="hero-f"></div>';
+
+  paintTicker(av, tot);
 }
 
 /* ── THE WHOLE BUILDING ───────────────────────────────────────────────────
