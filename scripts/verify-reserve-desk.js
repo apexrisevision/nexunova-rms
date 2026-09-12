@@ -474,6 +474,54 @@ async function deskUp(page) {
            "that agent's company matches the unit's project company (" +
            row.agent_company + ' vs ' + row.project_company + ')');
 
+    /* ══ RELEASE FROM THE DESK ITSELF ═════════════════════════════════════
+       Rashid: "release ka option reservation pe hee le kar aao k mai unit
+       search karun aur jo unavailable ho us unit pe click karnay pe wahin aaye
+       k release?" Until now the only way out of a hold was the daybook, which
+       has no search in it — so releasing a unit he had just typed the number
+       of meant leaving the screen and scrolling.
+
+       This drives it the way he will: type the number of the unit that was
+       just booked, and let it go from the card that comes back. */
+    step('Release the unit from the desk, by typing its number');
+    await page.evaluate(n => {
+      const el = document.getElementById('rd-root').querySelector('#rd-unit');
+      el.value = n; el.dispatchEvent(new Event('input', { bubbles: true }));
+    }, unitNo);
+    await sleep(300);
+    const held = await page.evaluate(() => {
+      const r = document.getElementById('rd-root'), h = r.querySelector('#rd-hit');
+      const b = h.querySelector('[data-rel]');
+      return { txt: h.textContent.trim(), cls: h.className,
+               hasBtn: !!b, label: b ? b.textContent.trim() : '',
+               goOff: !!r.querySelector('#rd-go').disabled };
+    });
+    assert(!/Available/i.test(held.txt), 'the unit now reads as taken: ' + held.txt.slice(0, 70));
+    assert(held.goOff, 'and Reserve is refused on it');
+    assert(held.hasBtn, 'the card offers a way to let it go: "' + held.label + '"');
+
+    /* the confirm() this raises is accepted by the dialog handler the harness
+       installs, exactly as a person would accept it */
+    await page.evaluate(() => {
+      document.getElementById('rd-root').querySelector('[data-rel]').click();
+    });
+    const freed = await until(page, () => {
+      const h = document.getElementById('rd-root').querySelector('#rd-hit');
+      return !!h && /Available/i.test(h.textContent);
+    }, null, 15000);
+    assert(freed, 'the card turns back to Available in front of the person who released it');
+
+    const gone = await sql(`select count(*)::int n from public.reservations r
+                              join public.units u on u.id=r.unit_id
+                             where u.project_id='${ZZ_PROJ}' and r.status='active';`);
+    assert(gone[0] && gone[0].n === 0, 'and the hold is really gone from the register (active holds: ' +
+           (gone[0] && gone[0].n) + ')');
+    const freeAgain = await sql(`select count(*)::int n from public.units u
+                                   join public.category_unit_statuses s on s.id=u.status_id
+                                  where u.project_id='${ZZ_PROJ}' and s.is_available;`);
+    assert(freeAgain[0] && freeAgain[0].n === 19,
+           'ZZTEST is back to 19 available units (got ' + (freeAgain[0] && freeAgain[0].n) + ')');
+
     step('Per-row Undo releases through the existing cancel_reservation');
     await page.evaluate(() => {
       const b = document.getElementById('rd-root').querySelector('#rd-today button[data-undo]');

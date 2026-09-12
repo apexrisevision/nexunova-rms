@@ -74,6 +74,17 @@
       ".rd-hit.warn{border-color:var(--fk-warning-edge);background:var(--fk-warning-surface)}" +
       ".rd-hit b{font-size:15px}" +
       ".rd-meta{color:var(--fk-text-muted);margin-top:2px}" +
+      /* letting a unit go: on the card that already names the hold, and
+         weighted as the serious thing it is rather than another chip */
+      ".rd-rel{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:9px;" +
+        "padding-top:9px;border-top:1px solid var(--fk-border)}" +
+      ".rd-rel button{height:38px;padding:0 15px;border-radius:var(--fk-radius-control);" +
+        "border:1px solid var(--fk-danger-edge);background:var(--fk-danger-surface);" +
+        "color:var(--fk-danger);font:inherit;font-weight:600;cursor:pointer}" +
+      ".rd-rel button:disabled{opacity:.6;cursor:default}" +
+      "@media (hover:hover){.rd-rel button:hover:not(:disabled){filter:brightness(.97)}}" +
+      ".rd-rel button:active:not(:disabled){transform:scale(.98)}" +
+      ".rd-rel .rd-meta{margin-top:0}" +
       ".rd-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:6px}" +
       ".rd-chip{height:38px;min-width:44px;padding:0 13px;border-radius:var(--fk-radius-control);" +
         "border:1px solid var(--fk-border);background:var(--fk-bg-card);color:var(--fk-text);" +
@@ -844,6 +855,13 @@
     var db = _q('#rd-daybook');
     if (db) db.addEventListener('click', function () { setTab('daybook'); });
 
+    var hitBox = _q('#rd-hit');
+    if (hitBox) hitBox.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-rel]') : null;
+      if (!b || b.disabled) return;
+      _release(b.getAttribute('data-rel'), b.getAttribute('data-reln'));
+    });
+
     var unit = _q('#rd-unit');
     if (unit) {
       unit.addEventListener('input', function () {
@@ -1162,12 +1180,53 @@
         (u.h.exp ? ' · ' + esc(_left(u.h.exp)) + ', to ' + esc(_pkDate(u.h.exp))
                  : ' · no expiry') +
         (u.h.booked ? '<br>booked by ' + esc(u.h.booked) : '') + '</div>' +
-        '<div class="rd-meta">' + meta + '</div>';
+        '<div class="rd-meta">' + meta + '</div>' +
+        /* ── LET IT GO FROM HERE ────────────────────────────────────────
+           Rashid: "release ka option reservation pe hee le kar aao." To
+           release a unit he had just typed the number of, he had to leave
+           this screen for the daybook and scroll a list with no search in
+           it. The hold is already on this card — who has it and until when
+           — so the one thing missing was the way to end it.
+
+           It appears only where there is an active reservation to cancel:
+           a unit tagged sold with nothing held behind it still offers
+           nothing, which is the right boundary rather than an omission. */
+        (u.h.rid
+          ? '<div class="rd-rel"><button type="button" ' +
+              'data-rel="' + esc(u.h.rid) + '" data-reln="' + esc(u.n) + '">Release this unit</button>' +
+            '<span class="rd-meta">Puts ' + esc(u.n) + ' back on the market</span></div>'
+          : '');
       return;
     }
     hit.className = 'rd-hit no';
     hit.innerHTML = '<b>' + esc(u.n) + '</b> — ' + esc(u.sn || u.s) +
       '<div class="rd-meta">' + meta + '</div>';
+  }
+
+  /* THE RELEASE ITSELF. cancel_reservation is the same call the daybook has
+     always made, with the same session, role and scope checks behind it — this
+     screen only reaches it sooner. The cache is patched rather than refetched
+     so the answer is instant on a phone, and the desk re-reads the unit from
+     the payload on the next fetch anyway. */
+  async function _release(rid, unitNo) {
+    if (!confirm('Release ' + unitNo + '?\n\nThe hold ends now and the unit goes back on the market.')) return;
+    var btn = _q('[data-rel="' + rid + '"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Releasing…'; }
+    var res;
+    try { res = await sb.rpc('cancel_reservation', { p_session_token: TOKEN, p_reservation_id: rid }); }
+    catch (e) { res = null; }
+    var d = res && res.data;
+    if (d && d.error === 'session_expired') return sessionGone();
+    if (!d || !d.success) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Release this unit'; }
+      return toast((d && d.message) || 'Could not release ' + unitNo, 'err');
+    }
+    /* the unit is free again, and the card under the cursor has to say so */
+    var u = DESK.idx[String(unitNo).toUpperCase()];
+    if (u) { u.s = 'available'; u.sn = 'Available'; u.h = null; }
+    toast(unitNo + ' released — back on the market', 'ok');
+    var box = _q('#rd-unit');
+    _lookup(box ? box.value : unitNo);
   }
 
   /* ── requester: resolved against the picker, free text only as a fallback ─ */
