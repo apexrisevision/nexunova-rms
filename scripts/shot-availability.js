@@ -253,7 +253,9 @@ function serve() {
     await page.goto(BASE + '/availability.html?preview=1', { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => typeof window._availPreview === 'function', { timeout: 20000 });
     await page.evaluate(p => window._availPreview(p), payload);
-    await sleep(350);
+    await page.waitForFunction(
+      () => !document.body.classList.contains('splash'), { timeout: 9000 });
+    await sleep(120);
 
     /* ── a. screen one, 380px, no scrolling ─────────────────────────────── */
     step('Screen one — the whole building, no scrolling');
@@ -1015,43 +1017,94 @@ function serve() {
     await sp.evaluate(p => window._availPreview(p), payload);
     await sleep(60);
     const arrive = await sp.evaluate(() => {
-      const an = el => el ? { d: getComputedStyle(el).animationDuration,
-                              w: getComputedStyle(el).animationDelay,
-                              n: getComputedStyle(el).animationName } : null;
+      const an = el => {
+        if (!el) return null;
+        const s = getComputedStyle(el);
+        if (s.animationName === 'none') return null;
+        return { n: s.animationName,
+                 w: Math.round(parseFloat(s.animationDelay) * 1000),
+                 d: Math.round(parseFloat(s.animationDuration) * 1000) };
+      };
       const words = [...document.querySelectorAll('.hd-t .ttlw')];
       const rows = [...document.querySelectorAll('.ck')];
+      const floors = [...document.querySelectorAll('.fl button')];
+      /* when the last of the dance is over — the arrival's own movements by
+         name, so the band's endless crawl is not mistaken for part of it */
+      const dance = ['spIn', 'spLeft', 'spRight', 'spWord', 'spRing'];
+      const ends = [];
+      [...document.querySelectorAll('*')].forEach(el => {
+        const a = an(el);
+        if (a && dance.indexOf(a.n) >= 0) ends.push(a.w + a.d);
+      });
       return { title: document.getElementById('ttl').textContent.trim(),
-               words: words.map(w => w.textContent), wordA: an(words[0]), wordB: an(words[1]),
+               words: words.map(w => w.textContent),
+               mark: an(document.querySelector('.hd-m')),
+               wordA: an(words[0]), wordB: an(words[1]),
                ring: an(document.querySelector('.chart-r')),
-               rowA: an(rows[0]), rowLast: an(rows[rows.length - 1]) };
+               rowA: an(rows[0]), rowLast: an(rows[rows.length - 1]),
+               band: an(document.querySelector('.hero-f')),
+               left: an(document.getElementById('myq')),
+               middle: an(document.getElementById('allrow')),
+               right: an(document.getElementById('pricerow')),
+               floorA: an(floors[0]), floorLast: an(floors[floors.length - 1]),
+               ends: ends.length ? Math.max.apply(null, ends) : 0 };
     });
     const secs = s => Math.round(parseFloat(s || 0) * 1000);
-    (arrive.words.length >= 2 && arrive.title === payload.project &&
-     arrive.wordA.n === 'spWord' && secs(arrive.wordB.w) > secs(arrive.wordA.w))
+    (arrive.words.length >= 2 && arrive.title === payload.project)
       ? ok('the name lands a word at a time — ' + arrive.words.join(' + ') +
-           ', the second ' + secs(arrive.wordB.w) + 'ms behind the first, and it still ' +
-           'reads as “' + arrive.title + '”')
-      : bad('the name does not arrive: ' + JSON.stringify(arrive));
-    (arrive.ring.n === 'spRing' && arrive.rowA.n === 'spRow' &&
-     secs(arrive.ring.w) > secs(arrive.wordA.w) &&
-     secs(arrive.rowA.w) >= secs(arrive.ring.w) &&
-     secs(arrive.rowLast.w) > secs(arrive.rowA.w))
-      ? ok('and the ring follows at ' + secs(arrive.ring.w) + 'ms, then the legend one by ' +
-           'one from ' + secs(arrive.rowA.w) + 'ms to ' + secs(arrive.rowLast.w) + 'ms')
-      : bad('the chart does not arrive in order: ' + JSON.stringify(
-            { ring: arrive.ring, first: arrive.rowA, last: arrive.rowLast }));
-    /* NO PIECE OF IT IS LONGER THAN THE PAGE ALLOWS. What makes it a sequence
-       is the delay on each, and a delay is waiting rather than moving. */
-    [arrive.wordA, arrive.wordB, arrive.ring, arrive.rowA, arrive.rowLast]
-      .every(a => secs(a.d) > 0 && secs(a.d) <= 300)
-      ? ok('and every piece of it is 300ms or less — the sequence is delay, not duration')
-      : bad('a piece of the arrival runs past the budget: ' + JSON.stringify(arrive));
+           ' — and still reads as one name')
+      : bad('the name does not arrive: ' + JSON.stringify(arrive.words));
+    /* EACH FROM THE SIDE IT WAS ASKED FOR. "Awami ka logo b left se aaye, aur
+       neeche floors b right se one by one aaye. aur ticker b fadein karke
+       appear ho, aur buttons teeno right wala right se appear ho left wala left
+       se aaye aur beech wala fade in ho." Every one of those is a direction,
+       and the direction is the thing a reader actually sees. */
+    const from = {
+      'the mark': [arrive.mark, 'spLeft'],
+      'the name': [arrive.wordA, 'spWord'],
+      'the ring': [arrive.ring, 'spRing'],
+      'the legend': [arrive.rowA, 'spRight'],
+      'the news band': [arrive.band, 'spIn'],
+      'My Reservations': [arrive.left, 'spLeft'],
+      'All units': [arrive.middle, 'spIn'],
+      'the Price list': [arrive.right, 'spRight'],
+      'the floors': [arrive.floorA, 'spRight']
+    };
+    const wrongWay = Object.keys(from).filter(k => !from[k][0] || from[k][0].n !== from[k][1]);
+    wrongWay.length === 0
+      ? ok('and every piece comes from the side it was asked to — the mark and My ' +
+           'Reservations from the left; the legend, the Price list and the floors ' +
+           'from the right; the band and All units fading up')
+      : bad('a piece arrives from the wrong side: ' + JSON.stringify(
+            wrongWay.map(k => ({ what: k, wanted: from[k][1],
+                                 got: from[k][0] && from[k][0].n }))));
+    /* AND IN ORDER, one thing after another rather than all at once. */
+    const order = [arrive.mark, arrive.wordA, arrive.wordB, arrive.ring, arrive.rowA,
+                   arrive.rowLast, arrive.band, arrive.left, arrive.right,
+                   arrive.floorA, arrive.floorLast].map(a => a && a.w);
+    (order.every(w => w !== null) && order.every((w, i) => i === 0 || w >= order[i - 1]))
+      ? ok('and in order — mark ' + order[0] + ', name ' + order[1] + '/' + order[2] +
+           ', ring ' + order[3] + ', legend ' + order[4] + '\u2013' + order[5] +
+           ', band ' + order[6] + ', doorways ' + order[7] + '\u2013' + order[8] +
+           ', floors ' + order[9] + '\u2013' + order[10] + 'ms')
+      : bad('the arrival is out of order: ' + JSON.stringify(order));
+    /* SLOW ENOUGH TO SEE, AND OVER INSIDE THREE SECONDS. The first cut held
+       every piece to this page's 300ms and was, in his words, invisible. The
+       arrival is a named exemption from that rule now; what bounds it is the
+       end of it. */
+    (arrive.wordA.d >= 400 && arrive.floorA.d >= 400 && arrive.ends <= 3000)
+      ? ok('slow enough to watch \u2014 nothing under 400ms \u2014 and the last of it lands ' +
+           'at ' + arrive.ends + 'ms, inside the three seconds asked for')
+      : bad('the arrival is too fast to see or runs past three seconds: ' +
+            JSON.stringify({ word: arrive.wordA && arrive.wordA.d,
+                             floor: arrive.floorA && arrive.floorA.d, ends: arrive.ends }));
     /* AND IT PLAYS ONCE. */
-    await sleep(1400);
+    await sp.waitForFunction(
+      () => !document.body.classList.contains('splash'), { timeout: 9000 });
     const twice = await sp.evaluate(async p => {
       window._availPreview(p);
       await new Promise(r => setTimeout(r, 80));
-      return { splashing: document.getElementById('hero').classList.contains('splash'),
+      return { splashing: document.body.classList.contains('splash'),
                words: document.querySelectorAll('.hd-t .ttlw').length };
     }, payload);
     (!twice.splashing && twice.words === 0)
@@ -1317,18 +1370,23 @@ function serve() {
     const budget = await page.evaluate(() => {
       const secs = t => Math.max(...String(t).split(',').map(x => parseFloat(x) || 0));
       let worst = 0, where = '', crawlers = 0;
+      /* the arrival's own movements, by name; everything else on this page is
+         still held to 300ms */
+      const arrival = ['spIn', 'spLeft', 'spRight', 'spWord', 'spRing'];
       [...document.querySelectorAll('*')].forEach(el => {
         const c = getComputedStyle(el);
         const m = Math.max(secs(c.animationDuration), secs(c.transitionDuration));
         if (el.classList.contains('tk-track')) { crawlers++; return; }
+        if (arrival.indexOf(c.animationName) >= 0) return;
         if (m > worst) { worst = m; where = el.id || el.className || el.tagName; }
       });
       return { ms: Math.round(worst * 1000), where: String(where).slice(0, 30),
                crawlers: crawlers };
     });
     (budget.ms <= 300 && budget.crawlers === 1)
-      ? ok('nothing but the news strip runs longer than 300ms (worst ' + budget.ms +
-           'ms), and the exemption is a list of one')
+      ? ok('nothing but the news strip and the page-load arrival runs longer than ' +
+           '300ms (worst ' + budget.ms + 'ms), and the exemptions are a list of two, ' +
+           'both named')
       : bad(budget.crawlers !== 1
               ? budget.crawlers + ' elements claim the marquee exemption, not 1'
               : 'an animation runs ' + budget.ms + 'ms on ' + budget.where);

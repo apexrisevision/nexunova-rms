@@ -78,6 +78,12 @@ try {
   --pad:18px;
 
   --ease:cubic-bezier(.2,.7,.3,1);
+  /* THE SETTLE. The page's own --ease is for a 200ms tap answering a thumb.
+     An entrance is a different thing: it should leave fast and arrive slowly,
+     so the last part of the movement is a piece easing into place rather than
+     a piece stopping. This is the curve a phone's home screen uses when it
+     unlocks, and it is the whole reason that feels like settling. */
+  --settle:cubic-bezier(.32,.72,0,1);
   --t-fast:120ms;
   --t:160ms;
 }
@@ -200,28 +206,87 @@ button{cursor:pointer;background:none;border:0}
 .hero-n{font-size:24px;font-weight:700;letter-spacing:-.03em;line-height:1.05}
 .hero-p{font-size:11.5px;color:var(--mut);line-height:1.2;margin-top:1px}
 /* ── THE ARRIVAL ──────────────────────────────────────────────────────────
-   "jaisay hee page load ho to … Awami Market … aik aik word zoom out ho k apni
-   jaghan pe lagta rahay, aur … poora ring quick zoom out ho k apni jaghan pe
-   jai aur right side se Available pagri hold aur sold aaye one by one."
+   The whole of screen one comes in, in the order Rashid asked for it: the mark
+   from the left, the name a word at a time, the ring, the legend from the
+   right one by one, the news band fading up, the three doorways — left one
+   from the left, right one from the right, middle one fading — and then the
+   floors from the right, one after another.
 
-   Every piece is a 300ms movement, which is the page's own budget; what makes
-   it a sequence is the DELAY on each, and a delay is waiting, not moving. The
-   ticker is still the only thing here exempt from that rule.
+   THE FIRST CUT WAS TOO FAST TO SEE. Every piece was 300ms because that is
+   this page's standing rule, and Rashid on the result: "bohat hee ziada taiz
+   hain kuch b nazar hee nahi aata … ye saaray animations 2 se 3 seconds k
+   andar hun". So the arrival is a SECOND named exemption from the 300ms rule,
+   alongside the ticker — and it is bounded the other way instead: the suite
+   asserts the last piece of it has finished inside three seconds, so it can
+   never grow into something a reader has to wait out.
 
-   It plays once, on the first paint, and not at all for a reader who has asked
-   for stillness. */
-.hd-t .ttlw{display:inline-block;vertical-align:top;
-            animation:spWord 300ms var(--ease) both;
-            animation-delay:calc(var(--i) * 90ms)}
-@keyframes spWord{from{opacity:0;transform:scale(1.55)}to{opacity:1;transform:none}}
-#hero.splash .chart-r{animation:spRing 300ms var(--ease) both;animation-delay:210ms}
-@keyframes spRing{from{opacity:0;transform:scale(1.4)}to{opacity:1;transform:none}}
-#hero.splash .ck{animation:spRow 300ms var(--ease) both;
-                 animation-delay:calc(300ms + var(--i) * 70ms)}
-@keyframes spRow{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
-#hero.splash .hero-l{animation:spRing 300ms var(--ease) both;animation-delay:150ms}
+   Everything about it is a delay and a duration in this one block, so the
+   whole dance can be read in one place and retimed in one place.
+
+   It plays once, on the first paint. The board rereads the building every two
+   minutes; an entrance on every reread is the page flinching at somebody who
+   is already reading it. And it does not play at all for a reader who has
+   asked for stillness. */
+/* EVERY PIECE COMES IN LARGER THAN IT ENDS and settles down onto its place —
+   "jaisay apple iphone unlock karnay pe zoom out ka smooth sa animate karke
+   icons apni jaghan pe jatay hain". Three things make that read as settling
+   rather than as a slide:
+     · it starts a little oversized, so the movement is toward the page rather
+       than across it;
+     · the opacity is finished well before the movement is, so what you watch
+       at the end is a solid piece easing into place, not something still
+       appearing;
+     · the curve decelerates the whole way (--settle), so nothing stops — it
+       arrives.
+   The ones carrying blur are the few large pieces where it is worth the paint:
+   the mark, the two words of the name, the ring. The twelve small pieces that
+   come from the right do not blur, because twelve blurs on a cheap phone is a
+   stutter, and a stutter is the opposite of this. */
+@keyframes spIn   {0%  {opacity:0}
+                   100%{opacity:1}}
+@keyframes spLeft {0%  {opacity:0;transform:translateX(-30px) scale(1.06);filter:blur(4px)}
+                   55% {opacity:1;filter:blur(0)}
+                   100%{opacity:1;transform:translateX(0) scale(1);filter:blur(0)}}
+@keyframes spRight{0%  {opacity:0;transform:translateX(30px) scale(1.06)}
+                   55% {opacity:1}
+                   100%{opacity:1;transform:translateX(0) scale(1)}}
+@keyframes spWord {0%  {opacity:0;transform:scale(1.45);filter:blur(5px)}
+                   55% {opacity:1;filter:blur(0)}
+                   100%{opacity:1;transform:scale(1);filter:blur(0)}}
+@keyframes spRing {0%  {opacity:0;transform:scale(1.38);filter:blur(4px)}
+                   55% {opacity:1;filter:blur(0)}
+                   100%{opacity:1;transform:scale(1);filter:blur(0)}}
+
+body.splash,
+body.splash .wrap   {overflow-x:clip}
+/* the mark, from the left */
+body.splash .hd-m   {animation:spLeft 600ms var(--settle) both}
+/* the name, a word at a time */
+.hd-t .ttlw         {display:inline-block;vertical-align:top;
+                     animation:spWord 550ms var(--settle) both;
+                     animation-delay:calc(160ms + var(--i) * 190ms)}
+body.splash .hd-c   {animation:spIn 500ms var(--settle) both;animation-delay:520ms}
+body.splash .hd-r   {animation:spIn 500ms var(--settle) both;animation-delay:560ms}
+/* the chart: its label, its ring, then its legend from the right */
+body.splash .hero-l {animation:spIn 500ms var(--settle) both;animation-delay:660ms}
+body.splash .chart-r{animation:spRing 650ms var(--settle) both;animation-delay:760ms}
+body.splash .ck     {animation:spRight 500ms var(--settle) both;
+                     animation-delay:calc(960ms + var(--i) * 130ms)}
+/* the news band fades up */
+body.splash .hero-f {animation:spIn 600ms var(--settle) both;animation-delay:1480ms}
+/* the field a dealer types into */
+body.splash .sec    {animation:spIn 450ms var(--settle) both;animation-delay:1620ms}
+body.splash .sr     {animation:spIn 500ms var(--settle) both;animation-delay:1680ms}
+/* the three doorways: outside in from their own sides, the middle one fading */
+body.splash #myq      {animation:spLeft 550ms var(--settle) both;animation-delay:1800ms}
+body.splash #allrow   {animation:spIn 550ms var(--settle) both;animation-delay:1880ms}
+body.splash #pricerow {animation:spRight 550ms var(--settle) both;animation-delay:1960ms}
+/* and the floors, from the right, one after another */
+body.splash .sec-r  {animation:spIn 450ms var(--settle) both;animation-delay:2020ms}
+body.splash .fl button{animation:spRight 450ms var(--settle) both;
+                       animation-delay:calc(2040ms + var(--i) * 75ms)}
 @media (prefers-reduced-motion:reduce){
-  .hd-t .ttlw,#hero.splash .chart-r,#hero.splash .ck,#hero.splash .hero-l{animation:none}
+  body.splash *,.hd-t .ttlw{animation:none !important}
 }
 
 /* ── the building as one ring ─────────────────────────────────────────────
@@ -2677,6 +2742,13 @@ function renderHome() {
      Only the drawing is reversed: data-f still carries each floor's own
      index, so everything that opens a floor by number is untouched. */
   }).reverse().join('');
+  /* THE DELAY FOLLOWS THE EYE, NOT THE REGISTER. Each row carries its own
+     index for the stagger, and the register hands the floors up from the
+     ground while the building is drawn down from the top — so the numbers are
+     re-stamped in the order they are actually read. */
+  [].forEach.call($('floors').children, function (b, k) {
+    b.style.setProperty('--i', k);
+  });
 
   /* One quiet line, because the seven chips above already carry the weight
      and screen one has to stay whole on a phone. */
@@ -2710,12 +2782,6 @@ function renderHome() {
   /* ONCE. The entrance belongs to the first time these chips exist, not to
      every two-minute refetch — a grid that re-animates itself while somebody
      is reading it is the page fidgeting. */
-  if (!STAGGERED) {
-    STAGGERED = true;
-    var fl = $('floors');
-    fl.classList.add('stagger');
-    setTimeout(function () { fl.classList.remove('stagger'); }, 500);
-  }
 
   runSearch();          // keep any query alive across a refetch
 }
@@ -3328,12 +3394,15 @@ function paintHero(av, tot) {
   void fw; void held; void pct;
   /* the entrance is a class, not a timer: the stylesheet holds the timing and
      the page only says when it is the first time */
+  /* THE CLASS GOES ON THE BODY. The mark and the name are in the header,
+     which is not inside the screen the chart lives in, and the floors are in
+     another block again — the dance is the whole of screen one, so the switch
+     for it has to be above all of them. It is taken off once the last piece
+     has landed, so nothing is left carrying an animation it has finished. */
   if (!SPLASHED) {
-    $('hero').classList.add('splash');
+    document.body.classList.add('splash');
     SPLASHED = true;
-    setTimeout(function () {
-      var h = $('hero'); if (h) h.classList.remove('splash');
-    }, 1200);
+    setTimeout(function () { document.body.classList.remove('splash'); }, 3200);
   }
   glowStart();
 
