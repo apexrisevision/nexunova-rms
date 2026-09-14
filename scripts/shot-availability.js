@@ -259,28 +259,32 @@ function serve() {
     step('Screen one — the whole building, no scrolling');
     const one = await page.evaluate(() => ({
       chips: [...document.querySelectorAll('#floors button')].map(b => ({
-        code: (b.querySelector('.fpc-c') || {}).textContent || '',
-        free: (b.querySelector('.fpc-n') || {}).textContent || '',
-        on: b.classList.contains('on'),
+        code: ((b.querySelector('.fcode') || {}).textContent || '').trim(),
+        label: ((b.querySelector('.fn') || {}).textContent || '').trim(),
+        count: ((b.querySelector('.fv') || {}).textContent || '').trim(),
+        of: ((b.querySelector('.fc') || {}).textContent || '').trim(),
+        kinds: ((b.querySelector('.fk') || {}).textContent || '').trim(),
+        bar: [...b.querySelectorAll('.fb i')]
+          .reduce((a, i) => a + parseFloat(i.style.width || 0), 0),
         h: Math.round(b.getBoundingClientRect().height),
         w: Math.round(b.getBoundingClientRect().width)
       })),
-      inRow: getComputedStyle(document.getElementById('floors')).flexDirection,
-      rowTop: Math.round(document.getElementById('floors').getBoundingClientRect().top),
-      rowBot: Math.round(document.getElementById('floors').getBoundingClientRect().bottom),
-      /* the panel is the one place a floor is drawn in full now, so its bar is
-         the bar that has to account for the whole floor */
-      panelBar: [...document.querySelectorAll('#fpanel .fpn-b i')]
-        .reduce((a, i) => a + parseFloat(i.style.width || 0), 0),
-      panelLabel: (document.querySelector('#fpanel .fpn-l') || {}).textContent || '',
-      panelNum: (document.querySelector('#fpanel .fpn-n') || {}).textContent || '',
-      panelDoor: (document.querySelector('#fpanel .fpn-g') || {}).textContent || '',
-      panelFacts: (document.querySelector('#fpanel .fpn-s') || {}).textContent || '',
-      panelH: Math.round((document.getElementById('fpanel') || {}).getBoundingClientRect
-        ? document.getElementById('fpanel').getBoundingClientRect().height : 0),
+      stacked: getComputedStyle(document.getElementById('floors')).flexDirection,
+      /* ONE SHEET, NOT SEVEN CARDS. Seven separate cards were thrown out by
+         name; what replaced them is one surface ruled into rows, so the rows
+         must share a background rather than each carrying their own. */
+      sheetBg: getComputedStyle(document.getElementById('floors')).backgroundColor,
+      rowBg: getComputedStyle(document.querySelector('#floors button')).backgroundColor,
+      rowsTouch: (() => {
+        const bs = [...document.querySelectorAll('#floors button')];
+        return bs.slice(1).every((b, i) =>
+          Math.abs(b.getBoundingClientRect().top -
+                   bs[i].getBoundingClientRect().bottom) <= 1);
+      })(),
       pairKids: document.querySelectorAll('.pair > div').length,
       pairTop: Math.round(document.querySelector('.pair').getBoundingClientRect().top),
       srBot: Math.round(document.querySelector('.sr').getBoundingClientRect().bottom),
+      floorsTop: Math.round(document.getElementById('floors').getBoundingClientRect().top),
       docH: document.documentElement.scrollHeight,
       winH: window.innerHeight,
       unitsInDom: document.querySelectorAll('#units button').length,
@@ -296,68 +300,56 @@ function serve() {
       barFree: document.querySelector('.bar .free').style.width,
       total: document.querySelector('.hero').textContent.trim()
     }));
-    /* EVERY FLOOR IS STILL REACHABLE FROM SCREEN ONE. It was seven cards down
-       the screen; Rashid on them: "wo muje bilkul nahi … bohat bura lagta hai".
-       It is one row of the codes his own units carry — but all seven of them,
-       which is the part that was never in question. */
     one.chips.length === payload.floors.length
-      ? ok('all ' + one.chips.length + ' floors are one tap away — ' +
-           one.chips.map(c => c.code).join(' '))
-      : bad('expected ' + payload.floors.length + ' floor chips, drew ' + one.chips.length);
-    /* AND THE CODE IS THE ONE A DEALER TYPES. A row of invented labels would
-       be a second vocabulary for the same seven floors; these are read off the
-       units' own numbers, so the chip and the search field agree. */
+      ? ok('all ' + one.chips.length + ' floors are on screen one')
+      : bad('expected ' + payload.floors.length + ' floors, drew ' + one.chips.length);
+    /* NOTHING IS BEHIND A TAP. A picker with one panel stood here for exactly
+       one deploy, and Rashid took it out: "i want k by default har aik ki info
+       show hoti rahay … aur click karnay pe wo floor open ho". So every floor
+       states its own count, its own bar and what is held on it, without being
+       asked — and the tap is spent walking in, not looking. */
+    const wantCount = payload.floors.map(f => Number(f.available || 0));
+    const said = one.chips.slice().reverse();          // the sheet draws top floor first
+    (said.every((c, i) => c.count === (wantCount[i] ? String(wantCount[i]) : 'None free')) &&
+     said.every(c => /of \d+/.test(c.of)) &&
+     said.every(c => c.kinds.length > 0) &&
+     said.every(c => c.bar >= 99 && c.bar <= 101))
+      ? ok('and every one of them states itself without being asked — count, ' +
+           'bar and what is held, on all ' + said.length)
+      : bad('a floor is not stating itself: ' + JSON.stringify(
+            said.map((c, i) => ({ label: c.label, count: c.count, of: c.of,
+                                  kinds: c.kinds, bar: Math.round(c.bar),
+                                  want: wantCount[i] })).slice(0, 3)));
+    /* AND THE CODE IS THE ONE A DEALER TYPES. Read off the units' own numbers,
+       so the row and the search field two inches above agree. */
     const wantCodes = payload.floors.map(f => {
       const n = String(((f.units || [])[0] || {}).n || '');
       const cut = n.indexOf('-');
       return cut > 0 ? n.slice(0, cut).toUpperCase() : '';
     });
-    one.chips.every((c, i) => !wantCodes[i] || c.code.trim() === wantCodes[i])
-      ? ok('and each code is the prefix its own units carry, not a label invented here')
-      : bad('a chip does not match its units: ' + JSON.stringify(
-            { drew: one.chips.map(c => c.code.trim()), register: wantCodes }));
-    /* THE ROW ANSWERS "WHICH FLOOR HAS ANYTHING" WITHOUT SEVEN TAPS. The one
-       thing the stack of cards genuinely did was let a reader compare floors at
-       a glance; the codes alone would have lost it, so every chip carries its
-       own free count. */
-    const wantFree = payload.floors.map(f => String(Number(f.available || 0) || '—'));
-    one.chips.every((c, i) => c.free.trim() === wantFree[i])
-      ? ok('and every chip states its own floor’s free count: ' +
-           one.chips.map(c => c.code.trim() + ' ' + c.free.trim()).join(', '))
-      : bad('a chip states the wrong count: ' + JSON.stringify(
-            { drew: one.chips.map(c => c.free.trim()), register: wantFree }));
-    one.inRow === 'row'
-      ? ok('the picker is one row, not a stack')
-      : bad('the picker is laid out "' + one.inRow + '"');
-    /* ONE FLOOR, SAID IN FULL. The panel is where a floor is actually stated
-       now, so it carries what a card in a stack of seven could not: the count
-       large, the bar accounting for the whole floor, and the way in. */
-    const shown = payload.floors[0];
-    (one.panelLabel.trim() === String(shown.floor_label) &&
-     one.panelNum.trim() === String(Number(shown.available || 0)) &&
-     one.panelBar >= 99 && one.panelBar <= 101 &&
-     /open/i.test(one.panelDoor))
-      ? ok('and the floor it is pointing at is stated in full — ' +
-           one.panelLabel.trim() + ', ' + one.panelNum.trim() + ' free, a bar that ' +
-           'accounts for the whole floor, and the way in')
-      : bad('the panel does not state its floor: ' + JSON.stringify(
-            { label: one.panelLabel.trim(), num: one.panelNum.trim(),
-              bar: Math.round(one.panelBar), door: one.panelDoor.trim() }));
-    /* WHAT A FLOOR IS, not only how much is left. A dealer choosing a floor is
-       choosing a size and a price; both are on the wire already. */
-    (/sizes|every unit/i.test(one.panelFacts) &&
-     (!payload.show_price || /per /i.test(one.panelFacts)))
-      ? ok('and it says what the floor is made of — "' + one.panelFacts.trim() + '"')
-      : bad('the panel does not say the floor’s sizes or rate: "' +
-            one.panelFacts.trim() + '"');
+    said.every((c, i) => !wantCodes[i] || c.code === wantCodes[i])
+      ? ok('and each wears the code its own units carry: ' +
+           said.map(c => c.code).join(' '))
+      : bad('a floor does not match its units: ' + JSON.stringify(
+            { drew: said.map(c => c.code), register: wantCodes }));
+    /* ONE SHEET RULED INTO ROWS, not seven cards. The cards were thrown out by
+       name — "us ka style muje … bohat bura lagta hai" — and the difference is
+       measurable: the rows share one surface and touch each other. */
+    (one.rowsTouch && one.sheetBg !== 'rgba(0, 0, 0, 0)' &&
+     one.chips.every(c => Math.abs(c.w - one.chips[0].w) <= 1))
+      ? ok('drawn as one sheet ruled into ' + one.chips.length +
+           ' rows, not ' + one.chips.length + ' separate cards')
+      : bad('the floors are not one sheet: ' + JSON.stringify(
+            { rowsTouch: one.rowsTouch, sheet: one.sheetBg,
+              widths: one.chips.map(c => c.w) }));
     /* THE TWO DOORWAYS ARE TOGETHER AND BELOW THE SEARCH. They used to sit at
        the two ends of the screen, which is the one arrangement where a reader
        can only ever see one of them. Rashid: "in ki positions change karo". */
-    (one.pairKids === 2 && one.pairTop >= one.srBot && one.pairTop < one.rowTop)
+    (one.pairKids === 2 && one.pairTop >= one.srBot && one.pairTop < one.floorsTop)
       ? ok('My Reservations and All units sit together under the search, above the floors')
       : bad('the two doorways are not where they belong: ' + JSON.stringify(
             { kids: one.pairKids, pairTop: one.pairTop, searchBottom: one.srBot,
-              floorsTop: one.rowTop }));
+              floorsTop: one.floorsTop }));
     /* AND THE READING IS NOT THE NEWS BAND. Merging the count into the band
        made one dark object of two different things, and Rashid overturned it:
        "isay alag hee rakho tab hee prominent rahay ga". They must not share a
@@ -384,7 +376,7 @@ function serve() {
     await sleep(200);
     settled.docH <= settled.winH
       ? ok('no scrolling at 380×780 once the name is settled — ' +
-           settled.docH + 'px of ' + settled.winH + 'px')
+           settled.docH + 'px of ' + settled.winH + 'px, seven floors and all')
       : bad('screen one scrolls even after the name card: ' + settled.docH +
             'px of ' + settled.winH + 'px');
     console.log('     first visit, with the name card: ' + one.docH + 'px of ' +
@@ -417,9 +409,9 @@ function serve() {
       : bad('the reading and its label are the same size');
     /* Every tappable thing clears the 44px the thumb actually needs. */
     (one.chipH >= 44 && one.searchH >= 44)
-      ? ok('and nothing tappable is under 44px (chip ' + one.chipH + 'px)')
-      : bad('a target is too small: chip ' + one.chipH + 'px, search ' + one.searchH + 'px');
-    console.log('     chip ' + one.chips[0].w + '×' + one.chips[0].h + 'px  ·  ' +
+      ? ok('and nothing tappable is under 44px (floor row ' + one.chipH + 'px)')
+      : bad('a target is too small: row ' + one.chipH + 'px, search ' + one.searchH + 'px');
+    console.log('     row ' + one.chips[0].w + '×' + one.chips[0].h + 'px  ·  ' +
                 one.hero + ' free  ·  hero ' + one.heroSize + 'px/label ' + one.labSize + 'px');
     await page.screenshot({ path: path.join(OUT, 'a-screen-one-380.png') });
 
@@ -739,8 +731,7 @@ function serve() {
     const floorState = await page.evaluate(async i => {
       document.getElementById('q').value = '';
       document.getElementById('q').dispatchEvent(new Event('input', { bubbles: true }));
-      document.querySelector('#floors button[data-fs="' + i + '"]').click();
-      document.querySelector('#fpanel button[data-f="' + i + '"]').click();
+      document.querySelector('#floors button[data-f="' + i + '"]').click();
       /* THE CHIPS, NOT THE DRAWING. A floor with a plan opens on the plan now,
          and a hidden grid reports no columns — so this asks for the list the way
          a reader would before measuring it. */
@@ -784,8 +775,7 @@ function serve() {
       const seen = [];
       for (let i = 0; i < n; i++) {
         document.getElementById('back').click();
-        document.querySelector('#floors button[data-fs="' + i + '"]').click();
-      document.querySelector('#fpanel button[data-f="' + i + '"]').click();
+        document.querySelector('#floors button[data-f="' + i + '"]').click();
         seen.push(document.querySelectorAll('#units button').length);
       }
       document.getElementById('back').click();
@@ -989,8 +979,7 @@ function serve() {
     });
     const sheet = await page.evaluate(i => {
       NAME = 'Fawad khan';
-      document.querySelector('#floors button[data-fs="' + i + '"]').click();
-      document.querySelector('#fpanel button[data-f="' + i + '"]').click();
+      document.querySelector('#floors button[data-f="' + i + '"]').click();
       document.querySelector('#units button:not(.off)').click();
       const out = {
         open: document.getElementById('sheet').classList.contains('on'),
@@ -1341,8 +1330,7 @@ function serve() {
     step('An unavailable unit is inert');
     const inert = await page.evaluate(i => {
       closeSheet();
-      document.querySelector('#floors button[data-fs="' + i + '"]').click();
-      document.querySelector('#fpanel button[data-f="' + i + '"]').click();
+      document.querySelector('#floors button[data-f="' + i + '"]').click();
       document.getElementById('showall').checked = true;
       document.getElementById('showall').dispatchEvent(new Event('change', { bubbles: true }));
       const off = document.querySelector('#units button.off');
@@ -1384,8 +1372,7 @@ function serve() {
     step('The unavailable toggle');
     const tog = await page.evaluate(i => {
       document.getElementById('back').click();
-      document.querySelector('#floors button[data-fs="' + i + '"]').click();
-      document.querySelector('#fpanel button[data-f="' + i + '"]').click();
+      document.querySelector('#floors button[data-f="' + i + '"]').click();
       const before = document.querySelectorAll('#units button').length;
       const cb = document.getElementById('showall');
       cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1501,8 +1488,7 @@ function serve() {
        page back on screen one, where there is not a single unit — so this
        check was reading an empty page and passing on nothing. */
     await page.evaluate(i => {
-      document.querySelector('#floors button[data-fs="' + i + '"]').click();
-      document.querySelector('#fpanel button[data-f="' + i + '"]').click();
+      document.querySelector('#floors button[data-f="' + i + '"]').click();
       const cb = document.getElementById('showall');
       cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true }));
     }, bigIdx);
@@ -2025,9 +2011,7 @@ function serve() {
           document.getElementById('nm-in').value = 'Round Trip Rep';
           document.getElementById('nm-ok').click();
           await new Promise(r => setTimeout(r, 150));
-          /* pick a floor on the row, then walk in through the panel */
           document.querySelector('#floors button').click();
-          document.querySelector('#fpanel button[data-f]').click();
           const u = document.querySelector('#units button:not(.off)');
           const unit = u.querySelector('.un').textContent.trim();
           u.click();
@@ -2069,7 +2053,6 @@ function serve() {
           closeSheet();
           document.getElementById('back').click();
           document.querySelector('#floors button').click();
-          document.querySelector('#fpanel button[data-f]').click();
           const free = [...document.querySelectorAll('#units button:not(.off)')];
           /* Never the one already asked for: the cap would hand back that
              request's own ref and this step would then delete it. */
@@ -2383,7 +2366,6 @@ function serve() {
           closeSheet();
           document.getElementById('back').click();
           document.querySelector('#floors button').click();
-          document.querySelector('#fpanel button[data-f]').click();
           /* A DIFFERENT unit. The payload in this browser still predates the
              approval, so the first free chip is the one just booked and the
              request would be refused — which is correct behaviour, and not what
@@ -3104,14 +3086,8 @@ async function visitToken(browser, token) {
       const home = document.querySelectorAll('#units button').length;
       const total = (window.P && window.P.floors)
         ? window.P.floors.reduce((n, f) => n + f.units.length, 0) : 0;
-      /* PICK, THEN WALK IN. The chip row selects a floor; the panel under it
-         is the door. One tap on a chip used to be the whole journey, and this
-         asked for the tap without the door, so it measured a floor that had
-         never been opened. */
       const chip = document.querySelector('#floors button');
       if (chip) chip.click();
-      const door = document.querySelector('#fpanel button[data-f]');
-      if (door) door.click();
       return { home, total, after: document.querySelectorAll('#units button').length,
                text: document.body.innerText };
     });
