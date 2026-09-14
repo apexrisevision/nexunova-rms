@@ -1011,8 +1011,19 @@ function serve() {
           view: c.getAttribute('data-view'),
           img: getComputedStyle(c.querySelector('.va-i')).backgroundImage,
           h: Math.round(c.getBoundingClientRect().height),
-          w: Math.round(c.getBoundingClientRect().width)
-        }))
+          w: Math.round(c.getBoundingClientRect().width),
+          edge: Math.round(parseFloat(getComputedStyle(c).borderTopWidth)),
+          ground: getComputedStyle(c).backgroundColor
+        })),
+        /* the pair must NOT be wrapped in a block of its own */
+        rowEdge: Math.round(parseFloat(
+          getComputedStyle(document.querySelector('#vask .va-r')).borderTopWidth)),
+        rowGround: getComputedStyle(document.querySelector('#vask .va-r')).backgroundColor,
+        gap: (() => {
+          const c = [...document.querySelectorAll('#vask .va')];
+          return c.length === 2 ? Math.round(c[1].getBoundingClientRect().left -
+                                             c[0].getBoundingClientRect().right) : -1;
+        })()
       };
     }, askFloor);
     (asked.asking && !asked.planShown && asked.unitsDrawn === 0 &&
@@ -1021,6 +1032,21 @@ function serve() {
       : bad('the floor did not stop to ask: ' + JSON.stringify(
             { asking: asked.asking, plan: asked.planShown, units: asked.unitsDrawn,
               cards: asked.cards.length }));
+    /* TWO BLOCKS, ONE EACH. A frame round the pair stood here for one deploy
+       and made them one object with two halves, which is the opposite of what
+       a choice looks like: "map aur list dono aik hee block k andar aa rahay
+       hain, inhe 2 block karo alag alag". So each answer carries its own
+       border and its own ground, the pair carries neither, and there is real
+       space between them. */
+    (asked.cards.length === 2 && asked.cards.every(c => c.edge >= 2) &&
+     asked.rowEdge === 0 && asked.rowGround === 'rgba(0, 0, 0, 0)' &&
+     asked.gap >= 8)
+      ? ok('and the two answers are two blocks, not one — a ' + asked.cards[0].edge +
+           'px border on each, nothing round the pair, and ' + asked.gap +
+           'px of daylight between them')
+      : bad('the two answers are still one block: ' + JSON.stringify(
+            { edges: asked.cards.map(c => c.edge), rowEdge: asked.rowEdge,
+              rowGround: asked.rowGround, gap: asked.gap }));
     /* THE SAMPLES ARE THE VIEWS THEMSELVES. A card showing a drawing of a map
        teaches nothing about this map. */
     (asked.cards.length === 2 &&
