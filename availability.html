@@ -123,17 +123,33 @@ button{cursor:pointer;background:none;border:0}
    count, what it is out of, and the tally of what is held all sit on one
    line, with the whole-building bar under it. That is thirty pixels given
    back to the stack, which is where they were needed. */
-.hero{margin-bottom:11px}
-.hero-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-.hero-l{font-size:10.5px;font-weight:650;letter-spacing:.11em;text-transform:uppercase;
-        color:var(--mut);line-height:1.2;margin-bottom:4px}
-.hero-n{font-size:22px;font-weight:650;letter-spacing:-.02em;line-height:1.15}
-.hero-p{font-size:12px;color:var(--mut)}
+/* THE CONSOLE. Rashid saw the news band and said to bring the rest of the
+   dashboard up to it: "dashboard b isi standard se theek karo ab". The band
+   works because it is its own object — full width of the screen, its own dark
+   ground, and it does not ask to be noticed. The reading it sits under was the
+   opposite: grey small caps and a 22px number on the page's own background,
+   the least emphatic thing on a screen whose whole job it is to say. So the
+   two are now ONE object — the count, its bar, and the news crawling
+   underneath, on a single dark slab running edge to edge. Nothing was moved or
+   removed to do it: the same label, the same reading, the same bar, the same
+   floors under it. */
+.hero{margin:0 calc(-1 * var(--pad));padding:9px var(--pad) 8px;
+      background:var(--ink);color:#F5F5F4}
+.hero-top{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.hero-l{font-size:10px;font-weight:750;letter-spacing:.13em;text-transform:uppercase;
+        color:rgba(245,245,244,.5);line-height:1.2;margin-bottom:3px}
+.hero-n{font-size:29px;font-weight:700;letter-spacing:-.025em;line-height:1.1;color:#fff}
+.hero-p{font-size:12.5px;color:rgba(245,245,244,.62)}
 /* Ink at two strengths, not two hues. Availability is contrast here. */
-.bar{display:flex;height:3px;border-radius:999px;overflow:hidden;background:var(--sunk);
-     margin:8px 0 0}
+/* ON THE DARK GROUND the bar's track cannot be the page's sunk grey and its
+   free stretch cannot be the page's ink — both would vanish. The track is a
+   dim wash of the band's own light, and free is that light at full strength;
+   the kinds keep the exact colours they carry everywhere else on this page,
+   because a hold has to be the same colour here as it is on its floor. */
+.bar{display:flex;height:5px;border-radius:999px;overflow:hidden;
+     background:rgba(245,245,244,.16);margin:8px 0 0}
 .bar i{display:block;height:100%}
-.bar .free{background:var(--ink);opacity:.28}
+.bar .free{background:#F5F5F4;opacity:.8}
 .bar .held{background:transparent}
 .hero-f{display:flex;align-items:center;gap:11px;font-size:11.5px;
         color:var(--mut);line-height:1.4}
@@ -173,8 +189,9 @@ button{cursor:pointer;background:none;border:0}
    Full-bleed: the negative margins take it out past the page's own padding,
    edge to edge, which is the shape that makes a ticker read as a ticker. */
 .hero-f{display:flex;align-items:stretch;overflow:hidden;white-space:nowrap;
-        min-width:0;height:30px;margin:10px calc(-1 * var(--pad)) 0;
-        background:var(--ink);color:#F5F5F4;font-size:12px;line-height:1.4}
+        min-width:0;height:28px;margin:0 calc(-1 * var(--pad)) 12px;
+        background:var(--ink);color:#F5F5F4;font-size:12px;line-height:1.4;
+        border-top:1px solid rgba(245,245,244,.13)}
 .tk-h{flex:none;display:flex;align-items:center;padding:0 11px;
       background:#B3123C;color:#fff;font-size:10px;font-weight:750;
       letter-spacing:.1em;text-transform:uppercase}
@@ -208,7 +225,13 @@ button{cursor:pointer;background:none;border:0}
 /* ── search: THE focal point of screen one ──────────────────────────────── */
 .sr{position:relative;margin-bottom:17px}
 .sr input{
-  width:100%;height:58px;padding:0 18px;border:1px solid var(--line);
+  /* THE FOCAL POINT, STILL. Most dealers open this already knowing the unit
+     number, so the thing they can type into has to be the largest object on
+     the screen. The reading above it grew from 22px to 29px when the console
+     was drawn, which left the field only exactly twice its size — the field
+     grows with it rather than the reading being held down to protect a ratio.
+     Six pixels, paid for out of the same place everything else here is. */
+  width:100%;height:64px;padding:0 18px;border:1px solid var(--line);
   border-radius:var(--r);background:var(--card);font-size:16.5px;font-weight:500;
   letter-spacing:-.01em;outline:none;
   transition:border-color var(--t) var(--ease), box-shadow var(--t) var(--ease);
@@ -259,9 +282,9 @@ button{cursor:pointer;background:none;border:0}
    floor's name instead of sitting under it, and the kinds moved down beside
    the bar. Screen one still has to hold the whole building without scrolling
    on a 380px phone, and the harness still measures exactly that. */
-.fl{display:flex;flex-direction:column;gap:3px}
+.fl{display:flex;flex-direction:column;gap:2px}
 .fl button{
-  padding:5px 13px 6px;border:0;border-radius:var(--r);
+  padding:4px 13px 5px;border:0;border-radius:var(--r);
   background:var(--card);text-align:left;min-height:46px;
   display:block;
   transition:background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
@@ -288,10 +311,15 @@ button{cursor:pointer;background:none;border:0}
    declared first shows the hover tint and the tactile answer is lost on
    every device that has a cursor. */
 .fl button:active{transform:scale(.975);background:var(--sunk)}
-.fl .fn{font-size:14.5px;font-weight:650;letter-spacing:-.015em;line-height:1.25;
+/* THE SAME STANDARD, ONE STEP DOWN. The slab above is the building; each of
+   these is a floor of it, so they are drawn the same way and quieter — the
+   name a shade heavier, the count a size larger, so a thumb scanning the stack
+   lands on the number rather than hunting for it. No row got taller: this is
+   weight, not space, because screen one has none to give. */
+.fl .fn{font-size:14.5px;font-weight:700;letter-spacing:-.015em;line-height:1.25;
         color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fl .fr{display:flex;align-items:baseline;gap:5px;flex:none}
-.fl .fv{font-size:17px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.fl .fv{font-size:19px;font-weight:750;letter-spacing:-.025em;line-height:1.15}
 .fl .fc{font-size:11.5px;color:var(--mut);line-height:1.4;white-space:nowrap}
 /* WHAT THE REST OF THE FLOOR IS. Rashid asked for this on the dashboard by
    name — how many held, sold, pagri, per floor — and it now sits beside the
@@ -331,13 +359,13 @@ button{cursor:pointer;background:none;border:0}
 .sk-hero{height:14px;width:34%;margin-bottom:11px}
 .sk-bar{height:3px;width:100%;border-radius:999px;margin-bottom:8px}
 .sk-leg{height:13px;width:56%;margin-bottom:15px}
-.sk-sr{height:58px;width:100%;margin-bottom:17px;border-radius:var(--r)}
+.sk-sr{height:64px;width:100%;margin-bottom:17px;border-radius:var(--r)}
 /* THE SKELETON IS A PROMISE ABOUT WHAT IS COMING, so it has to be the shape
    of what is coming. It was two columns of 74px cards; the floors are now a
    stack, and a skeleton that lies about the layout makes the page jump at the
    moment it fills — which the harness measures to the pixel. */
-.sk-fl{display:flex;flex-direction:column;gap:3px}
-.sk-ch{height:50px;border-radius:var(--r)}
+.sk-fl{display:flex;flex-direction:column;gap:2px}
+.sk-ch{height:48px;border-radius:var(--r)}
 
 /* ── SCREEN TRANSITION — user-initiated, one way in, one way back ───────── */
 .scr-in {animation:scrIn  var(--t) var(--ease) both}
@@ -874,6 +902,11 @@ button{cursor:pointer;background:none;border:0}
    The 3px edge does most of the work. A tint alone at this lightness
    disappears on a dim phone; a coloured edge survives it. */
 #myq .all-chip{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+/* the one-line form: still a 44px target — folded to one line it measured 43,
+   and 44 is the floor for anything a thumb has to hit on this page */
+#myq.quiet .all-chip{min-height:44px}
+#myq.quiet .ac-w{display:flex;align-items:baseline;gap:9px}
+#myq.quiet .ac-m{display:inline}
 @media (hover:hover){ #myq .all-chip:hover{background:#E5EDFD} }
 #myq .all-chip:active{background:#DCE7FC}
 #allrow .all-chip{background:var(--held-bg);box-shadow:inset 3px 0 0 var(--held)}
@@ -1723,7 +1756,13 @@ function paintMyReqs() {
   var M = mySummary();
   var soon = releasingSoon();
   box.hidden = false;
-  box.className = '';
+  /* AN EMPTY CARD DOES NOT GET TWO LINES. On a first visit this says "My
+     Reservations / Nothing yet" and takes sixty pixels of a screen that fits
+     in exactly seven hundred and eighty — more than any floor of the building
+     below it, to say that there is nothing. With something in it, it keeps
+     every pixel it has: the counts, what is about to release, all of it. This
+     only folds the caption up beside the title when there is nothing to fold. */
+  box.className = (!M.held && !M.pending && !soon.length) ? 'quiet' : '';
   if (!box.__mineBound) {
     box.addEventListener('click', function (e) {
       if (!e.target.closest('[data-mine]')) return;
