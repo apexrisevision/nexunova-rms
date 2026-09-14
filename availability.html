@@ -49,8 +49,16 @@ try {
   --bg:#F5F5F4;
   --card:#FFFFFF;
   --ink:#14171C;
-  --soft:#565E6A;
-  --mut:#8A919B;
+/* DARKER, BECAUSE GREY IS NOT READABLE ON A PHONE IN DAYLIGHT. Rashid: "light
+   mode mai fonts k colors grey ki jaghan black use karo q k grey theek se
+   nazar nahi aata." These two carry every caption, label and secondary figure
+   on the page — "of 1,469", "AVAILABLE NOW", the floor counts, the unit areas.
+   They were a designer's grey; they are near-black and a dark slate now. The
+   step between them survives, so nothing on the page loses its rank — it is
+   the same hierarchy, read at arm's length in the sun. The dark theme is left
+   alone: light text on a dark ground never had this problem. */
+  --soft:#20252C;
+  --mut:#4A515B;
   /* hairlines, for the few places a card is not enough: inputs and dividers */
   --line:#E3E4E6;
   --hair:rgba(20,23,28,.07);
@@ -224,20 +232,32 @@ button{cursor:pointer;background:none;border:0}
    colour of its own, so it reads as light moving over the surface rather than
    as something new arriving on it. */
 .ck{position:relative;overflow:hidden}
+/* IT WAS DRAWN IN THE PAGE'S OWN SUNK GREY — #EDEDEC on a white card, which is
+   four values of contrast and, on a phone, nothing at all: "wo light mode mai
+   theek se nazar hee nahi ata bohat he halka hai". It is the page's INK at a
+   tenth now, which is a shadow crossing the row rather than a rumour of one,
+   and the row itself lifts under it so the movement has something to move
+   over. Still no new colour — the same ink the type is set in. */
 .ck::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;
-   background:linear-gradient(100deg,transparent 0%,var(--sunk) 45%,
-              var(--sunk) 55%,transparent 100%)}
+   background:linear-gradient(100deg,transparent 0%,rgba(20,23,28,.13) 42%,
+              rgba(20,23,28,.13) 58%,transparent 100%)}
+:root[data-theme="dark"] .ck::before{
+   background:linear-gradient(100deg,transparent 0%,rgba(255,255,255,.16) 42%,
+              rgba(255,255,255,.16) 58%,transparent 100%)}
+/* and the row it is crossing lifts for the same 300ms */
+.ck.lit{background:var(--sunk)}
 .ck.lit::before{animation:ckShine 300ms var(--ease)}
 @keyframes ckShine{
-  0%{opacity:0;transform:translateX(-65%)}
-  45%{opacity:.85}
-  100%{opacity:0;transform:translateX(115%)}
+  0%{opacity:0;transform:translateX(-70%)}
+  40%{opacity:1}
+  70%{opacity:1}
+  100%{opacity:0;transform:translateX(120%)}
 }
 /* the chevron leans into the tap it is inviting */
 .ck.lit .ck-x{transform:translateX(3px) rotate(45deg);opacity:1}
 /* and the arc that row is about swells, which is what ties the two together */
 .chart-r .rg{transition:stroke-width var(--t) var(--ease)}
-.chart-r .rg.lit{stroke-width:15}
+.chart-r .rg.lit{stroke-width:17}
 @media (prefers-reduced-motion:reduce){
   .ck.lit::before{animation:none}
   .ck-x,.chart-r .rg{transition:none}
