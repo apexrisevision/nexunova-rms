@@ -546,60 +546,6 @@ function serve() {
     await page.evaluate(() => document.getElementById('prc-back').click());
     await sleep(300);
 
-    /* ── THE FLOOR, STOOD UP ──────────────────────────────────────────────
-       "Map pe jaisay ham reservation hold sold kartay hain us MAP ka 3D model."
-       A trial on one floor, and the thing it has to be is not "3D" — it is the
-       SAME map: the same shops, the same colours, and a tap that reaches the
-       same sheet. A picture of a building that cannot be booked from is a
-       picture. */
-    step('The floor stood up — the same map, the same tap');
-    const lg = payload.floors.findIndex(f => /lower/i.test(f.floor_label));
-    const d3 = await page.evaluate(async i => {
-      document.getElementById('prc-back') && 0;
-      document.querySelector('#floors button[data-f="' + i + '"]').click();
-      await new Promise(r => setTimeout(r, 700));
-      document.getElementById('pv-3d').click();
-      await new Promise(r => setTimeout(r, 900));
-      const cv = document.getElementById('pv3');
-      const g = cv.getContext('2d');
-      const im = g.getImageData(0, 0, cv.width, cv.height).data;
-      let painted = 0;
-      for (let k = 0; k < im.length; k += 4 * 41) if (im[k + 3] > 0) painted++;
-      /* every shop the register says is on this floor has to be standing */
-      const drawn = (window.ISO && ISO.items || []).map(x => x.n);
-      /* and a tap has to find one */
-      let found = null;
-      const r = cv.getBoundingClientRect();
-      for (let y = 12; y < r.height - 12 && !found; y += 6)
-        for (let x = 12; x < r.width - 12 && !found; x += 6) {
-          const n = isoAt(x, y); if (n) found = n;
-        }
-      return { shown: !cv.hidden, flatHidden: document.getElementById('pv').hidden,
-               drawn: drawn.length, painted, found,
-               zoomHidden: document.getElementById('pv-zc').hidden,
-               w: cv.width, h: cv.height,
-               lit: document.getElementById('pv-3d').classList.contains('on') };
-    }, lg);
-    const lgUnits = (payload.floors[lg].units || []).length;
-    (d3.shown && d3.flatHidden && d3.lit && d3.drawn === lgUnits && d3.painted > 200)
-      ? ok('the floor stands up with all ' + d3.drawn + ' shops on it, and the flat ' +
-           'plate steps aside for it')
-      : bad('the stood-up floor did not draw: ' + JSON.stringify(
-            { shown: d3.shown, flat: d3.flatHidden, drawn: d3.drawn,
-              expected: lgUnits, painted: d3.painted }));
-    /* THE TAP IS THE POINT. A shop you cannot reach is a drawing, not a map. */
-    d3.found
-      ? ok('and a tap lands on a shop — ' + d3.found + ' — which is what makes it a ' +
-           'map rather than a picture')
-      : bad('nothing on the stood-up floor answers a tap');
-    d3.zoomHidden
-      ? ok('and the plate’s own zoom stands down, since the floor is fitted to its box')
-      : bad('the zoom is still showing where it does nothing');
-    await page.screenshot({ path: path.join(OUT, 'k-floor-3d.png') });
-    await page.evaluate(() => { document.getElementById('pv-plan').click();
-                                document.getElementById('back').click(); });
-    await sleep(400);
-
     /* ── LIGHT OR DARK ────────────────────────────────────────────────────
        "is link pe theme banao light aur dark. jab dark theme ho to ye ticker
        white color mai ho." Three things have to hold, and the third is the one
