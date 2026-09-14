@@ -1080,6 +1080,15 @@ button{cursor:pointer;background:none;border:0}
        padding:10px 0;border-top:1px solid var(--hair);font-size:12px;color:var(--soft)}
 .prc-lr b{color:var(--ink);font-weight:700}
 
+/* ── the floor, stood up ────────────────────────────────────────────────
+   Drawn on a plain canvas, with no library and no WebGL: a market plan is a
+   few hundred flat shapes, and an isometric projection of flat shapes is
+   arithmetic, not a graphics engine. It also means it works on the phone in
+   somebody's pocket rather than on the phone they wish they had. */
+#pv3{display:block;width:100%;height:auto;touch-action:pan-y;background:var(--bg)}
+.pv3-n{padding:11px 16px;font-size:12px;color:var(--mut);line-height:1.5;
+       border-top:1px solid var(--line)}
+
 /* ── the report, floor by floor ── */
 .myq-f{display:flex;align-items:baseline;gap:9px;padding:13px 16px 9px;
        border-top:1px solid var(--hair)}
@@ -1585,6 +1594,11 @@ button{cursor:pointer;background:none;border:0}
         <span class="sp"></span>
         <div class="seg">
           <button id="pv-plan" class="on">Plan</button>
+          <!-- THE SAME DRAWING, STOOD UP. Rashid: "Map pe jaisay ham
+               reservation hold sold kartay hain us MAP ka 3D model". Not a
+               second map — the same shapes, the same colours, the same tap,
+               lifted off the paper. -->
+          <button id="pv-3d">3D</button>
           <button id="pv-list">List</button>
         </div>
       </div>
@@ -1595,7 +1609,7 @@ button{cursor:pointer;background:none;border:0}
       <div class="pvc" id="pv-c">
         <span id="k-keys"></span>
         <span class="sp"></span>
-        <div class="zc">
+        <div class="zc" id="pv-zc">
           <button id="pv-out" aria-label="Zoom out">−</button>
           <span id="pv-zoom">100%</span>
           <button id="pv-plus" aria-label="Zoom in">+</button>
@@ -1605,6 +1619,7 @@ button{cursor:pointer;background:none;border:0}
         <input id="pv-q" type="search" inputmode="search" autocomplete="off"
                placeholder="Find a shop on this floor — e.g. 85">
       </div>
+      <canvas id="pv3" hidden></canvas>
       <div class="pv" id="pv"><div class="in" id="pv-in"></div></div>
       <div class="pv-n" id="pv-note" hidden></div>
     </div>
@@ -3415,6 +3430,200 @@ function paintPlan(plan, f) {
   }
 }
 
+/* ══ THE FLOOR, STOOD UP ══════════════════════════════════════════════════
+   "Map pe jaisay ham reservation hold sold kartay hain us MAP ka 3D model."
+
+   Not a second map. The same file the flat plan is drawn from — every shop is
+   already a polygon in it — lifted into blocks and seen from a corner. The
+   colours are the colours the plate uses, the tap is the tap the plate
+   answers, and a shop that is not free says who has it exactly as it does on
+   paper.
+
+   No library and no WebGL. A market floor is a few hundred flat shapes, and an
+   isometric view of flat shapes is arithmetic: every point goes through the
+   same two lines, and the blocks are drawn back to front so the near ones
+   cover the far ones. That is the whole engine. It runs on the phone a dealer
+   actually has, it cannot fail to find a context, and it is about a hundred
+   lines rather than a hundred kilobytes.
+
+   Three faces per shop: the roof, and the two walls that face the camera. The
+   walls are the same colour darkened, which is what makes a flat shape read as
+   a solid without a single light calculation. ══════════════════════════════ */
+var PLAN3D = false;        // the plan is stood up
+var ISO = { w: 0, h: 0, sc: 1, ox: 0, oy: 0, lift: 0, items: [], hit: null };
+
+/* the two lines the whole thing rests on. x to the right and down, y to the
+   left and down, z straight up — the angle a builder's drawing uses. */
+function isoX(x, y) { return (x - y) * 0.8660254; }
+function isoY(x, y, z) { return (x + y) * 0.5 - (z || 0); }
+
+/* a shop's own depth: how far from the camera its nearest corner is. Sorting
+   on it is the whole of the hidden-surface problem for blocks standing on one
+   floor, and it costs one number per shop. */
+function isoDepth(pts) {
+  var d = -1e9;
+  for (var i = 0; i < pts.length; i++) { var s = pts[i][0] + pts[i][1]; if (s > d) d = s; }
+  return d;
+}
+
+function isoBuild(plan, f) {
+  var W = plan.w || 1, H = plan.h || 1;
+  var items = [];
+  Object.keys(plan.units || {}).forEach(function (no) {
+    var p = (plan.units[no] || {}).p;
+    if (!p || p.length < 3) return;
+    var unit = (f.units || []).filter(function (x) { return x.n === no; })[0];
+    var st = stat(unit);
+    /* THE PLAN IS NORMALISED 0..1 ON BOTH AXES and the floor is five times as
+       long as it is wide; multiplying back by the real width and height keeps
+       the shops the shape they are on paper instead of stretching them square. */
+    var pts = p.map(function (q) { return [q[0] * W, q[1] * H]; });
+    items.push({ n: no, pts: pts, d: isoDepth(pts), st: st,
+                 free: st.free, tint: st.free ? null : st.tint });
+  });
+  /* far first, near last: the painter's order */
+  items.sort(function (a, b) { return a.d - b.d; });
+  ISO.items = items; ISO.w = W; ISO.h = H;
+  /* the block height is a share of the SHORT side, so a long floor does not
+     get walls taller than its shops are wide */
+  ISO.lift = Math.min(W, H) * 0.055;
+  var minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+  items.forEach(function (it) {
+    it.pts.forEach(function (q) {
+      var sx = isoX(q[0], q[1]);
+      if (sx < minX) minX = sx; if (sx > maxX) maxX = sx;
+      var t = isoY(q[0], q[1], ISO.lift), b2 = isoY(q[0], q[1], 0);
+      if (t < minY) minY = t; if (b2 > maxY) maxY = b2;
+    });
+  });
+  ISO.bx = minX; ISO.by = minY;
+  ISO.bw = Math.max(1, maxX - minX); ISO.bh = Math.max(1, maxY - minY);
+}
+
+function isoFit(cv) {
+  var pad = 10;
+  var sc = Math.min((cv.clientWidth - pad * 2) / ISO.bw,
+                    (cv.clientHeight - pad * 2) / ISO.bh);
+  ISO.sc = sc;
+  ISO.ox = pad - ISO.bx * sc + ((cv.clientWidth - pad * 2) - ISO.bw * sc) / 2;
+  ISO.oy = pad - ISO.by * sc + ((cv.clientHeight - pad * 2) - ISO.bh * sc) / 2;
+}
+
+function isoPt(x, y, z) {
+  return [isoX(x, y) * ISO.sc + ISO.ox, isoY(x, y, z) * ISO.sc + ISO.oy];
+}
+
+/* a colour, darkened, without parsing anybody's colour space: the tints this
+   page uses are all #rrggbb, and a fraction of each channel is enough shade to
+   tell a wall from a roof */
+function shade(hex, k) {
+  var h = String(hex || '#CCCCCC').replace('#', '');
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  var n = parseInt(h, 16);
+  var r = Math.round(((n >> 16) & 255) * k), g = Math.round(((n >> 8) & 255) * k),
+      b = Math.round((n & 255) * k);
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+
+function isoDraw() {
+  var cv = $('pv3'); if (!cv) return;
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var cssW = cv.clientWidth;
+  /* the floor's own proportions, held between half a screen and one and a
+     half so neither a square floor nor a very long one leaves a useless box */
+  var cssH = Math.round(cssW * Math.max(0.5, Math.min(1.5, ISO.bh / ISO.bw)));
+  cv.style.height = cssH + 'px';
+  if (cv.width !== Math.round(cssW * dpr) || cv.height !== Math.round(cssH * dpr)) {
+    cv.width = Math.round(cssW * dpr); cv.height = Math.round(cssH * dpr);
+  }
+  var g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, cssW, cssH);
+  isoFit(cv);
+
+  var free = getComputedStyle(document.documentElement)
+               .getPropertyValue('--card').trim() || '#FFFFFF';
+  var edge = getComputedStyle(document.documentElement)
+               .getPropertyValue('--line').trim() || '#E3E4E6';
+
+  ISO.items.forEach(function (it) {
+    var base = it.free ? free : (it.tint || '#999999');
+    var roof = it.free ? base : base;
+    /* THE TWO WALLS THAT FACE THE CAMERA, and only those. A wall is the edge
+       between two points dropped to the ground; the ones on the far side are
+       behind their own roof and never seen, so they are not drawn. */
+    for (var i = 0; i < it.pts.length; i++) {
+      var a = it.pts[i], b = it.pts[(i + 1) % it.pts.length];
+      /* the outward normal of this edge in plan; a wall faces the camera when
+         it points down-right or down-left in screen terms */
+      var ax = isoX(a[0], a[1]), bx = isoX(b[0], b[1]);
+      var ay = isoY(a[0], a[1], 0), by = isoY(b[0], b[1], 0);
+      if ((bx - ax) * (by + ay) >= 0) continue;    // facing away
+      var p1 = isoPt(a[0], a[1], ISO.lift), p2 = isoPt(b[0], b[1], ISO.lift);
+      var p3 = isoPt(b[0], b[1], 0), p4 = isoPt(a[0], a[1], 0);
+      g.beginPath();
+      g.moveTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]);
+      g.lineTo(p3[0], p3[1]); g.lineTo(p4[0], p4[1]); g.closePath();
+      g.fillStyle = shade(base, ax < bx ? 0.74 : 0.58);
+      g.fill();
+    }
+    g.beginPath();
+    it.pts.forEach(function (q, i) {
+      var s = isoPt(q[0], q[1], ISO.lift);
+      if (i === 0) g.moveTo(s[0], s[1]); else g.lineTo(s[0], s[1]);
+    });
+    g.closePath();
+    g.fillStyle = roof;
+    g.fill();
+    g.lineWidth = (it.n === PLANSEL) ? 2 : 0.6;
+    g.strokeStyle = (it.n === PLANSEL) ? '#1D4ED8' : edge;
+    g.stroke();
+  });
+}
+
+/* WHICH SHOP IS UNDER THE FINGER. Near to far, because the near one is the one
+   you can see — the same order the drawing was made in, reversed. */
+function isoAt(px, py) {
+  for (var i = ISO.items.length - 1; i >= 0; i--) {
+    var it = ISO.items[i], inside = false;
+    var pts = it.pts;
+    for (var a = 0, b = pts.length - 1; a < pts.length; b = a++) {
+      var A = isoPt(pts[a][0], pts[a][1], ISO.lift);
+      var B = isoPt(pts[b][0], pts[b][1], ISO.lift);
+      if (((A[1] > py) !== (B[1] > py)) &&
+          (px < (B[0] - A[0]) * (py - A[1]) / (B[1] - A[1]) + A[0])) inside = !inside;
+    }
+    if (inside) return it.n;
+  }
+  return null;
+}
+
+async function show3D(f) {
+  var plan = await loadPlan(f);
+  var cv = $('pv3');
+  if (!plan) { cv.hidden = true; return false; }
+  isoBuild(plan, f);
+  cv.hidden = false;
+  isoDraw();
+  if (!cv.__bound) {
+    cv.addEventListener('click', function (e) {
+      var r = cv.getBoundingClientRect();
+      var no = isoAt(e.clientX - r.left, e.clientY - r.top);
+      if (!no) return;
+      PLANSEL = no; isoDraw();
+      var unit = (P.floors[FLOOR].units || []).filter(function (x) { return x.n === no; })[0];
+      if (!unit || unit.s !== 'available') {
+        var st = stat(unit);
+        toast(no + ' \u2014 ' + st.label + (st.who ? ', on ' + st.who + '\u2019s word' : ''));
+        return;
+      }
+      openSheet(no, FLOOR);
+    });
+    cv.__bound = true;
+  }
+  return true;
+}
+
 async function showPlan(f) {
   var plan = await loadPlan(f);
   var card = $('pv-b'), box = $('pv'), note = $('pv-note');
@@ -3431,12 +3640,18 @@ async function showPlan(f) {
      switch is how you come back \u2014 taking the whole plate away in list view
      would leave nothing to come back with. */
   card.hidden = false;
-  $('pv-plan').classList.toggle('on', PLANV);
+  $('pv-plan').classList.toggle('on', PLANV && !PLAN3D);
+  $('pv-3d').classList.toggle('on', PLANV && PLAN3D);
   $('pv-list').classList.toggle('on', !PLANV);
-  box.hidden = !PLANV;
+  box.hidden = !PLANV || PLAN3D;
   note.hidden = !PLANV;
   $('pv-c').hidden = !PLANV;
-  $('pv-qw').hidden = !PLANV;
+  /* the find box searches the flat plate's own marks; the stood-up floor has
+     none to mark, so it goes away with it rather than pointing at nothing */
+  $('pv-qw').hidden = !PLANV || PLAN3D;
+  $('pv-zc').hidden = !PLANV || PLAN3D;
+  $('pv3').hidden = !PLANV || !PLAN3D;
+  if (PLANV && PLAN3D) { show3D(f); }
 
   var units = f.units || [];
   var gone = units.filter(function (u) { return u.s !== 'available'; }).length;
@@ -4171,8 +4386,14 @@ $('mine-back').onclick = function () {
   renderHome(); window.scrollTo(0, 0);
 };
 
-$('pv-plan').onclick = function () { PLANV = true; renderFloor(); window.scrollTo(0, 0); };
-$('pv-list').onclick = function () { PLANV = false; renderFloor(); window.scrollTo(0, 0); };
+$('pv-plan').onclick = function () { PLANV = true; PLAN3D = false; renderFloor(); window.scrollTo(0, 0); };
+$('pv-3d').onclick   = function () { PLANV = true; PLAN3D = true;  renderFloor(); window.scrollTo(0, 0); };
+$('pv-list').onclick = function () { PLANV = false; PLAN3D = false; renderFloor(); window.scrollTo(0, 0); };
+/* a canvas has a size in pixels, not in percent: it has to be told when the
+   window changes shape or it draws yesterday's floor at yesterday's width */
+window.addEventListener('resize', function () {
+  if (PLANV && PLAN3D && ISO.items.length) isoDraw();
+});
 
 /* ══ THE PLATE IS LONG AND NARROW ═══════════════════════════════════════════
    At the width of a phone a shop is about ten pixels across: enough to see,
