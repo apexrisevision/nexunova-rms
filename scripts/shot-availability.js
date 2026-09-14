@@ -345,8 +345,9 @@ function serve() {
     /* THE TWO DOORWAYS ARE TOGETHER AND BELOW THE SEARCH. They used to sit at
        the two ends of the screen, which is the one arrangement where a reader
        can only ever see one of them. Rashid: "in ki positions change karo". */
-    (one.pairKids === 2 && one.pairTop >= one.srBot && one.pairTop < one.floorsTop)
-      ? ok('My Reservations and All units sit together under the search, above the floors')
+    (one.pairKids === 3 && one.pairTop >= one.srBot && one.pairTop < one.floorsTop)
+      ? ok('My Reservations, All units and the Price list sit together under the ' +
+           'search, above the floors')
       : bad('the two doorways are not where they belong: ' + JSON.stringify(
             { kids: one.pairKids, pairTop: one.pairTop, searchBottom: one.srBot,
               floorsTop: one.floorsTop }));
@@ -357,18 +358,18 @@ function serve() {
        as different objects dropped at different heights. Rashid: "in dono ka
        size aik rakho aur … dono ki allignment b ooper neeche hai". Equal
        height and a common top line is the whole of it, and both are measured. */
-    const twins = await page.evaluate(() => {
-      const a = document.querySelector('#myq .all-chip').getBoundingClientRect();
-      const b = document.querySelector('#allrow .all-chip').getBoundingClientRect();
-      return { aw: Math.round(a.width), bw: Math.round(b.width),
-               ah: Math.round(a.height), bh: Math.round(b.height),
-               atop: Math.round(a.top), btop: Math.round(b.top) };
-    });
-    (Math.abs(twins.ah - twins.bh) <= 1 && Math.abs(twins.aw - twins.bw) <= 1 &&
-     Math.abs(twins.atop - twins.btop) <= 1)
-      ? ok('the two doorways are one size and one line — ' + twins.aw + 'x' +
-           twins.ah + ', both starting at ' + twins.atop + 'px')
-      : bad('the two doorways do not match: ' + JSON.stringify(twins));
+    const twins = await page.evaluate(() => [...document.querySelectorAll('.pair .all-chip')]
+      .map(b => { const r = b.getBoundingClientRect();
+        return { t: b.querySelector('.ac-t').textContent.trim(),
+                 w: Math.round(r.width), h: Math.round(r.height), top: Math.round(r.top) }; }));
+    (twins.length === 3 &&
+     twins.every(c => Math.abs(c.w - twins[0].w) <= 1) &&
+     twins.every(c => Math.abs(c.h - twins[0].h) <= 1) &&
+     twins.every(c => Math.abs(c.top - twins[0].top) <= 1))
+      ? ok('the three doorways are one size and one line — ' + twins[0].w + 'x' +
+           twins[0].h + ' each, all starting at ' + twins[0].top + 'px: ' +
+           twins.map(c => c.t).join(', '))
+      : bad('the doorways do not match: ' + JSON.stringify(twins));
     /* AND EACH BLOCK SAYS WHAT IT IS FOR. The floors state what is left on them
        and the field waits to be typed into, but neither says that this is where
        a dealer searches and where they reserve. Rashid asked for both in
@@ -467,6 +468,84 @@ function serve() {
                 one.hero + ' free  ·  hero ' + one.heroSize + 'px/label ' + one.labSize + 'px');
     await page.screenshot({ path: path.join(OUT, 'a-screen-one-380.png') });
 
+    /* ── THE PRICE LIST ───────────────────────────────────────────────────
+       "aik price list ka page banao … Floor wise price list … Price detail
+       wala page poora read only hona chahiye sirf update prices wo b click pe
+       director login wala password mangay."
+
+       Two halves, and the dangerous one is the second. The list itself is
+       drawn from the payload the page already holds, so it is read-only by
+       construction rather than by permission — there is nothing on it to
+       submit. The update is a call, behind the same password the directors'
+       report is behind, and it is asserted here that the form does not exist
+       at all until that password has been given. */
+    step('The price list — read only, and the door that is not');
+    await page.evaluate(() => document.querySelector('[data-price]').click());
+    await sleep(350);
+    const prc = await page.evaluate(() => {
+      const floors = [...document.querySelectorAll('#prc-body .prc-f')];
+      return {
+        shown: !document.getElementById('price').hidden,
+        floors: floors.length,
+        bands: document.querySelectorAll('#prc-body .prc-b').length,
+        perFloor: floors.map(f => f.querySelectorAll('.prc-b').length),
+        /* what a reader can touch before the password: one button, and it
+           opens a password box — no rate, no unit, nothing that submits */
+        inputs: document.querySelectorAll('#price input:not([type=password]), #price select').length,
+        form: !document.getElementById('prc-form').hidden,
+        log: !document.getElementById('prc-log').hidden,
+        gate: !document.getElementById('prc-gate').hidden,
+        rates: [...document.querySelectorAll('#prc-body .prc-bv')]
+          .map(b => Number((b.textContent || '').replace(/[^0-9]/g, '')))
+      };
+    });
+    (prc.shown && prc.floors === payload.floors.length && prc.bands >= prc.floors)
+      ? ok('the price list opens on all ' + prc.floors + ' floors, ' + prc.bands +
+           ' bands in all (' + prc.perFloor.join(', ') + ')')
+      : bad('the price list did not draw: ' + JSON.stringify(
+            { shown: prc.shown, floors: prc.floors, bands: prc.bands }));
+    /* NOTHING ON IT SUBMITS. Not "the button is disabled" — the form is not in
+       the document until a password has been accepted. */
+    (prc.inputs === 0 && !prc.form && !prc.log && !prc.gate)
+      ? ok('and it is read only — no rate box, no form, no history, until the door is opened')
+      : bad('something on the read-only page can be typed into: ' + JSON.stringify(
+            { inputs: prc.inputs, form: prc.form, log: prc.log, gate: prc.gate }));
+    /* AND THE RATES ARE THE BUILDING'S OWN. Every band is a rate some unit on
+       that floor actually carries, within the thousand the bands are grouped
+       at — a list that quietly rounded to something nobody is selling at would
+       be worse than no list. */
+    const realRates = [];
+    payload.floors.forEach(f => (f.units || []).forEach(u => {
+      const v = Number(u.v), a = Number(u.a);
+      if (v > 0 && a > 0) realRates.push(v / a);
+    }));
+    const strayed = prc.rates.filter(r =>
+      r > 0 && !realRates.some(x => Math.abs(x - r) <= 600));
+    strayed.length === 0
+      ? ok('and every rate on it is one the register actually carries (' +
+           prc.rates.filter(r => r > 0).length + ' checked)')
+      : bad('a rate on the list belongs to no unit: ' + strayed.slice(0, 3).join(', '));
+
+    await page.evaluate(() => document.getElementById('prc-open').click());
+    await sleep(200);
+    await page.evaluate(() => {
+      document.getElementById('prc-pw').value = 'not-the-word';
+      document.getElementById('prc-in').click();
+    });
+    await page.waitForFunction(() => !document.getElementById('prc-in').disabled,
+      { timeout: 20000 }).catch(() => {});
+    const prcNo = await page.evaluate(() => ({
+      err: (document.getElementById('prc-err').textContent || '').trim(),
+      form: !document.getElementById('prc-form').hidden,
+      kept: document.getElementById('prc-pw').value
+    }));
+    (prcNo.err.length > 0 && !prcNo.form && prcNo.kept === '')
+      ? ok('a wrong password says so, clears the field, and still shows no form')
+      : bad('the price door let a wrong password through: ' + JSON.stringify(prcNo));
+    await page.screenshot({ path: path.join(OUT, 'j-price-list.png'), fullPage: true });
+    await page.evaluate(() => document.getElementById('prc-back').click());
+    await sleep(300);
+
     /* ── LIGHT OR DARK ────────────────────────────────────────────────────
        "is link pe theme banao light aur dark. jab dark theme ho to ye ticker
        white color mai ho." Three things have to hold, and the third is the one
@@ -483,17 +562,17 @@ function serve() {
       const band = cs('#hero-f'), body = cs('body'), row = cs('#floors button');
       return {
         theme: document.documentElement.getAttribute('data-theme'),
-        checked: (document.getElementById('th-go') || {}).getAttribute
-          ? document.getElementById('th-go').getAttribute('aria-checked') : null,
-        role: (document.getElementById('th-go') || {}).getAttribute
-          ? document.getElementById('th-go').getAttribute('role') : null,
-        says: (document.getElementById('th-go') || {}).title || '',
-        swW: Math.round((document.getElementById('th-go') || {}).getBoundingClientRect
-          ? document.getElementById('th-go').getBoundingClientRect().width : 0),
-        swH: Math.round((document.getElementById('th-go') || {}).getBoundingClientRect
-          ? document.getElementById('th-go').getBoundingClientRect().height : 0),
+        halves: [...document.querySelectorAll('#th-go button')]
+          .map(b => b.textContent.trim() + (b.classList.contains('on') ? '*' : '')),
+        lit: ((document.querySelector('#th-go button.on') || {}).getAttribute
+          ? document.querySelector('#th-go button.on').getAttribute('data-th') : null),
+        swW: Math.round(document.getElementById('th-go').getBoundingClientRect().width),
+        swH: Math.round(document.getElementById('th-go').getBoundingClientRect().height),
+        /* the same pill the floor screen uses: a sunk track with the chosen
+           half raised out of it on the card's own colour */
         track: getComputedStyle(document.getElementById('th-go')).backgroundColor,
-        knob: getComputedStyle(document.getElementById('th-go'), '::before').transform,
+        litBg: getComputedStyle(document.querySelector('#th-go button.on')).backgroundColor,
+        dimBg: getComputedStyle(document.querySelector('#th-go button:not(.on)')).backgroundColor,
         target: Math.round(((document.getElementById('th-go') || {}).getBoundingClientRect
           ? document.getElementById('th-go').getBoundingClientRect().height : 0)),
         pageLum: lum(body.backgroundColor),
@@ -506,19 +585,23 @@ function serve() {
       };
     });
     const lightT = await readTheme();
-    await page.evaluate(() => document.getElementById('th-go').click());
+    await page.evaluate(() => document.querySelector('#th-go [data-th="dark"]').click());
     await sleep(250);
     const darkT = await readTheme();
     /* IT IS A SWITCH, AND IT SAYS WHAT IT WILL DO. A toggle labelled with the
        state it is already in is read backwards by half the people who see it. */
+    /* BOTH NAMES ON SCREEN, ONE OF THEM LIT. An iPhone switch stood here for
+       one deploy and Rashid sent it back for the control this page already
+       had: "jaisay tum ne plan aur list ka toggle button banaya hai waisa
+       button bana do". A pill shows what it is set to rather than asking the
+       reader to work out what it would do. */
     (lightT.theme === 'light' && darkT.theme === 'dark' &&
-     lightT.role === 'switch' && lightT.checked === 'false' && darkT.checked === 'true' &&
-     /is off/i.test(lightT.says) && /is on/i.test(darkT.says))
-      ? ok('the switch turns the page over and carries its own state — "' +
-           lightT.says.trim() + '" / "' + darkT.says.trim() + '"')
-      : bad('the theme switch does not switch: ' + JSON.stringify(
-            { light: lightT.theme, lightSays: lightT.says,
-              dark: darkT.theme, darkSays: darkT.says }));
+     lightT.lit === 'light' && darkT.lit === 'dark' &&
+     lightT.halves.join(' ') === 'Light* Dark' && darkT.halves.join(' ') === 'Light Dark*')
+      ? ok('the theme is a Light/Dark pill with the chosen half lit, like Plan/List')
+      : bad('the theme pill does not read as one: ' + JSON.stringify(
+            { light: lightT.halves, lit: lightT.lit,
+              dark: darkT.halves, darkLit: darkT.lit }));
     /* THE PAGE ACTUALLY TURNS OVER. A theme that changes an accent and calls
        itself dark is the failure this catches. */
     (lightT.pageLum > 200 && darkT.pageLum < 60)
@@ -548,21 +631,14 @@ function serve() {
            lightT.badge + ', not black')
       : bad('the head or the codes are wrong: ' + JSON.stringify(
             { headLight: lightT.headBg, headDark: darkT.headBg, badge: lightT.badge }));
-    /* IT IS DRAWN THE WAY EVERY PHONE DRAWS ONE. Rashid on the first cut — a
-       30px circle with a half-moon in it — "bohat hee choota nazar aata hai …
-       iphone ki tarhan on off button banao jaisay green jab on ho aur white
-       means off pe". So what is asserted is the picture itself: iOS's own
-       51x31, a white track when it is off and a green one when it is on, and a
-       knob that actually moves between the two. */
-    const slid = darkT.knob !== lightT.knob &&
-                 darkT.knob.indexOf('matrix') === 0;
-    (lightT.swW >= 48 && lightT.swH >= 30 &&
-     lightT.track === 'rgb(255, 255, 255)' && darkT.track === 'rgb(52, 199, 89)' && slid)
-      ? ok('and it is an iPhone switch — ' + lightT.swW + 'x' + lightT.swH +
-           ', white when it is off, green when it is on, and the knob slides')
-      : bad('the switch does not read as a switch: ' + JSON.stringify(
-            { w: lightT.swW, h: lightT.swH, off: lightT.track, on: darkT.track,
-              knobOff: lightT.knob, knobOn: darkT.knob }));
+    /* AND IT IS BIG ENOUGH TO HIT. The first cut was a 30px circle and he
+       could not see it on a phone; a pill with two named halves is both
+       findable and a target on each side. */
+    (lightT.swW >= 90 && lightT.swH >= 26 && lightT.litBg !== lightT.dimBg)
+      ? ok('and it is ' + lightT.swW + 'x' + lightT.swH + ', with the lit half ' +
+           'raised out of the track (' + lightT.litBg + ' on ' + lightT.track + ')')
+      : bad('the pill is too small or its halves look alike: ' + JSON.stringify(
+            { w: lightT.swW, h: lightT.swH, lit: lightT.litBg, dim: lightT.dimBg }));
     darkT.crawling
       ? ok('and the crawl survives the switch — the band changes colour, not width')
       : bad('the crawl stopped when the theme changed');
@@ -578,7 +654,7 @@ function serve() {
       ? ok('and the choice is kept on the phone that made it')
       : bad('the theme was not remembered: ' + JSON.stringify(themeKept));
     /* put the page back the way the rest of this run expects to find it */
-    await page.evaluate(() => document.getElementById('th-go').click());
+    await page.evaluate(() => document.querySelector('#th-go [data-th="light"]').click());
     await sleep(200);
 
     /* ── b. THE NEWS LINE ─────────────────────────────────────────────────
@@ -1793,8 +1869,10 @@ function serve() {
        button, what would actually be hit? Only on the wide layout, because
        that is the layout where the closed sheet has a position on screen at
        all. */
-    const reach = await desk.evaluate(() => {
+    const reach = await desk.evaluate(async () => {
+      const settle = () => new Promise(r => setTimeout(r, 380));
       document.querySelector('#floors button').click();
+      await settle();
       const seen = [];
       const check = els => els.map(el => {
         const r = el.getBoundingClientRect();
@@ -1802,14 +1880,18 @@ function serve() {
         /* Bound the POINT, not the box: a button straddling the fold has its
            top on screen and its centre below it, and elementFromPoint outside
            the viewport answers null — which is not the same as 'covered'. */
-        if (r.width === 0 || cy < 0 || cy > innerHeight || cx < 0 || cx > innerWidth) return null;
+        if (r.width === 0 || cy < 0 || cy >= innerHeight || cx < 0 || cx >= innerWidth) return null;
         const hit = document.elementFromPoint(cx, cy);
         if (hit && (hit === el || el.contains(hit))) return null;
         return { what: (el.textContent || '').trim().split('\n')[0].slice(0, 12),
-                 blockedBy: hit ? (hit.id || hit.className || hit.tagName) : 'nothing' };
+                 blockedBy: hit ? (hit.id || hit.className || hit.tagName) : 'nothing',
+                 at: Math.round(cx) + ',' + Math.round(cy),
+                 view: Math.round(innerWidth) + 'x' + Math.round(innerHeight),
+                 scrolled: Math.round(window.scrollY) };
       }).filter(Boolean);
       const units  = check([...document.querySelectorAll('#units button')]);
       document.getElementById('back').click();
+      await settle();
       const floors = check([...document.querySelectorAll('#floors button')]);
       return { units, floors,
                nUnits: document.querySelectorAll('#units button').length };
@@ -2027,10 +2109,10 @@ function serve() {
          get_availability_report was added on 2026-09-10 and is the first thing
          here gated by a secret rather than by the token. It READS: no unit
          changes hands through it. Its lock is tested end to end further down. */
-      const allowedRpc = ['get_availability_report', 'get_public_availability',
-                          'get_request_status',
+      const allowedRpc = ['get_availability_price_log', 'get_availability_report',
+                          'get_public_availability', 'get_request_status',
                           'submit_availability_request', 'submit_availability_requests',
-                          'submit_change_request'].sort();
+                          'submit_change_request', 'update_availability_prices'].sort();
       (JSON.stringify(rpcNames.slice().sort()) === JSON.stringify(allowedRpc))
         ? ok('the page can call exactly these and nothing else: ' + rpcNames.sort().join(', '))
         : bad('the page calls: ' + (rpcNames.join(', ') || 'nothing at all'));

@@ -147,7 +147,7 @@ button{cursor:pointer;background:none;border:0}
    below the last card; the ticker's own row needs about 23 of them, and the
    one rule of this screen is that it does not scroll at 380×780. Air below
    the fold is worth less than a line of news above it. */
-.wrap{max-width:520px;margin:0 auto;padding:12px var(--pad) 6px}
+.wrap{max-width:520px;margin:0 auto;padding:12px var(--pad) 2px}
 
 .hd-l{display:flex;align-items:center;gap:12px;min-width:0}
 /* ABSOLUTE, NOT RELATIVE. This page is served from /a/<token>, a path it does
@@ -234,7 +234,7 @@ button{cursor:pointer;background:none;border:0}
    Full-bleed: the negative margins take it out past the page's own padding,
    edge to edge, which is the shape that makes a ticker read as a ticker. */
 .hero-f{display:flex;align-items:stretch;overflow:hidden;white-space:nowrap;
-        min-width:0;height:30px;margin:10px calc(-1 * var(--pad)) 0;
+        min-width:0;height:30px;margin:8px calc(-1 * var(--pad)) 0;
         background:var(--ink);color:#F5F5F4;font-size:12px;line-height:1.4}
 .tk-h{flex:none;display:flex;align-items:center;padding:0 11px;
       background:#B3123C;color:#fff;font-size:10px;font-weight:750;
@@ -279,13 +279,16 @@ button{cursor:pointer;background:none;border:0}
 /* THE SECTION LABELS. The page had exactly one of these — AVAILABLE NOW over
    the count — and it is the right idiom for the other two: small, spaced,
    quiet, and it names the thing under it rather than decorating it. */
+/* IT WAS TOUCHING THE BAND. The news strip is full-bleed and ends hard, so a
+   label set immediately under it reads as part of it. Rashid: "search unit
+   here ticker k bohat hee ziada qareeb hai balkay us se touch hai". */
 .sec{font-size:10px;font-weight:750;letter-spacing:.13em;text-transform:uppercase;
-     color:var(--mut);line-height:1.2;margin:0 0 6px}
+     color:var(--mut);line-height:1.2;margin:14px 0 6px}
 
 /* AND THE FIELD LOOKS LIKE A SEARCH FIELD. A tall white box with grey text in
    it is a text box; the glass is what makes it a search bar at a glance, and
    it is drawn rather than loaded so it costs nothing and cannot 404. */
-.sr{position:relative;margin-bottom:14px}
+.sr{position:relative;margin-bottom:12px}
 .sr::before{content:"";position:absolute;left:19px;top:50%;width:15px;height:15px;
   margin-top:-9px;border:2px solid var(--mut);border-radius:50%;pointer-events:none}
 .sr::after{content:"";position:absolute;left:32px;top:50%;width:7px;height:2px;
@@ -347,7 +350,17 @@ button{cursor:pointer;background:none;border:0}
 /* THE SAME SIZE, BOTH OF THEM. Two cards side by side whose heights are set by
    their own text are two different objects; stretched to a common height and
    given the same half of the row they are one control with two ends. */
-.pair{display:flex;align-items:stretch;gap:9px;margin:14px 0 0}
+/* THREE ACROSS. At 380px each card gets 108px, which is not room for "My
+   Reservations" on one line — so the three-up form shortens the words rather
+   than the cards, and the captions carry the numbers. */
+.pair-3 .ac-t{font-size:12.5px;line-height:1.2}
+.pair-3 .ac-m{font-size:10.5px;line-height:1.3;margin-top:3px}
+.pair-3 .all-chip{padding:9px 10px;gap:6px}
+.pair-3 .ac-x{display:none}
+#pricerow .all-chip{background:var(--sunk);box-shadow:inset 3px 0 0 var(--soft)}
+@media (hover:hover){ #pricerow .all-chip:hover{background:#E7E7E6} }
+:root[data-theme="dark"] #pricerow .all-chip{background:#1C1F24}
+.pair{display:flex;align-items:stretch;gap:9px;margin:10px 0 0}
 .pair > div{flex:1 1 0;min-width:0;display:flex;margin:0}
 .pair .all-chip{width:100%;height:100%;min-height:58px;align-items:center;padding:9px 12px}
 .pair .ac-t{font-size:13.5px}
@@ -360,7 +373,7 @@ button{cursor:pointer;background:none;border:0}
    reads as one thing with seven rows in it, which is what a building is. The
    code each floor wears is the dark block the news band's head uses — the same
    language, one step quieter. */
-.sec-r{margin-top:14px}
+.sec-r{margin-top:9px}
 .sec-r span{font-weight:650;letter-spacing:.04em;text-transform:none;opacity:.85}
 .fl{background:var(--card);border-radius:var(--r-lg);overflow:hidden;margin:0}
 .fl button{
@@ -555,11 +568,13 @@ button{cursor:pointer;background:none;border:0}
         gap:0 44px;align-items:start}
   /* placed by row and column rather than nudged with margins, so nothing
      depends on how tall its neighbour happens to be */
-  #home .hero   {grid-column:1;grid-row:1;margin-bottom:18px}
-  #home .fl     {grid-column:1;grid-row:2/span 3}
-  #home .sec    {grid-column:2;margin-bottom:6px}
+  #home .hero   {grid-column:1;grid-row:1;margin-bottom:0}
+  #home .hero-f {grid-column:1;grid-row:2;margin:10px 0 0}
+  #home .sec-r  {grid-column:1;grid-row:3;margin:18px 0 6px}
+  #home .fl     {grid-column:1;grid-row:4/span 4}
+  #home .sec    {grid-column:2;grid-row:1;margin:0 0 6px}
   #home .sr     {grid-column:2;grid-row:2;margin-bottom:18px}
-  /* the two doorways travel together now, so they are placed together */
+  /* the three doorways travel together now, so they are placed together */
   #home .pair   {grid-column:2;grid-row:3;margin-top:0}
   .fl button{min-height:64px}
   .fl .fb{height:10px}
@@ -811,22 +826,9 @@ button{cursor:pointer;background:none;border:0}
    uses, 51 by 31, with the thumb's own 44px reached by the padding rather than
    by drawing a bigger control. Dark is the ON state, because the switch turns
    something on rather than choosing between two equals. */
-.hd-th{position:relative;flex:none;width:51px;height:31px;padding:0;
-       border:1px solid var(--line);border-radius:999px;background:#fff;
-       font-size:0;line-height:0;cursor:pointer;
-       transition:background var(--t) var(--ease),border-color var(--t) var(--ease)}
-.hd-th::before{content:"";position:absolute;top:2px;left:2px;width:25px;height:25px;
-       border-radius:50%;background:#fff;
-       box-shadow:0 1px 3px rgba(0,0,0,.28),0 0 0 .5px rgba(0,0,0,.04);
-       transition:transform var(--t) var(--ease)}
-/* the 44px the thumb actually needs, reached without drawing it */
-.hd-th::after{content:"";position:absolute;left:-4px;right:-4px;top:-7px;bottom:-7px}
-.hd-th[aria-checked="true"]{background:#34C759;border-color:#34C759}
-.hd-th[aria-checked="true"]::before{transform:translateX(20px)}
-.hd-th:active::before{width:29px}
-@media (prefers-reduced-motion:reduce){
-  .hd-th,.hd-th::before{transition:none}
-}
+/* the same pill the floor screen uses, one size down so it sits in a header */
+.seg-th{flex:none;padding:2px;gap:2px}
+.seg-th button{height:26px;padding:0 11px;font-size:11.5px}
 .hd-d{border:1px solid rgba(179,18,60,.35);background:#FFF6F8;color:#b3123c;
       font-size:10px;font-weight:700;letter-spacing:.03em;padding:3px 9px;
       border-radius:999px;font-family:inherit;white-space:nowrap}
@@ -1018,6 +1020,65 @@ button{cursor:pointer;background:none;border:0}
 /* The count badge sits on a tinted card now, so it takes the accent rather
    than the ink it wore on white. */
 #myq .all-chip .ac-n{background:var(--accent)}
+
+/* ── the price list ─────────────────────────────────────────────────────
+   A register of what the building costs, drawn the way the floor list is
+   drawn: one sheet, ruled into rows, nothing behind a tap. */
+.prc-h{margin:0 0 14px}
+.prc-t{font-size:22px;font-weight:700;letter-spacing:-.028em;line-height:1.15}
+.prc-s{font-size:12px;color:var(--mut);margin-top:4px;line-height:1.45}
+.prc-f{background:var(--card);border-radius:var(--r-lg);overflow:hidden;margin-bottom:10px}
+.prc-fh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+        padding:12px 14px 9px}
+.prc-fn{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:700;
+        letter-spacing:-.015em}
+.prc-fc{font-size:11px;color:var(--mut);white-space:nowrap}
+.prc-b{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+       padding:9px 14px;border-top:1px solid var(--hair);font-size:12.5px}
+.prc-br{color:var(--soft);min-width:0;overflow:hidden;text-overflow:ellipsis;
+        white-space:nowrap}
+.prc-bv{font-weight:700;white-space:nowrap;letter-spacing:-.01em}
+.prc-bv span{font-weight:500;color:var(--mut);font-size:11px}
+.prc-none{padding:11px 14px;border-top:1px solid var(--hair);font-size:12px;color:var(--mut)}
+.prc-act{margin:16px 0 0;text-align:center}
+.prc-go{height:46px;padding:0 20px;border:1px solid var(--line);border-radius:var(--r);
+        background:var(--card);font-size:14px;font-weight:650;color:var(--ink);
+        transition:background var(--t-fast) var(--ease),transform var(--t-fast) var(--ease)}
+.prc-go:active{transform:scale(.98);background:var(--sunk)}
+.prc-note{display:block;margin-top:9px;font-size:11.5px;color:var(--mut);line-height:1.5}
+.prc-gate{margin:14px 0 0;padding:14px;border-radius:var(--r-lg);background:var(--card)}
+.prc-gt{font-size:10px;font-weight:750;letter-spacing:.13em;text-transform:uppercase;
+        color:var(--mut);margin-bottom:9px}
+.prc-gr{display:flex;gap:8px}
+.prc-gr input{flex:1;min-width:0;height:46px;padding:0 14px;border:1px solid var(--line);
+        border-radius:var(--r);background:var(--bg);font-size:15px;outline:none}
+.prc-gr input:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--ring)}
+.prc-gr button{height:46px;padding:0 18px;border:0;border-radius:var(--r);
+        background:var(--accent);color:#fff;font-size:14px;font-weight:650}
+.prc-e{margin-top:9px;font-size:12.5px;color:#B3123C;line-height:1.5}
+/* the form, which exists only after the password */
+.prc-fm{margin:14px 0 0;padding:15px;border-radius:var(--r-lg);background:var(--card)}
+.prc-l{display:block;font-size:10px;font-weight:750;letter-spacing:.13em;
+       text-transform:uppercase;color:var(--mut);margin:0 0 7px}
+.prc-l2{margin-top:14px}
+.prc-sel,.prc-in{width:100%;height:46px;padding:0 13px;border:1px solid var(--line);
+       border-radius:var(--r);background:var(--bg);font-size:15px;outline:none;
+       font-family:inherit;color:var(--ink)}
+.prc-row{display:flex;gap:8px}
+.prc-row .prc-in{flex:1;min-width:0}
+.prc-chk{display:flex;align-items:center;gap:9px;margin-top:12px;font-size:13px;
+       color:var(--soft)}
+.prc-chk input{width:20px;height:20px;flex:none}
+.prc-sum{margin-top:13px;padding:11px 12px;border-radius:var(--r);background:var(--bg);
+       font-size:12.5px;color:var(--soft);line-height:1.6}
+.prc-sum b{color:var(--ink);font-weight:700}
+.prc-do{width:100%;height:48px;margin-top:13px;border:0;border-radius:var(--r);
+       background:var(--accent);color:#fff;font-size:15px;font-weight:650}
+.prc-do[disabled]{opacity:.45}
+.prc-lg{margin:16px 0 0}
+.prc-lr{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+       padding:10px 0;border-top:1px solid var(--hair);font-size:12px;color:var(--soft)}
+.prc-lr b{color:var(--ink);font-weight:700}
 
 /* ── the report, floor by floor ── */
 .myq-f{display:flex;align-items:baseline;gap:9px;padding:13px 16px 9px;
@@ -1346,7 +1407,16 @@ button{cursor:pointer;background:none;border:0}
            header that could not afford two, and it qualifies the count rather
            than the title — so it now sits on the AVAILABLE NOW line, where it
            costs no height at all and is beside the number it is about. -->
-      <button class="hd-th" id="th-go" type="button" role="switch"></button>
+      <!-- THE PAGE ALREADY HAD A TWO-WAY SWITCH, on the floor screen: Plan /
+           List, a pill with the chosen half filled. An iPhone toggle was a
+           second vocabulary for the same job on the same page, and Rashid
+           preferred the one already here: "jaisay tum ne plan aur list ka
+           toggle button banaya hai waisa button bana do". So this is that
+           control, with the two things it chooses between named. -->
+      <div class="seg seg-th" id="th-go">
+        <button type="button" data-th="light">Light</button>
+        <button type="button" data-th="dark">Dark</button>
+      </div>
       <!-- THE DOOR TO THE OTHER ROOM. It sat here in the dealer's own grey and
            Rashid could not find it on his own page: "na nazr aaye… koi button
            banao chota sa k directors ko dashboard dekhnay pe nazar aaye". So it
@@ -1387,11 +1457,15 @@ button{cursor:pointer;background:none;border:0}
          the screen — My Reservations above everything, All units below it —
          which is the one arrangement where a reader can only ever see one of
          them. Rashid: "in ki positions change karo". -->
-    <div class="pair">
+    <div class="pair pair-3">
       <div id="myq" hidden></div>
       <!-- Deliberately its own element: it is not a floor, and every check
            that counts floors would have counted it. -->
       <div id="allrow"></div>
+      <!-- WHAT THE BUILDING COSTS. Rashid asked for it beside the other two
+           and the same size: "aik price list ka page banao ooper my
+           reservation aur all units k sath same isi button k size ka". -->
+      <div id="pricerow"></div>
     </div>
     <!-- THE REGISTER. Seven separate white cards were the first cut and Rashid
          threw them out: "us ka style muje … bohat bura lagta hai". A picker
@@ -1407,6 +1481,42 @@ button{cursor:pointer;background:none;border:0}
          chale k yahan se unit reserve karna hai". -->
     <div class="sec sec-r">Reserve a unit <span>— open a floor</span></div>
     <div class="fl" id="floors"></div>
+  </section>
+
+  <!-- THE PRICE LIST ────────────────────────────────────────────────────
+       Read-only, all of it, for anybody holding the link. Floor by floor, and
+       banded where a floor has more than one rate: "agar suppose aik floor pe
+       ziada prices variations hun to wo b osi tarhan show kare k x unit se le
+       kar z tak ye price hai a se f tak ye rate hai".
+
+       The one thing that is not read-only is Update prices, and that asks for
+       the director's password before it will even show a form. -->
+  <section id="price" hidden>
+    <div class="ft"><button class="bk" id="prc-back"><i></i>All floors</button></div>
+    <div class="prc-h">
+      <div class="prc-t">Price list</div>
+      <div class="prc-s" id="prc-sub">—</div>
+    </div>
+    <div id="prc-body"></div>
+    <div class="prc-act">
+      <button class="prc-go" id="prc-open">Update prices</button>
+      <span class="prc-note">Only a director can change a price. The list above
+        is read only.</span>
+    </div>
+    <!-- the password, then the form: a form nobody can submit is still a form
+         somebody can read, and a rate box on a public page reads as an
+         invitation -->
+    <div class="prc-gate" id="prc-gate" hidden>
+      <div class="prc-gt">Director’s password</div>
+      <div class="prc-gr">
+        <input id="prc-pw" type="password" autocomplete="off" spellcheck="false"
+               placeholder="The password for this project">
+        <button id="prc-in">Open</button>
+      </div>
+      <div class="prc-e" id="prc-err" hidden></div>
+    </div>
+    <div id="prc-form" hidden></div>
+    <div id="prc-log" hidden></div>
   </section>
 
   <!-- SCREEN FIVE — THE ROOM BEHIND THE PASSWORD ───────────────────────────
@@ -1546,6 +1656,10 @@ const TOKEN = (function () {
 
 var P = null;              // the payload, exactly as the server sent it
 var FLOOR = null;          // index into P.floors, or null on screen one
+/* the price list, and whether the director has been let past the password on
+   it. PRICEPW is held in a variable and nowhere else: it is never written to
+   the phone, so closing the page closes the door. */
+var PRICEV = false, PRICEPW = '', PRICELOG = null;
 var SHOWALL = false;
 var SHEET = null;          // { unit, floorIdx, days, ref, more[] }
 var FETCHED = 0;           // ms of the last SUCCESSFUL fetch
@@ -1750,8 +1864,7 @@ function paintNameAsk() {
   box.className = 'nm';
   box.innerHTML =
     '<div class="nm-t">Your name</div>' +
-    '<div class="nm-s">Added to the reservation requests you send, so the desk knows ' +
-      'who asked. Stored on this phone only.</div>' +
+    '<div class="nm-s">Goes on the requests you send. Stays on this phone.</div>' +
     '<div class="nm-r">' +
       '<input id="nm-in" type="text" autocomplete="name" placeholder="e.g. Fawad khan">' +
       '<button id="nm-ok">Save</button>' +
@@ -2269,6 +2382,11 @@ function render() {
      screens would shut the room every sixty seconds. It is read once and
      stays until it is left. */
   if (REPV) { if (SHEET) refreshSheet(); return; }
+  /* THE PRICE SCREEN IS NOT REPAINTED BY THE CLOCK EITHER. A director may be
+     half way through typing a rate into it, and a reread that rebuilt the form
+     would take the number out of their hands. It is redrawn when they ask for
+     it and when an update lands, never underneath them. */
+  if (PRICEV) { if (SHEET) refreshSheet(); return; }
   if (MINEV) { renderMine(); }
   else if (ALLV) { renderAll(); }
   else if (FLOOR == null) { renderHome(); } else { renderFloor(); }
@@ -2289,6 +2407,7 @@ function renderHome() {
   $('all').hidden = true;
   $('mine').hidden = true;
   $('rep').hidden = true; REPV = false;
+  $('price').hidden = true; PRICEV = false;
   /* THE CARD IS THIS SCREEN’S OWN FURNITURE, so this screen draws it. It was
      painted only by render(), which runs on a fetch — so coming back from the
      report left a card built before whatever had just been read there. A hold
@@ -2366,10 +2485,21 @@ function renderHome() {
            width of the screen and could afford "Every floor in one list"; beside
            My Reservations it is 167px wide and that sentence was cut off
            mid-word. The numbers are the part worth keeping. */
-        '<span class="ac-m"><b class="num">' + av + '</b> of <span class="num">' +
-          tot + '</span> free</span>' +
+        '<span class="ac-m"><b class="num">' + av + '</b> free</span>' +
       '</span>' +
       '<span class="ac-x"><i></i></span>' +
+    '</button>';
+
+  /* WHAT THE BUILDING COSTS, as a third doorway beside the other two. It is
+     drawn from the same payload the rest of this screen is drawn from, so it
+     can say the spread without asking the server anything. */
+  $('pricerow').innerHTML =
+    '<button class="all-chip" data-price="1">' +
+      '<span class="ac-w">' +
+        '<span class="ac-t">Price list</span>' +
+        '<span class="ac-m">' + (P.show_price ? esc(priceSpread()) : 'Floor by floor') +
+        '</span>' +
+      '</span>' +
     '</button>';
 
   paintHero(av, tot);
@@ -2405,6 +2535,295 @@ function floorCode(f) {
   return String(f.floor_label || '?').split(/\s+/).map(function (w) {
     return w.charAt(0);
   }).join('').slice(0, 3).toUpperCase();
+}
+
+/* ══ WHAT THE BUILDING COSTS ══════════════════════════════════════════════
+   Every number on this page is already on the wire: each unit carries its area
+   and, where the link is allowed to show money, its total. A rate is the two
+   divided, and a band is a run of neighbouring units that share one. Nothing
+   is asked of the server to draw any of it, which is why the list is read-only
+   by construction rather than by permission. ═══════════════════════════════ */
+
+/* the rate a unit is priced at. Prices are stored as whole rupees, so dividing
+   by an area with a decimal in it gives a rate that wobbles by tens across
+   units that were priced together — 60,000 and 60,412 are the same decision.
+   Grouped to the nearest thousand, this building's floors carry between two
+   and seven rates each, which is a price list; ungrouped they carry 257, which
+   is a spreadsheet. */
+function unitRate(u) {
+  var v = Number(u.v), a = Number(u.a);
+  if (!(v > 0) || !(a > 0)) return null;
+  return v / a;
+}
+function rateBand(r) { return r === null ? null : Math.round(r / 1000) * 1000; }
+
+/* A BAND IS A RATE AND THE UNITS THAT CARRY IT.
+
+   Rashid described it as "x unit se le kar z tak ye price hai a se f tak ye
+   rate hai", and that is exactly how it prints when a rate covers a run. This
+   building is not laid out that way yet: the corner shops are dearer than the
+   ones between them, so the two rates alternate down the floor. Banding by
+   RUNS gave thirty-four bands on one floor and told a reader nothing; banding
+   by RATE gives that floor five, which is what is actually true about it.
+
+   Where a rate does cover an unbroken run, it says so — "LG-01 to LG-40".
+   Where it does not, it says that instead, rather than printing a range that
+   quietly includes units priced differently. */
+function floorBands(f) {
+  var us = f.units || [], by = {}, order = [];
+  us.forEach(function (u, i) {
+    var r = unitRate(u), b = rateBand(r);
+    var k = b === null ? 'x' : String(b);
+    if (!by[k]) { by[k] = { band: b, rates: [], idx: [], n: 0 }; order.push(k); }
+    by[k].n++; by[k].idx.push(i);
+    if (r !== null) by[k].rates.push(r);
+  });
+  return order.map(function (k) {
+    var b = by[k];
+    b.from = us[b.idx[0]].n;
+    b.to = us[b.idx[b.idx.length - 1]].n;
+    /* unbroken means the run of indexes has no gap in it */
+    b.solid = (b.idx[b.idx.length - 1] - b.idx[0] + 1) === b.n;
+    /* THE MIDDLE ONE, NOT THE ROUNDED ONE. The band is grouped at a thousand,
+       but what is printed is a real rate from inside it — the median — so the
+       number on screen is one a unit actually carries. */
+    b.rates.sort(function (x, y) { return x - y; });
+    b.rate = b.rates.length
+      ? Math.round(b.rates[Math.floor(b.rates.length / 2)] / 100) * 100 : null;
+    return b;
+  }).sort(function (a, b) { return (b.rate || 0) - (a.rate || 0); });
+}
+
+function priceSpread() {
+  var rs = [];
+  (P.floors || []).forEach(function (f) {
+    (f.units || []).forEach(function (u) { var r = unitRate(u); if (r) rs.push(r); });
+  });
+  if (!rs.length) return 'Floor by floor';
+  rs.sort(function (a, b) { return a - b; });
+  var lo = rs[0], hi = rs[rs.length - 1];
+  return lo === hi ? num0(lo) + '/' + esc(P.area_unit || 'sqft')
+                   : num0(lo) + '–' + num0(hi);
+}
+
+function renderPrice() {
+  $('home').hidden = true; $('floor').hidden = true;
+  $('all').hidden = true; $('mine').hidden = true; $('rep').hidden = true; REPV = false;
+  $('units').innerHTML = ''; $('all-body').innerHTML = '';
+  PRICEV = true;
+  $('price').hidden = false;
+  $('prc-sub').textContent = P.show_price
+    ? 'What each floor costs today \u00b7 read only'
+    : 'This link does not show prices';
+  var body = $('prc-body');
+  if (!P.show_price) {
+    body.innerHTML = '<div class="prc-f"><div class="prc-none">' +
+      'Prices are switched off for this link. The desk can turn them on.' +
+      '</div></div>';
+    return;
+  }
+  body.innerHTML = (P.floors || []).slice().reverse().map(function (f) {
+    var bands = floorBands(f);
+    var priced = bands.filter(function (b) { return b.rate; });
+    var rows = priced.length
+      ? bands.map(function (b) {
+          var who = b.n === 1 ? esc(b.from)
+                  : b.solid ? esc(b.from) + ' to ' + esc(b.to)
+                  : num0(b.n) + ' units, ' + esc(b.from) + ' onward';
+          if (!b.rate) {
+            return '<div class="prc-b"><span class="prc-br">' + who +
+              '</span><span class="prc-bv"><span>no price set</span></span></div>';
+          }
+          return '<div class="prc-b"><span class="prc-br">' + who +
+            (b.n > 1 && b.solid ? ' <span class="prc-fc">' + b.n + '</span>' : '') +
+            '</span><span class="prc-bv">' + num0(b.rate) +
+            ' <span>per ' + esc(P.area_unit || 'sqft') + '</span></span></div>';
+        }).join('')
+      : '<div class="prc-none">No price is set on this floor yet.</div>';
+    return '<div class="prc-f">' +
+      '<div class="prc-fh"><span class="prc-fn">' +
+        '<span class="fcode">' + esc(floorCode(f)) + '</span>' + esc(f.floor_label) +
+      '</span><span class="prc-fc">' + (f.units || []).length + ' units</span></div>' +
+      rows + '</div>';
+  }).join('');
+  /* coming back later must not walk back in through a door that was opened
+     once — the form and the log go away with the screen */
+  $('prc-gate').hidden = true; $('prc-form').hidden = true; $('prc-log').hidden = true;
+  $('prc-err').hidden = true; $('prc-pw').value = '';
+}
+
+/* ── the door, and what is behind it ──────────────────────────────────── */
+async function priceOpen() {
+  var pw = $('prc-pw').value.trim(), err = $('prc-err');
+  if (!pw) { err.hidden = false; err.textContent = 'Enter the password.'; return; }
+  $('prc-in').disabled = true;
+  try {
+    var r = await sb.rpc('get_availability_price_log', { p_token: TOKEN, p_password: pw });
+    var d = r.data;
+    if (!d || !d.success) {
+      err.hidden = false;
+      err.textContent = (d && d.error === 'too_many')
+        ? 'Too many tries on this link. It opens again in an hour.'
+        : 'That password does not open this.';
+      $('prc-pw').value = '';
+      return;
+    }
+    PRICEPW = pw; PRICELOG = d.log || [];
+    $('prc-pw').value = ''; err.hidden = true; $('prc-gate').hidden = true;
+    paintPriceForm(); paintPriceLog();
+  } catch (e) {
+    err.hidden = false; err.textContent = 'Could not reach the office. Try again.';
+  } finally { $('prc-in').disabled = false; }
+}
+
+function paintPriceForm() {
+  var box = $('prc-form');
+  box.hidden = false;
+  box.innerHTML =
+    '<div class="prc-fm">' +
+      '<label class="prc-l" for="prc-floor">Which floor</label>' +
+      '<select class="prc-sel" id="prc-floor">' +
+        '<option value="">Every floor</option>' +
+        (P.floors || []).slice().reverse().map(function (f) {
+          return '<option value="' + esc(f.floor_label) + '">' + esc(f.floor_label) + '</option>';
+        }).join('') +
+      '</select>' +
+      '<label class="prc-l prc-l2" for="prc-rate">Rate per ' +
+        esc(P.area_unit || 'sqft') + '</label>' +
+      '<input class="prc-in" id="prc-rate" type="number" inputmode="numeric" ' +
+        'min="1" step="100" placeholder="e.g. 78000">' +
+      '<div class="prc-chk"><input type="checkbox" id="prc-part">' +
+        '<label for="prc-part">Only part of the floor</label></div>' +
+      '<div class="prc-row" id="prc-range" hidden style="margin-top:10px">' +
+        '<input class="prc-in" id="prc-from" placeholder="From unit" autocomplete="off">' +
+        '<input class="prc-in" id="prc-to" placeholder="To unit" autocomplete="off">' +
+      '</div>' +
+      '<div class="prc-sum" id="prc-sum">Type a rate to see what it would do.</div>' +
+      '<button class="prc-do" id="prc-apply" disabled>Update prices</button>' +
+    '</div>';
+  ['prc-floor', 'prc-rate', 'prc-from', 'prc-to'].forEach(function (id) {
+    $(id).addEventListener('input', paintPriceSum);
+  });
+  $('prc-part').addEventListener('change', function () {
+    $('prc-range').hidden = !this.checked; paintPriceSum();
+  });
+  $('prc-apply').onclick = priceApply;
+  paintPriceSum();
+}
+
+/* WHAT IT WOULD DO, BEFORE IT DOES IT. The page holds every unit's area and
+   state already, so the count and the worked example are the browser's own
+   arithmetic — the same arithmetic the server will do, shown first. */
+function priceTargets() {
+  var floor = $('prc-floor') ? $('prc-floor').value : '';
+  var part = $('prc-part') && $('prc-part').checked;
+  var fromK = part ? keyOf($('prc-from').value) : null;
+  var toK = part ? keyOf($('prc-to').value) : null;
+  if (fromK !== null && toK !== null && fromK > toK) { var s = fromK; fromK = toK; toK = s; }
+  var out = [];
+  (P.floors || []).forEach(function (f) {
+    if (floor && f.floor_label !== floor) return;
+    (f.units || []).forEach(function (u) {
+      if (u.s !== 'available') return;
+      if (fromK !== null && toK !== null) {
+        var k = keyOf(u.n);
+        if (k === null || k < fromK || k > toK) return;
+      }
+      out.push(u);
+    });
+  });
+  return out;
+}
+/* the same key the server reads a range with: every digit in the code as one
+   number. The two must agree or a director picks one run and changes another */
+function keyOf(s) {
+  var d = String(s || '').replace(/[^0-9]/g, '');
+  return d === '' ? null : Number(d);
+}
+
+function paintPriceSum() {
+  var sum = $('prc-sum'); if (!sum) return;
+  var rate = Number($('prc-rate').value);
+  var t = priceTargets();
+  var withArea = t.filter(function (u) { return Number(u.a) > 0; });
+  var ok = rate > 0 && withArea.length > 0;
+  $('prc-apply').disabled = !ok;
+  if (!(rate > 0)) { sum.innerHTML = 'Type a rate to see what it would do.'; return; }
+  var eg = withArea.slice(0, 2).map(function (u) {
+    return esc(u.n) + ' \u00b7 ' + num0(Number(u.a)) + ' ' + esc(P.area_unit || 'sqft') +
+           ' \u2192 <b>' + num0(Math.round(Number(u.a) * rate)) + '</b>';
+  }).join('<br>');
+  sum.innerHTML =
+    '<b>' + num0(withArea.length) + '</b> available unit' +
+      (withArea.length === 1 ? '' : 's') + ' would change' +
+    (t.length - withArea.length
+      ? ' \u00b7 ' + (t.length - withArea.length) + ' have no area and are left alone' : '') +
+    '<br>Sold and held units are never touched.' +
+    (eg ? '<br><br>' + eg : '');
+}
+
+async function priceApply() {
+  var rate = Number($('prc-rate').value);
+  var floor = $('prc-floor').value || null;
+  var part = $('prc-part').checked;
+  var from = part ? ($('prc-from').value.trim() || null) : null;
+  var to = part ? ($('prc-to').value.trim() || null) : null;
+  var n = priceTargets().filter(function (u) { return Number(u.a) > 0; }).length;
+  /* THE LAST WORD BEFORE MONEY MOVES. This is a public link on a phone, and
+     the button is one tap from a rate somebody mistyped. */
+  if (!confirm('Set ' + num0(rate) + ' per ' + (P.area_unit || 'sqft') + ' on ' +
+               num0(n) + ' available unit' + (n === 1 ? '' : 's') +
+               (floor ? ' of ' + floor : ' across every floor') + '?\n\n' +
+               'Sold and held units keep their price.')) return;
+  $('prc-apply').disabled = true;
+  try {
+    var r = await sb.rpc('update_availability_prices', {
+      p_token: TOKEN, p_password: PRICEPW, p_floor: floor,
+      p_from: from, p_to: to, p_rate: rate });
+    var d = r.data;
+    if (!d || !d.success) {
+      toast(d && d.error === 'rate' ? 'That is not a rate this page will set.'
+          : d && d.error === 'nothing' ? 'Nothing on that floor is available to reprice.'
+          : d && d.error === 'too_many' ? 'Too many tries on this link. It opens again in an hour.'
+          : 'That did not go through.');
+      return;
+    }
+    toast(num0(d.changed) + ' unit' + (d.changed === 1 ? '' : 's') + ' now at ' +
+          num0(rate) + ' per ' + (d.area_unit || 'sqft'));
+    await load(false);              // the page rereads the building it just changed
+    renderPrice();
+    $('prc-gate').hidden = true;
+    paintPriceForm();
+    var lg = await sb.rpc('get_availability_price_log', { p_token: TOKEN, p_password: PRICEPW });
+    PRICELOG = (lg.data && lg.data.log) || PRICELOG;
+    paintPriceLog();
+  } catch (e) {
+    toast('Could not reach the office. Try again.');
+  } finally { if ($('prc-apply')) $('prc-apply').disabled = false; }
+}
+
+/* WHEN THE PRICES CHANGED, AND BY WHOSE HAND. "aik database banta rahay k kab
+   kab prices update hoi hain." The desk keeps the row; this only reads it. */
+function paintPriceLog() {
+  var box = $('prc-log');
+  if (!PRICELOG || !PRICELOG.length) {
+    box.hidden = false;
+    box.innerHTML = '<div class="prc-lg"><div class="prc-l">Price history</div>' +
+      '<div class="prc-lr">No price has been changed from this link yet.</div></div>';
+    return;
+  }
+  box.hidden = false;
+  box.innerHTML = '<div class="prc-lg"><div class="prc-l">Price history</div>' +
+    PRICELOG.map(function (r) {
+      var when = new Date(r.at);
+      return '<div class="prc-lr"><span>' +
+        esc(r.floor || 'Every floor') +
+        (r.from ? ' \u00b7 ' + esc(r.from) + '\u2013' + esc(r.to) : '') +
+        ' \u00b7 ' + r.changed + ' unit' + (r.changed === 1 ? '' : 's') +
+        '</span><span><b>' + num0(r.rate) + '</b> \u00b7 ' +
+        when.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) + ' ' +
+        hhmm(when.getTime()) + '</span></div>';
+    }).join('') + '</div>';
 }
 
 /* ══ THE TICKER ═══════════════════════════════════════════════════════════
@@ -3723,6 +4142,24 @@ function openFloor(i) {
   window.scrollTo(0, 0);
 }
 
+$('pricerow').addEventListener('click', function (e) {
+  if (!e.target.closest('[data-price]')) return;
+  ALLV = false; MINEV = false; FLOOR = null;
+  renderPrice(); window.scrollTo(0, 0);
+});
+$('prc-back').onclick = function () {
+  PRICEV = false; PRICEPW = ''; PRICELOG = null;
+  $('price').hidden = true; BACKING = true; renderHome(); window.scrollTo(0, 0);
+};
+$('prc-open').onclick = function () {
+  $('prc-gate').hidden = false;
+  setTimeout(function () { $('prc-pw').focus(); }, 60);
+};
+$('prc-in').onclick = priceOpen;
+$('prc-pw').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') { e.preventDefault(); priceOpen(); }
+});
+
 $('allrow').addEventListener('click', function (e) {
   if (!e.target.closest('[data-all]')) return;
   ALLV = true; FLOOR = null; renderAll(); window.scrollTo(0, 0);
@@ -3990,16 +4427,15 @@ function themeNow() {
 }
 function paintTheme() {
   var b = $('th-go'); if (!b) return;
-  var dark = themeNow() === 'dark';
   /* WHAT IT WILL DO, NOT WHAT IT IS. A switch labelled with the state it is in
      is read backwards by half the people who see it. */
-  /* A SWITCH HAS A STATE, not a label that flips. aria-checked is what makes
-     this a switch rather than a button that happens to look like one, and it
-     is also what draws it: the knob and the green both hang off that one
-     attribute, so the picture can never disagree with what is announced. */
-  b.setAttribute('aria-checked', dark ? 'true' : 'false');
-  b.title = dark ? 'Dark theme is on' : 'Dark theme is off';
-  b.setAttribute('aria-label', 'Dark theme');
+  /* THE CHOSEN HALF IS FILLED, exactly as Plan/List is filled on the floor
+     screen. Both names are on screen at once, so nobody has to work out what
+     the control will do — they can see what it is set to. */
+  var dk = themeNow() === 'dark';
+  [].forEach.call(b.children, function (x) {
+    x.classList.toggle('on', (x.getAttribute('data-th') === 'dark') === dk);
+  });
 }
 function setTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
@@ -4009,7 +4445,10 @@ function setTheme(t) {
      drawn once and left alone by every repaint. Its width does not change with
      the theme, so the crawl is not restarted — only its colours are. */
 }
-$('th-go').onclick = function () { setTheme(themeNow() === 'dark' ? 'light' : 'dark'); };
+$('th-go').addEventListener('click', function (e) {
+  var b = e.target.closest('button[data-th]'); if (!b) return;
+  setTheme(b.getAttribute('data-th'));
+});
 paintTheme();
 
 $('dir-open').onclick = function () { showRep(); window.scrollTo(0, 0); };
