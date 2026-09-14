@@ -538,6 +538,33 @@ function serve() {
       }, seg.i);
       doors.push({ label: seg.l.label, want: seg.l.n, got: r });
     }
+    /* AND THE WAY BACK TO A KIND SURVIVES LEAVING IT. The kind chip used to
+       exist only while it was the filter in force, so pressing All took Pagri
+       off the screen and the only way back to it was the dashboard — "pagri p
+       click karo to all pe click karnay pe pagri wala option ghayab ho jata
+       hai phir se". A filter you can leave and not return to is a trapdoor. */
+    const trap = await page.evaluate(async () => {
+      document.querySelector('.ck[data-seg^="kind:"]').click();
+      await new Promise(r => setTimeout(r, 450));
+      const withKind = [...document.querySelectorAll('#all-filter button')]
+        .map(b => b.textContent.trim());
+      document.querySelector('#all-filter button[data-f="all"]').click();
+      await new Promise(r => setTimeout(r, 350));
+      const afterAll = [...document.querySelectorAll('#all-filter button')]
+        .map(b => b.textContent.trim());
+      /* and it still works when pressed again */
+      const back = document.querySelector('#all-filter button[data-f^="kind:"]');
+      if (back) back.click();
+      await new Promise(r => setTimeout(r, 350));
+      return { withKind, afterAll,
+               drawn: document.querySelectorAll('#all-body button[data-u]').length };
+    });
+    (trap.withKind.length === trap.afterAll.length &&
+     trap.withKind.every(c => trap.afterAll.indexOf(c) >= 0) && trap.drawn > 0)
+      ? ok('and pressing All does not take the kinds away — ' +
+           trap.afterAll.join(', ') + ' — so a reader can go back into one')
+      : bad('a filter vanished when it was left: ' + JSON.stringify(trap));
+
     await page.evaluate(() => {
       ALLF = 'all'; ALLV = false; MINEV = false; FLOOR = null;
       renderHome(); window.scrollTo(0, 0);
@@ -906,6 +933,39 @@ function serve() {
     (!upTo.none && Math.abs(upTo.back.z - upTo.before.z) < 0.05)
       ? ok('and closing the sheet walks back to exactly where the reader was standing')
       : bad('the plate stayed zoomed after the sheet closed: ' + JSON.stringify(upTo.back));
+    /* AND EVERY WAY OUT OF IT ACTUALLY CLOSES IT. This is the one that broke:
+       the dialog had to be moved out of the floor screen to be a dialog at all,
+       and the moment it was, hiding the floor stopped hiding it — "back to
+       floors click karnay pe popup screen ooper se nahi jati". Only the floor's
+       own render was putting it away, and going home does not go through the
+       floor's own render. Three ways out, all three measured, and the page
+       checked for anything left lying invisible over it. */
+    const ways = [];
+    for (const how of ['back', 'escape', 'answer']) {
+      await page.evaluate(i => {
+        document.querySelector('#floors button[data-f="' + i + '"]').click();
+      }, askFloor);
+      await sleep(500);
+      const up = await page.evaluate(() => !document.getElementById('vask').hidden);
+      if (how === 'back') await page.evaluate(() => document.getElementById('va-back').click());
+      if (how === 'escape') await page.keyboard.press('Escape');
+      if (how === 'answer') await page.evaluate(() =>
+        document.querySelector('#vask [data-view="list"]').click());
+      await sleep(600);
+      ways.push(Object.assign({ how: how, up: up }, await page.evaluate(() => ({
+        dialog: !document.getElementById('vask').hidden,
+        overPage: (document.elementFromPoint(20, 20) || {}).className === 'vw'
+      }))));
+      if (how !== 'back') {
+        await page.evaluate(() => { const b = document.getElementById('back'); if (b) b.click(); });
+        await sleep(300);
+      }
+    }
+    ways.every(w => w.up && !w.dialog && !w.overPage)
+      ? ok('and every way out closes it — ' + ways.map(w => w.how).join(', ') +
+           ' — with nothing left over the page')
+      : bad('a way out left the dialog standing: ' + JSON.stringify(ways));
+
     await page.evaluate(() => { document.getElementById('back').click(); });
     await sleep(400);
 
