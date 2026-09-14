@@ -147,7 +147,7 @@ button{cursor:pointer;background:none;border:0}
    below the last card; the ticker's own row needs about 23 of them, and the
    one rule of this screen is that it does not scroll at 380×780. Air below
    the fold is worth less than a line of news above it. */
-.wrap{max-width:520px;margin:0 auto;padding:15px var(--pad) 8px}
+.wrap{max-width:520px;margin:0 auto;padding:12px var(--pad) 6px}
 
 .hd-l{display:flex;align-items:center;gap:12px;min-width:0}
 /* ABSOLUTE, NOT RELATIVE. This page is served from /a/<token>, a path it does
@@ -160,7 +160,9 @@ button{cursor:pointer;background:none;border:0}
     margin-bottom:15px}
 .hd-t{font-size:22px;font-weight:700;letter-spacing:-.028em;line-height:1.15;
        white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hd-c{font-size:12px;color:var(--mut);margin-top:5px;line-height:1.5}
+.hd-w{min-width:0}
+.hd-c{font-size:12px;color:var(--mut);margin-top:4px;line-height:1.45;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hd-u{font-size:11px;color:var(--mut);white-space:nowrap;flex:none;padding-top:7px;
       transition:color var(--t) var(--ease)}
 /* A refetch that failed must SAY the data is old rather than keep a confident
@@ -177,7 +179,8 @@ button{cursor:pointer;background:none;border:0}
    back to the stack, which is where they were needed. */
 .hero{margin-bottom:11px}
 .hero-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-.hero-l{font-size:10.5px;font-weight:650;letter-spacing:.11em;text-transform:uppercase;
+.hero-l{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+        font-size:10.5px;font-weight:650;letter-spacing:.11em;text-transform:uppercase;
         color:var(--mut);line-height:1.2;margin-bottom:4px}
 /* THE READING, LARGER — AND STILL ITS OWN THING. Merging it into the news
    band was the wrong way to make it prominent, and Rashid said so: "isay alag
@@ -273,9 +276,23 @@ button{cursor:pointer;background:none;border:0}
 .tot{margin-top:16px;font-size:12px;color:var(--mut);text-align:center}
 
 /* ── search: THE focal point of screen one ──────────────────────────────── */
-.sr{position:relative;margin-bottom:17px}
+/* THE SECTION LABELS. The page had exactly one of these — AVAILABLE NOW over
+   the count — and it is the right idiom for the other two: small, spaced,
+   quiet, and it names the thing under it rather than decorating it. */
+.sec{font-size:10px;font-weight:750;letter-spacing:.13em;text-transform:uppercase;
+     color:var(--mut);line-height:1.2;margin:0 0 6px}
+
+/* AND THE FIELD LOOKS LIKE A SEARCH FIELD. A tall white box with grey text in
+   it is a text box; the glass is what makes it a search bar at a glance, and
+   it is drawn rather than loaded so it costs nothing and cannot 404. */
+.sr{position:relative;margin-bottom:14px}
+.sr::before{content:"";position:absolute;left:19px;top:50%;width:15px;height:15px;
+  margin-top:-9px;border:2px solid var(--mut);border-radius:50%;pointer-events:none}
+.sr::after{content:"";position:absolute;left:32px;top:50%;width:7px;height:2px;
+  margin-top:4px;background:var(--mut);transform:rotate(45deg);
+  transform-origin:left center;pointer-events:none;border-radius:2px}
 .sr input{
-  width:100%;height:64px;padding:0 18px;border:1px solid var(--line);
+  width:100%;height:64px;padding:0 18px 0 46px;border:1px solid var(--line);
   border-radius:var(--r);background:var(--card);font-size:16.5px;font-weight:500;
   letter-spacing:-.01em;outline:none;
   transition:border-color var(--t) var(--ease), box-shadow var(--t) var(--ease);
@@ -327,9 +344,12 @@ button{cursor:pointer;background:none;border:0}
    the bar. Screen one still has to hold the whole building without scrolling
    on a 380px phone, and the harness still measures exactly that. */
 /* ── the two doorways, one line, one each ─────────────────────────────── */
-.pair{display:flex;gap:9px;margin:14px 0 0}
-.pair > div{flex:1;min-width:0}
-.pair .all-chip{height:100%;align-items:flex-start;padding:11px 12px}
+/* THE SAME SIZE, BOTH OF THEM. Two cards side by side whose heights are set by
+   their own text are two different objects; stretched to a common height and
+   given the same half of the row they are one control with two ends. */
+.pair{display:flex;align-items:stretch;gap:9px;margin:14px 0 0}
+.pair > div{flex:1 1 0;min-width:0;display:flex;margin:0}
+.pair .all-chip{width:100%;height:100%;min-height:58px;align-items:center;padding:9px 12px}
 .pair .ac-t{font-size:13.5px}
 .pair .ac-m{font-size:11px}
 .pair .ac-x{align-self:center}
@@ -340,10 +360,12 @@ button{cursor:pointer;background:none;border:0}
    reads as one thing with seven rows in it, which is what a building is. The
    code each floor wears is the dark block the news band's head uses — the same
    language, one step quieter. */
-.fl{background:var(--card);border-radius:var(--r-lg);overflow:hidden;margin:12px 0 0}
+.sec-r{margin-top:14px}
+.sec-r span{font-weight:650;letter-spacing:.04em;text-transform:none;opacity:.85}
+.fl{background:var(--card);border-radius:var(--r-lg);overflow:hidden;margin:0}
 .fl button{
   width:100%;display:flex;align-items:center;gap:11px;
-  padding:6px 13px;border:0;border-top:1px solid var(--hair);
+  padding:5px 13px;border:0;border-top:1px solid var(--hair);
   background:var(--card);text-align:left;min-height:54px;
   transition:background var(--t-fast) var(--ease);
 }
@@ -535,9 +557,10 @@ button{cursor:pointer;background:none;border:0}
      depends on how tall its neighbour happens to be */
   #home .hero   {grid-column:1;grid-row:1;margin-bottom:18px}
   #home .fl     {grid-column:1;grid-row:2/span 3}
-  #home #myq    {grid-column:2;grid-row:1;margin-bottom:18px}
+  #home .sec    {grid-column:2;margin-bottom:6px}
   #home .sr     {grid-column:2;grid-row:2;margin-bottom:18px}
-  #home #allrow {grid-column:2;grid-row:3;margin-top:0}
+  /* the two doorways travel together now, so they are placed together */
+  #home .pair   {grid-column:2;grid-row:3;margin-top:0}
   .fl button{min-height:64px}
   .fl .fb{height:10px}
   .fl .fn{font-size:15.5px}
@@ -777,17 +800,33 @@ button{cursor:pointer;background:none;border:0}
    nothing, no card that is only a card, and every number next to the words
    that say what it is. */
 .hd-r{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:none}
-.hd-b{display:flex;align-items:center;gap:7px}
+
 /* 44px of target, drawn as 30px of button: the padding does the reaching so a
    thumb is not asked to hit a thing the size of the word inside it. */
-.hd-th{position:relative;border:1px solid var(--line);background:var(--card);
-       color:var(--soft);border-radius:999px;height:30px;width:30px;padding:0;
-       font-size:13px;line-height:1;white-space:nowrap;
-       transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),
-                  transform var(--t-fast) var(--ease)}
-.hd-th::after{content:"";position:absolute;left:0;right:0;top:-7px;bottom:-7px}
-@media (hover:hover){ .hd-th:hover{background:var(--sunk);color:var(--ink)} }
-.hd-th:active{transform:scale(.96)}
+/* THE SWITCH IS A SWITCH. It was a 30px circle with a half-moon in it, which
+   Rashid could barely see on a phone: "bohat hee choota nazar aata hai … iphone
+   ki tarhan on off button banao jaisay green jab on ho aur white means off pe".
+   So it is the thing everybody already knows how to read — a track with a knob
+   that slides, white when it is off and green when it is on — at the size iOS
+   uses, 51 by 31, with the thumb's own 44px reached by the padding rather than
+   by drawing a bigger control. Dark is the ON state, because the switch turns
+   something on rather than choosing between two equals. */
+.hd-th{position:relative;flex:none;width:51px;height:31px;padding:0;
+       border:1px solid var(--line);border-radius:999px;background:#fff;
+       font-size:0;line-height:0;cursor:pointer;
+       transition:background var(--t) var(--ease),border-color var(--t) var(--ease)}
+.hd-th::before{content:"";position:absolute;top:2px;left:2px;width:25px;height:25px;
+       border-radius:50%;background:#fff;
+       box-shadow:0 1px 3px rgba(0,0,0,.28),0 0 0 .5px rgba(0,0,0,.04);
+       transition:transform var(--t) var(--ease)}
+/* the 44px the thumb actually needs, reached without drawing it */
+.hd-th::after{content:"";position:absolute;left:-4px;right:-4px;top:-7px;bottom:-7px}
+.hd-th[aria-checked="true"]{background:#34C759;border-color:#34C759}
+.hd-th[aria-checked="true"]::before{transform:translateX(20px)}
+.hd-th:active::before{width:29px}
+@media (prefers-reduced-motion:reduce){
+  .hd-th,.hd-th::before{transition:none}
+}
 .hd-d{border:1px solid rgba(179,18,60,.35);background:#FFF6F8;color:#b3123c;
       font-size:10px;font-weight:700;letter-spacing:.03em;padding:3px 9px;
       border-radius:999px;font-family:inherit;white-space:nowrap}
@@ -957,7 +996,10 @@ button{cursor:pointer;background:none;border:0}
    dealer opens this page to check now sits above everything else.
 
    Slim on purpose: it is a doorway, not the report. */
-#myq{margin-bottom:16px}
+/* NO MARGIN. This card stood alone above everything when it had one; it lives
+   in the pair now, where a bottom margin sits inside the stretched track and
+   makes the card measure short against its neighbour. */
+#myq{margin-bottom:0}
 /* TELLING THE TWO DOORS APART. They are the same card in the same place on
    the same ground, so the eye has nothing to sort them by. A tint each, both
    taken from the palette rather than invented: the accent's own pale wash for
@@ -990,7 +1032,12 @@ button{cursor:pointer;background:none;border:0}
 .myq-a .t{font-size:13px;font-weight:650;color:var(--held);letter-spacing:-.01em}
 .myq-a .r{margin-top:7px;font-size:12.5px;color:var(--soft);line-height:1.55}
 .myq-a .r b{color:var(--ink);font-weight:650}
-#allrow{margin-top:9px}
+/* NINE PIXELS THAT STOPPED BEING RIGHT. All units used to sit under the floor
+   stack with this much air above it. Beside My Reservations the same nine
+   pixels pushed it down the screen, so the pair read as two cards dropped at
+   different heights rather than one row. Rashid: "dono ki allignment b ooper
+   neeche hai, side by side nahi hain dono". */
+#allrow{margin-top:0}
 .all-chip .ac-n{display:inline-flex;align-items:center;justify-content:center;
                 min-width:18px;height:18px;padding:0 5px;margin-left:6px;
                 border-radius:999px;background:var(--ink);color:var(--card);
@@ -1289,13 +1336,17 @@ button{cursor:pointer;background:none;border:0}
            alpha, and written out in the brand's own maroon and gold. The white
            one is the same mask, for the dark theme. -->
       <span class="hd-m" id="mark" hidden></span>
-      <div>
+      <div class="hd-w">
         <div class="hd-t" id="ttl">—</div>
         <div class="hd-c" id="co">—</div>
       </div>
     </div>
     <div class="hd-r">
-      <div class="hd-u" id="upd"></div>
+      <!-- THE CLOCK LEFT THIS CORNER. "Updated 15:44" was a third thing in a
+           header that could not afford two, and it qualifies the count rather
+           than the title — so it now sits on the AVAILABLE NOW line, where it
+           costs no height at all and is beside the number it is about. -->
+      <button class="hd-th" id="th-go" type="button" role="switch"></button>
       <!-- THE DOOR TO THE OTHER ROOM. It sat here in the dealer's own grey and
            Rashid could not find it on his own page: "na nazr aaye… koi button
            banao chota sa k directors ko dashboard dekhnay pe nazar aaye". So it
@@ -1303,13 +1354,7 @@ button{cursor:pointer;background:none;border:0}
            Small, because a dealer without the password still has no business
            in it — but findable, because a director should not have to be told
            twice where it is. -->
-      <div class="hd-b">
-        <!-- THE THEME SWITCH. Two states, named rather than guessed at: the
-             button says what it will DO, not what the page currently is, which
-             is the one thing people read backwards on a toggle. -->
-        <button class="hd-th" id="th-go" type="button" aria-live="polite"></button>
-        <button class="hd-d" id="dir-open">Director’s Login</button>
-      </div>
+      <button class="hd-d" id="dir-open">Director’s Login</button>
     </div>
   </div>
 
@@ -1327,6 +1372,11 @@ button{cursor:pointer;background:none;border:0}
          that card on every reread, and rebuilding the strip restarts the
          crawl. -->
     <div class="hero-f" id="hero-f" hidden></div>
+    <!-- SAID OUT LOUD. The field carried its own instruction in grey inside
+         itself, which disappears the moment somebody types and is the first
+         thing to be missed by anybody scanning rather than reading. Rashid:
+         "search bar ko theek karo aur ooper liko b k search unit here". -->
+    <div class="sec">Search unit here</div>
     <div class="sr">
       <input id="q" type="search" inputmode="search" autocomplete="off"
              autocapitalize="characters" spellcheck="false"
@@ -1351,6 +1401,11 @@ button{cursor:pointer;background:none;border:0}
          itself, all seven at once, one tap to walk in — drawn as one sheet
          with seven ruled lines rather than seven cards, and each floor wearing
          the code its own units carry. -->
+    <!-- WHAT THE LIST IS FOR. Seven floors with counts on them say what is
+         left; they do not say that this is where a dealer asks for a unit.
+         Rashid: "floor list k ooper hona chahiye kuch aisa text jis se pata
+         chale k yahan se unit reserve karna hai". -->
+    <div class="sec sec-r">Reserve a unit <span>— open a floor</span></div>
     <div class="fl" id="floors"></div>
   </section>
 
@@ -2140,7 +2195,12 @@ function dead() {
 }
 
 function paintUpdated() {
+  /* THE CLOCK LIVES INSIDE THE HERO NOW, and the hero only exists on screen
+     one. render() calls this before it draws anything, and every screen that
+     is not screen one never draws it at all — so its absence is ordinary and
+     not an error. paintHero calls this again once it has made the element. */
   var el = $('upd');
+  if (!el) return;
   if (!FETCHED) { el.textContent = ''; return; }
   el.textContent = 'Updated ' + hhmm(FETCHED);
   el.classList.toggle('stale', STALE);
@@ -2539,7 +2599,8 @@ function paintHero(av, tot) {
      whole building is one shape — but it closes the block rather than sitting
      in the middle of it. */
   $('hero').innerHTML =
-    '<div class="hero-l">Available now</div>' +
+    '<div class="hero-l"><span>Available now</span>' +
+      '<span class="hd-u" id="upd"></span></div>' +
     '<div class="hero-top">' +
       '<div class="hero-n">' + av + '</div>' +
       '<div class="hero-p">of ' + tot + (tot ? ' · ' + pct + '%' : '') + '</div>' +
@@ -2550,6 +2611,10 @@ function paintHero(av, tot) {
       }).join('') +
     '</div>';
 
+  /* THE CLOCK LIVES INSIDE THE HERO NOW, and the hero is rewritten here — so
+     it is repainted here too. Painted before this, by render(), it would be
+     wiped by the very next line. */
+  paintUpdated();
   paintTicker(av, tot);
 }
 
@@ -3928,10 +3993,13 @@ function paintTheme() {
   var dark = themeNow() === 'dark';
   /* WHAT IT WILL DO, NOT WHAT IT IS. A switch labelled with the state it is in
      is read backwards by half the people who see it. */
-  b.textContent = dark ? '◑' : '◐';
-  b.title = dark ? 'Light' : 'Dark';
-  b.setAttribute('aria-label', dark ? 'Switch to the light theme'
-                                    : 'Switch to the dark theme');
+  /* A SWITCH HAS A STATE, not a label that flips. aria-checked is what makes
+     this a switch rather than a button that happens to look like one, and it
+     is also what draws it: the knob and the green both hang off that one
+     attribute, so the picture can never disagree with what is announced. */
+  b.setAttribute('aria-checked', dark ? 'true' : 'false');
+  b.title = dark ? 'Dark theme is on' : 'Dark theme is off';
+  b.setAttribute('aria-label', 'Dark theme');
 }
 function setTheme(t) {
   document.documentElement.setAttribute('data-theme', t);

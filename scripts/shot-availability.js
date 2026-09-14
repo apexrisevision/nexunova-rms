@@ -350,6 +350,58 @@ function serve() {
       : bad('the two doorways are not where they belong: ' + JSON.stringify(
             { kids: one.pairKids, pairTop: one.pairTop, searchBottom: one.srBot,
               floorsTop: one.floorsTop }));
+    /* THE TWO DOORWAYS ARE THE SAME SIZE. They were not: #myq carried a
+       16px bottom margin from the days it stood alone above everything, and
+       inside a stretched flex track that margin sits INSIDE the card's own
+       box — so it measured 58 where its neighbour measured 74 and the two read
+       as different objects dropped at different heights. Rashid: "in dono ka
+       size aik rakho aur … dono ki allignment b ooper neeche hai". Equal
+       height and a common top line is the whole of it, and both are measured. */
+    const twins = await page.evaluate(() => {
+      const a = document.querySelector('#myq .all-chip').getBoundingClientRect();
+      const b = document.querySelector('#allrow .all-chip').getBoundingClientRect();
+      return { aw: Math.round(a.width), bw: Math.round(b.width),
+               ah: Math.round(a.height), bh: Math.round(b.height),
+               atop: Math.round(a.top), btop: Math.round(b.top) };
+    });
+    (Math.abs(twins.ah - twins.bh) <= 1 && Math.abs(twins.aw - twins.bw) <= 1 &&
+     Math.abs(twins.atop - twins.btop) <= 1)
+      ? ok('the two doorways are one size and one line — ' + twins.aw + 'x' +
+           twins.ah + ', both starting at ' + twins.atop + 'px')
+      : bad('the two doorways do not match: ' + JSON.stringify(twins));
+    /* AND EACH BLOCK SAYS WHAT IT IS FOR. The floors state what is left on them
+       and the field waits to be typed into, but neither says that this is where
+       a dealer searches and where they reserve. Rashid asked for both in
+       words: "ooper liko b k search unit here", and "floor list k ooper …
+       kuch aisa text jis se pata chale k yahan se unit reserve karna hai". */
+    const labels = await page.evaluate(() => {
+      const secs = [...document.querySelectorAll('#home .sec')];
+      const sr = document.querySelector('.sr');
+      const q = document.getElementById('q');
+      const fl = document.getElementById('floors');
+      const glass = getComputedStyle(sr, '::before');
+      return {
+        texts: secs.map(s => s.textContent.trim()),
+        searchBelow: secs.length ? sr.getBoundingClientRect().top >=
+          secs[0].getBoundingClientRect().bottom : false,
+        floorsBelow: secs.length > 1 ? fl.getBoundingClientRect().top >=
+          secs[1].getBoundingClientRect().bottom : false,
+        /* a drawn magnifier, so the field reads as a search bar and not as a
+           tall white box with grey words in it */
+        glass: glass.width !== 'auto' && glass.width !== '0px',
+        padLeft: getComputedStyle(q).paddingLeft
+      };
+    });
+    (/search unit/i.test(labels.texts[0] || '') && labels.searchBelow &&
+     /reserve a unit/i.test(labels.texts[1] || '') && labels.floorsBelow)
+      ? ok('and each block says what it is for — “' + labels.texts[0] +
+           '” over the field, “' + labels.texts[1] + '” over the floors')
+      : bad('a block does not say what it is for: ' + JSON.stringify(labels.texts));
+    labels.glass && parseInt(labels.padLeft, 10) >= 40
+      ? ok('and the field carries a magnifier, so it reads as a search bar')
+      : bad('the search field has no mark on it: ' + JSON.stringify(
+            { glass: labels.glass, padLeft: labels.padLeft }));
+
     /* AND THE READING IS NOT THE NEWS BAND. Merging the count into the band
        made one dark object of two different things, and Rashid overturned it:
        "isay alag hee rakho tab hee prominent rahay ga". They must not share a
@@ -431,9 +483,17 @@ function serve() {
       const band = cs('#hero-f'), body = cs('body'), row = cs('#floors button');
       return {
         theme: document.documentElement.getAttribute('data-theme'),
-        says: (document.getElementById('th-go') || {}).getAttribute
-          ? document.getElementById('th-go').getAttribute('aria-label') || '' : '',
-        glyph: ((document.getElementById('th-go') || {}).textContent || '').trim(),
+        checked: (document.getElementById('th-go') || {}).getAttribute
+          ? document.getElementById('th-go').getAttribute('aria-checked') : null,
+        role: (document.getElementById('th-go') || {}).getAttribute
+          ? document.getElementById('th-go').getAttribute('role') : null,
+        says: (document.getElementById('th-go') || {}).title || '',
+        swW: Math.round((document.getElementById('th-go') || {}).getBoundingClientRect
+          ? document.getElementById('th-go').getBoundingClientRect().width : 0),
+        swH: Math.round((document.getElementById('th-go') || {}).getBoundingClientRect
+          ? document.getElementById('th-go').getBoundingClientRect().height : 0),
+        track: getComputedStyle(document.getElementById('th-go')).backgroundColor,
+        knob: getComputedStyle(document.getElementById('th-go'), '::before').transform,
         target: Math.round(((document.getElementById('th-go') || {}).getBoundingClientRect
           ? document.getElementById('th-go').getBoundingClientRect().height : 0)),
         pageLum: lum(body.backgroundColor),
@@ -452,10 +512,10 @@ function serve() {
     /* IT IS A SWITCH, AND IT SAYS WHAT IT WILL DO. A toggle labelled with the
        state it is already in is read backwards by half the people who see it. */
     (lightT.theme === 'light' && darkT.theme === 'dark' &&
-     /to the dark/i.test(lightT.says) && /to the light/i.test(darkT.says) &&
-     lightT.glyph.length === 1 && darkT.glyph.length === 1)
-      ? ok('the switch turns the page over and says what it will do — "' +
-           lightT.says.trim() + '" in the light, "' + darkT.says.trim() + '" in the dark')
+     lightT.role === 'switch' && lightT.checked === 'false' && darkT.checked === 'true' &&
+     /is off/i.test(lightT.says) && /is on/i.test(darkT.says))
+      ? ok('the switch turns the page over and carries its own state — "' +
+           lightT.says.trim() + '" / "' + darkT.says.trim() + '"')
       : bad('the theme switch does not switch: ' + JSON.stringify(
             { light: lightT.theme, lightSays: lightT.says,
               dark: darkT.theme, darkSays: darkT.says }));
@@ -488,11 +548,24 @@ function serve() {
            lightT.badge + ', not black')
       : bad('the head or the codes are wrong: ' + JSON.stringify(
             { headLight: lightT.headBg, headDark: darkT.headBg, badge: lightT.badge }));
-    /* AND THE SWITCH IS A THUMB TARGET, not a word to aim at. */
-    (lightT.target >= 28 && darkT.crawling)
+    /* IT IS DRAWN THE WAY EVERY PHONE DRAWS ONE. Rashid on the first cut — a
+       30px circle with a half-moon in it — "bohat hee choota nazar aata hai …
+       iphone ki tarhan on off button banao jaisay green jab on ho aur white
+       means off pe". So what is asserted is the picture itself: iOS's own
+       51x31, a white track when it is off and a green one when it is on, and a
+       knob that actually moves between the two. */
+    const slid = darkT.knob !== lightT.knob &&
+                 darkT.knob.indexOf('matrix') === 0;
+    (lightT.swW >= 48 && lightT.swH >= 30 &&
+     lightT.track === 'rgb(255, 255, 255)' && darkT.track === 'rgb(52, 199, 89)' && slid)
+      ? ok('and it is an iPhone switch — ' + lightT.swW + 'x' + lightT.swH +
+           ', white when it is off, green when it is on, and the knob slides')
+      : bad('the switch does not read as a switch: ' + JSON.stringify(
+            { w: lightT.swW, h: lightT.swH, off: lightT.track, on: darkT.track,
+              knobOff: lightT.knob, knobOn: darkT.knob }));
+    darkT.crawling
       ? ok('and the crawl survives the switch — the band changes colour, not width')
-      : bad('the switch is too small or the crawl stopped: ' + JSON.stringify(
-            { height: lightT.target, crawling: darkT.crawling }));
+      : bad('the crawl stopped when the theme changed');
     await page.screenshot({ path: path.join(OUT, 'a-screen-one-dark.png') });
     /* IT IS REMEMBERED, and it is this phone's own: written where the dealer's
        name is written, never to the wire. */
