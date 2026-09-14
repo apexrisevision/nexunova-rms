@@ -282,37 +282,45 @@ body.splash .wrap   {overflow-x:clip}
 body.splash .hd-t   {overflow:visible}
 /* the mark, from the left */
 body.splash .hd-m   {animation:spLeft 800ms var(--settle) both}
-/* THE NAME GOES FIRST AND ALONE, a letter at a time — "aik aik word one by
-   one phir us k baad saaray functions chale". Eleven letters, 110ms apart,
-   700ms each, puts the name down at 1,860ms and everything else begins after
-   it. The room for that came from the ceiling being lifted — "khair hai 3 se
-   5 second kar do animation time" — and the last floor now lands at 4,610ms.
-   Nothing here is quick any more; quick was the complaint.
+/* IT ALL HAPPENS TOGETHER. The first cut of this held the whole page back
+   until the name had finished — two acts, and the second one waiting on the
+   first, which is what Rashid took out: "ye awami market k text k animation k
+   sath hee baqi animations b chalao na k un animation k khatam honay k baad."
+
+   So the name keeps its own pace, a letter every 110ms, and the rest of the
+   screen comes in underneath it at the same time: the company line is moving
+   while the name is still on its fifth letter, the ring is turning up before
+   the name has finished, and the floors are landing while the last of the
+   doorways is still settling. It is one arrival with a lot going on in it
+   rather than a queue, and it is over at 3,410ms instead of 4,610 — still
+   inside the three to five seconds he asked for, because everything that used
+   to wait its turn now overlaps what is ahead of it.
+
    The word wrapper holds its own letters on one line and does nothing else. */
 .hd-t .ttlw         {display:inline-block;vertical-align:top;white-space:nowrap}
 .hd-t .ttll         {display:inline-block;vertical-align:top;
                      animation:spWord 700ms var(--pop) both;
                      animation-delay:calc(60ms + var(--i) * 110ms)}
-body.splash .hd-c   {animation:spIn 600ms var(--settle) both;animation-delay:1900ms}
-body.splash .hd-r   {animation:spIn 600ms var(--settle) both;animation-delay:1950ms}
+body.splash .hd-c   {animation:spIn 600ms var(--settle) both;animation-delay:500ms}
+body.splash .hd-r   {animation:spIn 600ms var(--settle) both;animation-delay:560ms}
 /* the chart: its label, its ring, then its legend from the right */
-body.splash .hero-l {animation:spIn 600ms var(--settle) both;animation-delay:2000ms}
-body.splash .chart-r{animation:spRing 800ms var(--pop) both;animation-delay:2080ms}
+body.splash .hero-l {animation:spIn 600ms var(--settle) both;animation-delay:700ms}
+body.splash .chart-r{animation:spRing 800ms var(--pop) both;animation-delay:820ms}
 body.splash .ck     {animation:spRight 650ms var(--settle) both;
-                     animation-delay:calc(2240ms + var(--i) * 140ms)}
+                     animation-delay:calc(1050ms + var(--i) * 140ms)}
 /* the news band fades up */
-body.splash .hero-f {animation:spIn 700ms var(--settle) both;animation-delay:2900ms}
+body.splash .hero-f {animation:spIn 700ms var(--settle) both;animation-delay:1600ms}
 /* the field a dealer types into */
-body.splash .sec    {animation:spIn 600ms var(--settle) both;animation-delay:2980ms}
-body.splash .sr     {animation:spIn 650ms var(--settle) both;animation-delay:3030ms}
+body.splash .sec    {animation:spIn 600ms var(--settle) both;animation-delay:1700ms}
+body.splash .sr     {animation:spIn 650ms var(--settle) both;animation-delay:1760ms}
 /* the three doorways: outside in from their own sides, the middle one fading */
-body.splash #myq      {animation:spLeft 700ms var(--settle) both;animation-delay:3150ms}
-body.splash #allrow   {animation:spIn 700ms var(--settle) both;animation-delay:3220ms}
-body.splash #pricerow {animation:spRight 700ms var(--settle) both;animation-delay:3290ms}
+body.splash #myq      {animation:spLeft 700ms var(--settle) both;animation-delay:1900ms}
+body.splash #allrow   {animation:spIn 700ms var(--settle) both;animation-delay:1980ms}
+body.splash #pricerow {animation:spRight 700ms var(--settle) both;animation-delay:2060ms}
 /* and the floors, from the right, one after another */
-body.splash .sec-r  {animation:spIn 600ms var(--settle) both;animation-delay:3360ms}
+body.splash .sec-r  {animation:spIn 600ms var(--settle) both;animation-delay:2140ms}
 body.splash .fl button{animation:spRight 650ms var(--settle) both;
-                       animation-delay:calc(3420ms + var(--i) * 90ms)}
+                       animation-delay:calc(2220ms + var(--i) * 90ms)}
 @media (prefers-reduced-motion:reduce){
   body.splash *,.hd-t .ttll{animation:none !important}
 }
@@ -3446,7 +3454,7 @@ function paintHero(av, tot) {
   if (!SPLASHED) {
     document.body.classList.add('splash');
     SPLASHED = true;
-    setTimeout(function () { document.body.classList.remove('splash'); }, 4800);
+    setTimeout(function () { document.body.classList.remove('splash'); }, 3600);
   }
   glowStart();
 

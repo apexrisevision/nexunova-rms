@@ -1069,16 +1069,28 @@ function serve() {
            'and still reads as “' + arrive.title + '”')
       : bad('the name does not arrive letter by letter: ' + JSON.stringify(
             { letters: arrive.words, spelled: arrive.spell, title: arrive.title }));
-    /* AND NOTHING ELSE STARTS UNTIL IT IS DOWN. "aik aik word one by one phir
-       us k baad saaray functions chale" — the name is the whole of the first
-       act, so the second act may not open over it. */
-    (arrive.wordLast && arrive.nextUp &&
-     arrive.wordLast.w + arrive.wordLast.d <= arrive.nextUp.w)
-      ? ok('and the rest of the screen waits for it — the last letter is down at ' +
-           (arrive.wordLast.w + arrive.wordLast.d) + 'ms, the next thing begins at ' +
-           arrive.nextUp.w + 'ms')
-      : bad('something starts before the name has finished: ' + JSON.stringify(
-            { lastLetter: arrive.wordLast, nextUp: arrive.nextUp }));
+    /* AND THE REST OF THE SCREEN COMES IN WITH IT, not behind it. This check
+       said the opposite for exactly one deploy — the name was the whole of the
+       first act and nothing else could open over it — and Rashid took that
+       out: "ye awami market k text k animation k sath hee baqi animations b
+       chalao na k un animation k khatam honay k baad". So what is asserted now
+       is the overlap itself: the page is already moving underneath the name
+       before the first letter has even landed, and the floors are away before
+       the last one has. One arrival, not a queue. */
+    const nameEnds = arrive.wordLast && arrive.wordLast.w + arrive.wordLast.d;
+    (arrive.nextUp && arrive.wordA && arrive.floorA &&
+     arrive.nextUp.w < arrive.wordA.w + arrive.wordA.d &&
+     arrive.floorA.w < nameEnds + 600)
+      ? ok('and the rest of the screen comes in with it rather than behind it — the ' +
+           'page is moving at ' + arrive.nextUp.w + 'ms, before the first letter has ' +
+           'landed at ' + (arrive.wordA.w + arrive.wordA.d) + 'ms, and the floors are ' +
+           'away at ' + arrive.floorA.w + 'ms against a name that finishes at ' +
+           nameEnds + 'ms')
+      : bad('the screen is waiting for the name instead of arriving with it: ' +
+            JSON.stringify({ firstLetterDown: arrive.wordA &&
+                               arrive.wordA.w + arrive.wordA.d,
+                             nameEnds: nameEnds, nextUp: arrive.nextUp,
+                             floors: arrive.floorA }));
     /* EACH FROM THE SIDE IT WAS ASKED FOR. "Awami ka logo b left se aaye, aur
        neeche floors b right se one by one aaye. aur ticker b fadein karke
        appear ho, aur buttons teeno right wala right se appear ho left wala left
