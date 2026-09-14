@@ -65,6 +65,8 @@ try {
   --sunk:#EDEDEC;
   /* THE one accent */
   --accent:#1D4ED8;
+  /* the travelling light around the register: its hot middle and its tail */
+  --beam:#2563EB; --beam-soft:rgba(37,99,235,.16);
   --accent-soft:#EDF2FE;
   --ring:rgba(29,78,216,.18);
   /* Held is deliberately low-chroma. It has to be distinguishable at arm's
@@ -111,6 +113,7 @@ try {
   --bg:#0E1013; --card:#171A1F; --ink:#EDEFF2; --soft:#A2A9B4; --mut:#79808A;
   --line:#272B31; --hair:rgba(255,255,255,.07); --sunk:#1C1F24;
   --accent:#7AA2FF; --accent-soft:#161C28; --ring:rgba(122,162,255,.22);
+  --beam:#8FB4FF; --beam-soft:rgba(143,180,255,.18);
   --held:#C99A55; --held-bg:#221C13;
   --warn:#D9A441;
 }
@@ -578,9 +581,61 @@ body.splash .fl button{animation:spRight 650ms var(--settle) both;
    reads as one thing with seven rows in it, which is what a building is. The
    code each floor wears is the dark block the news band's head uses — the same
    language, one step quieter. */
-.sec-r{margin-top:4px}
-.sec-r span{font-weight:650;letter-spacing:.04em;text-transform:none;opacity:.85}
-.fl{background:var(--card);border-radius:var(--r-lg);overflow:hidden;margin:0}
+/* THE ONE INSTRUCTION ON THE PAGE. Everything else on this screen is a
+   reading — what the building holds, what is left, what it costs. This line is
+   the only thing that tells a dealer what to DO, and it was set as a caption:
+   ten pixels, uppercase, grey, the same as the label over the search field.
+   Rashid: "us k ooper clearly likho k RESERVE YOUR UNIT HERE thoora prominent
+   karke". So it is a heading now — the page's own ink, not its grey — and it
+   pays for the height it takes by sitting closer to the block it introduces,
+   which is where it belongs anyway: a label four pixels from the thing it
+   names reads as part of it. */
+.sec-r{font-size:14px;font-weight:800;letter-spacing:-.012em;text-transform:none;
+       color:var(--ink);margin:5px 0 6px}
+.sec-r span{font-size:11.5px;font-weight:600;letter-spacing:0;text-transform:none;
+            color:var(--mut);opacity:1}
+.fl{background:var(--card);border-radius:var(--r-lg);overflow:hidden;margin:0;
+    position:relative;box-shadow:inset 0 0 0 1px var(--hair)}
+/* ── A LIGHT THAT GOES ROUND THE REGISTER ────────────────────────────────
+   Rashid, on the seven floors: "us grid ko aik block sa consider karke us k
+   around aik bareek se line ka animation do loop mai … khud samjho k mai kia
+   chahta hun".
+
+   What he is after is the block saying it is the live part of the page — the
+   one thing here you are meant to touch. So the register is drawn as one
+   block (a hairline all the way round it, which it did not have) and a single
+   thin light travels that hairline, forever, about five seconds to the lap.
+
+   It is one element and one gradient: a cone of colour with a hot middle and
+   a long transparent tail, rotated about the centre of the block, and masked
+   down to the 1.5px ring at its edge so only the rim of the cone shows. The
+   angle is a registered custom property, which is the only way an angle can be
+   animated at all; where that is not supported the cone simply sits still and
+   the block keeps its hairline, which is the whole point of drawing the
+   hairline separately.
+
+   It runs only when there are floors in it — an empty register is the
+   skeleton, and a skeleton that glows is a page pretending to have something
+   to say — and it does not run at all for a reader who asked for stillness,
+   or while the arrival is still putting the floors on the screen. */
+@property --flang{syntax:'<angle>';initial-value:0deg;inherits:false}
+.fl:not(:empty)::before{
+  content:'';position:absolute;inset:0;border-radius:inherit;padding:1.5px;
+  background:conic-gradient(from var(--flang),transparent 0 58%,
+             var(--beam-soft) 71%,var(--beam) 79%,var(--beam-soft) 87%,transparent 100%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  mask-composite:exclude;
+  animation:flbeam 5s linear infinite;
+  transition:opacity 300ms var(--ease);
+  pointer-events:none;z-index:2;
+}
+@keyframes flbeam{to{--flang:360deg}}
+body.splash .fl::before{opacity:0}
+@media (prefers-reduced-motion:reduce){
+  .fl:not(:empty)::before{animation:none}
+}
 .fl button{
   width:100%;display:flex;align-items:center;gap:11px;
   padding:3px 13px;border:0;border-top:1px solid var(--hair);
@@ -1736,7 +1791,7 @@ body.splash .fl button{animation:spRight 650ms var(--settle) both;
          left; they do not say that this is where a dealer asks for a unit.
          Rashid: "floor list k ooper hona chahiye kuch aisa text jis se pata
          chale k yahan se unit reserve karna hai". -->
-    <div class="sec sec-r">Reserve a unit <span>— open a floor</span></div>
+    <div class="sec sec-r">Reserve your unit here <span>— open a floor</span></div>
     <div class="fl" id="floors"></div>
   </section>
 

@@ -347,6 +347,75 @@ function serve() {
            said.map(c => c.code).join(' '))
       : bad('a floor does not match its units: ' + JSON.stringify(
             { drew: said.map(c => c.code), register: wantCodes }));
+    /* THE ONE INSTRUCTION ON THE PAGE, AND IT LOOKS LIKE ONE. It was set as a
+       caption — ten pixels, uppercase, grey, exactly the label over the search
+       field — and Rashid asked for it plainly: "us k ooper clearly likho k
+       RESERVE YOUR UNIT HERE thoora prominent karke". Prominent is not a
+       feeling here: it is bigger than the caption above it and it is the
+       page's ink rather than its grey, both of which can be measured. */
+    const lead = await page.evaluate(() => {
+      const r = document.querySelector('.sec-r');
+      const cap = document.querySelector('#home .sec:not(.sec-r)');
+      const fl = document.querySelector('.fl');
+      const b = getComputedStyle(fl, '::before');
+      const ring = getComputedStyle(fl);
+      return {
+        says: r.firstChild.textContent.trim(),
+        whole: r.textContent.replace(/\s+/g, ' ').trim(),
+        size: parseFloat(getComputedStyle(r).fontSize),
+        weight: Number(getComputedStyle(r).fontWeight),
+        ink: getComputedStyle(r).color,
+        capSize: cap ? parseFloat(getComputedStyle(cap).fontSize) : 0,
+        capInk: cap ? getComputedStyle(cap).color : '',
+        bodyInk: getComputedStyle(document.body).color,
+        /* the light that goes round the register */
+        beam: b.animationName,
+        beamSecs: parseFloat(b.animationDuration),
+        beamLaps: b.animationIterationCount,
+        beamThick: b.padding,
+        beamCone: /conic-gradient/.test(b.backgroundImage),
+        beamMoves: b.backgroundImage,
+        boxed: ring.boxShadow
+      };
+    });
+    (lead.says === 'Reserve your unit here' &&
+     lead.size > lead.capSize && lead.weight >= 700 && lead.ink === lead.bodyInk)
+      ? ok('the one instruction on the page says it plainly — “' + lead.whole +
+           '” — at ' + lead.size + 'px against the ' + lead.capSize + 'px captions, ' +
+           'in the page’s own ink')
+      : bad('the instruction is still a caption: ' + JSON.stringify(lead));
+    /* AND THE REGISTER IS A BLOCK WITH A LIGHT GOING ROUND IT. "us grid ko aik
+       block sa consider karke us k around aik bareek se line ka animation do
+       loop mai." A block: a hairline all the way round it, which it did not
+       have. A light: one thin cone of colour rotated about the centre and
+       masked to that rim, going round for ever. */
+    (/inset/.test(lead.boxed) && lead.beam === 'flbeam' && lead.beamCone &&
+     lead.beamLaps === 'infinite' && lead.beamSecs >= 3 &&
+     parseFloat(lead.beamThick) <= 2)
+      ? ok('and the register is one block with a light going round it — a hairline ' +
+           'all the way round, and a ' + lead.beamThick + ' cone of colour on it, ' +
+           'one lap every ' + lead.beamSecs + 's, for ever')
+      : bad('the register has no light on it: ' + JSON.stringify(
+            { ring: lead.boxed, beam: lead.beam, cone: lead.beamCone,
+              laps: lead.beamLaps, secs: lead.beamSecs, thick: lead.beamThick }));
+    /* AND IT ACTUALLY TRAVELS. An angle is the one thing in a gradient that
+       cannot be animated unless the property is registered, so this is the
+       check that would fail silently everywhere else: read the cone's angle
+       twice, a moment apart, and see that it has turned. */
+    const turned = await page.evaluate(async () => {
+      const at = () => {
+        const m = /from (-?[\d.]+)deg/.exec(
+          getComputedStyle(document.querySelector('.fl'), '::before').backgroundImage);
+        return m ? parseFloat(m[1]) : null;
+      };
+      const a = at();
+      await new Promise(r => setTimeout(r, 500));
+      return { a: a, b: at() };
+    });
+    (turned.a !== null && turned.b !== null && turned.a !== turned.b)
+      ? ok('and it travels — the cone stood at ' + Math.round(turned.a) +
+           '° and half a second later at ' + Math.round(turned.b) + '°')
+      : bad('the light is painted on, not moving: ' + JSON.stringify(turned));
     /* ONE SHEET RULED INTO ROWS, not seven cards. The cards were thrown out by
        name — "us ka style muje … bohat bura lagta hai" — and the difference is
        measurable: the rows share one surface and touch each other. */
@@ -409,7 +478,7 @@ function serve() {
       };
     });
     (/search unit/i.test(labels.texts[0] || '') && labels.searchBelow &&
-     /reserve a unit/i.test(labels.texts[1] || '') && labels.floorsBelow)
+     /reserve your unit here/i.test(labels.texts[1] || '') && labels.floorsBelow)
       ? ok('and each block says what it is for — “' + labels.texts[0] +
            '” over the field, “' + labels.texts[1] + '” over the floors')
       : bad('a block does not say what it is for: ' + JSON.stringify(labels.texts));
@@ -1411,23 +1480,33 @@ function serve() {
     const budget = await page.evaluate(() => {
       const secs = t => Math.max(...String(t).split(',').map(x => parseFloat(x) || 0));
       let worst = 0, where = '', crawlers = 0;
-      /* the arrival's own movements, by name; everything else on this page is
-         still held to 300ms */
-      const arrival = ['spIn', 'spLeft', 'spRight', 'spWord', 'spRing'];
+      /* THE THREE THINGS ALLOWED TO RUN LONG, EACH BY NAME: the news band's
+         crawl, the page-load arrival, and the light that goes round the
+         register. Everything else on this page is still held to 300ms — and
+         the ::before and ::after of every element are read too, since that is
+         where two of those three actually live and a budget that cannot see
+         them is a budget that cannot be broken. */
+      const arrival = ['spIn', 'spLeft', 'spRight', 'spWord', 'spRing', 'flbeam'];
       [...document.querySelectorAll('*')].forEach(el => {
-        const c = getComputedStyle(el);
-        const m = Math.max(secs(c.animationDuration), secs(c.transitionDuration));
-        if (el.classList.contains('tk-track')) { crawlers++; return; }
-        if (arrival.indexOf(c.animationName) >= 0) return;
-        if (m > worst) { worst = m; where = el.id || el.className || el.tagName; }
+        [null, '::before', '::after'].forEach(pseudo => {
+          const c = getComputedStyle(el, pseudo);
+          const m = Math.max(secs(c.animationDuration), secs(c.transitionDuration));
+          if (!pseudo && el.classList.contains('tk-track')) { crawlers++; return; }
+          if (arrival.indexOf(c.animationName) >= 0) return;
+          if (m > worst) {
+            worst = m;
+            where = (el.id || el.className || el.tagName) + (pseudo || '');
+          }
+        });
       });
       return { ms: Math.round(worst * 1000), where: String(where).slice(0, 30),
                crawlers: crawlers };
     });
     (budget.ms <= 300 && budget.crawlers === 1)
-      ? ok('nothing but the news strip and the page-load arrival runs longer than ' +
-           '300ms (worst ' + budget.ms + 'ms), and the exemptions are a list of two, ' +
-           'both named')
+      ? ok('nothing but the news strip, the page-load arrival and the light round ' +
+           'the register runs longer than 300ms (worst ' + budget.ms + 'ms, ' +
+           budget.where + '), and the exemptions are a list of three, every one ' +
+           'of them named')
       : bad(budget.crawlers !== 1
               ? budget.crawlers + ' elements claim the marquee exemption, not 1'
               : 'an animation runs ' + budget.ms + 'ms on ' + budget.where);
