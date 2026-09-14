@@ -156,6 +156,7 @@ button{cursor:pointer;background:none;border:0}
    one rule of this screen is that it does not scroll at 380×780. Air below
    the fold is worth less than a line of news above it. */
 .wrap{max-width:520px;margin:0 auto;padding:12px var(--pad) 2px}
+.wrap.focusing{padding-bottom:56vh}
 
 .hd-l{display:flex;align-items:center;gap:12px;min-width:0}
 /* ABSOLUTE, NOT RELATIVE. This page is served from /a/<token>, a path it does
@@ -1099,9 +1100,32 @@ button{cursor:pointer;background:none;border:0}
    than the ink it wore on white. */
 #myq .all-chip .ac-n{background:var(--accent)}
 
-/* ── the question a floor asks before it opens ──────────────────────────── */
-.va-t{font-size:14px;font-weight:650;letter-spacing:-.015em;margin:2px 0 12px}
+/* ── the question a floor asks before it opens ────────────────────────────
+   It sits over the page rather than in it, so there is nothing to scroll past
+   and nothing else to press. The way out is an answer, or the way back. */
+.vw{position:fixed;inset:0;z-index:60;display:flex;align-items:center;
+    justify-content:center;padding:18px;
+    background:rgba(14,16,19,.52);
+    -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+    animation:vwIn 300ms var(--ease) both}
+@keyframes vwIn{from{opacity:0}to{opacity:1}}
+.va-c{width:100%;max-width:420px;max-height:100%;overflow:auto;
+      background:var(--bg);border-radius:var(--r-lg);padding:18px 16px 16px;
+      box-shadow:0 24px 60px rgba(14,16,19,.30);
+      animation:vwUp 300ms var(--ease) both}
+@keyframes vwUp{from{opacity:0;transform:translateY(14px) scale(.98)}
+                to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .vw,.va-c{animation:none}
+}
+.va-t{font-size:17px;font-weight:700;letter-spacing:-.02em;line-height:1.25}
+.va-f{font-size:12.5px;color:var(--mut);margin:4px 0 14px;line-height:1.4}
 .va-r{display:flex;gap:10px}
+/* the way back, quiet: it is the exit, not the answer */
+.va-b{width:100%;height:44px;margin-top:12px;border:0;border-radius:var(--r);
+      background:none;color:var(--mut);font-size:13px;font-weight:600;
+      font-family:inherit}
+.va-b:active{background:var(--sunk)}
 .va{flex:1;min-width:0;padding:0 0 12px;border:1px solid var(--line);
     border-radius:var(--r-lg);background:var(--card);overflow:hidden;
     text-align:left;display:block;
@@ -1676,21 +1700,6 @@ button{cursor:pointer;background:none;border:0}
          cheezo ka sample screenshot dia ho taakay click karkay wohi cheez open
          ho". The samples are photographs of the two views themselves, not
          drawings of them. -->
-    <div id="vask" hidden>
-      <div class="va-t">How would you like to see this floor?</div>
-      <div class="va-r">
-        <button class="va" data-view="plan">
-          <span class="va-i va-map"></span>
-          <span class="va-n">Map</span>
-          <span class="va-s">The drawing, shop by shop</span>
-        </button>
-        <button class="va" data-view="list">
-          <span class="va-i va-list"></span>
-          <span class="va-n">List</span>
-          <span class="va-s">Every shop, one after another</span>
-        </button>
-      </div>
-    </div>
     <!-- THE PLATE. One card: the floor at its head, the legend that is also
          the filter, a way to find a shop by number, and the architect’s own
          drawing under all of it. Everything here is laid over the drawing or
@@ -1735,6 +1744,32 @@ button{cursor:pointer;background:none;border:0}
   </section>
 </div>
 
+<!-- A DIALOG, NOT A BLOCK ON THE PAGE. Set inline it read as one more
+     thing on the floor screen, and a reader could scroll past a question.
+     Rashid: "popup type screen ho … jis mai clear pata chalta hai k aik
+     select karna hai dono mai se." So it comes over the page on its own
+     ground, with the two answers as the only things that can be pressed —
+     and no way past it except to answer or to go back. -->
+<div id="vask" class="vw" hidden role="dialog" aria-modal="true"
+     aria-labelledby="va-t">
+  <div class="va-c">
+    <div class="va-t" id="va-t">How would you like to see this floor?</div>
+    <div class="va-f" id="va-f">—</div>
+    <div class="va-r">
+      <button class="va" data-view="plan">
+        <span class="va-i va-map"></span>
+        <span class="va-n">Map</span>
+        <span class="va-s">The drawing, shop by shop</span>
+      </button>
+      <button class="va" data-view="list">
+        <span class="va-i va-list"></span>
+        <span class="va-n">List</span>
+        <span class="va-s">Every shop, one after another</span>
+      </button>
+    </div>
+    <button class="va-b" id="va-back">Back to all floors</button>
+  </div>
+</div>
 <div class="scrim" id="scrim"></div>
 <aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-n"></aside>
 <div class="toast" id="toast"></div>
@@ -3631,6 +3666,8 @@ function paintPlan(plan, f) {
         toast(no + ' — ' + st.label + (st.who ? ', on ' + st.who + '’s word' : ''));
         return;
       }
+      /* the walk and the sheet start together, so they read as one movement */
+      planFocus(no);
       openSheet(no, FLOOR);
     });
     host.__bound = true;
@@ -3701,6 +3738,8 @@ function renderFloor() {
   /* THE QUESTION STANDS IN FRONT OF BOTH VIEWS. Not "shown above them" —
      nothing behind it is drawn at all, or a reader answers a question whose
      answer is already on the screen underneath it. */
+  $('va-f').textContent = f.floor_label + ' \u00b7 ' +
+    Number(f.total || 0) + ' shops, ' + Number(f.available || 0) + ' available';
   $('vask').hidden = !VIEWASK;
   if (VIEWASK) {
     $('pv-b').hidden = true;
@@ -3852,6 +3891,9 @@ function closeSheet() {
   SHEET = null;
   $('scrim').classList.remove('on');
   $('sheet').classList.remove('on');
+  /* back, cancel, the scrim, Escape and a finished request all end here, which
+     is why the walk back is hung on this one function rather than on five */
+  planUnfocus();
 }
 
 /* The page already holds every unit, so a number typed into the sheet can be
@@ -4419,6 +4461,15 @@ $('mine-back').onclick = function () {
   renderHome(); window.scrollTo(0, 0);
 };
 
+$('va-back').onclick = function () {
+  VIEWASK = false; FLOOR = null;
+  $('floor').hidden = true; BACKING = true; renderHome(); window.scrollTo(0, 0);
+};
+/* ESCAPE IS THE WAY BACK, NOT A WAY PAST. A dialog a keyboard can dismiss into
+   a floor that has not been drawn is worse than one that cannot be dismissed. */
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' && VIEWASK) { e.preventDefault(); $('va-back').onclick(); }
+});
 $('vask').addEventListener('click', function (e) {
   var b = e.target.closest('[data-view]'); if (!b) return;
   PLANV = b.getAttribute('data-view') === 'plan';
@@ -4434,6 +4485,94 @@ $('pv-list').onclick = function () { PLANV = false; renderFloor(); window.scroll
    sideways, and because a two-thousand-pixel plate is a thing you travel
    across rather than look at, it can be dragged as well as scrolled. */
 var PANNED = false;                 // the last gesture was a drag, not a tap
+/* ══ WALKING UP TO A SHOP ═════════════════════════════════════════════════
+   "jab kisi unit pe click kia jai map mai to wo animate karke zoom in ho jai
+   aur sath mai neeche detail wohi book reserve etc. magar zoom in karke pyara
+   sa screen k qareeb aa jai. aur back ya cancel karnay pe zoom out ka animate
+   hotay howay wapis chala jai."
+
+   The plate is an ordinary scrolling box with an inner element whose width is
+   the zoom, so coming closer is two numbers moving together: the width grows
+   and the scroll follows, frame by frame, so the shop that was tapped stays
+   under the finger the whole way in. Where the reader was standing before is
+   remembered, and going back is the same walk in reverse.
+
+   300ms, which is the page's own rule — the sheet slides up over the same
+   300ms, so the two read as one movement rather than two. ═══════════════ */
+var PLANBACK = null;       // the view to return to when the sheet closes
+var PFOCUS = 0;            // the frame handle, so two taps cannot fight
+
+/* where a shop sits inside the drawing, as a fraction of it — a fraction holds
+   at any zoom, which is what lets the walk keep it centred while the width is
+   still changing */
+function planWhere(no) {
+  var el = $('pv-in'); if (!el) return null;
+  var g = el.querySelector('[data-u="' + String(no).replace(/"/g, '') + '"]');
+  if (!g || !g.getBoundingClientRect) return null;
+  var r = g.getBoundingClientRect(), er = el.getBoundingClientRect();
+  if (!er.width || !er.height || !r.width) return null;
+  return { x: (r.left - er.left + r.width / 2) / er.width,
+           y: (r.top - er.top + r.height / 2) / er.height,
+           w: r.width / er.width, el: g };
+}
+
+function planGo(toZ, at, ms, done) {
+  var box = $('pv'), el = $('pv-in');
+  if (!box || !el || !at) { if (done) done(); return; }
+  if (PFOCUS) cancelAnimationFrame(PFOCUS);
+  var fromZ = PLANZ;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) ms = 0;
+  var t0 = 0;
+  var frame = function (t) {
+    if (!t0) t0 = t;
+    var k = ms ? Math.min(1, (t - t0) / ms) : 1;
+    var e = 1 - Math.pow(1 - k, 3);                    // ease out
+    PLANZ = fromZ + (toZ - fromZ) * e;
+    el.style.width = (PLANZ * 100) + '%';
+    $('pv-zoom').textContent = Math.round(PLANZ * 100) + '%';
+    box.classList.toggle('grab', PLANZ > 1);
+    /* the shop stays in the middle of the window all the way in */
+    box.scrollLeft = at.x * el.offsetWidth - box.clientWidth / 2;
+    if (box.scrollHeight > box.clientHeight + 1) {
+      box.scrollTop = at.y * el.offsetHeight - box.clientHeight / 2;
+    }
+    /* and the page brings the plate itself up, so the shop sits a third of the
+       way down rather than wherever the floor screen happened to leave it —
+       the sheet is about to cover the bottom half */
+    if (at.el && at.el.getBoundingClientRect) {
+      var gr = at.el.getBoundingClientRect();
+      window.scrollTo(0, Math.max(0, window.scrollY + gr.top + gr.height / 2 -
+                                     window.innerHeight * 0.34));
+    }
+    if (k < 1) { PFOCUS = requestAnimationFrame(frame); }
+    else { PFOCUS = 0; if (done) done(); }
+  };
+  PFOCUS = requestAnimationFrame(frame);
+}
+
+/* IN: close enough that the shop is about half the width of the window, and
+   never past the plate's own ceiling of five. */
+function planFocus(no) {
+  var box = $('pv'); if (!box || !PLANV || $('pv-b').hidden) return;
+  var at = planWhere(no); if (!at) return;
+  PLANBACK = { z: PLANZ, at: at, y: window.scrollY };
+  document.querySelector('.wrap').classList.add('focusing');
+  var want = at.w > 0 ? PLANZ * (0.46 / at.w) : PLANZ * 2.2;
+  planGo(Math.max(PLANZ, Math.min(5, want)), at, 300);
+}
+
+/* OUT: back to exactly where the reader was standing. */
+function planUnfocus() {
+  if (!PLANBACK) return;
+  var back = PLANBACK; PLANBACK = null;
+  planGo(back.z, back.at, 300, function () {
+    if (typeof back.y === 'number') window.scrollTo(0, back.y);
+    /* the room goes back after the walk, not during it, or the page jumps out
+       from under the last frame */
+    document.querySelector('.wrap').classList.remove('focusing');
+  });
+}
+
 function setZoom(z) {
   var box = $('pv'), el = $('pv-in');
   z = Math.max(1, Math.min(5, Math.round(z * 2) / 2));
@@ -4446,8 +4585,10 @@ function setZoom(z) {
   box.classList.toggle('grab', PLANZ > 1);
   box.scrollLeft = mid * el.offsetWidth - box.clientWidth / 2;
 }
-$('pv-plus').onclick = function () { PLANZSET = true; setZoom(PLANZ + (PLANZ < 2 ? 0.5 : 1)); };
-$('pv-out').onclick  = function () { PLANZSET = true; setZoom(PLANZ - (PLANZ <= 2 ? 0.5 : 1)); };
+$('pv-plus').onclick = function () { PLANZSET = true; PLANBACK = null;
+  setZoom(PLANZ + (PLANZ < 2 ? 0.5 : 1)); };
+$('pv-out').onclick  = function () { PLANZSET = true; PLANBACK = null;
+  setZoom(PLANZ - (PLANZ <= 2 ? 0.5 : 1)); };
 
 /* THE LEGEND IS THE FILTER, and now there is one key per kind of hold. Rashid
    asked for it in the same breath as the statuses: "ooper aik jaisay aik Not

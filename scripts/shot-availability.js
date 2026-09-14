@@ -849,6 +849,66 @@ function serve() {
     await page.evaluate(() => { document.getElementById('back').click(); });
     await sleep(400);
 
+    /* ── WALKING UP TO A SHOP ─────────────────────────────────────────────
+       "jab kisi unit pe click kia jai map mai to wo animate karke zoom in ho
+       jai … aur back ya cancel karnay pe zoom out ka animate hotay howay wapis
+       chala jai."
+
+       Four claims, and the one that fails quietly is the last: it has to come
+       BACK. A plate left at four times its size after every tap is a plate
+       nobody can read the next shop on. */
+    step('Walking up to a shop, and back');
+    const upToFloor = payload.floors.findIndex(f => /lower/i.test(f.floor_label));
+    const upTo = await page.evaluate(async i => {
+      document.getElementById('back') && document.getElementById('back').click();
+      await new Promise(r => setTimeout(r, 250));
+      document.querySelector('#floors button[data-f="' + i + '"]').click();
+      await new Promise(r => setTimeout(r, 500));
+      document.querySelector('#vask [data-view="plan"]').click();
+      await new Promise(r => setTimeout(r, 1200));
+      const box = document.getElementById('pv');
+      const before = { z: PLANZ };
+      const free = [...document.querySelectorAll('#pv-in [data-u]')].find(g => {
+        const u = (P.floors[FLOOR].units || []).find(x => x.n === g.getAttribute('data-u'));
+        return u && u.s === 'available';
+      });
+      if (!free) return { none: true };
+      const no = free.getAttribute('data-u');
+      free.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 550));
+      const g2 = document.querySelector('#pv-in [data-u="' + no + '"]');
+      const gr = g2.getBoundingClientRect(), br = box.getBoundingClientRect();
+      const closed = { z: PLANZ, sheet: !!window.SHEET,
+        /* where the shop ended up ON SCREEN — the plate is taller than the
+           screen, so its own middle means nothing */
+        y: Math.round(gr.top + gr.height / 2), screen: window.innerHeight,
+        x: Math.round((gr.left + gr.width / 2) - (br.left + br.width / 2)),
+        share: gr.width / br.width };
+      closeSheet();
+      await new Promise(r => setTimeout(r, 600));
+      return { no, before, closed, back: { z: PLANZ, y: Math.round(window.scrollY) } };
+    }, upToFloor);
+    (!upTo.none && upTo.closed.z > upTo.before.z * 1.6 && upTo.closed.sheet)
+      ? ok('tapping ' + upTo.no + ' walks up to it — ' + Math.round(upTo.before.z * 100) +
+           '% to ' + Math.round(upTo.closed.z * 100) + '% — and the sheet comes with it')
+      : bad('the plate did not come closer: ' + JSON.stringify(upTo));
+    (!upTo.none && Math.abs(upTo.closed.x) <= 24 &&
+     upTo.closed.y > 0 && upTo.closed.y < upTo.closed.screen * 0.55)
+      ? ok('and the shop lands in the upper part of the screen, clear of the sheet — ' +
+           upTo.closed.y + 'px of ' + upTo.closed.screen + ', centred to ' +
+           upTo.closed.x + 'px')
+      : bad('the shop is not where a reader would look: ' + JSON.stringify(upTo.closed));
+    (!upTo.none && upTo.closed.share > 0.25 && upTo.closed.share < 0.75)
+      ? ok('and it fills ' + Math.round(upTo.closed.share * 100) + '% of the plate — ' +
+           'close enough to read, not so close the floor is lost')
+      : bad('the upTo went too far or not far enough: ' +
+            JSON.stringify(upTo.closed && upTo.closed.share));
+    (!upTo.none && Math.abs(upTo.back.z - upTo.before.z) < 0.05)
+      ? ok('and closing the sheet walks back to exactly where the reader was standing')
+      : bad('the plate stayed zoomed after the sheet closed: ' + JSON.stringify(upTo.back));
+    await page.evaluate(() => { document.getElementById('back').click(); });
+    await sleep(400);
+
     /* ── b. THE NEWS BAND ─────────────────────────────────────────────────
        Rashid asked for a ticker three times before this was one. The first two
        cuts stepped — a sentence every four seconds, arriving in 300ms — which
