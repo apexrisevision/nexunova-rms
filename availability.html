@@ -216,9 +216,32 @@ button{cursor:pointer;background:none;border:0}
     transition:background var(--t-fast) var(--ease)}
 @media (hover:hover){ .ck:hover{background:var(--sunk)} }
 .ck:active{background:var(--sunk)}
-.ck-x{flex:none;width:5px;height:5px;margin-left:1px;opacity:.45;
+.ck-x{flex:none;width:5px;height:5px;margin-left:1px;opacity:.55;
       border-right:1.5px solid currentColor;border-top:1.5px solid currentColor;
-      transform:rotate(45deg)}
+      transform:rotate(45deg);
+      transition:transform var(--t) var(--ease),opacity var(--t) var(--ease)}
+/* THE SHINE. A band of the page's own sunk grey crossing the row — not a
+   colour of its own, so it reads as light moving over the surface rather than
+   as something new arriving on it. */
+.ck{position:relative;overflow:hidden}
+.ck::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;
+   background:linear-gradient(100deg,transparent 0%,var(--sunk) 45%,
+              var(--sunk) 55%,transparent 100%)}
+.ck.lit::before{animation:ckShine 300ms var(--ease)}
+@keyframes ckShine{
+  0%{opacity:0;transform:translateX(-65%)}
+  45%{opacity:.85}
+  100%{opacity:0;transform:translateX(115%)}
+}
+/* the chevron leans into the tap it is inviting */
+.ck.lit .ck-x{transform:translateX(3px) rotate(45deg);opacity:1}
+/* and the arc that row is about swells, which is what ties the two together */
+.chart-r .rg{transition:stroke-width var(--t) var(--ease)}
+.chart-r .rg.lit{stroke-width:15}
+@media (prefers-reduced-motion:reduce){
+  .ck.lit::before{animation:none}
+  .ck-x,.chart-r .rg{transition:none}
+}
 .ck-d{flex:none;width:9px;height:9px;border-radius:3px;align-self:center}
 .ck-d.ck-f{background:var(--ink);opacity:.22}
 .ck b{font-weight:700;letter-spacing:-.01em;min-width:34px}
@@ -2572,6 +2595,50 @@ function floorCode(f) {
   }).join('').slice(0, 3).toUpperCase();
 }
 
+/* ══ THE RING AND ITS LEGEND, BREATHING ══════════════════════════════════
+   Two problems with one answer. The legend rows became doors and nobody could
+   tell: "jab tak kisi ko maloom na ho k ye clickable hai kisi ko pata hee nahi
+   chale ga". And the page is still a picture of a building rather than a live
+   board: "aik khobsorat sa js animation function daalo dashboard pe jo loop
+   mai chalta rahay aur dashboard live lagay".
+
+   So the chart introduces itself, one kind at a time, for ever: a soft shine
+   crosses a legend row, its chevron leans forward, and at the same moment that
+   kind's own arc in the ring swells. A reader who is not even looking for it
+   learns two things without being told — that these lines answer a finger, and
+   which colour in the ring is which line.
+
+   THE PAGE'S 300ms RULE IS NOT BENT FOR IT. The loop is in JavaScript timing,
+   not in an endless CSS animation: each step is a single 300ms movement and
+   then stillness, which is exactly what the budget allows. The ticker remains
+   the only thing on this page exempt from it.
+
+   And it knows when to stop: a tab nobody is looking at, a reader on another
+   screen, or anybody who has asked for reduced motion. ══════════════════ */
+var GLOW = { at: 0, timer: null };
+
+function glowStop() { if (GLOW.timer) { clearInterval(GLOW.timer); GLOW.timer = null; } }
+
+function glowStart() {
+  glowStop();
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  GLOW.timer = setInterval(function () {
+    /* the chart lives on screen one; nothing is taught to somebody who is not
+       looking at it, and a timer that paints a hidden element is only heat */
+    if (document.hidden || ALLV || MINEV || REPV || PRICEV || FLOOR != null) return;
+    var rows = document.querySelectorAll('#hero .ck');
+    var arcs = document.querySelectorAll('#hero .chart-r .rg');
+    if (!rows.length) return;
+    var i = GLOW.at % rows.length;
+    GLOW.at++;
+    var row = rows[i], arc = arcs[i];
+    row.classList.add('lit'); if (arc) arc.classList.add('lit');
+    setTimeout(function () {
+      row.classList.remove('lit'); if (arc) arc.classList.remove('lit');
+    }, 320);
+  }, 1700);
+}
+
 /* ══ WHAT THE BUILDING COSTS ══════════════════════════════════════════════
    Every number on this page is already on the wire: each unit carries its area
    and, where the link is allowed to show money, its total. A rate is the two
@@ -3109,6 +3176,7 @@ function paintHero(av, tot) {
       '</div>' +
     '</div>';
   void fw; void held; void pct;
+  glowStart();
 
   /* THE CLOCK LIVES INSIDE THE HERO NOW, and the hero is rewritten here — so
      it is repainted here too. Painted before this, by render(), it would be

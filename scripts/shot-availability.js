@@ -551,6 +551,40 @@ function serve() {
             broken.map(d => ({ label: d.label, said: d.want,
                                opened: d.got && d.got.drawn, onAll: d.got && d.got.onAll }))));
 
+    /* AND IT SAYS SO WITHOUT BEING ASKED. The rows became doors and nobody
+       could tell — "jab tak kisi ko maloom na ho k ye clickable hai kisi ko
+       pata hee nahi chale ga". So the chart introduces itself: a shine crosses
+       one row, its chevron leans forward, and that kind's own arc swells at the
+       same moment. What is asserted is that it actually cycles, that the ring
+       and the row light TOGETHER (which is the half that teaches which colour
+       is which), and that the whole of it is inside the page's 300ms rule —
+       the loop is JavaScript timing, not an endless animation. */
+    const lit = await page.evaluate(async () => {
+      const rows = [...document.querySelectorAll('#hero .ck')];
+      const arcs = [...document.querySelectorAll('#hero .chart-r .rg')];
+      const order = [], together = [];
+      const t = Date.now();
+      while (Date.now() - t < 7000) {
+        rows.forEach((r, i) => {
+          if (!r.classList.contains('lit')) return;
+          const label = (r.querySelector('.ck-l').textContent || '').trim();
+          if (order[order.length - 1] !== label) order.push(label);
+          together.push(!!(arcs[i] && arcs[i].classList.contains('lit')));
+        });
+        await new Promise(z => setTimeout(z, 40));
+      }
+      const one = document.querySelector('#hero .ck');
+      one.classList.add('lit');
+      const shine = parseFloat(getComputedStyle(one, '::before').animationDuration) * 1000;
+      one.classList.remove('lit');
+      return { order, together: together.length ? together.every(Boolean) : null,
+               shine: Math.round(shine) };
+    });
+    (lit.order.length >= 3 && lit.together === true && lit.shine > 0 && lit.shine <= 300)
+      ? ok('and the chart introduces itself in a loop — ' + lit.order.join(' → ') +
+           ' — the ring lighting with the row, each pass ' + lit.shine + 'ms')
+      : bad('the chart does not introduce itself: ' + JSON.stringify(lit));
+
     /* ── THE PRICE LIST ───────────────────────────────────────────────────
        "aik price list ka page banao … Floor wise price list … Price detail
        wala page poora read only hona chahiye sirf update prices wo b click pe
