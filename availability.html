@@ -356,7 +356,7 @@ button{cursor:pointer;background:none;border:0}
 .pair-3 .ac-t{font-size:12.5px;line-height:1.2}
 .pair-3 .ac-m{font-size:10.5px;line-height:1.3;margin-top:3px}
 .pair-3 .all-chip{padding:9px 10px;gap:6px}
-.pair-3 .ac-x{display:none}
+.pair-3 .all-chip .ac-x{display:none}
 #pricerow .all-chip{background:var(--sunk);box-shadow:inset 3px 0 0 var(--soft)}
 @media (hover:hover){ #pricerow .all-chip:hover{background:#E7E7E6} }
 :root[data-theme="dark"] #pricerow .all-chip{background:#1C1F24}
@@ -2601,8 +2601,9 @@ function priceSpread() {
   });
   if (!rs.length) return 'Floor by floor';
   rs.sort(function (a, b) { return a - b; });
-  var lo = rs[0], hi = rs[rs.length - 1];
-  return lo === hi ? num0(lo) + '/' + esc(P.area_unit || 'sqft')
+  var lo = Math.round(rs[0] / 100) * 100;
+  var hi = Math.round(rs[rs.length - 1] / 100) * 100;
+  return lo === hi ? num0(lo) + ' per ' + esc(P.area_unit || 'sqft')
                    : num0(lo) + '–' + num0(hi);
 }
 
