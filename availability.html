@@ -103,7 +103,7 @@ button{cursor:pointer;background:none;border:0}
    below the last card; the ticker's own row needs about 23 of them, and the
    one rule of this screen is that it does not scroll at 380×780. Air below
    the fold is worth less than a line of news above it. */
-.wrap{max-width:520px;margin:0 auto;padding:15px var(--pad) 16px}
+.wrap{max-width:520px;margin:0 auto;padding:15px var(--pad) 8px}
 
 .hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
     margin-bottom:15px}
@@ -123,7 +123,7 @@ button{cursor:pointer;background:none;border:0}
    count, what it is out of, and the tally of what is held all sit on one
    line, with the whole-building bar under it. That is thirty pixels given
    back to the stack, which is where they were needed. */
-.hero{margin-bottom:13px}
+.hero{margin-bottom:11px}
 .hero-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .hero-l{font-size:10.5px;font-weight:650;letter-spacing:.11em;text-transform:uppercase;
         color:var(--mut);line-height:1.2;margin-bottom:4px}
@@ -138,25 +138,67 @@ button{cursor:pointer;background:none;border:0}
 .hero-f{display:flex;align-items:center;gap:11px;font-size:11.5px;
         color:var(--mut);line-height:1.4}
 .hero-f b{font-weight:650;color:var(--soft)}
-/* THE TICKER STEPS, IT DOES NOT CRAWL. A marquee is an animation that never
-   ends, and nothing on this page is allowed to fidget at the reader; each item
-   arrives in 300ms and then holds still for four seconds. One line, and it
-   never wraps — a ticker that changes height moves the page under a thumb.
+/* THE TICKER CRAWLS, RIGHT TO LEFT, AND IT IS THE ONE THING ON THIS PAGE
+   ALLOWED TO RUN FOREVER.
+
+   The rest of this page is held to 300ms because a page a dealer opens forty
+   times a day must not fidget at them, and the first two cuts of this line
+   obeyed that: it stepped, one sentence every four seconds, arriving in 300ms.
+   Rashid read both and said the same thing twice — "mai ne animation bola tha
+   chahiye ye tha k aik ticker right ki left ki taraf chal raha hota magar
+   yahan to kuch hai hee nahi". A ticker that holds still is, to the person who
+   asked for one, nothing at all. So this is a named exemption from the motion
+   budget, like a marquee has to be, and the suite asserts it BY NAME so the
+   exemption cannot spread to anything else on the page.
+
+   It is kept honest three ways: it is slow enough to read (about 58px a
+   second, set from the strip's measured width so the speed never depends on
+   how much news there is), the strip carries every sentence twice so the loop
+   has no visible seam, and it is one line that never wraps — a ticker that
+   changes height moves the page under a thumb.
 
    AND IT HAS THE WHOLE WIDTH OF THE CARD. It first rode to the right of the
    count, on the same row, which left it 206px: measured against the real
    Awami payload, fourteen of its nineteen lines were cut off there, one of
-   them by 166px — and because that row is right-aligned, what was cut was the
-   BEGINNING of each sentence. A ticker nobody can read is not a ticker. It
-   now has its own row under the bar with all 344px of the card, and the room
-   for that row is taken back from the page's bottom padding rather than from
-   the stack of floors, so screen one still does not scroll. */
-.hero-f{overflow:hidden;white-space:nowrap;min-width:0;
-        margin-top:7px;justify-content:flex-start}
+   them by 166px. It now has its own row under the bar, and the room for that
+   row is taken back from the page's bottom padding rather than from the stack
+   of floors, so screen one still does not scroll. */
+/* IT IS A BAND, THE WAY A NEWS CHANNEL DRAWS ONE. Twice this shipped as a
+   quiet grey line inside the card, and twice Rashid said he could not see
+   anything: "muje aik right to left slide chalti hoi magar prominent read
+   able strip chahiye jaisay new channels pe hoti hai". So it is drawn the way
+   the thing he is comparing it to is drawn — a dark bar running the full width
+   of the screen with a named block at its head, the ink inverted so it reads
+   as its own object rather than as more small print inside the hero card.
+   Full-bleed: the negative margins take it out past the page's own padding,
+   edge to edge, which is the shape that makes a ticker read as a ticker. */
+.hero-f{display:flex;align-items:stretch;overflow:hidden;white-space:nowrap;
+        min-width:0;height:30px;margin:10px calc(-1 * var(--pad)) 0;
+        background:var(--ink);color:#F5F5F4;font-size:12px;line-height:1.4}
+.tk-h{flex:none;display:flex;align-items:center;padding:0 11px;
+      background:#B3123C;color:#fff;font-size:10px;font-weight:750;
+      letter-spacing:.1em;text-transform:uppercase}
+.tk-win{flex:1;min-width:0;overflow:hidden;display:flex;align-items:center;
+        padding-left:12px}
+.hero-f b{font-weight:700;color:#fff}
+.tk-track{display:inline-flex;align-items:center;white-space:nowrap;
+          will-change:transform;animation:tkRoll linear infinite}
+@keyframes tkRoll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.tk-track .tk-i{display:inline-flex;align-items:center;gap:9px;white-space:nowrap}
+.tk-sep{display:inline-block;width:4px;height:4px;border-radius:50%;
+        margin:0 20px;background:rgba(245,245,244,.45);flex:none}
+/* the coloured dot each kind carries has to read on the dark band too */
+.hero-f .dot{box-shadow:0 0 0 1px rgba(255,255,255,.25)}
+/* AND FOR A READER WHO HAS ASKED FOR STILLNESS it does not crawl at all: the
+   same sentences, one at a time, swapped with no movement of any kind. That
+   reader asked for no motion, not for no news. */
 .tk-i{display:inline-flex;align-items:center;gap:11px;white-space:nowrap}
 .tk-i.in{animation:tkIn 300ms var(--ease) both}
 @keyframes tkIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){ .tk-i.in{animation:none} }
+@media (prefers-reduced-motion:reduce){
+  .tk-i.in{animation:none}
+  .tk-track{animation:none}
+}
 .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;
      vertical-align:1px}
 .dot.free{background:var(--ink);opacity:.28}
@@ -1167,6 +1209,10 @@ button{cursor:pointer;background:none;border:0}
          It sits above the search because it is a reading, not an action — the
          search is still the first thing anyone can touch. -->
     <div class="hero" id="hero"></div>
+    <!-- the news band. Outside the hero card on purpose: paintHero rewrites
+         that card on every reread, and rebuilding the strip restarts the
+         crawl. -->
+    <div class="hero-f" id="hero-f" hidden></div>
     <div class="sr">
       <input id="q" type="search" inputmode="search" autocomplete="off"
              autocapitalize="characters" spellcheck="false"
@@ -2158,7 +2204,9 @@ function renderHome() {
    nothing is estimated: the counts are the counts, the rate is the register's
    own price divided by the register's own area, and a floor with no price on
    the wire is simply not spoken about. */
-var TICK = { at: 0, items: [], timer: null };
+/* TICK.said is the strip as it currently stands, so a reread that brings the
+   same news does not restart the crawl under somebody who is reading it. */
+var TICK = { at: 0, items: [], timer: null, said: '' };
 
 function tickerItems(av, tot) {
   var out = [], all = [];
@@ -2236,42 +2284,79 @@ function tickerItems(av, tot) {
 
 function num0(n) { return Number(n || 0).toLocaleString('en-US'); }
 
+var TK_SEP = '<i class="tk-sep"></i>';
+var TK_SPEED = 58;        // pixels a second — slow enough to read off a phone
+
 function paintTicker(av, tot) {
   var el = $('hero-f'); if (!el) return;
   TICK.items = tickerItems(av, tot);
-  if (TICK.at >= TICK.items.length) TICK.at = 0;
-  el.innerHTML = '<span class="tk-i">' + TICK.items[TICK.at] + '</span>';
   clearInterval(TICK.timer);
-  if (TICK.items.length < 2) return;
-  /* STILLNESS IS NOT SILENCE. This used to stop the ticker dead for anyone who
-     had asked for reduced motion — it painted the first line and never moved
-     again, which on screen looks exactly like the old static tally: Rashid
-     turned the page over after the deploy and said the ticker still was not
-     there. Windows with "Animation effects" off, or a phone with Reduce
-     Motion on, is a very ordinary way to read this page. What that setting
-     asks for is that nothing SLIDES or FADES, not that the news stop. So the
-     line still steps on its own; the arrival animation is the only thing
-     dropped, both here and in the stylesheet. */
-  var CALM = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  TICK.timer = setInterval(function () {
-    /* a tab nobody is looking at is not read to, and neither is a screen
-       nobody is on: the line lives on screen one, so while a director is
-       reading the room behind the password, or a floor is open over it, the
-       ticker holds its place instead of stepping through news at a hidden
-       element. It picks up from where it stopped when screen one comes back. */
-    if (document.hidden || REPV || ALLV || MINEV || FLOOR != null) return;
-    var box = $('hero-f'); if (!box) { clearInterval(TICK.timer); return; }
-    TICK.at = (TICK.at + 1) % TICK.items.length;
-    var line = document.createElement('span');
-    line.className = CALM ? 'tk-i' : 'tk-i in';
-    line.innerHTML = TICK.items[TICK.at];
-    box.innerHTML = '';
-    box.appendChild(line);
-    if (CALM) return;
-    /* taken off the moment it has arrived, so the class is free to be given
-       again — the page must never be left with an animation still declared */
-    setTimeout(function () { line.classList.remove('in'); }, 320);
-  }, 4500);
+  if (!TICK.items.length) { el.innerHTML = ''; el.hidden = true; TICK.said = ''; return; }
+  el.hidden = false;
+
+  /* THE HEAD BLOCK NAMES WHOSE NEWS THIS IS, the way the red box at the left
+     of a channel's ticker does. It is drawn once and kept, so the crawl beside
+     it is never restarted by a repaint of the head. */
+  var win = $('tk-win');
+  if (!win) {
+    /* THE HEAD IS ONE SHORT WORD, not the project's name. Measured on a 380px
+       phone, "AWAMI MARKET" in the block took 230px of 380 and left 150px to
+       read a moving line through — a window too narrow to finish a sentence
+       in. The name is already the largest thing on the screen directly above
+       this. What the block adds that the page does not say anywhere else is
+       that these numbers are the building as it stands right now. */
+    el.innerHTML = '<span class="tk-h">Live</span>' +
+                   '<span class="tk-win" id="tk-win"></span>';
+    win = $('tk-win');
+    TICK.said = '';
+  }
+
+  /* STILLNESS IS NOT SILENCE. A reader who has asked for reduced motion gets
+     the same sentences with no movement at all — one at a time, swapped in
+     place. An earlier cut stopped the ticker dead for them instead, which on
+     screen is indistinguishable from the feature being absent. */
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    TICK.said = '';
+    if (TICK.at >= TICK.items.length) TICK.at = 0;
+    win.innerHTML = '<span class="tk-i">' + TICK.items[TICK.at] + '</span>';
+    if (TICK.items.length < 2) return;
+    TICK.timer = setInterval(function () {
+      if (document.hidden || REPV || ALLV || MINEV || FLOOR != null) return;
+      var box = $('tk-win'); if (!box) { clearInterval(TICK.timer); return; }
+      TICK.at = (TICK.at + 1) % TICK.items.length;
+      box.innerHTML = '<span class="tk-i">' + TICK.items[TICK.at] + '</span>';
+    }, 4500);
+    return;
+  }
+
+  /* THE STRIP IS NOT REBUILT IF IT WOULD SAY THE SAME THING. The page rereads
+     the building every two minutes, and rebuilding the strip restarts the
+     crawl from the beginning — so on a quiet afternoon the ticker would snap
+     back to the first sentence every two minutes, in front of somebody who was
+     mid-way through reading the fourth. It is only rebuilt when the news has
+     actually changed. */
+  /* EACH SENTENCE IS WRAPPED. Dropped straight into the strip, a sentence made
+     of more than one span — the tally is two — becomes two flex children of
+     the track with nothing between them, and reads "370 sold123 hold". The
+     wrapper is what carries the spacing inside a sentence; the dot carries the
+     spacing between them. */
+  var one = TICK.items.map(function (x) {
+    return '<span class="tk-i">' + x + '</span>';
+  }).join(TK_SEP) + TK_SEP;
+  if (TICK.said === one && $('tk-track')) return;
+  TICK.said = one;
+
+  /* TWICE, SO THE LOOP HAS NO SEAM. The strip holds every sentence two times
+     and travels exactly half its own width; the moment it finishes, what is
+     under the reader's eye is the same pixel it started from. */
+  win.innerHTML = '<span class="tk-track" id="tk-track">' + one + one + '</span>';
+  var track = $('tk-track');
+  /* THE SPEED IS SET FROM THE WIDTH, NOT THE OTHER WAY ROUND. A fixed duration
+     would mean the ticker sprints on a project with four floors and crawls on
+     one with forty. One copy's width over a constant number of pixels a second
+     keeps it reading at the same pace on every project. */
+  var half = track.scrollWidth / 2;
+  if (half > 0) track.style.animationDuration = Math.round(half / TK_SPEED) + 's';
 }
 
 function paintHero(av, tot) {
@@ -2300,13 +2385,7 @@ function paintHero(av, tot) {
       kinds.map(function (k) {
         return '<i style="width:' + (tot ? k.n * 100 / tot : 0) + '%;background:' + k.tint + '"></i>';
       }).join('') +
-    '</div>' +
-    /* THE LINE THAT SAID ONE THING NOW SAYS EVERYTHING IT CAN, in turn — the
-       tally that used to ride beside the count is still the first thing it
-       says, and paintTicker below has the rest. It sits under the bar, across
-       the whole card, because beside the count it had 206px and most of what
-       it had to say did not fit in them. */
-    '<div class="hero-f" id="hero-f"></div>';
+    '</div>';
 
   paintTicker(av, tot);
 }

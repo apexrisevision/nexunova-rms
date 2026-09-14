@@ -378,25 +378,55 @@ function serve() {
        asserted here against the same 780px screen. It steps rather than
        crawls, because nothing on this page may animate for longer than
        300ms, and it holds its place while the reader is on another screen. */
-    step('The news line — what it says, and that it costs nothing');
+    /* ── b. THE NEWS BAND ─────────────────────────────────────────────────
+       Rashid asked for a ticker three times before this was one. The first two
+       cuts stepped — a sentence every four seconds, arriving in 300ms — which
+       obeyed this page's motion budget and was, to him, nothing: "muje aik
+       right to left slide chalti hoi magar prominent read able strip chahiye
+       jaisay new channels pe hoti hai". So it is a band the shape of the thing
+       he was comparing it to, and it crawls, and it is the ONE exemption from
+       the 300ms rule on this page. What is asserted here is everything that
+       makes it that rather than decoration: it is drawn where it can be seen,
+       it says what he asked it to say, it actually travels, it travels the
+       right way, it is slow enough to read, its loop has no seam, and it costs
+       screen one none of its height. */
+    step('The news band — a ticker, the way a channel draws one');
     const tk = await page.evaluate(() => {
-      const box = document.getElementById('hero-f');
-      const line = box && box.querySelector('.tk-i');
+      const el = document.getElementById('hero-f');
+      const head = el && el.querySelector('.tk-h');
+      const track = document.getElementById('tk-track');
+      const cs = el ? getComputedStyle(el) : {};
       return {
-        there: !!line,
+        there: !!el && !el.hidden,
+        head: head ? head.textContent.trim() : '',
+        w: el ? Math.round(el.getBoundingClientRect().width) : 0,
+        h: el ? Math.round(el.getBoundingClientRect().height) : 0,
+        bg: cs.backgroundColor || '',
+        bleed: el ? Math.round(el.getBoundingClientRect().left) : -1,
         items: (window.TICK && TICK.items || []).length,
         all: (window.TICK && TICK.items || []).join(' ~ ').replace(/<[^>]*>/g, ''),
-        text: line ? line.textContent.trim() : '',
-        rows: box ? Math.round(box.getBoundingClientRect().height) : 0,
-        lineH: line ? Math.round(parseFloat(getComputedStyle(box).lineHeight) || 0) : 0,
+        crawling: !!track,
+        seps: track ? track.querySelectorAll('.tk-sep').length : 0,
+        sentences: track ? track.querySelectorAll('.tk-i').length : 0,
+        timing: track ? getComputedStyle(track).animationTimingFunction : '',
+        iter: track ? getComputedStyle(track).animationIterationCount : '',
+        secs: track ? parseFloat(getComputedStyle(track).animationDuration) : 0,
+        oneCopy: track ? Math.round(track.scrollWidth / 2) : 0,
         pageW: document.documentElement.scrollWidth,
-        clipped: box ? getComputedStyle(box).overflow : '',
-        docH: document.documentElement.scrollHeight
+        winW: window.innerWidth
       };
     });
-    (tk.there && tk.items >= 6)
-      ? ok('the news line is on screen one and has ' + tk.items + ' things to say')
-      : bad('the news line is missing or has nothing to say: ' + JSON.stringify(tk));
+    /* IT IS DRAWN WHERE IT CAN BE SEEN. Twice it shipped as grey small print
+       inside the hero card and twice he could not find it, so what is checked
+       is that it is its own object: full width of the screen, its own dark
+       ground, and a head block that names the project. */
+    (tk.there && tk.w >= tk.winW - 1 && tk.bleed <= 1 &&
+     tk.bg !== 'rgba(0, 0, 0, 0)' && tk.head.length > 0)
+      ? ok('the band runs the full ' + tk.w + 'px of the screen on its own ground (' +
+           tk.bg + '), headed “' + tk.head + '”')
+      : bad('the band is not drawn as a band: ' + JSON.stringify(
+            { there: tk.there, w: tk.w, winW: tk.winW, bleed: tk.bleed,
+              bg: tk.bg, head: tk.head }));
     /* WHAT HE ASKED FOR, BY NAME. Each of these is a sentence he named: the
        tally by kind, the size of the building, a floor's own count, and — only
        where the link is allowed to show money — what a floor costs. */
@@ -410,102 +440,68 @@ function serve() {
     if (payload.show_price) says['what a floor costs'] = /about .* per /i.test(tk.all);
     const dumb = Object.keys(says).filter(k => !says[k]);
     dumb.length === 0
-      ? ok('and it says every one of them — ' + Object.keys(says).join(', '))
-      : bad('the news line never says: ' + dumb.join(', ') + ' (it says: ' +
+      ? ok('and it says all ' + tk.items + ' of them — ' + Object.keys(says).join(', '))
+      : bad('the band never says: ' + dumb.join(', ') + ' (it says: ' +
             tk.all.slice(0, 200) + ')');
-    /* IT COSTS NO HEIGHT. One line, clipped, and the page is no wider for it. */
-    (tk.rows <= 40 && tk.pageW <= 380 && tk.clipped === 'hidden')
-      ? ok('and it costs no height — one ' + tk.rows + 'px line, clipped, page still ' +
-           tk.pageW + 'px wide')
-      : bad('the news line changed the shape of screen one: ' + JSON.stringify(
-            { rows: tk.rows, pageW: tk.pageW, clipped: tk.clipped }));
+    /* THE LOOP HAS NO SEAM. The strip carries every sentence twice and travels
+       exactly half its own width, so the frame after it ends is the frame it
+       started on. One copy, or a travel that is not half, shows a gap. */
+    (tk.crawling && tk.sentences === tk.items * 2 && tk.seps === tk.items * 2 &&
+     tk.iter === 'infinite' && tk.timing === 'linear')
+      ? ok('and the strip carries all ' + tk.items + ' twice (' + tk.sentences +
+           ' in all), rolling at a constant rate with no seam')
+      : bad('the strip cannot loop cleanly: ' + JSON.stringify(
+            { crawling: tk.crawling, sentences: tk.sentences, items: tk.items,
+              seps: tk.seps, iter: tk.iter, timing: tk.timing }));
+    /* IT COSTS SCREEN ONE NOTHING. One line, and the page is no wider. */
+    (tk.h <= 34 && tk.pageW <= tk.winW)
+      ? ok('and it costs one ' + tk.h + 'px line, with the page still ' + tk.pageW + 'px wide')
+      : bad('the band changed the shape of screen one: ' + JSON.stringify(
+            { h: tk.h, pageW: tk.pageW, winW: tk.winW }));
 
-    /* AND EVERY LINE OF IT FITS. This is the check that would have caught the
-       first cut of this feature: the line rode to the right of the count with
-       206px, and fourteen of its nineteen sentences were wider than that. The
-       box clips, and the box was right-aligned, so what was lost was the START
-       of each sentence — "…193 taken · 66.4% open" with no subject. Nothing on
-       screen said anything was wrong. scrollWidth cannot see it either, since
-       overflow past the inline START is not counted, so each item is measured
-       on a copy of itself laid out with no width limit at all. */
-    const tkFit = await page.evaluate(() => {
-      const box = document.getElementById('hero-f');
-      const was = box.innerHTML;
-      const over = [];
-      for (let i = 0; i < TICK.items.length; i++) {
-        const ghost = document.createElement('span');
-        ghost.className = 'tk-i';
-        ghost.innerHTML = TICK.items[i];
-        ghost.style.position = 'absolute';
-        ghost.style.left = '-9999px';
-        ghost.style.width = 'max-content';
-        box.appendChild(ghost);
-        const need = Math.round(ghost.getBoundingClientRect().width);
-        ghost.remove();
-        if (need > box.clientWidth)
-          over.push({ by: need - Math.round(box.clientWidth),
-                      t: (TICK.items[i] || '').replace(/<[^>]*>/g, '').slice(0, 50) });
-      }
-      box.innerHTML = was;
-      return { box: Math.round(box.clientWidth), n: TICK.items.length, over: over };
+    /* IT ACTUALLY TRAVELS, AND IT TRAVELS RIGHT TO LEFT. Measured off the
+       strip's own position twice, two seconds apart — a stopped animation, a
+       paused one, or one running the wrong way all fail here. */
+    const roll = await page.evaluate(async () => {
+      const t = document.getElementById('tk-track');
+      if (!t) return { none: true };
+      const a = t.getBoundingClientRect().left;
+      await new Promise(r => setTimeout(r, 2000));
+      const b = t.getBoundingClientRect().left;
+      return { none: false, moved: Math.round(a - b), pxPerSec: Math.round((a - b) / 2) };
     });
-    tkFit.over.length === 0
-      ? ok('and all ' + tkFit.n + ' of them fit the ' + tkFit.box + 'px it has, start to finish')
-      : bad(tkFit.over.length + ' of ' + tkFit.n + ' news lines are cut off in a ' + tkFit.box +
-            'px box: ' + tkFit.over.map(o => '"' + o.t + '" by ' + o.by + 'px').join('; '));
+    (!roll.none && roll.pxPerSec >= 25 && roll.pxPerSec <= 110)
+      ? ok('and it crawls right to left at ' + roll.pxPerSec + 'px a second — ' +
+           Math.round(tk.secs) + 's for the whole round of news')
+      : bad(roll.none ? 'there is no strip to travel'
+                      : 'the crawl is wrong: it moved ' + roll.moved + 'px in 2s (' +
+                        roll.pxPerSec + 'px/s; right-to-left is positive here)');
+    /* THE PACE IS SET FROM THE WIDTH. A project with four floors has less to
+       say than one with forty, and a fixed duration would make the first
+       sprint and the second crawl. The duration must track the strip's width
+       at the rate the page declares, within a second of rounding. */
+    Math.abs(tk.secs - tk.oneCopy / 58) <= 1.5
+      ? ok('and the pace is set from the strip’s own width, so it reads the ' +
+           'same on a project with four floors and one with forty')
+      : bad('the duration does not match the width: ' + tk.secs + 's for ' +
+            tk.oneCopy + 'px (' + Math.round(tk.oneCopy / tk.secs) + 'px/s)');
 
-    /* IT STEPS, AND THE STEP IS INSIDE THE PAGE'S OWN 300ms BUDGET. */
-    const stepped = await page.evaluate(async first => {
-      const t = Date.now();
-      while (Date.now() - t < 9000) {
-        await new Promise(r => setTimeout(r, 200));
-        const l = document.querySelector('#hero-f .tk-i');
-        if (l && l.textContent.trim() !== first) {
-          /* THE DURATION IS READ OFF THE RULE, NOT OFF THE ELEMENT. The
-             arrival class is taken off again once it has arrived, so reading
-             a live line gives 300ms or 0s depending on which side of that the
-             poll landed on — a check that passes or fails by luck. A throwaway
-             span wearing the same classes answers the same question and always
-             gives the same answer. */
-          const probe = document.createElement('span');
-          probe.className = 'tk-i in';
-          probe.style.position = 'absolute';
-          probe.style.visibility = 'hidden';
-          document.body.appendChild(probe);
-          const ms = Math.round(parseFloat(getComputedStyle(probe).animationDuration) * 1000);
-          probe.remove();
-          return { moved: true, to: l.textContent.trim(), ms: ms, waited: Date.now() - t };
-        }
-      }
-      return { moved: false };
-    }, tk.text);
-    (stepped.moved && stepped.waited < 9000)
-      ? ok('and it moves on by itself after ' + (stepped.waited / 1000).toFixed(1) +
-           's — “' + stepped.to.slice(0, 60) + '”')
-      : bad('the news line never moved on: ' + JSON.stringify(stepped));
-    (stepped.moved && stepped.ms > 0 && stepped.ms <= 300)
-      ? ok('and the step arrives in ' + stepped.ms + 'ms, inside this page’s 300ms budget')
-      : bad('the step is outside the animation budget: ' + JSON.stringify(stepped.ms));
-
-    /* AND IT HOLDS ITS PLACE WHILE THE READER IS SOMEWHERE ELSE. The line
-       lives on screen one; stepping through news at a hidden element while a
-       floor or the directors' room is open is work nobody asked for. */
-    const tkHeld = await page.evaluate(async () => {
-      document.querySelector('#floors button').click();
-      await new Promise(r => setTimeout(r, 300));
-      const was = (document.querySelector('#hero-f .tk-i') || {}).textContent || '';
-      const at = window.TICK ? TICK.at : -1;
-      await new Promise(r => setTimeout(r, 6000));
-      const now = (document.querySelector('#hero-f .tk-i') || {}).textContent || '';
-      const at2 = window.TICK ? TICK.at : -1;
-      document.getElementById('back').click();
-      await new Promise(r => setTimeout(r, 300));
-      return { onAFloor: true, same: was === now, at, at2 };
-    });
-    (tkHeld.same && tkHeld.at === tkHeld.at2)
-      ? ok('and it holds its place while a floor is open, instead of talking to nobody')
-      : bad('the news line kept stepping on a screen it is not on: ' + JSON.stringify(tkHeld));
-    await page.evaluate(p => window._availPreview(p), payload);
+    /* AND IT DOES NOT RESTART UNDER THE READER. The page rereads the building
+       every two minutes. The strip used to be emitted by paintHero, which
+       rewrites the whole hero card — so every reread snapped the crawl back to
+       the first sentence in front of somebody reading the fourth. */
+    const kept = await page.evaluate(async p => {
+      const before = document.getElementById('tk-track');
+      const at = before.getBoundingClientRect().left;
+      window._availPreview(p);              // exactly what a reread does
+      await new Promise(r => setTimeout(r, 60));
+      const after = document.getElementById('tk-track');
+      return { same: before === after,
+               jumped: Math.round(after.getBoundingClientRect().left - at) };
+    }, payload);
+    (kept.same && Math.abs(kept.jumped) < 40)
+      ? ok('and a reread of the building leaves it where it was, mid-sentence')
+      : bad('a reread restarted the crawl: ' + JSON.stringify(kept));
     await sleep(350);
 
     /* ── THE STATES, PHOTOGRAPHED AND MEASURED ────────────────────────────
@@ -629,20 +625,32 @@ function serve() {
 
     /* ── THE MOTION BUDGET ────────────────────────────────────────────────
        One number, across every rule in the stylesheet, so a 600ms flourish
-       cannot be added quietly later. */
+       cannot be added quietly later.
+
+       WITH ONE EXEMPTION, NAMED. The news band is a marquee, which is by
+       definition an animation that never ends; Rashid asked for that in those
+       words after two cuts that obeyed the budget and read, to him, as nothing
+       at all. An exemption is only safe while it is a list of one, so the
+       strip is excluded BY NAME here and everything else on the page is still
+       held to 300ms — a flourish added later cannot hide behind it. */
     const budget = await page.evaluate(() => {
       const secs = t => Math.max(...String(t).split(',').map(x => parseFloat(x) || 0));
-      let worst = 0, where = '';
+      let worst = 0, where = '', crawlers = 0;
       [...document.querySelectorAll('*')].forEach(el => {
         const c = getComputedStyle(el);
         const m = Math.max(secs(c.animationDuration), secs(c.transitionDuration));
+        if (el.classList.contains('tk-track')) { crawlers++; return; }
         if (m > worst) { worst = m; where = el.id || el.className || el.tagName; }
       });
-      return { ms: Math.round(worst * 1000), where: String(where).slice(0, 30) };
+      return { ms: Math.round(worst * 1000), where: String(where).slice(0, 30),
+               crawlers: crawlers };
     });
-    budget.ms <= 300
-      ? ok('no animation on the page runs longer than 300ms (worst ' + budget.ms + 'ms)')
-      : bad('an animation runs ' + budget.ms + 'ms on ' + budget.where);
+    (budget.ms <= 300 && budget.crawlers === 1)
+      ? ok('nothing but the news strip runs longer than 300ms (worst ' + budget.ms +
+           'ms), and the exemption is a list of one')
+      : bad(budget.crawlers !== 1
+              ? budget.crawlers + ' elements claim the marquee exemption, not 1'
+              : 'an animation runs ' + budget.ms + 'ms on ' + budget.where);
 
     /* ── b. search across floors ────────────────────────────────────────── */
     step('Search — across every floor, no server call');
