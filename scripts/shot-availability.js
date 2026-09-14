@@ -995,6 +995,70 @@ function serve() {
     await page.evaluate(() => { document.getElementById('back').click(); });
     await sleep(400);
 
+    /* ── THE ARRIVAL ──────────────────────────────────────────────────────
+       "jaisay hee page load ho to … aik aik word zoom out ho k apni jaghan pe
+       lagta rahay, aur … poora ring quick zoom out ho … aur right side se
+       Available pagri hold aur sold aaye one by one."
+
+       Three claims, and the one that would rot first is the fourth nobody
+       asked for: it must play ONCE. The board rereads the building every two
+       minutes and the chart is redrawn each time; an entrance on every reread
+       is the page flinching at somebody who is reading it.
+
+       A fresh page is needed to see a first paint, since this one has long
+       since had its. */
+    step('The arrival — a word at a time, then the ring, then the legend');
+    const sp = await browser.newPage();
+    await sp.setViewport({ width: 380, height: 900, deviceScaleFactor: 2 });
+    await sp.goto(BASE + '/availability.html?preview=1', { waitUntil: 'domcontentloaded' });
+    await sp.waitForFunction(() => typeof window._availPreview === 'function', { timeout: 20000 });
+    await sp.evaluate(p => window._availPreview(p), payload);
+    await sleep(60);
+    const arrive = await sp.evaluate(() => {
+      const an = el => el ? { d: getComputedStyle(el).animationDuration,
+                              w: getComputedStyle(el).animationDelay,
+                              n: getComputedStyle(el).animationName } : null;
+      const words = [...document.querySelectorAll('.hd-t .ttlw')];
+      const rows = [...document.querySelectorAll('.ck')];
+      return { title: document.getElementById('ttl').textContent.trim(),
+               words: words.map(w => w.textContent), wordA: an(words[0]), wordB: an(words[1]),
+               ring: an(document.querySelector('.chart-r')),
+               rowA: an(rows[0]), rowLast: an(rows[rows.length - 1]) };
+    });
+    const secs = s => Math.round(parseFloat(s || 0) * 1000);
+    (arrive.words.length >= 2 && arrive.title === payload.project &&
+     arrive.wordA.n === 'spWord' && secs(arrive.wordB.w) > secs(arrive.wordA.w))
+      ? ok('the name lands a word at a time — ' + arrive.words.join(' + ') +
+           ', the second ' + secs(arrive.wordB.w) + 'ms behind the first, and it still ' +
+           'reads as “' + arrive.title + '”')
+      : bad('the name does not arrive: ' + JSON.stringify(arrive));
+    (arrive.ring.n === 'spRing' && arrive.rowA.n === 'spRow' &&
+     secs(arrive.ring.w) > secs(arrive.wordA.w) &&
+     secs(arrive.rowA.w) >= secs(arrive.ring.w) &&
+     secs(arrive.rowLast.w) > secs(arrive.rowA.w))
+      ? ok('and the ring follows at ' + secs(arrive.ring.w) + 'ms, then the legend one by ' +
+           'one from ' + secs(arrive.rowA.w) + 'ms to ' + secs(arrive.rowLast.w) + 'ms')
+      : bad('the chart does not arrive in order: ' + JSON.stringify(
+            { ring: arrive.ring, first: arrive.rowA, last: arrive.rowLast }));
+    /* NO PIECE OF IT IS LONGER THAN THE PAGE ALLOWS. What makes it a sequence
+       is the delay on each, and a delay is waiting rather than moving. */
+    [arrive.wordA, arrive.wordB, arrive.ring, arrive.rowA, arrive.rowLast]
+      .every(a => secs(a.d) > 0 && secs(a.d) <= 300)
+      ? ok('and every piece of it is 300ms or less — the sequence is delay, not duration')
+      : bad('a piece of the arrival runs past the budget: ' + JSON.stringify(arrive));
+    /* AND IT PLAYS ONCE. */
+    await sleep(1400);
+    const twice = await sp.evaluate(async p => {
+      window._availPreview(p);
+      await new Promise(r => setTimeout(r, 80));
+      return { splashing: document.getElementById('hero').classList.contains('splash'),
+               words: document.querySelectorAll('.hd-t .ttlw').length };
+    }, payload);
+    (!twice.splashing && twice.words === 0)
+      ? ok('and a reread does not play it again — the page never flinches at a reader')
+      : bad('the arrival played again on a reread: ' + JSON.stringify(twice));
+    await sp.close();
+
     /* ── b. THE NEWS BAND ─────────────────────────────────────────────────
        Rashid asked for a ticker three times before this was one. The first two
        cuts stepped — a sentence every four seconds, arriving in 300ms — which

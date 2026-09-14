@@ -199,6 +199,31 @@ button{cursor:pointer;background:none;border:0}
    to need every pixel, and it does not exist any more. */
 .hero-n{font-size:24px;font-weight:700;letter-spacing:-.03em;line-height:1.05}
 .hero-p{font-size:11.5px;color:var(--mut);line-height:1.2;margin-top:1px}
+/* ── THE ARRIVAL ──────────────────────────────────────────────────────────
+   "jaisay hee page load ho to … Awami Market … aik aik word zoom out ho k apni
+   jaghan pe lagta rahay, aur … poora ring quick zoom out ho k apni jaghan pe
+   jai aur right side se Available pagri hold aur sold aaye one by one."
+
+   Every piece is a 300ms movement, which is the page's own budget; what makes
+   it a sequence is the DELAY on each, and a delay is waiting, not moving. The
+   ticker is still the only thing here exempt from that rule.
+
+   It plays once, on the first paint, and not at all for a reader who has asked
+   for stillness. */
+.hd-t .ttlw{display:inline-block;vertical-align:top;
+            animation:spWord 300ms var(--ease) both;
+            animation-delay:calc(var(--i) * 90ms)}
+@keyframes spWord{from{opacity:0;transform:scale(1.55)}to{opacity:1;transform:none}}
+#hero.splash .chart-r{animation:spRing 300ms var(--ease) both;animation-delay:210ms}
+@keyframes spRing{from{opacity:0;transform:scale(1.4)}to{opacity:1;transform:none}}
+#hero.splash .ck{animation:spRow 300ms var(--ease) both;
+                 animation-delay:calc(300ms + var(--i) * 70ms)}
+@keyframes spRow{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+#hero.splash .hero-l{animation:spRing 300ms var(--ease) both;animation-delay:150ms}
+@media (prefers-reduced-motion:reduce){
+  .hd-t .ttlw,#hero.splash .chart-r,#hero.splash .ck,#hero.splash .hero-l{animation:none}
+}
+
 /* ── the building as one ring ─────────────────────────────────────────────
    An SVG rather than a canvas: it is four arcs, it costs nothing to redraw
    when the board refetches, it is crisp on every screen without being told
@@ -2528,7 +2553,18 @@ function renderMine() {
 
 /* ── render ──────────────────────────────────────────────────────────────── */
 function render() {
-  $('ttl').textContent = P.project || 'Availability';
+  /* THE NAME ARRIVES A WORD AT A TIME. Each word is its own element only so
+     that each can carry its own delay; the text is the project's own, escaped,
+     and the spaces between the words are real spaces so it still reads as one
+     line to anything that is not looking at it. */
+  var nm = String(P.project || 'Availability');
+  if (!SPLASHED) {
+    $('ttl').innerHTML = nm.split(/\s+/).map(function (w, i) {
+      return '<span class="ttlw" style="--i:' + i + '">' + esc(w) + '</span>';
+    }).join(' ');
+  } else {
+    $('ttl').textContent = nm;
+  }
   $('co').textContent = P.company || '';
   /* ONE TENANT HAS ARTWORK IN THIS REPO, so one tenant gets it. The page is
      shared — ZZ Map Tower and anything sold after it open the same file — and
@@ -2724,6 +2760,11 @@ function floorCode(f) {
 
    And it knows when to stop: a tab nobody is looking at, a reader on another
    screen, or anybody who has asked for reduced motion. ══════════════════ */
+/* ONCE, ON THE FIRST PAINT. The board rereads the building every two minutes
+   and the chart is redrawn each time; an entrance that played on every reread
+   would be the page flinching at somebody who was reading it. */
+var SPLASHED = false;
+
 var GLOW = { at: 0, timer: null };
 
 function glowStop() { if (GLOW.timer) { clearInterval(GLOW.timer); GLOW.timer = null; } }
@@ -3270,9 +3311,9 @@ function paintHero(av, tot) {
         /* AND EVERY LINE OF IT IS A DOOR. A legend that says 341 Pagri and
            cannot show you which 341 is a caption; tapping one opens the whole
            building filtered to exactly that kind. */
-        segs.map(function (s) {
+        segs.map(function (s, i) {
           var p = tot ? Math.round(s.n * 1000 / tot) / 10 : 0;
-          return '<button class="ck" data-seg="' +
+          return '<button class="ck" style="--i:' + i + '" data-seg="' +
               (s.free ? 'free' : 'kind:' + esc(s.label)) + '">' +
             '<i class="ck-d' + (s.free ? ' ck-f' : '') + '"' +
               (s.free ? '' : ' style="background:' + s.tint + '"') + '></i>' +
@@ -3285,6 +3326,15 @@ function paintHero(av, tot) {
       '</div>' +
     '</div>';
   void fw; void held; void pct;
+  /* the entrance is a class, not a timer: the stylesheet holds the timing and
+     the page only says when it is the first time */
+  if (!SPLASHED) {
+    $('hero').classList.add('splash');
+    SPLASHED = true;
+    setTimeout(function () {
+      var h = $('hero'); if (h) h.classList.remove('splash');
+    }, 1200);
+  }
   glowStart();
 
   /* THE CLOCK LIVES INSIDE THE HERO NOW, and the hero is rewritten here — so
