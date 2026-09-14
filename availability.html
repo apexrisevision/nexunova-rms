@@ -81,9 +81,21 @@ try {
   /* THE SETTLE. The page's own --ease is for a 200ms tap answering a thumb.
      An entrance is a different thing: it should leave fast and arrive slowly,
      so the last part of the movement is a piece easing into place rather than
-     a piece stopping. This is the curve a phone's home screen uses when it
-     unlocks, and it is the whole reason that feels like settling. */
-  --settle:cubic-bezier(.32,.72,0,1);
+     a piece stopping.
+
+     The first cut of this used the curve a phone uses to unlock, and Rashid
+     read it as sharp: "ye walay bohat sharp se hain … inhe smooth karo". What
+     makes a curve read as sharp is how much movement is left at the end —
+     this one leaves almost none, an exponential tail, so a piece spends its
+     last third barely moving and simply stops being in motion. Nothing on
+     this page brakes any more.
+
+     And --pop is the same idea with a whisper past the end and back, which is
+     what the old Flash text effects did and what he asked for by name: the
+     letter goes a hair under its size and comes up to it. It is used only
+     where something lands rather than fades — the letters and the ring. */
+  --settle:cubic-bezier(.4,0,.2,1);
+  --pop:cubic-bezier(.42,0,.2,1.02);
   --t-fast:120ms;
   --t:160ms;
 }
@@ -244,49 +256,65 @@ button{cursor:pointer;background:none;border:0}
    stutter, and a stutter is the opposite of this. */
 @keyframes spIn   {0%  {opacity:0}
                    100%{opacity:1}}
-@keyframes spLeft {0%  {opacity:0;transform:translateX(-30px) scale(1.06);filter:blur(4px)}
-                   55% {opacity:1;filter:blur(0)}
+@keyframes spLeft {0%  {opacity:0;transform:translateX(-38px) scale(1.05);filter:blur(5px)}
+                   45% {opacity:1;filter:blur(0)}
                    100%{opacity:1;transform:translateX(0) scale(1);filter:blur(0)}}
-@keyframes spRight{0%  {opacity:0;transform:translateX(30px) scale(1.06)}
-                   55% {opacity:1}
+@keyframes spRight{0%  {opacity:0;transform:translateX(38px) scale(1.05)}
+                   45% {opacity:1}
                    100%{opacity:1;transform:translateX(0) scale(1)}}
-@keyframes spWord {0%  {opacity:0;transform:scale(1.45);filter:blur(5px)}
-                   55% {opacity:1;filter:blur(0)}
+/* A LETTER COMES FROM THE FRONT OF THE SCREEN, out of focus, and comes into
+   focus as it falls back to its size — the old Flash text effect Rashid asked
+   for by name: "swish mai jaisay text k animations hain waisa animation mai
+   chahta hun". It is solid within a seventh of the way in, so what you watch
+   is the letter itself arriving rather than a letter fading up, and the blur
+   is gone long before it is anywhere near its place. Six times is the biggest
+   it can be and still read as a letter rather than a shape. */
+@keyframes spWord {0%  {opacity:0;transform:scale(6);filter:blur(6px)}
+                   14% {opacity:1}
+                   45% {filter:blur(0)}
                    100%{opacity:1;transform:scale(1);filter:blur(0)}}
-@keyframes spRing {0%  {opacity:0;transform:scale(1.38);filter:blur(4px)}
-                   55% {opacity:1;filter:blur(0)}
+@keyframes spRing {0%  {opacity:0;transform:scale(1.5);filter:blur(5px)}
+                   45% {opacity:1;filter:blur(0)}
                    100%{opacity:1;transform:scale(1);filter:blur(0)}}
 
 body.splash,
 body.splash .wrap   {overflow-x:clip}
+body.splash .hd-t   {overflow:visible}
 /* the mark, from the left */
-body.splash .hd-m   {animation:spLeft 600ms var(--settle) both}
-/* the name, a word at a time */
-.hd-t .ttlw         {display:inline-block;vertical-align:top;
-                     animation:spWord 550ms var(--settle) both;
-                     animation-delay:calc(160ms + var(--i) * 190ms)}
-body.splash .hd-c   {animation:spIn 500ms var(--settle) both;animation-delay:520ms}
-body.splash .hd-r   {animation:spIn 500ms var(--settle) both;animation-delay:560ms}
+body.splash .hd-m   {animation:spLeft 800ms var(--settle) both}
+/* THE NAME GOES FIRST AND ALONE, a letter at a time — "aik aik word one by
+   one phir us k baad saaray functions chale". Eleven letters, 110ms apart,
+   700ms each, puts the name down at 1,860ms and everything else begins after
+   it. The room for that came from the ceiling being lifted — "khair hai 3 se
+   5 second kar do animation time" — and the last floor now lands at 4,610ms.
+   Nothing here is quick any more; quick was the complaint.
+   The word wrapper holds its own letters on one line and does nothing else. */
+.hd-t .ttlw         {display:inline-block;vertical-align:top;white-space:nowrap}
+.hd-t .ttll         {display:inline-block;vertical-align:top;
+                     animation:spWord 700ms var(--pop) both;
+                     animation-delay:calc(60ms + var(--i) * 110ms)}
+body.splash .hd-c   {animation:spIn 600ms var(--settle) both;animation-delay:1900ms}
+body.splash .hd-r   {animation:spIn 600ms var(--settle) both;animation-delay:1950ms}
 /* the chart: its label, its ring, then its legend from the right */
-body.splash .hero-l {animation:spIn 500ms var(--settle) both;animation-delay:660ms}
-body.splash .chart-r{animation:spRing 650ms var(--settle) both;animation-delay:760ms}
-body.splash .ck     {animation:spRight 500ms var(--settle) both;
-                     animation-delay:calc(960ms + var(--i) * 130ms)}
+body.splash .hero-l {animation:spIn 600ms var(--settle) both;animation-delay:2000ms}
+body.splash .chart-r{animation:spRing 800ms var(--pop) both;animation-delay:2080ms}
+body.splash .ck     {animation:spRight 650ms var(--settle) both;
+                     animation-delay:calc(2240ms + var(--i) * 140ms)}
 /* the news band fades up */
-body.splash .hero-f {animation:spIn 600ms var(--settle) both;animation-delay:1480ms}
+body.splash .hero-f {animation:spIn 700ms var(--settle) both;animation-delay:2900ms}
 /* the field a dealer types into */
-body.splash .sec    {animation:spIn 450ms var(--settle) both;animation-delay:1620ms}
-body.splash .sr     {animation:spIn 500ms var(--settle) both;animation-delay:1680ms}
+body.splash .sec    {animation:spIn 600ms var(--settle) both;animation-delay:2980ms}
+body.splash .sr     {animation:spIn 650ms var(--settle) both;animation-delay:3030ms}
 /* the three doorways: outside in from their own sides, the middle one fading */
-body.splash #myq      {animation:spLeft 550ms var(--settle) both;animation-delay:1800ms}
-body.splash #allrow   {animation:spIn 550ms var(--settle) both;animation-delay:1880ms}
-body.splash #pricerow {animation:spRight 550ms var(--settle) both;animation-delay:1960ms}
+body.splash #myq      {animation:spLeft 700ms var(--settle) both;animation-delay:3150ms}
+body.splash #allrow   {animation:spIn 700ms var(--settle) both;animation-delay:3220ms}
+body.splash #pricerow {animation:spRight 700ms var(--settle) both;animation-delay:3290ms}
 /* and the floors, from the right, one after another */
-body.splash .sec-r  {animation:spIn 450ms var(--settle) both;animation-delay:2020ms}
-body.splash .fl button{animation:spRight 450ms var(--settle) both;
-                       animation-delay:calc(2040ms + var(--i) * 75ms)}
+body.splash .sec-r  {animation:spIn 600ms var(--settle) both;animation-delay:3360ms}
+body.splash .fl button{animation:spRight 650ms var(--settle) both;
+                       animation-delay:calc(3420ms + var(--i) * 90ms)}
 @media (prefers-reduced-motion:reduce){
-  body.splash *,.hd-t .ttlw{animation:none !important}
+  body.splash *,.hd-t .ttll{animation:none !important}
 }
 
 /* ── the building as one ring ─────────────────────────────────────────────
@@ -2618,17 +2646,33 @@ function renderMine() {
 
 /* ── render ──────────────────────────────────────────────────────────────── */
 function render() {
-  /* THE NAME ARRIVES A WORD AT A TIME. Each word is its own element only so
-     that each can carry its own delay; the text is the project's own, escaped,
-     and the spaces between the words are real spaces so it still reads as one
-     line to anything that is not looking at it. */
-  var nm = String(P.project || 'Availability');
+  /* THE NAME ARRIVES A LETTER AT A TIME — "pehle sirf A bilkul screen k andar
+     se means fullest zoom se zoom out ho aur apni jaghan pe jai, phir W isi
+     tarhan phir isi tarhan A phir M phir so on."
+
+     Two nestings, and each does one job. The WORD is the outer span, and it
+     exists only to hold its letters together: letters are inline-blocks, and
+     inline-blocks break across lines wherever they like, so without it a
+     narrow phone could put "Awa" on one line and "mi" on the next. The LETTER
+     is the inner span, and it exists only to carry its own place in the queue.
+
+     The count runs across the whole name rather than restarting at each word,
+     so the eleventh letter of "Awami Market" waits for the tenth and not for
+     the fourth. The text is the project's own, escaped a letter at a time, and
+     the spaces between the words are real spaces — so the whole thing is still
+     the project's name to anything reading it rather than watching it, which
+     is what the label below is for. */
+  var nm = String(P.project || 'Availability'), ltr = 0;
   if (!SPLASHED) {
+    $('ttl').setAttribute('aria-label', nm);
     $('ttl').innerHTML = nm.split(/\s+/).map(function (w, i) {
-      return '<span class="ttlw" style="--i:' + i + '">' + esc(w) + '</span>';
+      return '<span class="ttlw">' + w.split('').map(function (c) {
+        return '<span class="ttll" style="--i:' + (ltr++) + '">' + esc(c) + '</span>';
+      }).join('') + '</span>';
     }).join(' ');
   } else {
     $('ttl').textContent = nm;
+    $('ttl').removeAttribute('aria-label');
   }
   $('co').textContent = P.company || '';
   /* ONE TENANT HAS ARTWORK IN THIS REPO, so one tenant gets it. The page is
@@ -3402,7 +3446,7 @@ function paintHero(av, tot) {
   if (!SPLASHED) {
     document.body.classList.add('splash');
     SPLASHED = true;
-    setTimeout(function () { document.body.classList.remove('splash'); }, 3200);
+    setTimeout(function () { document.body.classList.remove('splash'); }, 4800);
   }
   glowStart();
 

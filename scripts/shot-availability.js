@@ -1009,7 +1009,7 @@ function serve() {
 
        A fresh page is needed to see a first paint, since this one has long
        since had its. */
-    step('The arrival — a word at a time, then the ring, then the legend');
+    step('The arrival — a letter at a time, then the ring, then the legend');
     const sp = await browser.newPage();
     await sp.setViewport({ width: 380, height: 900, deviceScaleFactor: 2 });
     await sp.goto(BASE + '/availability.html?preview=1', { waitUntil: 'domcontentloaded' });
@@ -1025,7 +1025,7 @@ function serve() {
                  w: Math.round(parseFloat(s.animationDelay) * 1000),
                  d: Math.round(parseFloat(s.animationDuration) * 1000) };
       };
-      const words = [...document.querySelectorAll('.hd-t .ttlw')];
+      const words = [...document.querySelectorAll('.hd-t .ttll')];
       const rows = [...document.querySelectorAll('.ck')];
       const floors = [...document.querySelectorAll('.fl button')];
       /* when the last of the dance is over — the arrival's own movements by
@@ -1042,6 +1042,10 @@ function serve() {
                wordA: an(words[0]), wordB: an(words[1]),
                ring: an(document.querySelector('.chart-r')),
                rowA: an(rows[0]), rowLast: an(rows[rows.length - 1]),
+               spell: [...document.querySelectorAll('.hd-t .ttlw')]
+                        .map(w => w.textContent).join(' '),
+               wordLast: an(words[words.length - 1]),
+               nextUp: an(document.querySelector('.hd-c')),
                band: an(document.querySelector('.hero-f')),
                left: an(document.getElementById('myq')),
                middle: an(document.getElementById('allrow')),
@@ -1050,10 +1054,31 @@ function serve() {
                ends: ends.length ? Math.max.apply(null, ends) : 0 };
     });
     const secs = s => Math.round(parseFloat(s || 0) * 1000);
-    (arrive.words.length >= 2 && arrive.title === payload.project)
-      ? ok('the name lands a word at a time — ' + arrive.words.join(' + ') +
-           ' — and still reads as one name')
-      : bad('the name does not arrive: ' + JSON.stringify(arrive.words));
+    /* A LETTER AT A TIME, not a word at a time — "pehle sirf A bilkul screen k
+       andar se … zoom out ho aur apni jaghan pe jai, phir W isi tarhan phir
+       isi tarhan A phir M phir so on". Which means the thing to check is that
+       the name is still a name: eleven separate elements that spell it, in
+       words that cannot break across a line, reading as the project's own name
+       to anything that is not watching it. */
+    (arrive.words.length === payload.project.replace(/\s/g, '').length &&
+     arrive.words.every(c => c.length === 1) &&
+     arrive.spell === payload.project &&
+     arrive.title === payload.project)
+      ? ok('the name lands a letter at a time — ' + arrive.words.join(' ') +
+           ' — in ' + arrive.spell.split(' ').length + ' words that stay whole, ' +
+           'and still reads as “' + arrive.title + '”')
+      : bad('the name does not arrive letter by letter: ' + JSON.stringify(
+            { letters: arrive.words, spelled: arrive.spell, title: arrive.title }));
+    /* AND NOTHING ELSE STARTS UNTIL IT IS DOWN. "aik aik word one by one phir
+       us k baad saaray functions chale" — the name is the whole of the first
+       act, so the second act may not open over it. */
+    (arrive.wordLast && arrive.nextUp &&
+     arrive.wordLast.w + arrive.wordLast.d <= arrive.nextUp.w)
+      ? ok('and the rest of the screen waits for it — the last letter is down at ' +
+           (arrive.wordLast.w + arrive.wordLast.d) + 'ms, the next thing begins at ' +
+           arrive.nextUp.w + 'ms')
+      : bad('something starts before the name has finished: ' + JSON.stringify(
+            { lastLetter: arrive.wordLast, nextUp: arrive.nextUp }));
     /* EACH FROM THE SIDE IT WAS ASKED FOR. "Awami ka logo b left se aaye, aur
        neeche floors b right se one by one aaye. aur ticker b fadein karke
        appear ho, aur buttons teeno right wala right se appear ho left wala left
@@ -1088,15 +1113,19 @@ function serve() {
            ', band ' + order[6] + ', doorways ' + order[7] + '\u2013' + order[8] +
            ', floors ' + order[9] + '\u2013' + order[10] + 'ms')
       : bad('the arrival is out of order: ' + JSON.stringify(order));
-    /* SLOW ENOUGH TO SEE, AND OVER INSIDE THREE SECONDS. The first cut held
-       every piece to this page's 300ms and was, in his words, invisible. The
-       arrival is a named exemption from that rule now; what bounds it is the
-       end of it. */
-    (arrive.wordA.d >= 400 && arrive.floorA.d >= 400 && arrive.ends <= 3000)
-      ? ok('slow enough to watch \u2014 nothing under 400ms \u2014 and the last of it lands ' +
-           'at ' + arrive.ends + 'ms, inside the three seconds asked for')
-      : bad('the arrival is too fast to see or runs past three seconds: ' +
-            JSON.stringify({ word: arrive.wordA && arrive.wordA.d,
+    /* SLOW ENOUGH TO SEE, AND OVER INSIDE FIVE SECONDS. The first cut held
+       every piece to this page's 300ms and was, in his words, invisible; the
+       second was three seconds and read as sharp. The arrival is a named
+       exemption from the 300ms rule now, and what bounds it is the end of it —
+       at both ends, because an entrance that is over before it registers is
+       the fault being fixed here and one that outstays five seconds is a page
+       a dealer is waiting on. "khair hai 3 se 5 second kar do animation time." */
+    (arrive.wordA.d >= 500 && arrive.floorA.d >= 500 &&
+     arrive.ends >= 3000 && arrive.ends <= 5000)
+      ? ok('slow enough to watch \u2014 nothing under half a second \u2014 and the whole of ' +
+           'it lands at ' + arrive.ends + 'ms, inside the three to five seconds asked for')
+      : bad('the arrival is too fast to see or outside three to five seconds: ' +
+            JSON.stringify({ letter: arrive.wordA && arrive.wordA.d,
                              floor: arrive.floorA && arrive.floorA.d, ends: arrive.ends }));
     /* AND IT PLAYS ONCE. */
     await sp.waitForFunction(
@@ -1105,7 +1134,7 @@ function serve() {
       window._availPreview(p);
       await new Promise(r => setTimeout(r, 80));
       return { splashing: document.body.classList.contains('splash'),
-               words: document.querySelectorAll('.hd-t .ttlw').length };
+               words: document.querySelectorAll('.hd-t .ttll').length };
     }, payload);
     (!twice.splashing && twice.words === 0)
       ? ok('and a reread does not play it again — the page never flinches at a reader')
