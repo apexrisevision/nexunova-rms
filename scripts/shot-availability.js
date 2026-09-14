@@ -297,7 +297,20 @@ function serve() {
       labSize: Math.round(parseFloat(getComputedStyle(document.querySelector('.hero-l')).fontSize)),
       searchH: Math.round(document.getElementById('q').getBoundingClientRect().height),
       chipH: Math.round(document.querySelector('#floors button').getBoundingClientRect().height),
-      barFree: document.querySelector('.bar .free').style.width,
+      /* the free arc's share of the ring: dasharray is "drawn gap", so the
+         drawn part over the circumference is the fraction the shape claims */
+      barFree: (() => {
+        const c = document.querySelector('.chart-r .rg-f');
+        if (!c) return null;
+        const d = (c.getAttribute('stroke-dasharray') || '').split(' ').map(Number);
+        const r = Number(c.getAttribute('r'));
+        return Math.round(d[0] / (2 * Math.PI * r) * 1000) / 10;
+      })(),
+      slices: document.querySelectorAll('.chart-r .rg').length,
+      legend: [...document.querySelectorAll('.chart-k .ck')].map(k => ({
+        n: Number((k.querySelector('b').textContent || '').replace(/[^0-9]/g, '')),
+        label: (k.querySelector('.ck-l').textContent || '').trim()
+      })),
       total: document.querySelector('.hero').textContent.trim()
     }));
     one.chips.length === payload.floors.length
@@ -467,6 +480,41 @@ function serve() {
     console.log('     row ' + one.chips[0].w + '×' + one.chips[0].h + 'px  ·  ' +
                 one.hero + ' free  ·  hero ' + one.heroSize + 'px/label ' + one.labSize + 'px');
     await page.screenshot({ path: path.join(OUT, 'a-screen-one-380.png') });
+
+    /* ── THE CHART ────────────────────────────────────────────────────────
+       One ring for the whole building, and a legend that names every kind with
+       its count. Both are read off the payload, so both are checked against
+       the payload's own arithmetic — and the ring is checked against the
+       legend, because a chart whose picture and whose numbers disagree is
+       worse than no chart. */
+    step('The chart — the building in one ring');
+    const byKind = {};
+    payload.floors.forEach(f => (f.units || []).forEach(u => {
+      if (u.s === 'available') { byKind.Available = (byKind.Available || 0) + 1; return; }
+      const k = u.k || 'Not available';
+      byKind[k] = (byKind[k] || 0) + 1;
+    }));
+    const want = Object.keys(byKind).length;
+    (one.slices === want && one.legend.length === want)
+      ? ok('the ring has one slice per kind and a legend to match — ' +
+           one.legend.map(l => l.label + ' ' + l.n).join(', '))
+      : bad('the ring and the register disagree on how many kinds there are: ' +
+            JSON.stringify({ slices: one.slices, legend: one.legend.length,
+                             register: Object.keys(byKind) }));
+    const wrong = one.legend.filter(l => byKind[l.label] !== l.n);
+    wrong.length === 0
+      ? ok('and every count on it is the count the floors add up to')
+      : bad('the legend miscounts: ' + JSON.stringify(
+            wrong.map(w => ({ label: w.label, says: w.n, register: byKind[w.label] }))));
+    /* THE PICTURE AND THE NUMBER, MEASURED AGAINST EACH OTHER. The free arc is
+       a fraction of the ring; the free count is a fraction of the building. */
+    const freePct = Math.round(sumFree * 1000 / (payload.floors.reduce(
+      (n, f) => n + (f.units || []).length, 0))) / 10;
+    (one.barFree !== null && Math.abs(one.barFree - freePct) <= 0.3)
+      ? ok('and the ring draws what it says — ' + one.barFree + '% of it free against ' +
+           freePct + '% of the building')
+      : bad('the ring and its own number disagree: arc ' + one.barFree +
+            '%, count ' + freePct + '%');
 
     /* ── THE PRICE LIST ───────────────────────────────────────────────────
        "aik price list ka page banao … Floor wise price list … Price detail
