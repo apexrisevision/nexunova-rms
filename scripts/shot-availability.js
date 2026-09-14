@@ -516,6 +516,41 @@ function serve() {
       : bad('the ring and its own number disagree: arc ' + one.barFree +
             '%, count ' + freePct + '%');
 
+    /* EVERY LINE OF THE LEGEND IS A DOOR. A legend that says 341 Pagri and
+       cannot show you which 341 is a caption. Each row opens the whole building
+       filtered to exactly that kind, and the count it drew has to be the count
+       that then appears — which is the only way to know the filter and the
+       chart are reading the same register. */
+    const doors = [];
+    for (const seg of one.legend.map((l, i) => ({ l, i }))) {
+      const r = await page.evaluate(async i => {
+        const rows = [...document.querySelectorAll('.ck')];
+        const b = rows[i]; if (!b) return null;
+        const want = b.getAttribute('data-seg');
+        b.click();
+        await new Promise(x => setTimeout(x, 450));
+        const out = { seg: want, onAll: !document.getElementById('all').hidden,
+                      drawn: document.querySelectorAll('#all-body button[data-u]').length,
+                      lit: (document.querySelector('#all-filter button.on') || {}).textContent };
+        const back = document.querySelector('#all .bk'); if (back) back.click();
+        await new Promise(x => setTimeout(x, 300));
+        return out;
+      }, seg.i);
+      doors.push({ label: seg.l.label, want: seg.l.n, got: r });
+    }
+    await page.evaluate(() => {
+      ALLF = 'all'; ALLV = false; MINEV = false; FLOOR = null;
+      renderHome(); window.scrollTo(0, 0);
+    });
+    await sleep(350);
+    const broken = doors.filter(d => !d.got || !d.got.onAll || d.got.drawn !== d.want);
+    broken.length === 0
+      ? ok('and every line of it opens the units it counts — ' +
+           doors.map(d => d.label + ' ' + d.got.drawn).join(', '))
+      : bad('a legend row opened the wrong units: ' + JSON.stringify(
+            broken.map(d => ({ label: d.label, said: d.want,
+                               opened: d.got && d.got.drawn, onAll: d.got && d.got.onAll }))));
+
     /* ── THE PRICE LIST ───────────────────────────────────────────────────
        "aik price list ka page banao … Floor wise price list … Price detail
        wala page poora read only hona chahiye sirf update prices wo b click pe

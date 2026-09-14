@@ -188,7 +188,7 @@ button{cursor:pointer;background:none;border:0}
    page's own ground, above a band it does not belong to. What it gets instead
    is the size it should always have had: the stack of seven cards below used
    to need every pixel, and it does not exist any more. */
-.hero-n{font-size:27px;font-weight:700;letter-spacing:-.03em;line-height:1.05}
+.hero-n{font-size:24px;font-weight:700;letter-spacing:-.03em;line-height:1.05}
 .hero-p{font-size:11.5px;color:var(--mut);line-height:1.2;margin-top:1px}
 /* ── the building as one ring ─────────────────────────────────────────────
    An SVG rather than a canvas: it is four arcs, it costs nothing to redraw
@@ -196,17 +196,29 @@ button{cursor:pointer;background:none;border:0}
    about pixel ratios, and it takes the page's own colours straight from the
    stylesheet. */
 .chart{display:flex;align-items:center;gap:14px;margin-top:1px}
-.chart-r{position:relative;flex:none;width:100px;height:100px}
-.chart-r svg{width:100px;height:100px;transform:rotate(-90deg)}
-.chart-r .rg{fill:none;stroke-width:12;stroke-linecap:butt}
+.chart-r{position:relative;flex:none;width:90px;height:90px}
+.chart-r svg{width:90px;height:90px;transform:rotate(-90deg)}
+.chart-r .rg{fill:none;stroke-width:11;stroke-linecap:butt}
 /* free is the page's own ink at the weight the bar used, so "what is left"
    reads as the ground the colours are taken out of rather than as a fifth
    colour competing with them */
 .chart-r .rg-f{stroke:var(--ink);opacity:.22}
 .chart-c{position:absolute;inset:0;display:flex;flex-direction:column;
          align-items:center;justify-content:center;text-align:center}
-.chart-k{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
-.ck{display:flex;align-items:baseline;gap:7px;font-size:11.5px;line-height:1.2}
+.chart-k{flex:1;min-width:0;display:flex;flex-direction:column;gap:0}
+/* THE ROWS ARE BUTTONS NOW, so they are drawn like something you can press:
+   full width of the legend, a chevron at the end, and a tint under the finger.
+   The gap between them is gone and given to their own height instead, which
+   makes each one a bigger target for the same hundred pixels. */
+.ck{display:flex;align-items:center;gap:7px;width:100%;padding:5px 5px 5px 0;
+    border:0;background:none;text-align:left;border-radius:7px;
+    font-size:11.5px;line-height:1.2;color:inherit;font-family:inherit;
+    transition:background var(--t-fast) var(--ease)}
+@media (hover:hover){ .ck:hover{background:var(--sunk)} }
+.ck:active{background:var(--sunk)}
+.ck-x{flex:none;width:5px;height:5px;margin-left:1px;opacity:.45;
+      border-right:1.5px solid currentColor;border-top:1.5px solid currentColor;
+      transform:rotate(45deg)}
 .ck-d{flex:none;width:9px;height:9px;border-radius:3px;align-self:center}
 .ck-d.ck-f{background:var(--ink);opacity:.22}
 .ck b{font-weight:700;letter-spacing:-.01em;min-width:34px}
@@ -396,13 +408,13 @@ button{cursor:pointer;background:none;border:0}
    reads as one thing with seven rows in it, which is what a building is. The
    code each floor wears is the dark block the news band's head uses — the same
    language, one step quieter. */
-.sec-r{margin-top:6px}
+.sec-r{margin-top:4px}
 .sec-r span{font-weight:650;letter-spacing:.04em;text-transform:none;opacity:.85}
 .fl{background:var(--card);border-radius:var(--r-lg);overflow:hidden;margin:0}
 .fl button{
   width:100%;display:flex;align-items:center;gap:11px;
   padding:3px 13px;border:0;border-top:1px solid var(--hair);
-  background:var(--card);text-align:left;min-height:46px;
+  background:var(--card);text-align:left;min-height:44px;
   transition:background var(--t-fast) var(--ease);
 }
 .fl button:first-child{border-top:0}
@@ -3079,15 +3091,20 @@ function paintHero(av, tot) {
         '</div>' +
       '</div>' +
       '<div class="chart-k">' +
+        /* AND EVERY LINE OF IT IS A DOOR. A legend that says 341 Pagri and
+           cannot show you which 341 is a caption; tapping one opens the whole
+           building filtered to exactly that kind. */
         segs.map(function (s) {
           var p = tot ? Math.round(s.n * 1000 / tot) / 10 : 0;
-          return '<div class="ck">' +
+          return '<button class="ck" data-seg="' +
+              (s.free ? 'free' : 'kind:' + esc(s.label)) + '">' +
             '<i class="ck-d' + (s.free ? ' ck-f' : '') + '"' +
               (s.free ? '' : ' style="background:' + s.tint + '"') + '></i>' +
             '<b class="num">' + num0(s.n) + '</b>' +
             '<span class="ck-l">' + esc(s.label) + '</span>' +
             '<span class="ck-p">' + p + '%</span>' +
-          '</div>';
+            '<i class="ck-x"></i>' +
+          '</button>';
         }).join('') +
       '</div>' +
     '</div>';
@@ -3139,13 +3156,18 @@ function renderAll() {
         '<div class="ah-v num">' + av + '</div></div>' +
     '</div>';
 
+  /* A KIND IS A FOURTH FILTER, and it only exists while it is being used: the
+     three standing ones are the whole building, what is free and what is not,
+     and a chip saying "Pagri" beside them when a reader has asked for Pagri —
+     so they can see what they are looking at and step back out of it. */
+  var kf = ALLF.indexOf('kind:') === 0 ? ALLF.slice(5) : '';
   $('all-filter').innerHTML = [
     ['all',  'All'],
     ['free', 'Available'],
     ['held', 'Not available']
-  ].map(function (o) {
-    return '<button data-f="' + o[0] + '"' + (ALLF === o[0] ? ' class="on"' : '') +
-           '>' + o[1] + '</button>';
+  ].concat(kf ? [[ALLF, kf]] : []).map(function (o) {
+    return '<button data-f="' + esc(o[0]) + '"' + (ALLF === o[0] ? ' class="on"' : '') +
+           '>' + esc(o[1]) + '</button>';
   }).join('');
 
   var shown = 0;
@@ -3153,6 +3175,7 @@ function renderAll() {
     var units = (f.units || []).filter(function (u) {
       if (ALLF === 'free') return u.s === 'available';
       if (ALLF === 'held') return u.s !== 'available';
+      if (kf) return u.s !== 'available' && String(u.k || '') === kf;
       return true;
     });
     if (!units.length) return '';
@@ -3176,7 +3199,9 @@ function renderAll() {
   $('all-body').innerHTML = html;
   $('all-empty').hidden = !!shown;
   if (!shown) {
-    $('all-empty').textContent = ALLF === 'held'
+    $('all-empty').textContent = kf
+      ? 'Nothing in the building is ' + kf + ' right now.'
+      : ALLF === 'held'
       ? 'Every unit in the building is available.'
       : 'Nothing is available in the building right now.';
   }
@@ -4204,6 +4229,16 @@ function openFloor(i) {
   renderFloor();
   window.scrollTo(0, 0);
 }
+
+/* the chart lives on screen one and is redrawn on every reread, so the
+   listener is on the block that survives rather than on the rows that do not */
+$('hero').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-seg]'); if (!b) return;
+  ALLF = b.getAttribute('data-seg');
+  ALLV = true; MINEV = false; PRICEV = false; FLOOR = null;
+  $('price').hidden = true;
+  renderAll(); window.scrollTo(0, 0);
+});
 
 $('pricerow').addEventListener('click', function (e) {
   if (!e.target.closest('[data-price]')) return;
