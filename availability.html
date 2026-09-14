@@ -1099,6 +1099,25 @@ button{cursor:pointer;background:none;border:0}
    than the ink it wore on white. */
 #myq .all-chip .ac-n{background:var(--accent)}
 
+/* ── the question a floor asks before it opens ──────────────────────────── */
+.va-t{font-size:14px;font-weight:650;letter-spacing:-.015em;margin:2px 0 12px}
+.va-r{display:flex;gap:10px}
+.va{flex:1;min-width:0;padding:0 0 12px;border:1px solid var(--line);
+    border-radius:var(--r-lg);background:var(--card);overflow:hidden;
+    text-align:left;display:block;
+    transition:border-color var(--t) var(--ease),transform var(--t-fast) var(--ease)}
+@media (hover:hover){ .va:hover{border-color:var(--accent)} }
+.va:active{transform:scale(.98)}
+/* ABSOLUTE, NOT RELATIVE: this page is served from /a/<token>, a path it does
+   not live at, so a relative asset path resolves against the token and 404s. */
+.va-i{display:block;height:104px;background-size:cover;background-position:top center;
+      border-bottom:1px solid var(--line)}
+.va-map{background-image:url(/assets/view-map.png)}
+.va-list{background-image:url(/assets/view-list.png)}
+.va-n{display:block;margin:10px 12px 0;font-size:14.5px;font-weight:700;
+      letter-spacing:-.015em}
+.va-s{display:block;margin:3px 12px 0;font-size:11.5px;color:var(--mut);line-height:1.35}
+
 /* ── the price list ─────────────────────────────────────────────────────
    A register of what the building costs, drawn the way the floor list is
    drawn: one sheet, ruled into rows, nothing behind a tap. */
@@ -1650,6 +1669,28 @@ button{cursor:pointer;background:none;border:0}
   <section id="floor" hidden>
     <div class="ft"><button class="bk" id="back"><i></i>All floors</button></div>
     <div class="fh"><h1 id="fname">—</h1><span id="fcount"></span></div>
+    <!-- HOW WOULD YOU LIKE TO SEE IT. A floor used to open on the drawing
+         because somebody had to choose, and the drawing is the better answer
+         for a dealer standing in the market. It is not the better answer for
+         everybody: Rashid asked for the floor to stop and ask, "saath mai dono
+         cheezo ka sample screenshot dia ho taakay click karkay wohi cheez open
+         ho". The samples are photographs of the two views themselves, not
+         drawings of them. -->
+    <div id="vask" hidden>
+      <div class="va-t">How would you like to see this floor?</div>
+      <div class="va-r">
+        <button class="va" data-view="plan">
+          <span class="va-i va-map"></span>
+          <span class="va-n">Map</span>
+          <span class="va-s">The drawing, shop by shop</span>
+        </button>
+        <button class="va" data-view="list">
+          <span class="va-i va-list"></span>
+          <span class="va-n">List</span>
+          <span class="va-s">Every shop, one after another</span>
+        </button>
+      </div>
+    </div>
     <!-- THE PLATE. One card: the floor at its head, the legend that is also
          the filter, a way to find a shop by number, and the architect’s own
          drawing under all of it. Everything here is laid over the drawing or
@@ -1686,7 +1727,7 @@ button{cursor:pointer;background:none;border:0}
       <div class="pv" id="pv"><div class="in" id="pv-in"></div></div>
       <div class="pv-n" id="pv-note" hidden></div>
     </div>
-    <div class="sw">
+    <div class="sw" id="sa-w">
       <input type="checkbox" id="showall"><label for="showall">Show unavailable units</label>
     </div>
     <div class="ug" id="units"></div>
@@ -3306,6 +3347,12 @@ function renderAll() {
    and comes again. */
 var PLANS = {};            // floor prefix -> { svg, w, h, units } | 'none'
 var PLANV = true;          // the plan is the view, when there is one
+/* WHETHER THE FLOOR HAS BEEN ASKED YET. Set every time a floor is opened from
+   the register, cleared the moment a reader answers — so the question is put
+   once per visit to a floor rather than once per session, which is what "floor
+   open hotay hee ruk jai aur pooche" asks for. A floor with no drawing has
+   nothing to choose between and is never asked. */
+var VIEWASK = false;
 var PLANZ = 1;
 var PLANSEL = '';          // the shop last asked about, kept marked
 /* which keys the legend has switched OFF. Absent means showing, so a status
@@ -3651,6 +3698,21 @@ function renderFloor() {
   $('fname').textContent = f.floor_label;
   $('fcount').innerHTML = '<b class="num">' + Number(f.available || 0) + '</b> of ' +
     '<span class="num">' + Number(f.total || 0) + '</span> available';
+  /* THE QUESTION STANDS IN FRONT OF BOTH VIEWS. Not "shown above them" —
+     nothing behind it is drawn at all, or a reader answers a question whose
+     answer is already on the screen underneath it. */
+  $('vask').hidden = !VIEWASK;
+  if (VIEWASK) {
+    $('pv-b').hidden = true;
+    $('units').innerHTML = '';
+    $('fempty').hidden = true;
+    $('sa-w').hidden = true;
+    loadPlan(f).then(function (pl) {
+      if (!pl && VIEWASK && FLOOR === P.floors.indexOf(f)) { VIEWASK = false; renderFloor(); }
+    });
+    return;
+  }
+  $('sa-w').hidden = false;
   $('showall').checked = SHOWALL;
 
   var list = (f.units || []).filter(function (u) {
@@ -4312,6 +4374,7 @@ $('floors').addEventListener('click', function (e) {
    the same door frame rather than a copy of half of it. */
 function openFloor(i) {
   FLOOR = i;
+  VIEWASK = true;
   SHOWALL = false;
   $('q').value = ''; runSearch();
   renderFloor();
@@ -4356,6 +4419,12 @@ $('mine-back').onclick = function () {
   renderHome(); window.scrollTo(0, 0);
 };
 
+$('vask').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-view]'); if (!b) return;
+  PLANV = b.getAttribute('data-view') === 'plan';
+  VIEWASK = false;
+  renderFloor(); window.scrollTo(0, 0);
+});
 $('pv-plan').onclick = function () { PLANV = true; renderFloor(); window.scrollTo(0, 0); };
 $('pv-list').onclick = function () { PLANV = false; renderFloor(); window.scrollTo(0, 0); };
 

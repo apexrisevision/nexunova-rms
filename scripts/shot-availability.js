@@ -782,6 +782,73 @@ function serve() {
        asserted here against the same 780px screen. It steps rather than
        crawls, because nothing on this page may animate for longer than
        300ms, and it holds its place while the reader is on another screen. */
+    /* ── A FLOOR STOPS AND ASKS ───────────────────────────────────────────
+       "on click ye karo k floor open hotay hee ruk jai aur pooche k Map open
+       karun k list aur saath mai dono cheezo ka sample screenshot dia ho."
+
+       Two things have to hold and only one of them is obvious. The question
+       must actually stand in FRONT of both views — nothing drawn behind it, or
+       a reader is answering a question whose answer is already on the screen —
+       and the samples must be photographs of the two views rather than
+       drawings of them, which is checked by their being the real files. */
+    step('A floor stops and asks which view');
+    const askFloor = payload.floors.findIndex(f => /lower/i.test(f.floor_label));
+    const asked = await page.evaluate(async i => {
+      document.querySelector('#floors button[data-f="' + i + '"]').click();
+      await new Promise(r => setTimeout(r, 600));
+      const cards = [...document.querySelectorAll('#vask .va')];
+      return {
+        asking: !document.getElementById('vask').hidden,
+        floor: document.getElementById('fname').textContent.trim(),
+        /* nothing behind it */
+        planShown: !document.getElementById('pv-b').hidden,
+        unitsDrawn: document.querySelectorAll('#units button').length,
+        cards: cards.map(c => ({
+          name: (c.querySelector('.va-n').textContent || '').trim(),
+          view: c.getAttribute('data-view'),
+          img: getComputedStyle(c.querySelector('.va-i')).backgroundImage,
+          h: Math.round(c.getBoundingClientRect().height),
+          w: Math.round(c.getBoundingClientRect().width)
+        }))
+      };
+    }, askFloor);
+    (asked.asking && !asked.planShown && asked.unitsDrawn === 0 &&
+     asked.cards.length === 2 && asked.floor === payload.floors[askFloor].floor_label)
+      ? ok('opening ' + asked.floor + ' stops and asks, with nothing drawn behind the question')
+      : bad('the floor did not stop to ask: ' + JSON.stringify(
+            { asking: asked.asking, plan: asked.planShown, units: asked.unitsDrawn,
+              cards: asked.cards.length }));
+    /* THE SAMPLES ARE THE VIEWS THEMSELVES. A card showing a drawing of a map
+       teaches nothing about this map. */
+    (asked.cards.length === 2 &&
+     /view-map.png/.test(asked.cards[0].img) && /view-list.png/.test(asked.cards[1].img) &&
+     asked.cards.every(c => c.h >= 120 && c.w >= 120))
+      ? ok('and each answer carries a photograph of the view it opens — ' +
+           asked.cards.map(c => c.name + ' ' + c.w + 'x' + c.h).join(', '))
+      : bad('the samples are missing or too small: ' + JSON.stringify(asked.cards));
+    /* AND THE ANSWER IS OBEYED, both ways. */
+    const chose = [];
+    for (const want of ['list', 'plan']) {
+      chose.push(await page.evaluate(async (w, i) => {
+        document.getElementById('back').click();
+        await new Promise(r => setTimeout(r, 300));
+        document.querySelector('#floors button[data-f="' + i + '"]').click();
+        await new Promise(r => setTimeout(r, 600));
+        document.querySelector('#vask [data-view="' + w + '"]').click();
+        await new Promise(r => setTimeout(r, 900));
+        return { want: w, asking: !document.getElementById('vask').hidden,
+                 plan: !document.getElementById('pv').hidden,
+                 units: document.querySelectorAll('#units button').length };
+      }, want, askFloor));
+    }
+    (chose[0].plan === false && chose[1].plan === true &&
+     chose.every(c => !c.asking && c.units > 0))
+      ? ok('and the answer is obeyed — List opens the list, Map opens the drawing, ' +
+           'and the question steps aside')
+      : bad('the answer was not obeyed: ' + JSON.stringify(chose));
+    await page.evaluate(() => { document.getElementById('back').click(); });
+    await sleep(400);
+
     /* ── b. THE NEWS BAND ─────────────────────────────────────────────────
        Rashid asked for a ticker three times before this was one. The first two
        cuts stepped — a sentence every four seconds, arriving in 300ms — which
@@ -1091,6 +1158,8 @@ function serve() {
       document.getElementById('q').value = '';
       document.getElementById('q').dispatchEvent(new Event('input', { bubbles: true }));
       document.querySelector('#floors button[data-f="' + i + '"]').click();
+      { const a = document.querySelector('#vask:not([hidden]) [data-view="plan"]');
+        if (a) a.click(); }
       /* THE CHIPS, NOT THE DRAWING. A floor with a plan opens on the plan now,
          and a hidden grid reports no columns — so this asks for the list the way
          a reader would before measuring it. */
@@ -1135,6 +1204,8 @@ function serve() {
       for (let i = 0; i < n; i++) {
         document.getElementById('back').click();
         document.querySelector('#floors button[data-f="' + i + '"]').click();
+        { const a = document.querySelector('#vask:not([hidden]) [data-view="plan"]');
+          if (a) a.click(); }
         seen.push(document.querySelectorAll('#units button').length);
       }
       document.getElementById('back').click();
@@ -1339,6 +1410,8 @@ function serve() {
     const sheet = await page.evaluate(i => {
       NAME = 'Fawad khan';
       document.querySelector('#floors button[data-f="' + i + '"]').click();
+      { const a = document.querySelector('#vask:not([hidden]) [data-view="plan"]');
+        if (a) a.click(); }
       document.querySelector('#units button:not(.off)').click();
       const out = {
         open: document.getElementById('sheet').classList.contains('on'),
@@ -1690,6 +1763,8 @@ function serve() {
     const inert = await page.evaluate(i => {
       closeSheet();
       document.querySelector('#floors button[data-f="' + i + '"]').click();
+      { const a = document.querySelector('#vask:not([hidden]) [data-view="plan"]');
+        if (a) a.click(); }
       document.getElementById('showall').checked = true;
       document.getElementById('showall').dispatchEvent(new Event('change', { bubbles: true }));
       const off = document.querySelector('#units button.off');
@@ -1732,6 +1807,8 @@ function serve() {
     const tog = await page.evaluate(i => {
       document.getElementById('back').click();
       document.querySelector('#floors button[data-f="' + i + '"]').click();
+      { const a = document.querySelector('#vask:not([hidden]) [data-view="plan"]');
+        if (a) a.click(); }
       const before = document.querySelectorAll('#units button').length;
       const cb = document.getElementById('showall');
       cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1848,6 +1925,8 @@ function serve() {
        check was reading an empty page and passing on nothing. */
     await page.evaluate(i => {
       document.querySelector('#floors button[data-f="' + i + '"]').click();
+      { const a = document.querySelector('#vask:not([hidden]) [data-view="plan"]');
+        if (a) a.click(); }
       const cb = document.getElementById('showall');
       cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true }));
     }, bigIdx);
@@ -1989,6 +2068,8 @@ function serve() {
     const reach = await desk.evaluate(async () => {
       const settle = () => new Promise(r => setTimeout(r, 380));
       document.querySelector('#floors button').click();
+      { const a = document.querySelector('#vask:not([hidden]) [data-view="plan"]');
+        if (a) a.click(); }
       await settle();
       const seen = [];
       const check = els => els.map(el => {
@@ -2382,6 +2463,8 @@ function serve() {
           document.getElementById('nm-ok').click();
           await new Promise(r => setTimeout(r, 150));
           document.querySelector('#floors button').click();
+          { const a = document.querySelector('#vask:not([hidden]) [data-view="plan"]');
+            if (a) a.click(); }
           const u = document.querySelector('#units button:not(.off)');
           const unit = u.querySelector('.un').textContent.trim();
           u.click();
@@ -2423,6 +2506,8 @@ function serve() {
           closeSheet();
           document.getElementById('back').click();
           document.querySelector('#floors button').click();
+          { const a = document.querySelector('#vask:not([hidden]) [data-view="plan"]');
+            if (a) a.click(); }
           const free = [...document.querySelectorAll('#units button:not(.off)')];
           /* Never the one already asked for: the cap would hand back that
              request's own ref and this step would then delete it. */
@@ -2736,6 +2821,8 @@ function serve() {
           closeSheet();
           document.getElementById('back').click();
           document.querySelector('#floors button').click();
+          { const a = document.querySelector('#vask:not([hidden]) [data-view="plan"]');
+            if (a) a.click(); }
           /* A DIFFERENT unit. The payload in this browser still predates the
              approval, so the first free chip is the one just booked and the
              request would be refused — which is correct behaviour, and not what
@@ -3452,12 +3539,16 @@ async function visitToken(browser, token) {
       /not available/i.test(document.body.innerText), { timeout: 30000 }).catch(() => {});
     await Promise.all(pending);
     await sleep(200);
-    const out = await p.evaluate(() => {
+    const out = await p.evaluate(async () => {
       const home = document.querySelectorAll('#units button').length;
       const total = (window.P && window.P.floors)
         ? window.P.floors.reduce((n, f) => n + f.units.length, 0) : 0;
       const chip = document.querySelector('#floors button');
       if (chip) chip.click();
+      await new Promise(r => setTimeout(r, 500));
+      const ask = document.querySelector('#vask:not([hidden]) [data-view="plan"]');
+      if (ask) ask.click();
+      await new Promise(r => setTimeout(r, 400));
       return { home, total, after: document.querySelectorAll('#units button').length,
                text: document.body.innerText };
     });
