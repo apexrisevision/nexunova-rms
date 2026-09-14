@@ -1266,6 +1266,8 @@ button{cursor:pointer;background:none;border:0}
            transition:background var(--t-fast) var(--ease),transform var(--t-fast) var(--ease)}
 .af button:active{transform:scale(.97)}
 .af button.on{background:var(--ink);color:var(--card)}
+/* the number rides with the word, a shade quieter than it */
+.af .afn{margin-left:6px;font-weight:700;opacity:.62}
 
 /* The floor's own numbers ride with the floor. Stuck to the top while you
    are inside it, because three hundred identical chips with no heading in
@@ -3336,21 +3338,21 @@ function renderAll() {
      and a chip saying "Pagri" beside them when a reader has asked for Pagri —
      so they can see what they are looking at and step back out of it. */
   var kf = ALLF.indexOf('kind:') === 0 ? ALLF.slice(5) : '';
-  var every = [];
-  (P.floors || []).forEach(function (fl) {
-    (fl.units || []).forEach(function (u) {
-      if (u.s === 'available') return;
-      var k = String(u.k || '');
-      if (k && every.indexOf(k) < 0) every.push(k);
-    });
-  });
+  var everyUnit = [];
+  (P.floors || []).forEach(function (fl) { everyUnit = everyUnit.concat(fl.units || []); });
+  var nAll = everyUnit.length;
+  var nFree = everyUnit.filter(function (u) { return u.s === 'available'; }).length;
+  /* the same tally the chart, the floor keys and the ticker are built from, so
+     the four places that count this building cannot drift apart */
+  var kinds = tally(everyUnit);
   $('all-filter').innerHTML = [
-    ['all',  'All'],
-    ['free', 'Available'],
-    ['held', 'Not available']
-  ].concat(every.map(function (k) { return ['kind:' + k, k]; })).map(function (o) {
+    ['all',  'All', nAll],
+    ['free', 'Available', nFree],
+    ['held', 'Not available', nAll - nFree]
+  ].concat(kinds.map(function (k) { return ['kind:' + k.label, k.label, k.n]; }))
+   .map(function (o) {
     return '<button data-f="' + esc(o[0]) + '"' + (ALLF === o[0] ? ' class="on"' : '') +
-           '>' + esc(o[1]) + '</button>';
+           '>' + esc(o[1]) + '<b class="afn num">' + num0(o[2]) + '</b></button>';
   }).join('');
 
   var shown = 0;

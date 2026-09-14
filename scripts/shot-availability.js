@@ -559,6 +559,32 @@ function serve() {
       return { withKind, afterAll,
                drawn: document.querySelectorAll('#all-body button[data-u]').length };
     });
+    /* AND EVERY CHIP SAYS HOW MANY, AND IS RIGHT. "na hee in k counts hain."
+       A number on a filter is a promise about what pressing it will show, so
+       the check presses every one of them and compares. The four places that
+       count this building — the chart, the floor keys, the ticker and these —
+       are all built from one tally precisely so they cannot drift apart. */
+    const counted = await page.evaluate(async () => {
+      const out = [];
+      const chips = [...document.querySelectorAll('#all-filter button')]
+        .map(b => b.getAttribute('data-f'));
+      for (const f of chips) {
+        const b = document.querySelector('#all-filter button[data-f="' + f + '"]');
+        const says = Number((b.querySelector('.afn') || {}).textContent
+                              ? b.querySelector('.afn').textContent.replace(/[^0-9]/g, '') : -1);
+        b.click();
+        await new Promise(r => setTimeout(r, 380));
+        out.push({ f: f, says: says,
+                   drew: document.querySelectorAll('#all-body button[data-u]').length });
+      }
+      return out;
+    });
+    const off = counted.filter(c => c.says !== c.drew);
+    (counted.length >= 5 && off.length === 0)
+      ? ok('and every filter says how many it will show, and shows that many — ' +
+           counted.map(c => c.f.replace('kind:', '') + ' ' + c.says).join(', '))
+      : bad('a filter promised one number and drew another: ' + JSON.stringify(off));
+
     (trap.withKind.length === trap.afterAll.length &&
      trap.withKind.every(c => trap.afterAll.indexOf(c) >= 0) && trap.drawn > 0)
       ? ok('and pressing All does not take the kinds away — ' +
