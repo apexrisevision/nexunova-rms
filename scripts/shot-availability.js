@@ -347,6 +347,64 @@ function serve() {
            said.map(c => c.code).join(' '))
       : bad('a floor does not match its units: ' + JSON.stringify(
             { drew: said.map(c => c.code), register: wantCodes }));
+    /* THE FIELD IS SHORTER, THE CARDS STAND OFF THE REGISTER, THE SWITCH IS A
+       SWITCH, AND THERE IS A WAY TO REACH A PERSON. Four asks in one message,
+       each of them a number on the screen rather than an opinion:
+         "ye search baar ki height kam karo"
+         "teeno cards … ko gap do neeche grid se"
+         "ooper toggle ko button banao … switch on green show karo"
+         "dashboard k bilkul neeche … contact us … whatsapp pe direct" */
+    const fourAsks = await page.evaluate(() => {
+      const px = (el, p) => el ? Math.round(parseFloat(getComputedStyle(el)[p])) : -1;
+      const pair = document.querySelector('.pair');
+      const secr = document.querySelector('.sec-r');
+      const seg = document.getElementById('th-go');
+      const on = seg && seg.querySelector('button.on');
+      const a = document.getElementById('qa-go');
+      const dot = document.querySelector('.qa-p');
+      return {
+        fieldH: Math.round(document.querySelector('.sr input').getBoundingClientRect().height),
+        gap: pair && secr
+          ? Math.round(secr.getBoundingClientRect().top - pair.getBoundingClientRect().bottom)
+          : -1,
+        segEdge: px(seg, 'borderTopWidth'),
+        lightOn: on ? on.getAttribute('data-th') : null,
+        lightBg: on ? getComputedStyle(on).backgroundColor : '',
+        href: a ? a.getAttribute('href') : '',
+        newTab: a ? a.getAttribute('target') : '',
+        says: document.querySelector('.qa') ?
+          document.querySelector('.qa').textContent.replace(/\s+/g, ' ').trim() : '',
+        blink: dot ? getComputedStyle(dot).animationName : '',
+        blinkLaps: dot ? getComputedStyle(dot).animationIterationCount : ''
+      };
+    });
+    (fourAsks.fieldH <= 56 && fourAsks.fieldH >= 44)
+      ? ok('the search field is ' + fourAsks.fieldH + 'px — shorter, and still over the ' +
+           '44px a thumb needs')
+      : bad('the search field is the wrong height: ' + fourAsks.fieldH);
+    fourAsks.gap >= 14
+      ? ok('and the three doorways stand ' + fourAsks.gap + 'px clear of the register ' +
+           'below them')
+      : bad('the doorways are still on top of the register: ' + fourAsks.gap + 'px');
+    (fourAsks.segEdge >= 1 && fourAsks.lightOn === 'light' &&
+     /^rgb\(2[0-9], 1[0-9][0-9], 7[0-9]\)$/.test(fourAsks.lightBg))
+      ? ok('the theme switch is drawn as a control — an edge of its own — and reads ' +
+           'as thrown: Light is ' + fourAsks.lightBg + ', which is the green every ' +
+           'switch in the world uses for on')
+      : bad('the switch is not a switch: ' + JSON.stringify(
+            { edge: fourAsks.segEdge, on: fourAsks.lightOn, colour: fourAsks.lightBg }));
+    /* AND THE WAY TO A PERSON GOES TO A PERSON. The number is his own, in the
+       form WhatsApp actually dials — a local 0321… never opens a chat — and
+       the message is already written, because a contact link that hands you a
+       blank box is a contact link people close. */
+    (/^https:\/\/wa\.me\/923219694246\?text=\S+/.test(fourAsks.href) &&
+     fourAsks.newTab === '_blank' && /in case of any query/i.test(fourAsks.says) &&
+     /contact us/i.test(fourAsks.says) &&
+     fourAsks.blink === 'qaBlink' && fourAsks.blinkLaps === 'infinite')
+      ? ok('and the foot of the dashboard offers a person — “' + fourAsks.says + '” — ' +
+           'opening WhatsApp on 0321 9694246 with the message already written, ' +
+           'under a dot that keeps blinking')
+      : bad('the contact line does not reach anybody: ' + JSON.stringify(fourAsks));
     /* THE ONE INSTRUCTION ON THE PAGE, AND IT LOOKS LIKE ONE. It was set as a
        caption — ten pixels, uppercase, grey, exactly the label over the search
        field — and Rashid asked for it plainly: "us k ooper clearly likho k
@@ -508,22 +566,40 @@ function serve() {
     const settled = await page.evaluate(() => {
       const sk = document.getElementById('nm-skip');
       if (sk) sk.click();
-      return { docH: document.documentElement.scrollHeight, winH: window.innerHeight };
+      const fl = document.querySelector('.fl');
+      return { docH: document.documentElement.scrollHeight, winH: window.innerHeight,
+               floorsEnd: fl ? Math.round(fl.getBoundingClientRect().bottom) : 0,
+               foot: !!document.querySelector('.qa') };
     });
     await sleep(200);
-    settled.docH <= settled.winH
-      ? ok('no scrolling at 380×780 once the name is settled — ' +
-           settled.docH + 'px of ' + settled.winH + 'px, seven floors and all')
-      : bad('screen one scrolls even after the name card: ' + settled.docH +
-            'px of ' + settled.winH + 'px');
+    /* THE PROMISE, RESTATED HONESTLY. It used to be "the document is no taller
+       than the window", and that held until Rashid asked for a way to reach a
+       person at the foot of the dashboard: "dashboard k bilkul neeche … contact
+       us". A footer is the one thing on a page that is allowed to be below the
+       fold, and 56px of it is what the contact line costs.
+
+       What the promise was ever about is still checked, and checked harder:
+       everything a dealer came for — the reading, the band, the field, the
+       three doorways and every one of the seven floors — is on the screen
+       without a scroll. Only the footer is under it, and by how much is
+       bounded, so this cannot quietly become a page that scrolls. */
+    (settled.floorsEnd > 0 && settled.floorsEnd <= settled.winH && settled.foot &&
+     settled.docH - settled.winH <= 80)
+      ? ok('no scrolling at 380×780 to reach any of it — the seventh floor ends at ' +
+           settled.floorsEnd + 'px of ' + settled.winH + 'px, and the only thing under ' +
+           'the fold is the contact line, ' + (settled.docH - settled.winH) + 'px of it')
+      : bad('screen one does not hold what it must: ' + JSON.stringify(settled));
     console.log('     first visit, with the name card: ' + one.docH + 'px of ' +
                 one.winH + 'px — ' + Math.max(0, one.docH - one.winH) + 'px of scroll, once');
     /* THE FIRST VISIT CARRIES ONE THING IT WILL NEVER CARRY AGAIN: the card
-       that asks the dealer's name. Bounded rather than promised, so that a
-       SECOND one-time card cannot be added quietly. */
-    (one.docH - one.winH) <= 140
+       that asks the dealer's name. Under it now sits the contact line as well,
+       which every visit carries. Bounded rather than promised, so that a
+       SECOND one-time card cannot be added quietly — and the bound is tight
+       enough around what is actually there that one could not be. */
+    (one.docH - one.winH) <= 200
       ? ok('and the first visit is one screen and a little (' +
-           Math.max(0, one.docH - one.winH) + 'px, one one-time card)')
+           Math.max(0, one.docH - one.winH) + 'px: the card that asks a name, once, ' +
+           'and the contact line under the register)')
       : bad('the first visit scrolls ' + (one.docH - one.winH) + 'px, which is a screenful');
     one.unitsInDom === 0
       ? ok('not one unit is in the document on screen one')
@@ -534,8 +610,11 @@ function serve() {
       : bad('the hero says ' + one.hero + ' but the floors add up to ' + sumFree);
     /* THE FOCAL POINT IS THE SEARCH FIELD, not the count. Most dealers open
        this already knowing the unit number, so the thing they can type into
-       has to be the largest object on the screen. */
-    (one.searchH > one.heroSize * 2 && one.searchH >= 56)
+       has to be the largest object on the screen. That is a comparison, and
+       the comparison is what this checks; it also carried a floor of 56px,
+       which Rashid has since taken off — "ye search baar ki height kam karo" —
+       so what is left underneath it is the 44px any tap target owes a thumb. */
+    (one.searchH > one.heroSize * 2 && one.searchH >= 44)
       ? ok('the search field is the focal point: ' + one.searchH + 'px tall against a ' +
            one.heroSize + 'px reading')
       : bad('the search is not the focal point: field ' + one.searchH +
@@ -1002,10 +1081,17 @@ function serve() {
       await new Promise(r => setTimeout(r, 550));
       const g2 = document.querySelector('#pv-in [data-u="' + no + '"]');
       const gr = g2.getBoundingClientRect(), br = box.getBoundingClientRect();
+      const sh = document.getElementById('sheet');
+      const bar = document.querySelector('.pvc');
       const closed = { z: PLANZ, sheet: !!window.SHEET,
         /* where the shop ended up ON SCREEN — the plate is taller than the
-           screen, so its own middle means nothing */
+           screen, so its own middle means nothing — and where the two things
+           that can cover it ended up, so "clear of the sheet" is a measurement
+           rather than a guess at how tall the sheet would be */
         y: Math.round(gr.top + gr.height / 2), screen: window.innerHeight,
+        top: Math.round(gr.top), bottom: Math.round(gr.bottom),
+        sheetTop: sh ? Math.round(sh.getBoundingClientRect().top) : null,
+        barBottom: bar ? Math.round(bar.getBoundingClientRect().bottom) : 0,
         x: Math.round((gr.left + gr.width / 2) - (br.left + br.width / 2)),
         share: gr.width / br.width };
       closeSheet();
@@ -1016,6 +1102,21 @@ function serve() {
       ? ok('tapping ' + upTo.no + ' walks up to it — ' + Math.round(upTo.before.z * 100) +
            '% to ' + Math.round(upTo.closed.z * 100) + '% — and the sheet comes with it')
       : bad('the plate did not come closer: ' + JSON.stringify(upTo));
+    /* CLEAR OF THE SHEET, ALL OF IT. This checked the shop's middle, which is
+       true of a shop half behind the sheet as well — and half behind the sheet
+       is exactly what Rashid found: "zoom ho k wo us k peeche chup jata hai jis
+       pe reserve, hold pagri wagaira ka option aata hai". So both of its edges
+       are measured now, against both of the things that can cover it. */
+    (!upTo.none && upTo.closed.sheetTop !== null &&
+     upTo.closed.bottom <= upTo.closed.sheetTop - 4 &&
+     upTo.closed.top >= upTo.closed.barBottom - 1)
+      ? ok('and the whole of it is in the clear — the shop runs ' + upTo.closed.top +
+           '–' + upTo.closed.bottom + 'px, between a bar that ends at ' +
+           upTo.closed.barBottom + 'px and a sheet that starts at ' +
+           upTo.closed.sheetTop + 'px')
+      : bad('the shop is behind something: ' + JSON.stringify(
+            { shop: [upTo.closed.top, upTo.closed.bottom],
+              bar: upTo.closed.barBottom, sheet: upTo.closed.sheetTop }));
     (!upTo.none && Math.abs(upTo.closed.x) <= 24 &&
      upTo.closed.y > 0 && upTo.closed.y < upTo.closed.screen * 0.55)
       ? ok('and the shop lands in the upper part of the screen, clear of the sheet — ' +
@@ -1486,7 +1587,8 @@ function serve() {
          the ::before and ::after of every element are read too, since that is
          where two of those three actually live and a budget that cannot see
          them is a budget that cannot be broken. */
-      const arrival = ['spIn', 'spLeft', 'spRight', 'spWord', 'spRing', 'flbeam'];
+      const arrival = ['spIn', 'spLeft', 'spRight', 'spWord', 'spRing', 'flbeam',
+                       'qaBlink'];
       [...document.querySelectorAll('*')].forEach(el => {
         [null, '::before', '::after'].forEach(pseudo => {
           const c = getComputedStyle(el, pseudo);
@@ -1503,10 +1605,10 @@ function serve() {
                crawlers: crawlers };
     });
     (budget.ms <= 300 && budget.crawlers === 1)
-      ? ok('nothing but the news strip, the page-load arrival and the light round ' +
-           'the register runs longer than 300ms (worst ' + budget.ms + 'ms, ' +
-           budget.where + '), and the exemptions are a list of three, every one ' +
-           'of them named')
+      ? ok('nothing but the news strip, the page-load arrival, the light round the ' +
+           'register and the contact dot runs longer than 300ms (worst ' + budget.ms +
+           'ms, ' + budget.where + '), and the exemptions are a list of four, every ' +
+           'one of them named')
       : bad(budget.crawlers !== 1
               ? budget.crawlers + ' elements claim the marquee exemption, not 1'
               : 'an animation runs ' + budget.ms + 'ms on ' + budget.where);
