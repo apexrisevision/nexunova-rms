@@ -2,6 +2,17 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
+<script>
+/* THE THEME IS SET BEFORE ANYTHING IS PAINTED. Read at the bottom of the page
+   with the rest of the script, a reader who chose dark would watch the light
+   page draw itself first and then go out — which is worse than not offering
+   the choice. Four lines in the head, wrapped because a browser with site data
+   switched off throws on the read rather than returning nothing. */
+try {
+  var t = localStorage.getItem('avail.theme');
+  if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+} catch (e) {}
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>Availability</title>
@@ -62,14 +73,47 @@
   --t-fast:120ms;
   --t:160ms;
 }
+/* THE DARK THEME, WHICH IS NOW A CHOICE. It existed only as something a phone
+   could impose through prefers-color-scheme, and this page pinned itself to
+   light so that never happened. Rashid asked for both, switchable: "is link pe
+   theme banao light aur dark". So the same tokens are written twice — once for
+   a reader who has asked for dark on this page, and once for a phone that asks
+   for it on a page where the reader has not chosen either way. Light stays the
+   default, because it is what this link has always been and what every dealer
+   holding it today is used to. */
+:root[data-theme="dark"]{
+  --bg:#0E1013; --card:#171A1F; --ink:#EDEFF2; --soft:#A2A9B4; --mut:#79808A;
+  --line:#272B31; --hair:rgba(255,255,255,.07); --sunk:#1C1F24;
+  --accent:#7AA2FF; --accent-soft:#161C28; --ring:rgba(122,162,255,.22);
+  --held:#C99A55; --held-bg:#221C13;
+  --warn:#D9A441;
+}
 @media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
+  :root:not([data-theme="light"]):not([data-theme="dark"]){
     --bg:#0E1013; --card:#171A1F; --ink:#EDEFF2; --soft:#A2A9B4; --mut:#79808A;
     --line:#272B31; --hair:rgba(255,255,255,.07); --sunk:#1C1F24;
     --accent:#7AA2FF; --accent-soft:#161C28; --ring:rgba(122,162,255,.22);
     --held:#C99A55; --held-bg:#221C13;
     --warn:#D9A441;
   }
+}
+/* THE TINTS A HOVER OR A PRESS PAINTS were written as light greys, which on a
+   dark ground are a flash of white under the thumb. */
+:root[data-theme="dark"] .fl button:hover,
+:root[data-theme="dark"] .bk:hover,
+:root[data-theme="dark"] .ug button:hover,
+:root[data-theme="dark"] .all-chip:hover,
+:root[data-theme="dark"] .rp .row:hover{background:#1E2228}
+:root[data-theme="dark"] #myq .all-chip:hover{background:#1B2333}
+:root[data-theme="dark"] #myq .all-chip:active{background:#222C40}
+:root[data-theme="dark"] #allrow .all-chip:hover{background:#2A241A}
+:root[data-theme="dark"] #allrow .all-chip:active{background:#332C20}
+:root[data-theme="dark"] .uc button:active{background:#22262C}
+:root[data-theme="dark"] .hd-d{background:#2A1019;border-color:rgba(230,90,130,.4);
+                               color:#F08BA6}
+@media (hover:hover){
+  :root[data-theme="dark"] .hd-d:hover{background:#F08BA6;color:#14171C;
+                                       border-color:#F08BA6}
 }
 
 *{box-sizing:border-box}
@@ -105,9 +149,17 @@ button{cursor:pointer;background:none;border:0}
    the fold is worth less than a line of news above it. */
 .wrap{max-width:520px;margin:0 auto;padding:15px var(--pad) 8px}
 
+.hd-l{display:flex;align-items:center;gap:12px;min-width:0}
+/* ABSOLUTE, NOT RELATIVE. This page is served from /a/<token>, a path it does
+   not live at, so a relative asset path resolves against the token and 404s
+   silently — which has cost this link a feature once already. */
+.hd-m{flex:none;width:32px;height:38px;
+      background:url(/assets/awami-mark.png) center/contain no-repeat}
+:root[data-theme="dark"] .hd-m{background-image:url(/assets/awami-mark-white.png)}
 .hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
     margin-bottom:15px}
-.hd-t{font-size:26px;font-weight:700;letter-spacing:-.028em;line-height:1.12}
+.hd-t{font-size:22px;font-weight:700;letter-spacing:-.028em;line-height:1.15;
+       white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hd-c{font-size:12px;color:var(--mut);margin-top:5px;line-height:1.5}
 .hd-u{font-size:11px;color:var(--mut);white-space:nowrap;flex:none;padding-top:7px;
       transition:color var(--t) var(--ease)}
@@ -193,6 +245,15 @@ button{cursor:pointer;background:none;border:0}
 .tk-track .tk-i{display:inline-flex;align-items:center;gap:9px;white-space:nowrap}
 .tk-sep{display:inline-block;width:4px;height:4px;border-radius:50%;
         margin:0 20px;background:rgba(245,245,244,.45);flex:none}
+/* IN THE DARK, THE BAND IS WHITE. "jab dark theme ho to ye ticker white color
+   mai ho." It is the one object on this page whose job is to be the thing you
+   cannot miss, and on a dark page a dark band is the one thing you can. So it
+   inverts: white ground, the page's own ink on it, and the head block keeps
+   its red because red on white is exactly as loud as white on red. */
+:root[data-theme="dark"] .hero-f{background:#F5F5F4;color:#14171C}
+:root[data-theme="dark"] .hero-f b{color:#000}
+:root[data-theme="dark"] .tk-sep{background:rgba(20,23,28,.35)}
+:root[data-theme="dark"] .hero-f .dot{box-shadow:0 0 0 1px rgba(0,0,0,.2)}
 /* the coloured dot each kind carries has to read on the dark band too */
 .hero-f .dot{box-shadow:0 0 0 1px rgba(255,255,255,.25)}
 /* AND FOR A READER WHO HAS ASKED FOR STILLNESS it does not crawl at all: the
@@ -289,14 +350,21 @@ button{cursor:pointer;background:none;border:0}
 .fl button:first-child{border-top:0}
 @media (hover:hover){ .fl button:hover{background:#FAFAF9} }
 .fl button:active{background:var(--sunk);transform:scale(.99)}
+/* THE CODE BLOCK IS THE PAGE'S ONE ACCENT, not the page's ink. Black was
+   borrowed from the news band's head so the two would speak the same language;
+   seven black blocks down a screen turned out to read as seven full stops.
+   Rashid: "un ka color change karo black se". The accent is the colour this
+   page already uses for the thing you can act on — the Save button, the way
+   into a floor — and a floor code IS the thing you can act on. */
 .fl .fcode{
-  flex:none;width:38px;height:34px;border-radius:9px;background:var(--ink);color:#fff;
+  flex:none;width:38px;height:34px;border-radius:9px;background:var(--accent);color:#fff;
   display:inline-flex;align-items:center;justify-content:center;
   font-size:11.5px;font-weight:750;letter-spacing:.03em;
 }
 /* A FLOOR WITH NOTHING LEFT WEARS A QUIETER BLOCK, so the row still reads but
    never competes with the floors that have something to sell. */
 .fl button.empty .fcode{background:var(--mut)}
+:root[data-theme="dark"] .fl .fcode{color:#0E1013}
 .fl .fbody{flex:1;min-width:0}
 .fl .fh-r{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
 .fl .fn{font-size:14px;font-weight:650;letter-spacing:-.015em;line-height:1.25;
@@ -709,6 +777,17 @@ button{cursor:pointer;background:none;border:0}
    nothing, no card that is only a card, and every number next to the words
    that say what it is. */
 .hd-r{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:none}
+.hd-b{display:flex;align-items:center;gap:7px}
+/* 44px of target, drawn as 30px of button: the padding does the reaching so a
+   thumb is not asked to hit a thing the size of the word inside it. */
+.hd-th{position:relative;border:1px solid var(--line);background:var(--card);
+       color:var(--soft);border-radius:999px;height:30px;width:30px;padding:0;
+       font-size:13px;line-height:1;white-space:nowrap;
+       transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),
+                  transform var(--t-fast) var(--ease)}
+.hd-th::after{content:"";position:absolute;left:0;right:0;top:-7px;bottom:-7px}
+@media (hover:hover){ .hd-th:hover{background:var(--sunk);color:var(--ink)} }
+.hd-th:active{transform:scale(.96)}
 .hd-d{border:1px solid rgba(179,18,60,.35);background:#FFF6F8;color:#b3123c;
       font-size:10px;font-weight:700;letter-spacing:.03em;padding:3px 9px;
       border-radius:999px;font-family:inherit;white-space:nowrap}
@@ -1199,9 +1278,21 @@ button{cursor:pointer;background:none;border:0}
 
 <div class="wrap" id="app" hidden>
   <div class="hd">
-    <div>
-      <div class="hd-t" id="ttl">—</div>
-      <div class="hd-c" id="co">—</div>
+    <div class="hd-l">
+      <!-- THE MARK. Rashid sent two WhatsApp JPEGs of the Awami logo; both
+           were cropped (the wordmark runs off the right edge in each, and the
+           shield is sliced down its left side in the maroon one) and both had
+           a grey box where transparency should be. The shield is symmetric —
+           measured, not assumed: mirroring the 278 uncut rows lands within
+           0.3px of the real edge — so it was rebuilt from its own right half,
+           lifted off its ground with the JPEG's own antialiasing kept as
+           alpha, and written out in the brand's own maroon and gold. The white
+           one is the same mask, for the dark theme. -->
+      <span class="hd-m" id="mark" hidden></span>
+      <div>
+        <div class="hd-t" id="ttl">—</div>
+        <div class="hd-c" id="co">—</div>
+      </div>
     </div>
     <div class="hd-r">
       <div class="hd-u" id="upd"></div>
@@ -1212,7 +1303,13 @@ button{cursor:pointer;background:none;border:0}
            Small, because a dealer without the password still has no business
            in it — but findable, because a director should not have to be told
            twice where it is. -->
-      <button class="hd-d" id="dir-open">Director’s Login</button>
+      <div class="hd-b">
+        <!-- THE THEME SWITCH. Two states, named rather than guessed at: the
+             button says what it will DO, not what the page currently is, which
+             is the one thing people read backwards on a toggle. -->
+        <button class="hd-th" id="th-go" type="button" aria-live="polite"></button>
+        <button class="hd-d" id="dir-open">Director’s Login</button>
+      </div>
     </div>
   </div>
 
@@ -2096,6 +2193,13 @@ function renderMine() {
 function render() {
   $('ttl').textContent = P.project || 'Availability';
   $('co').textContent = P.company || '';
+  /* ONE TENANT HAS ARTWORK IN THIS REPO, so one tenant gets it. The page is
+     shared — ZZ Map Tower and anything sold after it open the same file — and
+     a mark shown above somebody else's name is worse than no mark at all. When
+     a second project needs one this becomes a logo on the wire rather than a
+     name matched here, and the comment is the marker for that day. */
+  var mk = $('mark');
+  if (mk) mk.hidden = !/awami/i.test(String(P.project || ''));
   paintUpdated();
   paintNameAsk();
   paintMyReqs();
@@ -3811,6 +3915,35 @@ async function repOpen() {
     err.hidden = false; err.textContent = 'Could not reach the office. Try again.';
   } finally { $('dir-go').disabled = false; }
 }
+/* ══ LIGHT OR DARK ════════════════════════════════════════════════════════
+   Rashid asked for both on this link. The choice is this phone's own — it is
+   written to localStorage like the dealer's name, never to the wire, and it
+   cannot be read back by anybody. A phone with site data switched off simply
+   gets the page's own default every time rather than an error. */
+function themeNow() {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+function paintTheme() {
+  var b = $('th-go'); if (!b) return;
+  var dark = themeNow() === 'dark';
+  /* WHAT IT WILL DO, NOT WHAT IT IS. A switch labelled with the state it is in
+     is read backwards by half the people who see it. */
+  b.textContent = dark ? '◑' : '◐';
+  b.title = dark ? 'Light' : 'Dark';
+  b.setAttribute('aria-label', dark ? 'Switch to the light theme'
+                                    : 'Switch to the dark theme');
+}
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('avail.theme', t); } catch (e) {}
+  paintTheme();
+  /* THE BAND IS THE ONE THING THAT INVERTS RATHER THAN RE-TINTS, and it is
+     drawn once and left alone by every repaint. Its width does not change with
+     the theme, so the crawl is not restarted — only its colours are. */
+}
+$('th-go').onclick = function () { setTheme(themeNow() === 'dark' ? 'light' : 'dark'); };
+paintTheme();
+
 $('dir-open').onclick = function () { showRep(); window.scrollTo(0, 0); };
 $('dir-go').onclick = repOpen;
 $('dir-pw').addEventListener('keydown', function (e) {

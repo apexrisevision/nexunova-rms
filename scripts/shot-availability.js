@@ -415,6 +415,99 @@ function serve() {
                 one.hero + ' free  ·  hero ' + one.heroSize + 'px/label ' + one.labSize + 'px');
     await page.screenshot({ path: path.join(OUT, 'a-screen-one-380.png') });
 
+    /* ── LIGHT OR DARK ────────────────────────────────────────────────────
+       "is link pe theme banao light aur dark. jab dark theme ho to ye ticker
+       white color mai ho." Three things have to hold, and the third is the one
+       that would be lost first: the page has to actually change, everything on
+       it has to stay readable after it does, and the news band has to INVERT
+       rather than re-tint — it is the one object on this page whose job is to
+       be impossible to miss, and a dark band on a dark page is the one thing
+       you can miss. */
+    step('Light or dark, and the band inverts');
+    const readTheme = () => page.evaluate(() => {
+      const lum = s => { const n = (s.match(/[0-9.]+/g) || []).map(Number);
+        return Math.round(0.2126 * n[0] + 0.7152 * n[1] + 0.0722 * n[2]); };
+      const cs = n => getComputedStyle(document.querySelector(n));
+      const band = cs('#hero-f'), body = cs('body'), row = cs('#floors button');
+      return {
+        theme: document.documentElement.getAttribute('data-theme'),
+        says: (document.getElementById('th-go') || {}).getAttribute
+          ? document.getElementById('th-go').getAttribute('aria-label') || '' : '',
+        glyph: ((document.getElementById('th-go') || {}).textContent || '').trim(),
+        target: Math.round(((document.getElementById('th-go') || {}).getBoundingClientRect
+          ? document.getElementById('th-go').getBoundingClientRect().height : 0)),
+        pageLum: lum(body.backgroundColor),
+        bandLum: lum(band.backgroundColor),
+        bandGap: Math.abs(lum(band.backgroundColor) - lum(band.color)),
+        rowGap: Math.abs(lum(row.backgroundColor) - lum(cs('#floors .fn').color)),
+        headBg: getComputedStyle(document.querySelector('.tk-h')).backgroundColor,
+        badge: getComputedStyle(document.querySelector('.fcode')).backgroundColor,
+        crawling: !!document.getElementById('tk-track')
+      };
+    });
+    const lightT = await readTheme();
+    await page.evaluate(() => document.getElementById('th-go').click());
+    await sleep(250);
+    const darkT = await readTheme();
+    /* IT IS A SWITCH, AND IT SAYS WHAT IT WILL DO. A toggle labelled with the
+       state it is already in is read backwards by half the people who see it. */
+    (lightT.theme === 'light' && darkT.theme === 'dark' &&
+     /to the dark/i.test(lightT.says) && /to the light/i.test(darkT.says) &&
+     lightT.glyph.length === 1 && darkT.glyph.length === 1)
+      ? ok('the switch turns the page over and says what it will do — "' +
+           lightT.says.trim() + '" in the light, "' + darkT.says.trim() + '" in the dark')
+      : bad('the theme switch does not switch: ' + JSON.stringify(
+            { light: lightT.theme, lightSays: lightT.says,
+              dark: darkT.theme, darkSays: darkT.says }));
+    /* THE PAGE ACTUALLY TURNS OVER. A theme that changes an accent and calls
+       itself dark is the failure this catches. */
+    (lightT.pageLum > 200 && darkT.pageLum < 60)
+      ? ok('and the page really does turn over (ground ' + lightT.pageLum +
+           ' → ' + darkT.pageLum + ' of 255)')
+      : bad('the ground barely moved: ' + lightT.pageLum + ' to ' + darkT.pageLum);
+    /* THE BAND INVERTS. Dark ground in the light theme, light ground in the
+       dark one — asked for by name. */
+    (lightT.bandLum < 60 && darkT.bandLum > 200)
+      ? ok('and the news band inverts with it — dark on a light page, white on ' +
+           'a dark one (' + lightT.bandLum + ' → ' + darkT.bandLum + ')')
+      : bad('the band did not invert: ' + lightT.bandLum + ' to ' + darkT.bandLum);
+    /* AND EVERYTHING IS STILL READABLE AFTER IT TURNS. A theme is not finished
+       when the background changes; it is finished when nothing has been left
+       behind on the wrong ground. */
+    (darkT.bandGap >= 80 && darkT.rowGap >= 80 && lightT.bandGap >= 80 && lightT.rowGap >= 80)
+      ? ok('and nothing is left on the wrong ground — band ' + darkT.bandGap +
+           ', floor rows ' + darkT.rowGap + ' of contrast in the dark')
+      : bad('something is unreadable after the switch: ' + JSON.stringify(
+            { darkBand: darkT.bandGap, darkRows: darkT.rowGap,
+              lightBand: lightT.bandGap, lightRows: lightT.rowGap }));
+    /* THE HEAD BLOCK KEEPS ITS RED, and the floor codes are no longer the
+       page's ink — "un ka color change karo black se". */
+    (lightT.headBg === darkT.headBg &&
+     lightT.badge !== 'rgb(20, 23, 28)' && lightT.badge !== 'rgb(0, 0, 0)')
+      ? ok('the LIVE block keeps its red in both, and the floor codes are ' +
+           lightT.badge + ', not black')
+      : bad('the head or the codes are wrong: ' + JSON.stringify(
+            { headLight: lightT.headBg, headDark: darkT.headBg, badge: lightT.badge }));
+    /* AND THE SWITCH IS A THUMB TARGET, not a word to aim at. */
+    (lightT.target >= 28 && darkT.crawling)
+      ? ok('and the crawl survives the switch — the band changes colour, not width')
+      : bad('the switch is too small or the crawl stopped: ' + JSON.stringify(
+            { height: lightT.target, crawling: darkT.crawling }));
+    await page.screenshot({ path: path.join(OUT, 'a-screen-one-dark.png') });
+    /* IT IS REMEMBERED, and it is this phone's own: written where the dealer's
+       name is written, never to the wire. */
+    const themeKept = await page.evaluate(() => {
+      let stored = null;
+      try { stored = localStorage.getItem('avail.theme'); } catch (e) {}
+      return stored;
+    });
+    themeKept === 'dark'
+      ? ok('and the choice is kept on the phone that made it')
+      : bad('the theme was not remembered: ' + JSON.stringify(themeKept));
+    /* put the page back the way the rest of this run expects to find it */
+    await page.evaluate(() => document.getElementById('th-go').click());
+    await sleep(200);
+
     /* ── b. THE NEWS LINE ─────────────────────────────────────────────────
        Rashid asked for a ticker on the dashboard: how many are sold, held,
        reserved, how many the building has, what a floor costs. It is put in
@@ -1565,10 +1658,15 @@ function serve() {
       }
       return { ls, ss, cookies: document.cookie };
     });
-    const allowed = ['avail.name', 'avail.name.asked'];
+    /* THE THEME JOINS THE LIST, and the list is the point: this page is opened
+       by people who never agreed to anything, so what it keeps on their phone
+       has to be nameable in one line. The name they typed, whether they have
+       been asked for it, and which of the two themes they chose. Nothing that
+       identifies anybody, and nothing that ever leaves the phone. */
+    const allowed = ['avail.name', 'avail.name.asked', 'avail.theme'];
     const extra = Object.keys(store.ls).filter(k => allowed.indexOf(k) < 0);
     extra.length === 0
-      ? ok('localStorage holds only ' + Object.keys(store.ls).join(', ') + ' \u2014 the name and the asked flag')
+      ? ok('localStorage holds only ' + Object.keys(store.ls).join(', ') + ' \u2014 the name, the asked flag and the theme')
       : bad('the page wrote something else to localStorage: ' + extra.join(', '));
     Object.keys(store.ss).length === 0
       ? ok('sessionStorage is untouched')
