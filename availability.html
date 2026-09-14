@@ -1085,7 +1085,20 @@ button{cursor:pointer;background:none;border:0}
    few hundred flat shapes, and an isometric projection of flat shapes is
    arithmetic, not a graphics engine. It also means it works on the phone in
    somebody's pocket rather than on the phone they wish they had. */
-#pv3{display:block;width:100%;height:auto;touch-action:pan-y;background:var(--bg)}
+/* TOUCH-ACTION NONE, or the browser takes every drag for a scroll and the
+   floor never turns. The page is still scrollable everywhere else. */
+#pv3{display:block;width:100%;height:340px;touch-action:none;background:var(--bg);
+     cursor:grab}
+#pv3:active{cursor:grabbing}
+.pv3c{display:flex;align-items:center;gap:6px;padding:9px 14px;
+      border-top:1px solid var(--line)}
+.pv3c .pv3s{flex:1}
+.pv3c button{min-width:44px;height:36px;padding:0 12px;border:1px solid var(--line);
+      border-radius:999px;background:var(--card);color:var(--soft);
+      font-size:15px;font-weight:650;line-height:1;
+      transition:background var(--t-fast) var(--ease),transform var(--t-fast) var(--ease)}
+.pv3c button:active{transform:scale(.94);background:var(--sunk)}
+#i3-fit{font-size:12.5px}
 .pv3-n{padding:11px 16px;font-size:12px;color:var(--mut);line-height:1.5;
        border-top:1px solid var(--line)}
 
@@ -1618,6 +1631,17 @@ button{cursor:pointer;background:none;border:0}
       <div class="pvq" id="pv-qw">
         <input id="pv-q" type="search" inputmode="search" autocomplete="off"
                placeholder="Find a shop on this floor — e.g. 85">
+      </div>
+      <!-- A DRAG IS NOT DISCOVERABLE. The floor turns and zooms under the
+           finger, but nothing on a canvas says so — and on a desktop there is
+           no finger at all. These do the same things by pressing. -->
+      <div class="pv3c" id="pv3c" hidden>
+        <button id="i3-l" aria-label="Turn left">↺</button>
+        <button id="i3-r" aria-label="Turn right">↻</button>
+        <span class="pv3s"></span>
+        <button id="i3-out" aria-label="Zoom out">−</button>
+        <button id="i3-in" aria-label="Zoom in">+</button>
+        <button id="i3-fit" aria-label="Fit the whole floor">Fit</button>
       </div>
       <canvas id="pv3" hidden></canvas>
       <div class="pv" id="pv"><div class="in" id="pv-in"></div></div>
@@ -3433,37 +3457,44 @@ function paintPlan(plan, f) {
 /* ══ THE FLOOR, STOOD UP ══════════════════════════════════════════════════
    "Map pe jaisay ham reservation hold sold kartay hain us MAP ka 3D model."
 
-   Not a second map. The same file the flat plan is drawn from — every shop is
-   already a polygon in it — lifted into blocks and seen from a corner. The
-   colours are the colours the plate uses, the tap is the tap the plate
-   answers, and a shop that is not free says who has it exactly as it does on
-   paper.
+   Not a second map. The plan files already hold every shop as a polygon — the
+   same file the flat plate is drawn from — so the shapes are lifted into
+   blocks and seen from a corner. Same colours the plate uses, same tap.
 
-   No library and no WebGL. A market floor is a few hundred flat shapes, and an
-   isometric view of flat shapes is arithmetic: every point goes through the
-   same two lines, and the blocks are drawn back to front so the near ones
-   cover the far ones. That is the whole engine. It runs on the phone a dealer
-   actually has, it cannot fail to find a context, and it is about a hundred
-   lines rather than a hundred kilobytes.
+   The first cut stood still. Rashid: "map intihai choota aaya hai … ye ghoomta
+   nahi hai, na hee zoom hota hai". A model you cannot walk around is a
+   picture of a model, so this one turns, zooms, moves under the finger, and
+   arrives by coming towards you rather than by appearing.
 
-   Three faces per shop: the roof, and the two walls that face the camera. The
-   walls are the same colour darkened, which is what makes a flat shape read as
-   a solid without a single light calculation. ══════════════════════════════ */
+   Still no library and no WebGL. A market floor is a few hundred flat shapes;
+   turning them is one rotation before the same two lines, and the whole engine
+   is arithmetic that runs on the phone a dealer actually has. ════════════ */
 var PLAN3D = false;        // the plan is stood up
-var ISO = { w: 0, h: 0, sc: 1, ox: 0, oy: 0, lift: 0, items: [], hit: null };
+var ISO = {
+  items: [], W: 0, H: 0, cx: 0, cy: 0,
+  /* where the camera is standing. yaw turns around the floor; tilt is how far
+     above it the eye is — 0.5 is the angle a builder's drawing uses, lower is
+     nearer the ground, higher is nearer straight down. */
+  yaw: 0, tilt: 0.5, zoom: 1, px: 0, py: 0,
+  sc: 1, ox: 0, oy: 0, bw: 1, bh: 1, bx: 0, by: 0,
+  lift: 0, raf: 0, hit: null
+};
 
-/* the two lines the whole thing rests on. x to the right and down, y to the
-   left and down, z straight up — the angle a builder's drawing uses. */
-function isoX(x, y) { return (x - y) * 0.8660254; }
-function isoY(x, y, z) { return (x + y) * 0.5 - (z || 0); }
-
-/* a shop's own depth: how far from the camera its nearest corner is. Sorting
-   on it is the whole of the hidden-surface problem for blocks standing on one
-   floor, and it costs one number per shop. */
-function isoDepth(pts) {
-  var d = -1e9;
-  for (var i = 0; i < pts.length; i++) { var s = pts[i][0] + pts[i][1]; if (s > d) d = s; }
-  return d;
+/* x to the right and down, y to the left and down, z straight up — after the
+   floor has been turned under the eye by yaw. */
+function isoRot(x, y) {
+  var c = Math.cos(ISO.yaw), s = Math.sin(ISO.yaw);
+  var dx = x - ISO.cx, dy = y - ISO.cy;
+  return [dx * c + dy * s, -dx * s + dy * c];
+}
+function isoFlat(x, y, z) {
+  var r = isoRot(x, y);
+  return [(r[0] - r[1]) * 0.8660254, (r[0] + r[1]) * ISO.tilt - (z || 0)];
+}
+function isoPt(x, y, z) {
+  var f = isoFlat(x, y, z);
+  return [f[0] * ISO.sc * ISO.zoom + ISO.ox + ISO.px,
+          f[1] * ISO.sc * ISO.zoom + ISO.oy + ISO.py];
 }
 
 function isoBuild(plan, f) {
@@ -3478,39 +3509,93 @@ function isoBuild(plan, f) {
        long as it is wide; multiplying back by the real width and height keeps
        the shops the shape they are on paper instead of stretching them square. */
     var pts = p.map(function (q) { return [q[0] * W, q[1] * H]; });
-    items.push({ n: no, pts: pts, d: isoDepth(pts), st: st,
-                 free: st.free, tint: st.free ? null : st.tint });
+    var sx = 0, sy = 0;
+    pts.forEach(function (q) { sx += q[0]; sy += q[1]; });
+    items.push({ n: no, pts: pts, cx: sx / pts.length, cy: sy / pts.length,
+                 st: st, free: st.free, tint: st.free ? null : st.tint, d: 0 });
   });
-  /* far first, near last: the painter's order */
-  items.sort(function (a, b) { return a.d - b.d; });
-  ISO.items = items; ISO.w = W; ISO.h = H;
+  ISO.items = items; ISO.W = W; ISO.H = H;
+  ISO.cx = W / 2; ISO.cy = H / 2;
   /* the block height is a share of the SHORT side, so a long floor does not
      get walls taller than its shops are wide */
-  ISO.lift = Math.min(W, H) * 0.055;
+  ISO.lift = Math.min(W, H) * 0.06;
+  ISO.yaw = 0; ISO.tilt = 0.5; ISO.zoom = 1; ISO.px = 0; ISO.py = 0;
+  isoOrder();
+  isoBounds();
+}
+
+/* FAR FIRST, NEAR LAST — and the order changes when the floor turns, so it is
+   worked out again on every turn rather than once at the start. A shop's own
+   centre is enough: the footprints on a floor do not overlap. */
+function isoOrder() {
+  ISO.items.forEach(function (it) {
+    var r = isoRot(it.cx, it.cy);
+    it.d = r[0] + r[1];
+  });
+  ISO.items.sort(function (a, b) { return a.d - b.d; });
+}
+
+/* the model's own box at this angle, so the canvas can be cut to it and the
+   floor centred in it */
+function isoBounds() {
   var minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
-  items.forEach(function (it) {
+  ISO.items.forEach(function (it) {
     it.pts.forEach(function (q) {
-      var sx = isoX(q[0], q[1]);
-      if (sx < minX) minX = sx; if (sx > maxX) maxX = sx;
-      var t = isoY(q[0], q[1], ISO.lift), b2 = isoY(q[0], q[1], 0);
-      if (t < minY) minY = t; if (b2 > maxY) maxY = b2;
+      var t = isoFlat(q[0], q[1], ISO.lift), b = isoFlat(q[0], q[1], 0);
+      if (t[0] < minX) minX = t[0]; if (t[0] > maxX) maxX = t[0];
+      if (t[1] < minY) minY = t[1]; if (b[1] > maxY) maxY = b[1];
     });
   });
   ISO.bx = minX; ISO.by = minY;
   ISO.bw = Math.max(1, maxX - minX); ISO.bh = Math.max(1, maxY - minY);
 }
 
+function isoBestYaw(cv) {
+  var pad = 8;
+  var availW = Math.max(40, cv.clientWidth - pad * 2);
+  var availH = Math.max(40, cv.clientHeight - pad * 2);
+  var keep = ISO.yaw, best = -1, bestYaw = 0;
+  /* the plan's own four corners are enough to size its box at any angle, and
+     four points is a dozen candidates for nothing */
+  var corners = [[0, 0], [ISO.W, 0], [0, ISO.H], [ISO.W, ISO.H]];
+  for (var i = 0; i < 12; i++) {
+    var yaw = i * Math.PI / 12;
+    /* skip the quarter-turn diagonals: there the plan's rectangles align with
+       the projection and the model draws as a flat map */
+    var off = yaw % (Math.PI / 2);
+    if (off > 0.40 && off < 1.17) continue;
+    ISO.yaw = yaw;
+    var minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+    for (var c = 0; c < 4; c++) {
+      var t = isoFlat(corners[c][0], corners[c][1], ISO.lift);
+      var b = isoFlat(corners[c][0], corners[c][1], 0);
+      if (t[0] < minX) minX = t[0]; if (t[0] > maxX) maxX = t[0];
+      if (t[1] < minY) minY = t[1]; if (b[1] > maxY) maxY = b[1];
+    }
+    var sc = Math.min(availW / Math.max(1, maxX - minX),
+                      availH / Math.max(1, maxY - minY));
+    if (sc > best) { best = sc; bestYaw = yaw; }
+  }
+  ISO.yaw = keep;
+  return bestYaw;
+}
+
+function isoFillZoom(cv) {
+  var pad = 8;
+  var availW = Math.max(40, cv.clientWidth - pad * 2);
+  var availH = Math.max(40, cv.clientHeight - pad * 2);
+  var scFit = Math.min(availW / ISO.bw, availH / ISO.bh);
+  if (!(scFit > 0)) return 1;
+  return Math.max(1, Math.min(2.6, availH / (ISO.bh * scFit)));
+}
+
 function isoFit(cv) {
-  var pad = 10;
+  var pad = 8;
   var sc = Math.min((cv.clientWidth - pad * 2) / ISO.bw,
                     (cv.clientHeight - pad * 2) / ISO.bh);
   ISO.sc = sc;
-  ISO.ox = pad - ISO.bx * sc + ((cv.clientWidth - pad * 2) - ISO.bw * sc) / 2;
-  ISO.oy = pad - ISO.by * sc + ((cv.clientHeight - pad * 2) - ISO.bh * sc) / 2;
-}
-
-function isoPt(x, y, z) {
-  return [isoX(x, y) * ISO.sc + ISO.ox, isoY(x, y, z) * ISO.sc + ISO.oy];
+  ISO.ox = pad - ISO.bx * sc * ISO.zoom + ((cv.clientWidth - pad * 2) - ISO.bw * sc * ISO.zoom) / 2;
+  ISO.oy = pad - ISO.by * sc * ISO.zoom + ((cv.clientHeight - pad * 2) - ISO.bh * sc * ISO.zoom) / 2;
 }
 
 /* a colour, darkened, without parsing anybody's colour space: the tints this
@@ -3520,19 +3605,26 @@ function shade(hex, k) {
   var h = String(hex || '#CCCCCC').replace('#', '');
   if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
   var n = parseInt(h, 16);
-  var r = Math.round(((n >> 16) & 255) * k), g = Math.round(((n >> 8) & 255) * k),
-      b = Math.round((n & 255) * k);
-  return 'rgb(' + r + ',' + g + ',' + b + ')';
+  return 'rgb(' + Math.round(((n >> 16) & 255) * k) + ',' +
+                  Math.round(((n >> 8) & 255) * k) + ',' +
+                  Math.round((n & 255) * k) + ')';
 }
 
 function isoDraw() {
-  var cv = $('pv3'); if (!cv) return;
+  var cv = $('pv3'); if (!cv || cv.hidden) return;
   var dpr = Math.min(window.devicePixelRatio || 1, 2);
   var cssW = cv.clientWidth;
-  /* the floor's own proportions, held between half a screen and one and a
-     half so neither a square floor nor a very long one leaves a useless box */
-  var cssH = Math.round(cssW * Math.max(0.5, Math.min(1.5, ISO.bh / ISO.bw)));
-  cv.style.height = cssH + 'px';
+  /* A MODEL WORTH LOOKING AT NEEDS ROOM. The first cut cut the box to the
+     model's own proportions, which on a long market strip left a letterbox
+     four hundred pixels tall on a phone — "map intihai choota aaya hai". The
+     box is a fixed, generous share of the screen now and the model is turned
+     and zoomed inside it. */
+  var top = cv.getBoundingClientRect().top;
+  var room = window.innerHeight - top - 16;
+  /* if the view was opened from far down the page the canvas can start below
+     the fold; a floor of the window is the worst case rather than a negative */
+  var cssH = Math.round(Math.min(Math.max(room, window.innerHeight * 0.5, 300), 640));
+  if (cv.style.height !== cssH + 'px') cv.style.height = cssH + 'px';
   if (cv.width !== Math.round(cssW * dpr) || cv.height !== Math.round(cssH * dpr)) {
     cv.width = Math.round(cssW * dpr); cv.height = Math.round(cssH * dpr);
   }
@@ -3548,32 +3640,28 @@ function isoDraw() {
 
   ISO.items.forEach(function (it) {
     var base = it.free ? free : (it.tint || '#999999');
-    var roof = it.free ? base : base;
-    /* THE TWO WALLS THAT FACE THE CAMERA, and only those. A wall is the edge
+    /* THE WALLS THAT FACE THE CAMERA, and only those. A wall is the edge
        between two points dropped to the ground; the ones on the far side are
-       behind their own roof and never seen, so they are not drawn. */
+       behind their own roof and never seen. */
     for (var i = 0; i < it.pts.length; i++) {
       var a = it.pts[i], b = it.pts[(i + 1) % it.pts.length];
-      /* the outward normal of this edge in plan; a wall faces the camera when
-         it points down-right or down-left in screen terms */
-      var ax = isoX(a[0], a[1]), bx = isoX(b[0], b[1]);
-      var ay = isoY(a[0], a[1], 0), by = isoY(b[0], b[1], 0);
-      if ((bx - ax) * (by + ay) >= 0) continue;    // facing away
+      var fa = isoFlat(a[0], a[1], 0), fb = isoFlat(b[0], b[1], 0);
+      if ((fb[0] - fa[0]) * (fb[1] + fa[1]) >= 0) continue;   // facing away
       var p1 = isoPt(a[0], a[1], ISO.lift), p2 = isoPt(b[0], b[1], ISO.lift);
       var p3 = isoPt(b[0], b[1], 0), p4 = isoPt(a[0], a[1], 0);
       g.beginPath();
       g.moveTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]);
       g.lineTo(p3[0], p3[1]); g.lineTo(p4[0], p4[1]); g.closePath();
-      g.fillStyle = shade(base, ax < bx ? 0.74 : 0.58);
+      g.fillStyle = shade(base, fa[0] < fb[0] ? 0.74 : 0.58);
       g.fill();
     }
     g.beginPath();
-    it.pts.forEach(function (q, i) {
+    it.pts.forEach(function (q, i2) {
       var s = isoPt(q[0], q[1], ISO.lift);
-      if (i === 0) g.moveTo(s[0], s[1]); else g.lineTo(s[0], s[1]);
+      if (i2 === 0) g.moveTo(s[0], s[1]); else g.lineTo(s[0], s[1]);
     });
     g.closePath();
-    g.fillStyle = roof;
+    g.fillStyle = base;
     g.fill();
     g.lineWidth = (it.n === PLANSEL) ? 2 : 0.6;
     g.strokeStyle = (it.n === PLANSEL) ? '#1D4ED8' : edge;
@@ -3582,11 +3670,10 @@ function isoDraw() {
 }
 
 /* WHICH SHOP IS UNDER THE FINGER. Near to far, because the near one is the one
-   you can see — the same order the drawing was made in, reversed. */
+   you can see — the drawing order, reversed. */
 function isoAt(px, py) {
   for (var i = ISO.items.length - 1; i >= 0; i--) {
-    var it = ISO.items[i], inside = false;
-    var pts = it.pts;
+    var it = ISO.items[i], inside = false, pts = it.pts;
     for (var a = 0, b = pts.length - 1; a < pts.length; b = a++) {
       var A = isoPt(pts[a][0], pts[a][1], ISO.lift);
       var B = isoPt(pts[b][0], pts[b][1], ISO.lift);
@@ -3598,29 +3685,145 @@ function isoAt(px, py) {
   return null;
 }
 
+/* ── moving it ──────────────────────────────────────────────────────────
+   One finger turns the floor and raises or lowers the eye. Two fingers are a
+   map: pinch to come closer, drag to move what is under them. Buttons do the
+   same for anybody who would rather press than drag, and for a mouse. */
+function isoTurn(dyaw, dtilt) {
+  ISO.yaw += dyaw;
+  ISO.tilt = Math.max(0.18, Math.min(0.95, ISO.tilt + (dtilt || 0)));
+  isoOrder(); isoBounds(); isoDraw();
+}
+function isoZoom(k, ax, ay) {
+  var z0 = ISO.zoom;
+  ISO.zoom = Math.max(0.6, Math.min(8, ISO.zoom * k));
+  /* KEEP WHAT IS UNDER THE FINGERS UNDER THE FINGERS. Zooming about the centre
+     of the box throws away the corner somebody was looking at. */
+  if (ax != null) {
+    var f = ISO.zoom / z0;
+    ISO.px = ax - (ax - ISO.px) * f;
+    ISO.py = ay - (ay - ISO.py) * f;
+  }
+  isoDraw();
+}
+function isoReset() {
+  ISO.yaw = (typeof ISO.home === 'number') ? ISO.home : 0;
+  ISO.tilt = 0.5; ISO.zoom = 1; ISO.px = 0; ISO.py = 0;
+  isoOrder(); isoBounds(); isoDraw();
+}
+
+/* IT ARRIVES BY COMING TOWARDS YOU. "open karnay pe ye animate karke qareeb
+   aaye." Six hundred milliseconds, once, on a view somebody asked for by
+   pressing a button — which is not the page fidgeting at anybody, and is the
+   one place on this page where a longer movement earns its keep. It is drawn
+   frame by frame on the canvas rather than declared in the stylesheet, so the
+   page's own 300ms rule is untouched by it. */
+function isoArrive() {
+  if (ISO.raf) cancelAnimationFrame(ISO.raf);
+  var cv = $('pv3');
+  var aim = cv ? isoBestYaw(cv) : 0;
+  ISO.home = aim;
+  ISO.yaw = aim; isoOrder(); isoBounds();
+  ISO.aim = cv ? isoFillZoom(cv) : 1;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { isoReset(); return; }
+  var t0 = 0, dur = 620;
+  var step = function (t) {
+    if (!t0) t0 = t;
+    var k = Math.min(1, (t - t0) / dur);
+    var e = 1 - Math.pow(1 - k, 3);                 // ease out
+    ISO.zoom = ISO.aim * (0.42 + 0.58 * e);
+    /* it turns as it comes, a third of a turn short of where it lands, so the
+       floor reads as a solid thing being brought round rather than a picture
+       being scaled up */
+    ISO.yaw = aim - 0.6 * (1 - e);
+    ISO.tilt = 0.80 - 0.30 * e;
+    isoOrder(); isoBounds(); isoDraw();
+    if (k < 1) ISO.raf = requestAnimationFrame(step);
+    else { ISO.raf = 0; ISO.zoom = ISO.aim; isoDraw(); }
+  };
+  ISO.raf = requestAnimationFrame(step);
+}
+
+function isoBind(cv) {
+  if (cv.__bound) return;
+  cv.__bound = true;
+  var pts = {}, n = 0, last = null, pinch = 0, mid = null, moved = 0;
+  var xy = e => { var r = cv.getBoundingClientRect();
+                  return [e.clientX - r.left, e.clientY - r.top]; };
+  cv.addEventListener('pointerdown', function (e) {
+    cv.setPointerCapture(e.pointerId);
+    pts[e.pointerId] = xy(e); n = Object.keys(pts).length;
+    last = pts[e.pointerId]; moved = 0;
+    if (n === 2) {
+      var k = Object.keys(pts), a = pts[k[0]], b = pts[k[1]];
+      pinch = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    }
+  });
+  cv.addEventListener('pointermove', function (e) {
+    if (!pts[e.pointerId]) return;
+    var p = xy(e);
+    var k = Object.keys(pts);
+    if (k.length === 1) {
+      var dx = p[0] - last[0], dy = p[1] - last[1];
+      moved += Math.abs(dx) + Math.abs(dy);
+      isoTurn(dx * 0.012, -dy * 0.004);
+      last = p;
+    } else if (k.length === 2) {
+      pts[e.pointerId] = p;
+      var a = pts[k[0]], b = pts[k[1]];
+      var d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      var m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      if (pinch > 0) isoZoom(d / pinch, m[0], m[1]);
+      ISO.px += m[0] - mid[0]; ISO.py += m[1] - mid[1];
+      moved += Math.abs(m[0] - mid[0]) + Math.abs(m[1] - mid[1]) + Math.abs(d - pinch);
+      pinch = d; mid = m;
+      isoDraw();
+    }
+    pts[e.pointerId] = p;
+  });
+  var up = function (e) {
+    var wasOne = Object.keys(pts).length === 1;
+    delete pts[e.pointerId];
+    if (Object.keys(pts).length < 2) { pinch = 0; mid = null; }
+    /* A TAP IS A DRAG THAT WENT NOWHERE. Ten pixels of slack, because a finger
+       on glass never holds still. */
+    if (wasOne && moved < 10) {
+      var p = xy(e);
+      var no = isoAt(p[0], p[1]);
+      if (no) isoPick(no);
+    }
+    moved = 0;
+  };
+  cv.addEventListener('pointerup', up);
+  cv.addEventListener('pointercancel', function (e) { delete pts[e.pointerId]; moved = 0; });
+  cv.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var p = xy(e);
+    isoZoom(e.deltaY < 0 ? 1.12 : 1 / 1.12, p[0], p[1]);
+  }, { passive: false });
+}
+
+function isoPick(no) {
+  PLANSEL = no; isoDraw();
+  var unit = (P.floors[FLOOR].units || []).filter(function (x) { return x.n === no; })[0];
+  if (!unit || unit.s !== 'available') {
+    var st = stat(unit);
+    toast(no + ' — ' + st.label + (st.who ? ', on ' + st.who + '’s word' : ''));
+    return;
+  }
+  openSheet(no, FLOOR);
+}
+
 async function show3D(f) {
   var plan = await loadPlan(f);
   var cv = $('pv3');
   if (!plan) { cv.hidden = true; return false; }
   isoBuild(plan, f);
   cv.hidden = false;
+  isoBind(cv);
   isoDraw();
-  if (!cv.__bound) {
-    cv.addEventListener('click', function (e) {
-      var r = cv.getBoundingClientRect();
-      var no = isoAt(e.clientX - r.left, e.clientY - r.top);
-      if (!no) return;
-      PLANSEL = no; isoDraw();
-      var unit = (P.floors[FLOOR].units || []).filter(function (x) { return x.n === no; })[0];
-      if (!unit || unit.s !== 'available') {
-        var st = stat(unit);
-        toast(no + ' \u2014 ' + st.label + (st.who ? ', on ' + st.who + '\u2019s word' : ''));
-        return;
-      }
-      openSheet(no, FLOOR);
-    });
-    cv.__bound = true;
-  }
+  isoArrive();
   return true;
 }
 
@@ -3651,6 +3854,7 @@ async function showPlan(f) {
   $('pv-qw').hidden = !PLANV || PLAN3D;
   $('pv-zc').hidden = !PLANV || PLAN3D;
   $('pv3').hidden = !PLANV || !PLAN3D;
+  $('pv3c').hidden = !PLANV || !PLAN3D;
   if (PLANV && PLAN3D) { show3D(f); }
 
   var units = f.units || [];
@@ -4386,6 +4590,11 @@ $('mine-back').onclick = function () {
   renderHome(); window.scrollTo(0, 0);
 };
 
+$('i3-l').onclick   = function () { isoTurn(-Math.PI / 8, 0); };
+$('i3-r').onclick   = function () { isoTurn(Math.PI / 8, 0); };
+$('i3-in').onclick  = function () { isoZoom(1.3); };
+$('i3-out').onclick = function () { isoZoom(1 / 1.3); };
+$('i3-fit').onclick = function () { isoReset(); };
 $('pv-plan').onclick = function () { PLANV = true; PLAN3D = false; renderFloor(); window.scrollTo(0, 0); };
 $('pv-3d').onclick   = function () { PLANV = true; PLAN3D = true;  renderFloor(); window.scrollTo(0, 0); };
 $('pv-list').onclick = function () { PLANV = false; PLAN3D = false; renderFloor(); window.scrollTo(0, 0); };
