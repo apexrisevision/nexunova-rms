@@ -127,8 +127,14 @@ button{cursor:pointer;background:none;border:0}
 .hero-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .hero-l{font-size:10.5px;font-weight:650;letter-spacing:.11em;text-transform:uppercase;
         color:var(--mut);line-height:1.2;margin-bottom:4px}
-.hero-n{font-size:22px;font-weight:650;letter-spacing:-.02em;line-height:1.15}
-.hero-p{font-size:12px;color:var(--mut)}
+/* THE READING, LARGER — AND STILL ITS OWN THING. Merging it into the news
+   band was the wrong way to make it prominent, and Rashid said so: "isay alag
+   hee rakho tab hee prominent rahay ga". It stays exactly where it was, on the
+   page's own ground, above a band it does not belong to. What it gets instead
+   is the size it should always have had: the stack of seven cards below used
+   to need every pixel, and it does not exist any more. */
+.hero-n{font-size:30px;font-weight:700;letter-spacing:-.028em;line-height:1.1}
+.hero-p{font-size:13px;color:var(--mut)}
 /* Ink at two strengths, not two hues. Availability is contrast here. */
 .bar{display:flex;height:3px;border-radius:999px;overflow:hidden;background:var(--sunk);
      margin:8px 0 0}
@@ -208,7 +214,7 @@ button{cursor:pointer;background:none;border:0}
 /* ── search: THE focal point of screen one ──────────────────────────────── */
 .sr{position:relative;margin-bottom:17px}
 .sr input{
-  width:100%;height:58px;padding:0 18px;border:1px solid var(--line);
+  width:100%;height:64px;padding:0 18px;border:1px solid var(--line);
   border-radius:var(--r);background:var(--card);font-size:16.5px;font-weight:500;
   letter-spacing:-.01em;outline:none;
   transition:border-color var(--t) var(--ease), box-shadow var(--t) var(--ease);
@@ -259,6 +265,72 @@ button{cursor:pointer;background:none;border:0}
    floor's name instead of sitting under it, and the kinds moved down beside
    the bar. Screen one still has to hold the whole building without scrolling
    on a 380px phone, and the harness still measures exactly that. */
+/* ── the two doorways, one line, one each ─────────────────────────────── */
+.pair{display:flex;gap:9px;margin:14px 0 0}
+.pair > div{flex:1;min-width:0}
+.pair .all-chip{height:100%;align-items:flex-start;padding:11px 12px}
+.pair .ac-t{font-size:13.5px}
+.pair .ac-m{font-size:11px}
+.pair .ac-x{align-self:center}
+
+/* ── the floor picker: the codes a dealer already types ───────────────── */
+.fp{display:flex;gap:6px;margin:18px 0 0}
+.fp button{
+  flex:1;min-width:0;height:56px;border:0;border-radius:var(--r);
+  background:var(--card);color:var(--soft);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  padding:0 2px;
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),
+             transform var(--t-fast) var(--ease);
+}
+@media (hover:hover){ .fp button:hover{background:#FDFDFD} }
+.fp button:active{transform:scale(.94)}
+/* THE ONE THAT IS OPEN IS FILLED, not outlined. On a row of seven, a border is
+   a thing to hunt for; a filled block is the one your eye lands on first. */
+.fp .fpc-c{font-size:12.5px;font-weight:750;letter-spacing:.02em}
+.fp .fpc-n{font-size:11px;font-weight:600;color:var(--mut);line-height:1.1}
+.fp button.on{background:var(--ink);color:#fff}
+.fp button.on:active{background:var(--soft)}
+.fp button.on .fpc-n{color:rgba(255,255,255,.66)}
+/* a floor with nothing left still says its name, quietly */
+.fp button.empty{color:var(--mut)}
+.fp button.empty.on{background:var(--soft);color:#fff}
+
+/* ── and the floor they picked, said properly ─────────────────────────── */
+#fpanel{margin-top:10px}
+.fpn{
+  width:100%;display:block;text-align:left;border:0;border-radius:var(--r-lg);
+  background:var(--card);padding:18px 18px 15px;
+  transition:background var(--t-fast) var(--ease),transform var(--t-fast) var(--ease);
+}
+@media (hover:hover){ .fpn:hover{background:#FDFDFD} }
+.fpn:active{transform:scale(.99);background:var(--sunk)}
+.fpn-l{font-size:10.5px;font-weight:750;letter-spacing:.12em;text-transform:uppercase;
+       color:var(--mut);line-height:1.2}
+.fpn-r{display:flex;align-items:baseline;gap:9px;margin-top:7px}
+.fpn-n{font-size:42px;font-weight:700;letter-spacing:-.032em;line-height:1;color:var(--ink)}
+.fpn-o{font-size:13.5px;color:var(--mut)}
+.fpn-b{display:flex;height:9px;border-radius:999px;overflow:hidden;
+       background:var(--sunk);margin-top:16px}
+.fpn-b i{display:block;height:100%}
+.fpn-b .free{background:var(--ink);opacity:.26}
+.fpn-k{display:flex;align-items:center;gap:14px;margin-top:11px;
+       font-size:12px;color:var(--soft)}
+.fpn-k .k{display:inline-flex;align-items:center;gap:6px}
+.fpn-k .k i{width:7px;height:7px;border-radius:50%;background:var(--t)}
+.fpn-k b{font-weight:700;color:var(--ink)}
+/* WHAT A FLOOR IS, not only how much of it is left. A dealer choosing between
+   floors is choosing between sizes and rates, and both are already on the
+   wire — the register's own area on every unit, and the rate only where this
+   link is allowed to show money at all. */
+.fpn-s{margin-top:12px;font-size:12.5px;color:var(--soft);line-height:1.5}
+.fpn-s b{font-weight:650;color:var(--ink)}
+.fpn-g{display:flex;align-items:center;justify-content:space-between;gap:10px;
+       margin-top:15px;padding-top:14px;border-top:1px solid var(--hair);
+       font-size:13.5px;font-weight:650;color:var(--accent)}
+.fpn-g i{width:7px;height:7px;border-right:2px solid currentColor;
+         border-top:2px solid currentColor;transform:rotate(45deg)}
+
 .fl{display:flex;flex-direction:column;gap:3px}
 .fl button{
   padding:5px 13px 6px;border:0;border-radius:var(--r);
@@ -315,7 +387,7 @@ button{cursor:pointer;background:none;border:0}
 
 /* A BRIEF ENTRANCE, ONCE. Added by the first paint and taken off immediately,
    so a refetch two minutes later never repeats it. */
-.fl.stagger button{animation:rise 180ms var(--ease) both;
+.fp.stagger button,.fl.stagger button{animation:rise 180ms var(--ease) both;
                    animation-delay:calc(var(--i,0) * 30ms)}
 @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes fade{from{opacity:0}to{opacity:1}}
@@ -331,13 +403,16 @@ button{cursor:pointer;background:none;border:0}
 .sk-hero{height:14px;width:34%;margin-bottom:11px}
 .sk-bar{height:3px;width:100%;border-radius:999px;margin-bottom:8px}
 .sk-leg{height:13px;width:56%;margin-bottom:15px}
-.sk-sr{height:58px;width:100%;margin-bottom:17px;border-radius:var(--r)}
+.sk-sr{height:64px;width:100%;margin-bottom:17px;border-radius:var(--r)}
 /* THE SKELETON IS A PROMISE ABOUT WHAT IS COMING, so it has to be the shape
    of what is coming. It was two columns of 74px cards; the floors are now a
    stack, and a skeleton that lies about the layout makes the page jump at the
    moment it fills — which the harness measures to the pixel. */
-.sk-fl{display:flex;flex-direction:column;gap:3px}
-.sk-ch{height:50px;border-radius:var(--r)}
+.sk-fl{display:flex;gap:6px;margin-top:18px}
+.sk-ch{flex:1;min-width:0;height:56px;border-radius:var(--r)}
+.sk-pn{height:232px;border-radius:var(--r-lg);margin-top:10px}
+.sk-pair{display:flex;gap:9px;margin-top:14px}
+.sk-pair div{flex:1;height:74px;border-radius:var(--r)}
 
 /* ── SCREEN TRANSITION — user-initiated, one way in, one way back ───────── */
 .scr-in {animation:scrIn  var(--t) var(--ease) both}
@@ -1171,12 +1246,16 @@ button{cursor:pointer;background:none;border:0}
   <div class="sk-line sk-bar"></div>
   <div class="sk-line sk-leg"></div>
   <div class="sk sk-sr"></div>
+  <div class="sk-pair">
+    <div class="sk"></div><div class="sk"></div>
+  </div>
   <div class="sk-fl">
     <div class="sk sk-ch"></div><div class="sk sk-ch"></div>
     <div class="sk sk-ch"></div><div class="sk sk-ch"></div>
     <div class="sk sk-ch"></div><div class="sk sk-ch"></div>
     <div class="sk sk-ch"></div>
   </div>
+  <div class="sk sk-pn"></div>
 </div>
 
 <div class="wrap" id="app" hidden>
@@ -1204,7 +1283,6 @@ button{cursor:pointer;background:none;border:0}
        Search first: most dealers already know the unit. Then the floors.
        No unit is rendered here, ever. -->
   <section id="home">
-    <div id="myq" hidden></div>
     <!-- The single fact this page exists to state, said once and said large.
          It sits above the search because it is a reading, not an action — the
          search is still the first thing anyone can touch. -->
@@ -1219,10 +1297,23 @@ button{cursor:pointer;background:none;border:0}
              placeholder="Search unit — e.g. LG-12" aria-label="Search unit">
       <div id="res" hidden></div>
     </div>
-    <div class="fl" id="floors"></div>
-    <!-- Deliberately outside #floors: it is not a floor, and every check
-         that counts floors would have counted it. -->
-    <div id="allrow"></div>
+    <!-- THE TWO DOORWAYS, SIDE BY SIDE. They used to sit at the two ends of
+         the screen — My Reservations above everything, All units below it —
+         which is the one arrangement where a reader can only ever see one of
+         them. Rashid: "in ki positions change karo". -->
+    <div class="pair">
+      <div id="myq" hidden></div>
+      <!-- Deliberately its own element: it is not a floor, and every check
+           that counts floors would have counted it. -->
+      <div id="allrow"></div>
+    </div>
+    <!-- THE FLOOR PICKER. Seven cards stacked down the screen were the whole
+         of it before, and Rashid on them: "wo muje bilkul nahi … bohat bura
+         lagta hai". One row of the codes a dealer already types, and the floor
+         they pick stated properly underneath instead of seven floors all
+         shouting at once. -->
+    <div class="fp" id="floors"></div>
+    <div id="fpanel"></div>
   </section>
 
   <!-- SCREEN FIVE — THE ROOM BEHIND THE PASSWORD ───────────────────────────
@@ -1362,6 +1453,9 @@ const TOKEN = (function () {
 
 var P = null;              // the payload, exactly as the server sent it
 var FLOOR = null;          // index into P.floors, or null on screen one
+/* which floor the picker on screen one is pointing at. FLOOR is the floor a
+   reader has walked into; this is the one they are looking at from outside. */
+var FSEL = 0;
 var SHOWALL = false;
 var SHEET = null;          // { unit, floorIdx, days, ref, more[] }
 var FETCHED = 0;           // ms of the last SUCCESSFUL fetch
@@ -2107,52 +2201,28 @@ function renderHome() {
   if (BACKING) { BACKING = false; playScr($('home'), 'scr-out'); }
 
   var tot = 0, av = 0;
+  /* THE PICKER. Seven floors were seven cards down the screen, each with its
+     own number, bar and tally — and Rashid on the result: "wo muje bilkul
+     nahi … bohat bura lagta hai". Seven things all stating themselves at once
+     is a list, not a dashboard. The row below is the code a dealer already
+     types into the search above it — LG, GF, FF, SF, TF, 4F, 5F — and the one
+     they pick is stated properly in the panel underneath, with the room to do
+     it that no card in a stack of seven could have. */
+  if (FSEL >= (P.floors || []).length) FSEL = 0;
   $('floors').innerHTML = (P.floors || []).map(function (f, i) {
     tot += Number(f.total || 0); av += Number(f.available || 0);
-    var n = Number(f.available || 0), t = Number(f.total || 0);
-    /* The count is the headline of the chip and the floor name is the caption,
-       because nobody scans this grid looking for the word "Second". */
-    /* AND WHAT THE REST OF THE FLOOR IS. Rashid: "main dashboard pe b detail
-       ho k har floor pe kitnay hold kitnay sold kitnay pagri etc aur phir
-       cummulative detail b." A row of small coloured counts under the number,
-       in the same colours the plate uses, so a floor reads at a glance. */
-    var kinds = tally(f.units || []);
-    /* THE FLOOR AS A STRIP OF THE BUILDING. Free first, then a band for each
-       kind of hold in the same colours the plate paints the shops in, so the
-       bar reads the same way the map does. */
-    var bar = '<span class="fb">' +
-      (t ? '<i class="free" style="width:' + (n * 100 / t) + '%"></i>' : '') +
-      kinds.map(function (k) {
-        return '<i style="width:' + (t ? k.n * 100 / t : 0) + '%;background:' + k.tint + '"></i>';
-      }).join('') + '</span>';
-    return '<button data-f="' + i + '" style="--i:' + i + '"' +
-      (n ? '' : ' class="empty"') + '>' +
-      '<span class="fh-r">' +
-        '<span class="fn">' + esc(f.floor_label) + '</span>' +
-        '<span class="fr">' +
-          (n ? '<span class="fv num">' + n + '</span>' +
-               '<span class="fc">of ' + t + '</span>'
-             : '<span class="fv">None free</span>' +
-               '<span class="fc">of ' + t + '</span>') +
-        '</span>' +
-      '</span>' +
-      '<span class="fb-r">' + bar +
-        '<span class="fk">' + (kinds.length
-          ? kinds.map(function (k) {
-              return '<span class="fk-i" style="--t:' + k.tint + '" title="' + esc(k.label) + '">' +
-                     '<i></i>' + k.n + '</span>';
-            }).join('')
-          /* A FLOOR WITH NOTHING TAKEN SAYS SO. Left blank it reads as a floor
-             whose numbers have not loaded, which is the opposite of the truth. */
-          : '<span class="fk-n">all free</span>') + '</span>' +
-      '</span>' +
+    /* THE CHIP CARRIES ITS OWN COUNT. The code alone makes the row a set of
+       tabs, and a reader has to tap all seven to learn which floor has
+       anything left. With the number on it the row answers that at a glance —
+       which is the one thing the stack of seven cards did do, kept without the
+       stack. */
+    return '<button data-fs="' + i + '" style="--i:' + i + '" class="' +
+      (i === FSEL ? 'on ' : '') + (Number(f.available || 0) ? '' : 'empty') + '">' +
+      '<span class="fpc-c">' + esc(floorCode(f)) + '</span>' +
+      '<span class="fpc-n num">' + (Number(f.available || 0) || '—') + '</span>' +
       '</button>';
-  /* TOP FLOOR AT THE TOP. The register hands the floors up from the ground,
-     which is the right order for a list and the wrong one for a building —
-     drawn that way the tower is upside down. Only the drawing is reversed:
-     data-f still carries each floor's own index, so everything that opens a
-     floor by number is untouched. */
-  }).reverse().join('');
+  }).join('');
+  paintFloorPanel();
 
   /* One quiet line, because the seven chips above already carry the weight
      and screen one has to stay whole on a phone. */
@@ -2160,8 +2230,12 @@ function renderHome() {
     '<button class="all-chip" data-all="1">' +
       '<span class="ac-w">' +
         '<span class="ac-t">All units</span>' +
-        '<span class="ac-m">Every floor in one list \u00b7 <b class="num">' + av +
-          '</b> of <span class="num">' + tot + '</span> available</span>' +
+        /* HALF THE WIDTH, HALF THE SENTENCE. This card used to run the whole
+           width of the screen and could afford "Every floor in one list"; beside
+           My Reservations it is 167px wide and that sentence was cut off
+           mid-word. The numbers are the part worth keeping. */
+        '<span class="ac-m"><b class="num">' + av + '</b> of <span class="num">' +
+          tot + '</span> free</span>' +
       '</span>' +
       '<span class="ac-x"><i></i></span>' +
     '</button>';
@@ -2184,6 +2258,97 @@ function renderHome() {
 /* One number, one bar, one line of legend. The bar is the same fact drawn a
    second time for the eye that does not read digits; it is never the only
    place a number appears, so colour is never load-bearing on its own. */
+/* THE CHIP SAYS WHAT THE DEALER TYPES. Not "1F" invented here and not the
+   floor's full name cut short — the prefix its own units carry, read off the
+   register: LG-01 gives LG, 4F-01 gives 4F. It is the same string they put in
+   the search field two inches above, so the row needs no explaining. If a
+   floor's units are numbered some other way the label falls back to the
+   initials of its name, which is wrong-looking rather than blank. */
+function floorCode(f) {
+  var u = (f.units || [])[0];
+  var n = u && u.n ? String(u.n) : '';
+  var cut = n.indexOf('-');
+  var pre = cut > 0 ? n.slice(0, cut) : '';
+  if (pre && pre.length <= 3) return pre.toUpperCase();
+  return String(f.floor_label || '?').split(/\s+/).map(function (w) {
+    return w.charAt(0);
+  }).join('').slice(0, 3).toUpperCase();
+}
+
+/* ONE FLOOR, SAID PROPERLY. What a card in a stack of seven could not do: the
+   count large enough to read across a room, the bar wide enough to see the
+   shape of the floor in it, and every kind of hold named with its own count
+   rather than squeezed into a corner. The whole panel is the door into the
+   floor — a target the size of the card, not a link at the end of a line. */
+function paintFloorPanel() {
+  var box = $('fpanel'); if (!box) return;
+  var f = (P.floors || [])[FSEL];
+  if (!f) { box.innerHTML = ''; return; }
+  var n = Number(f.available || 0), t = Number(f.total || 0);
+  var pct = t ? Math.round(n * 1000 / t) / 10 : 0;
+  var kinds = tally(f.units || []);
+  box.innerHTML =
+    '<button class="fpn" data-f="' + FSEL + '">' +
+      '<span class="fpn-l">' + esc(f.floor_label) + '</span>' +
+      '<span class="fpn-r">' +
+        '<span class="fpn-n num">' + (n ? n : 'None') + '</span>' +
+        '<span class="fpn-o">of ' + t + (t ? ' \u00b7 ' + pct + '% open' : '') + '</span>' +
+      '</span>' +
+      '<span class="fpn-b">' +
+        (t ? '<i class="free" style="width:' + (n * 100 / t) + '%"></i>' : '') +
+        kinds.map(function (k) {
+          return '<i style="width:' + (t ? k.n * 100 / t : 0) + '%;background:' + k.tint + '"></i>';
+        }).join('') +
+      '</span>' +
+      '<span class="fpn-k">' +
+        (kinds.length
+          ? kinds.map(function (k) {
+              return '<span class="k" style="--t:' + k.tint + '"><i></i><b>' + k.n +
+                     '</b> ' + esc(String(k.label).toLowerCase()) + '</span>';
+            }).join('')
+          /* A FLOOR WITH NOTHING TAKEN SAYS SO. Left blank it reads as a floor
+             whose numbers have not loaded, which is the opposite of the truth. */
+          : '<span class="k">Every unit on this floor is free</span>') +
+      '</span>' +
+      /* SIZES AND RATE, from the register's own numbers. A dealer picking a
+         floor is picking a size and a price, not only a count. The rate is
+         price over area on the units that carry both, and the MIDDLE one is
+         taken rather than the average, so one odd corner shop cannot move it —
+         the same way the news band works it out. Money only appears where this
+         link is allowed to show it at all. */
+      floorFacts(f) +
+      '<span class="fpn-g">Open ' + esc(f.floor_label) + '<i></i></span>' +
+    '</button>';
+}
+
+function floorFacts(f) {
+  var us = f.units || [];
+  var areas = us.map(function (u) { return Number(u.a); })
+                .filter(function (x) { return x > 0; })
+                .sort(function (a, b) { return a - b; });
+  var bits = [];
+  if (areas.length) {
+    var lo = Math.round(areas[0]), hi = Math.round(areas[areas.length - 1]);
+    bits.push(lo === hi
+      ? 'Every unit <b>' + num0(lo) + '</b> ' + esc(P.area_unit || 'sqft')
+      : 'Sizes <b>' + num0(lo) + '</b> to <b>' + num0(hi) + '</b> ' +
+        esc(P.area_unit || 'sqft'));
+  }
+  if (P.show_price) {
+    var rates = us.map(function (u) {
+      var v = Number(u.v), a = Number(u.a);
+      return (v > 0 && a > 0) ? v / a : 0;
+    }).filter(function (x) { return x > 0; }).sort(function (a, b) { return a - b; });
+    if (rates.length) {
+      var mid = rates[Math.floor(rates.length / 2)];
+      bits.push('about <b>' + num0(Math.round(mid / 500) * 500) + '</b> per ' +
+                esc(P.area_unit || 'sqft'));
+    }
+  }
+  if (!bits.length) return '';
+  return '<span class="fpn-s">' + bits.join(' · ') + '</span>';
+}
+
 /* ══ THE TICKER ═══════════════════════════════════════════════════════════
    Rashid: "dashboard pe aik ticker chalwao jis mai news chalti rahay… kitnay
    units sold hain kitnay hold, total kitnay units hain, price floor wise aur
@@ -3474,16 +3639,41 @@ $('res').addEventListener('click', function (e) {
   var r = hits[Number(b.getAttribute('data-i'))]; if (!r) return;
   openSheet(r.u.n, r.fi);
 });
+/* PICKING IS NOT OPENING. A tap on the row changes which floor the panel is
+   stating; a tap on the panel is what walks into it. Two taps to reach a
+   floor instead of one, and what is bought with the extra tap is that a
+   dealer can compare floors without leaving the screen they are on. */
 $('floors').addEventListener('click', function (e) {
-  var b = e.target.closest('button[data-f]'); if (!b) return;
-  FLOOR = Number(b.getAttribute('data-f'));
+  var c = e.target.closest('button[data-fs]');
+  if (c) {
+    var i = Number(c.getAttribute('data-fs'));
+    if (i === FSEL) return;
+    FSEL = i;
+    [].forEach.call($('floors').children, function (b, k) {
+      b.classList.toggle('on', k === FSEL);
+    });
+    paintFloorPanel();
+    return;
+  }
+});
+
+/* ONE WAY IN, USED BY BOTH. Walking into a floor is more than setting FLOOR:
+   the all-units toggle has to be put back to its closed state and any live
+   search cleared, or the floor opens showing whatever the last one was left
+   showing. The panel is a second door onto the same room, so it goes through
+   the same door frame rather than a copy of half of it. */
+function openFloor(i) {
+  FLOOR = i;
   SHOWALL = false;
   $('q').value = ''; runSearch();
   renderFloor();
   window.scrollTo(0, 0);
+}
+$('fpanel').addEventListener('click', function (e) {
+  var b = e.target.closest('button[data-f]'); if (!b) return;
+  openFloor(Number(b.getAttribute('data-f')));
 });
-/* The chip lives inside the floor grid, so its click arrives on the same
-   listener; it is read first because it carries no data-f. */
+
 $('allrow').addEventListener('click', function (e) {
   if (!e.target.closest('[data-all]')) return;
   ALLV = true; FLOOR = null; renderAll(); window.scrollTo(0, 0);
