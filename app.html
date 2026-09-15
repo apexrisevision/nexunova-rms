@@ -468,7 +468,24 @@
      their own phone so the door works on the second press. It can be changed
      or cleared from the line under the doors. */
   var AVAIL_KEY = 'nx.hub.avail';
-  var AVAIL = ls(function () { return localStorage.getItem(AVAIL_KEY) || ''; }, '') || '';
+  /* THE LINK THIS HUB OPENS. Written here on purpose: the other three doors
+     have fixed addresses, and Rashid wanted this one to behave the same way —
+     "jaisay click karnay pe direct CRM, RMS, HRMS khulta hai isi tarhan click
+     karnay pe direct ye link open ho". An availability token is not derivable:
+     it exists for one instant at the moment a director mints it and the desk
+     keeps only its hash, so there is nowhere to fetch it from. He gave it.
+
+     It is Awami Market's, and writing it here publishes it — which changes
+     little, since the page it opens is already public and the link is already
+     handed to every dealer. If it is ever rotated at the desk, THIS LINE is
+     what has to change with it, or the door opens a dead page.
+
+     A phone that has been given a different link — by opening one, by
+     /app.html?a=…, or through the panel — uses that instead, which is what
+     makes the same hub work for another project. */
+  var AVAIL_DEFAULT = '8d5a93aa5163aa6a4e9f390010a403dc';   // Awami Market
+  var AVAIL = ls(function () { return localStorage.getItem(AVAIL_KEY) || ''; }, '') ||
+              AVAIL_DEFAULT;
   /* THREE WAYS THIS PHONE COMES TO HAVE THE LINK, and only the last of them
      asks anybody anything:
        · it opened the link once — the availability page writes it down itself,
@@ -599,10 +616,7 @@
   window.go = function (which) {
     var a = APPS[which]; if (!a) return;
     /* the link door asks before it can go anywhere, and only the first time */
-    if (which === 'avail') {
-      if (!AVAIL) { askOpen(); return; }
-      a.url = '/a/' + AVAIL;
-    }
+    if (which === 'avail') { a.url = '/a/' + AVAIL; }
     /* THE MARKER IS FOR SIGN-INS. It tells a login it was opened from here so
        the phone's back key comes back to these doors; the availability page
        has no login and reads no marker, so it is not given one. */
@@ -680,9 +694,11 @@
   /* and the link door says whether this phone has one yet, which is the whole
      difference between a door that opens and a door that asks */
   function sayAvail() {
+    var own = ls(function () { return localStorage.getItem(AVAIL_KEY) || ''; }, '') || '';
     var w = document.getElementById('w-avail'), f = document.getElementById('f-avail');
-    if (AVAIL) { say('w-avail', 'Link saved on this phone'); f.hidden = false; }
-    else { w.hidden = true; f.hidden = true; }
+    if (own && own !== AVAIL_DEFAULT) say('w-avail', 'This phone’s own link');
+    else w.hidden = true;
+    f.hidden = false;                 // there is always another link to point it at
   }
   sayAvail();
   ls(function () { if (localStorage.getItem('rms.sales.token')) say('w-portal', 'Already signed in'); });
