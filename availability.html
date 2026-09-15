@@ -1334,7 +1334,7 @@ body.splash .fl::before{opacity:0}
    like. So the frame is on each answer instead: each is its own bordered block
    on its own ground, and the gap between them is wide enough to read as a gap
    rather than as a rule inside one card. */
-.va-r{display:flex;gap:12px}
+.va-r{display:flex;gap:12px;flex-wrap:wrap}
 /* the way back, quiet: it is the exit, not the answer */
 .va-b{width:100%;height:44px;margin-top:12px;border:0;border-radius:var(--r);
       background:none;color:var(--mut);font-size:13px;font-weight:600;
@@ -1357,6 +1357,12 @@ body.splash .fl::before{opacity:0}
       border:1px solid var(--line)}
 .va-map{background-image:url(/assets/view-map.png)}
 .va-list{background-image:url(/assets/view-list.png)}
+.va-corr{background-image:url(/assets/view-corr.png);background-position:center}
+/* the third answer takes the whole width under the other two: its picture is
+   a corridor, which is a long thing, and two of these squeezed side by side
+   would be three narrow cards instead of a choice */
+.va-w{flex:1 0 100%}
+.va-w .va-i{height:92px}
 .va-n{display:block;margin:9px 12px 0;font-size:14.5px;font-weight:700;
       letter-spacing:-.015em}
 .va-s{display:block;margin:3px 12px 0;font-size:11.5px;color:var(--mut);line-height:1.35}
@@ -1393,6 +1399,73 @@ body.splash .fl::before{opacity:0}
   55% {opacity:.35;box-shadow:0 0 0 8px rgba(37,211,102,0)}
   100%{opacity:1;box-shadow:0 0 0 0 rgba(37,211,102,0)}}
 @media (prefers-reduced-motion:reduce){ .qa-p{animation:none} }
+
+/* ── THE CORRIDOR, OPENED OUT ────────────────────────────────────────────
+   Rashid asked for this after the 3D was thrown out, and it is the answer to
+   the question a drawing on a phone cannot answer: which shop is opposite
+   which. The plate is 527 by 2798 — one to five — so on a phone the whole
+   floor is a ribbon two centimetres wide, and two shops facing each other
+   across a corridor are two specks.
+
+   So the corridor is straightened and stood up: it runs down the screen, the
+   shops on one side down the left, the shops on the other down the right, and
+   the strip between them is the corridor you would be standing in. Every shop
+   is drawn the height its FRONTAGE really is — not its area, its frontage,
+   which is what you see when you walk past it — so the two sides line up and
+   a shop sits exactly opposite whatever it is really opposite. Where nothing
+   fronts the corridor (a stair, a lift, a service shaft) the side is simply
+   empty there, and that is the truth of it as well.
+
+   Nothing here is drawn by hand: every corridor and every frontage on it is
+   worked out from the architect's own outlines, at the moment the floor is
+   opened. See corrOf(). */
+.cvw{margin-top:2px}
+.cv-p{display:flex;gap:7px;padding:10px 12px 0;flex-wrap:wrap}
+.cv-p button{height:34px;padding:0 13px;border:1px solid var(--line);border-radius:999px;
+             background:var(--card);color:var(--soft);font-size:12.5px;font-weight:650;
+             font-family:inherit;cursor:pointer;
+             transition:background var(--t) var(--ease),color var(--t) var(--ease)}
+.cv-p button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.cv-n{padding:9px 14px 0;font-size:12px;color:var(--mut);line-height:1.45}
+/* the corridor itself: two columns of shops and the floor between them */
+.cv{position:relative;margin:12px 10px 16px}
+.cv-r{position:relative}
+/* the floor you would be standing on, with the line down the middle of it
+   that every corridor in the world has */
+.cv-a{position:absolute;top:0;bottom:0;left:50%;width:30px;margin-left:-15px;
+      border-radius:6px;background:var(--sunk);
+      border-left:1px dashed var(--line);border-right:1px dashed var(--line)}
+.cv-a::before{content:'';position:absolute;left:50%;top:12px;bottom:12px;width:2px;
+      margin-left:-1px;border-radius:2px;
+      background:repeating-linear-gradient(to bottom,var(--line) 0 11px,transparent 11px 24px)}
+.cv-s{position:absolute;top:0;bottom:0;width:calc(50% - 19px)}
+.cv-l{left:0} .cv-rt{right:0}
+/* the number sits at the shop's own end of its frontage rather than floating
+   in the middle of it, so a long shop reads as a long shop rather than as a
+   card with a lot of nothing in it */
+.cv-u{position:absolute;left:0;right:0;display:flex;flex-direction:column;
+      justify-content:flex-start;gap:1px;padding:8px 9px 0;overflow:hidden;
+      border:1px solid var(--line);border-radius:9px;background:var(--card);
+      text-align:left;font-family:inherit;cursor:pointer;
+      transition:transform var(--t-fast) var(--ease)}
+.cv-u:active{transform:scale(.985)}
+.cv-l .cv-u{border-right-width:3px;border-right-color:var(--accent)}
+.cv-rt .cv-u{border-left-width:3px;border-left-color:var(--accent)}
+.cv-u .n{font-size:13px;font-weight:750;letter-spacing:-.015em;line-height:1.15;
+         white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cv-u .m{font-size:10.5px;color:var(--mut);line-height:1.3;white-space:nowrap;
+         overflow:hidden;text-overflow:ellipsis}
+/* a shop that is taken wears its kind's colour on the corridor, the same
+   colour it wears on the plate and on its chip */
+.cv-u.off{background:var(--sunk);cursor:default}
+.cv-l .cv-u.off{border-right-color:var(--t)}
+.cv-rt .cv-u.off{border-left-color:var(--t)}
+.cv-u.off .n{color:var(--soft)}
+/* too short to read anything but its number */
+.cv-u.tiny{padding:0 6px;justify-content:center}
+.cv-u.tiny .m{display:none}
+.cv-u.tiny .n{font-size:11px}
+.cv-e{padding:26px 14px;text-align:center;color:var(--mut);font-size:13px}
 
 /* ── the price list ─────────────────────────────────────────────────────
    A register of what the building costs, drawn the way the floor list is
@@ -1985,6 +2058,7 @@ body.splash .fl::before{opacity:0}
         <span class="sp"></span>
         <div class="seg">
           <button id="pv-plan" class="on">Plan</button>
+          <button id="pv-corr">Corridor</button>
           <button id="pv-list">List</button>
         </div>
       </div>
@@ -2007,6 +2081,14 @@ body.splash .fl::before{opacity:0}
       </div>
       <div class="pv" id="pv"><div class="in" id="pv-in"></div></div>
       <div class="pv-n" id="pv-note" hidden></div>
+      <!-- THE CORRIDOR, OPENED OUT. Inside the same card as the plan, under
+           the same switch, because it is the same floor read a different
+           way. -->
+      <div class="cvw" id="cv-b" hidden>
+        <div class="cv-p" id="cv-pick"></div>
+        <div class="cv-n" id="cv-note"></div>
+        <div class="cv" id="cv"></div>
+      </div>
     </div>
     <div class="sw" id="sa-w">
       <input type="checkbox" id="showall"><label for="showall">Show unavailable units</label>
@@ -2037,6 +2119,15 @@ body.splash .fl::before{opacity:0}
         <span class="va-i va-list"></span>
         <span class="va-n">List View</span>
         <span class="va-s">Every shop, one after another</span>
+      </button>
+      <!-- THE THIRD WAY IN, and the only one that answers "what is opposite
+           what". Hidden on a floor whose drawing has no corridor in it
+           rather than offered and then found empty. -->
+      <button class="va va-w" data-view="corr" id="va-corr">
+        <span class="va-i va-corr"></span>
+        <span class="va-n">Corridor View</span>
+        <span class="va-s">Walk a corridor — both sides, shop by shop, each
+          drawn the width it really is</span>
       </button>
     </div>
     <button class="va-b" id="va-back">Back to all floors</button>
@@ -3728,6 +3819,8 @@ function renderAll() {
    and comes again. */
 var PLANS = {};            // floor prefix -> { svg, w, h, units } | 'none'
 var PLANV = true;          // the plan is the view, when there is one
+var CORRV = false;         // ...unless the reader asked to walk a corridor
+var CORRI = 0;             // which corridor of this floor
 /* WHETHER THE FLOOR HAS BEEN ASKED YET. Set every time a floor is opened from
    the register, cleared the moment a reader answers — so the question is put
    once per visit to a floor rather than once per session, which is what "floor
@@ -4038,12 +4131,23 @@ async function showPlan(f) {
      switch is how you come back \u2014 taking the whole plate away in list view
      would leave nothing to come back with. */
   card.hidden = false;
-  $('pv-plan').classList.toggle('on', PLANV);
-  $('pv-list').classList.toggle('on', !PLANV);
-  box.hidden = !PLANV;
-  note.hidden = !PLANV;
-  $('pv-c').hidden = !PLANV;
-  $('pv-qw').hidden = !PLANV;
+  /* THE THIRD VIEW EXISTS ONLY WHERE THERE IS A CORRIDOR TO WALK. The switch
+     is one flag for the whole session, so a reader who chose the corridor on
+     the fourth floor and then opened one whose drawing has none must land on
+     the plan rather than on an empty screen. */
+  var cs = corrOf(plan);
+  if (CORRV && !cs.length) { CORRV = false; PLANV = true; }
+  var onPlan = PLANV && !CORRV;
+  $('pv-corr').hidden = !cs.length;
+  $('pv-plan').classList.toggle('on', onPlan);
+  $('pv-corr').classList.toggle('on', CORRV);
+  $('pv-list').classList.toggle('on', !PLANV && !CORRV);
+  box.hidden = !onPlan;
+  note.hidden = !onPlan;
+  $('pv-c').hidden = !onPlan;
+  $('pv-qw').hidden = !onPlan;
+  $('cv-b').hidden = !CORRV;
+  if (CORRV) paintCorr(f);
 
   var units = f.units || [];
   var gone = units.filter(function (u) { return u.s !== 'available'; }).length;
@@ -4054,7 +4158,7 @@ async function showPlan(f) {
   $('pv-s').textContent = 'As drawn · ' + units.length + ' shops';
   planKeys();
 
-  if (PLANV) {
+  if (onPlan) {
     /* THE WHOLE FLOOR FIRST. Opening enlarged was tried and it starts the
        reader inside the building with no idea which end they are at; the
        plate is meant to be seen whole and then gone into. The zoom sits
@@ -4094,8 +4198,14 @@ function renderFloor() {
     $('units').innerHTML = '';
     $('fempty').hidden = true;
     $('sa-w').hidden = true;
+    /* the third answer stays off the question until the drawing has been read
+       and a corridor actually found in it — offering it and taking it away
+       again is worse than not offering it */
+    $('va-corr').hidden = true;
     loadPlan(f).then(function (pl) {
-      if (!pl && VIEWASK && FLOOR === P.floors.indexOf(f)) { VIEWASK = false; renderFloor(); }
+      if (FLOOR !== P.floors.indexOf(f) || !VIEWASK) return;
+      if (!pl) { VIEWASK = false; renderFloor(); return; }
+      $('va-corr').hidden = !corrOf(pl).length;
     });
     return;
   }
@@ -4121,7 +4231,7 @@ function renderFloor() {
      already on screen, so a floor never waits on a file: the chips are there
      the moment the floor opens and the plan takes their place when it lands. */
   showPlan(f).then(function (has) {
-    var showList = !has || !PLANV;
+    var showList = !has || (!PLANV && !CORRV);
     $('units').hidden = !showList;
     $('fempty').hidden = !showList || !none;
     var sw = document.querySelector('#floor .sw');
@@ -4837,12 +4947,35 @@ document.addEventListener('keydown', function (e) {
 });
 $('vask').addEventListener('click', function (e) {
   var b = e.target.closest('[data-view]'); if (!b) return;
-  PLANV = b.getAttribute('data-view') === 'plan';
+  var vw = b.getAttribute('data-view');
+  CORRV = vw === 'corr'; CORRI = 0;
+  PLANV = vw !== 'list';
   VIEWASK = false;
   renderFloor(); window.scrollTo(0, 0);
 });
-$('pv-plan').onclick = function () { PLANV = true; renderFloor(); window.scrollTo(0, 0); };
-$('pv-list').onclick = function () { PLANV = false; renderFloor(); window.scrollTo(0, 0); };
+$('pv-plan').onclick = function () {
+  PLANV = true; CORRV = false; renderFloor(); window.scrollTo(0, 0);
+};
+$('pv-list').onclick = function () {
+  PLANV = false; CORRV = false; renderFloor(); window.scrollTo(0, 0);
+};
+$('pv-corr').onclick = function () {
+  CORRV = true; CORRI = 0; renderFloor(); window.scrollTo(0, 0);
+};
+/* which corridor, when a floor has more than one */
+$('cv-pick').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-c]'); if (!b) return;
+  CORRI = Number(b.getAttribute('data-c')) || 0;
+  paintCorr(P.floors[FLOOR]);
+  window.scrollTo(0, 0);
+});
+/* AND A SHOP ON THE CORRIDOR IS THE SAME SHOP. Same sheet, same question, same
+   refusal on one that is already taken — the view is a way of looking, not a
+   second way of asking. */
+$('cv').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-u]'); if (!b) return;
+  openSheet(b.getAttribute('data-u'), FLOOR);
+});
 
 /* ══ THE PLATE IS LONG AND NARROW ═══════════════════════════════════════════
    At the width of a phone a shop is about ten pixels across: enough to see,
@@ -4866,6 +4999,139 @@ var PANNED = false;                 // the last gesture was a drag, not a tap
    300ms, so the two read as one movement rather than two. ═══════════════ */
 var PLANBACK = null;       // the view to return to when the sheet closes
 var PFOCUS = 0;            // the frame handle, so two taps cannot fight
+
+/* ── WHERE THE CORRIDORS ARE, READ OFF THE DRAWING ───────────────────────
+   Two steps, and neither of them guesses.
+
+   FIRST, where the corridors are. Every shop's outline is reduced to the band
+   of the plate's width it occupies, and those bands are laid over each other:
+   what is left uncovered, across the short way, is where nobody's shop is —
+   the corridor. Bands at the very edges are the outside of the building and
+   bands narrower than three feet are service slots, and neither is a corridor
+   somebody walks down.
+
+   SECOND, who stands on it. Not "whose outline touches the edge" — a shop set
+   back half a foot touches nothing — but what you would SEE from inside it. So
+   the corridor is walked end to end, and at every step the nearest shop on
+   each side is the one standing there. That also hands back exactly how much
+   of the corridor each shop takes, which is the one measurement the view is
+   drawn from: its frontage, not its area.
+
+   Worked out once per floor and kept on the plan, because the drawing does not
+   change while somebody is reading it. */
+function corrOf(plan) {
+  if (!plan || !plan.units) return [];
+  if (plan._corr) return plan._corr;
+  var bs = [];
+  Object.keys(plan.units).forEach(function (id) {
+    var p = plan.units[id].p || [], x0 = 1, x1 = 0, y0 = 1, y1 = 0, i;
+    if (!p.length) return;
+    for (i = 0; i < p.length; i++) {
+      if (p[i][0] < x0) x0 = p[i][0];
+      if (p[i][0] > x1) x1 = p[i][0];
+      if (p[i][1] < y0) y0 = p[i][1];
+      if (p[i][1] > y1) y1 = p[i][1];
+    }
+    bs.push({ id: id, x0: x0, x1: x1, y0: y0, y1: y1 });
+  });
+  var N = 600, hit = [], i2;
+  for (i2 = 0; i2 < N; i2++) hit[i2] = false;
+  bs.forEach(function (b) {
+    var a = Math.max(0, Math.floor(b.x0 * N)), z = Math.min(N - 1, Math.ceil(b.x1 * N));
+    for (var i = a; i <= z; i++) hit[i] = true;
+  });
+  var bands = [], s = -1;
+  for (i2 = 0; i2 < N; i2++) {
+    if (!hit[i2] && s < 0) s = i2;
+    if (hit[i2] && s >= 0) { bands.push([s / N, i2 / N]); s = -1; }
+  }
+  var wide = Number(plan.w) || 500;
+  bands = bands.filter(function (r) {
+    return r[0] > 0.02 && r[1] < 0.98 && (r[1] - r[0]) * wide >= 3;
+  });
+  var out = [];
+  bands.forEach(function (r) {
+    var S = 900, L = {}, R = {}, k, j;
+    for (k = 0; k < S; k++) {
+      var y = (k + 0.5) / S, bl = null, br = null;
+      for (j = 0; j < bs.length; j++) {
+        var b = bs[j];
+        if (y < b.y0 || y > b.y1) continue;
+        if (b.x1 <= r[0] + 1e-4) { if (!bl || b.x1 > bl.x1) bl = b; }
+        if (b.x0 >= r[1] - 1e-4) { if (!br || b.x0 < br.x0) br = b; }
+      }
+      if (bl) { if (!L[bl.id]) L[bl.id] = [k, k]; else L[bl.id][1] = k; }
+      if (br) { if (!R[br.id]) R[br.id] = [k, k]; else R[br.id][1] = k; }
+    }
+    var side = function (o) {
+      return Object.keys(o).map(function (id) {
+        return { n: id, a: o[id][0] / S, b: (o[id][1] + 1) / S };
+      }).filter(function (u) { return u.b - u.a >= 0.006; })
+        .sort(function (p, q) { return p.a - q.a; });
+    };
+    var c = { left: side(L), right: side(R) };
+    if (c.left.length + c.right.length >= 6) out.push(c);
+  });
+  plan._corr = out;
+  return out;
+}
+
+/* ── AND WHAT IT LOOKS LIKE ──────────────────────────────────────────────
+   One height for the whole corridor, chosen so the SHORTEST frontage on it is
+   still a 44px target; everything else is that height times its own share. It
+   has to be one scale for both sides or the two would stop lining up, and the
+   lining up is the whole point of the view. */
+function paintCorr(f) {
+  var plan = PLANS[floorKey(f)];
+  var cs = (plan && plan !== 'none') ? corrOf(plan) : [];
+  var host = $('cv'), pick = $('cv-pick'), note = $('cv-note');
+  if (!cs.length) {
+    pick.innerHTML = ''; note.textContent = '';
+    host.innerHTML = '<div class="cv-e">This floor’s drawing has no corridor ' +
+      'running through it.</div>';
+    return;
+  }
+  if (CORRI >= cs.length) CORRI = 0;
+  var c = cs[CORRI];
+  pick.innerHTML = cs.length < 2 ? '' : cs.map(function (x, i) {
+    return '<button type="button" data-c="' + i + '"' + (i === CORRI ? ' class="on"' : '') +
+      '>Corridor ' + (i + 1) + '</button>';
+  }).join('');
+  var by = {};
+  (f.units || []).forEach(function (u) { by[u.n] = u; });
+  var all = c.left.concat(c.right), thin = 1, free = 0;
+  all.forEach(function (u) {
+    if (u.b - u.a < thin) thin = u.b - u.a;
+    var m = by[u.n]; if (m && m.s === 'available') free++;
+  });
+  /* ONE SCALE FOR BOTH SIDES, or the two stop lining up and the view loses
+     the only thing it is for. It is set by the SHORTEST frontage on the
+     corridor — 40px of it, which is a target a thumb can find — and capped, so
+     a corridor with one very narrow shop on it cannot stretch the other
+     seventy into a morning's scrolling. */
+  var H = Math.max(700, Math.min(5600, Math.round(40 / Math.max(0.004, thin))));
+  note.textContent = c.left.length + ' shops on one side, ' + c.right.length +
+    ' on the other · ' + free + ' free · each drawn the width it really is';
+  var block = function (u) {
+    var m = by[u.n], st = stat(m), top = Math.round(u.a * H),
+        h = Math.max(30, Math.round((u.b - u.a) * H));
+    var off = !m || m.s !== 'available';
+    return '<button type="button" class="cv-u' + (off ? ' off' : '') +
+      (h < 46 ? ' tiny' : '') + '"' +
+      (off ? ' disabled style="--t:' + st.tint + ';top:' + top + 'px;height:' + h + 'px"'
+           : ' data-u="' + esc(u.n) + '" style="top:' + top + 'px;height:' + h + 'px"') + '>' +
+      '<span class="n">' + esc(u.n) + '</span>' +
+      '<span class="m">' + (off ? esc(st.label) + (st.who ? ' · ' + esc(st.who) : '')
+                                : esc(area(m))) + '</span>' +
+    '</button>';
+  };
+  host.innerHTML =
+    '<div class="cv-r" style="height:' + H + 'px">' +
+      '<div class="cv-a"></div>' +
+      '<div class="cv-s cv-l">' + c.left.map(block).join('') + '</div>' +
+      '<div class="cv-s cv-rt">' + c.right.map(block).join('') + '</div>' +
+    '</div>';
+}
 
 /* where a shop sits inside the drawing, as a fraction of it — a fraction holds
    at any zoom, which is what lets the walk keep it centred while the width is
