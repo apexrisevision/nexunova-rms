@@ -20,7 +20,7 @@
  *   node scripts/shot-availability.js
  */
 const fs = require('fs'), path = require('path'), http = require('http'),
-      https = require('https'), puppeteer = require('puppeteer-core');
+      https = require('https'), zlib = require('zlib'), puppeteer = require('puppeteer-core');
 
 const ROOT = path.resolve(__dirname, '..');
 const PORT = 4196, BASE = 'http://127.0.0.1:' + PORT;
@@ -63,8 +63,25 @@ function serve() {
       if (!p.startsWith(ROOT) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) {
         res.writeHead(404); return res.end('nf');
       }
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(p).toLowerCase()] || 'application/octet-stream' });
-      fs.createReadStream(p).pipe(res);
+      /* AS THE SITE SERVES IT, NOT AS IT SITS ON DISK. Vercel sends this page
+         brotli — 313KB of HTML leaves the server as 99KB — and this harness was
+         sending every byte of it uncompressed. So the one number here that is
+         about a person waiting, the time to interactive on Regular 3G, was
+         measuring a download no reader has ever made: three times the bytes,
+         on a link throttled to 97KB a second. The threshold stays where it
+         was; what changes is that it is now a threshold on something real. The
+         raw size is still printed beside it, so the page getting fatter is
+         still visible even when the wire hides it. */
+      const type = MIME[path.extname(p).toLowerCase()] || 'application/octet-stream';
+      const zippable = /^(text\/|application\/(javascript|json|manifest))/.test(type);
+      const wants = /gzip/.test(q.headers['accept-encoding'] || '');
+      if (zippable && wants) {
+        res.writeHead(200, { 'Content-Type': type, 'Content-Encoding': 'gzip' });
+        fs.createReadStream(p).pipe(zlib.createGzip()).pipe(res);
+      } else {
+        res.writeHead(200, { 'Content-Type': type });
+        fs.createReadStream(p).pipe(res);
+      }
     });
     s.listen(PORT, '127.0.0.1', () => r(s));
   });
@@ -2689,7 +2706,10 @@ function serve() {
     }
     console.log('     shell ready ' + tScript + ' ms  ·  floors painted ' + tPaint +
                 ' ms   (best of 3)');
-    console.log('     page + scripts over the wire: ' + Math.round(transfer / 1024) + ' KB');
+    console.log('     page + scripts over the wire: ' + Math.round(transfer / 1024) +
+                ' KB compressed, the way the site sends it');
+    console.log('     the page itself, on disk: ' +
+                Math.round(fs.statSync(path.join(ROOT, 'availability.html')).size / 1024) + ' KB');
     console.log('     payload on top of that: ' + Math.round(bytes / 1024) + ' KB');
     tPaint < 6000
       ? ok('interactive in ' + (tPaint / 1000).toFixed(1) + 's on Regular 3G with a 4× CPU handicap')

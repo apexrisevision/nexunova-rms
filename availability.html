@@ -327,6 +327,9 @@ body.splash .wrap   {overflow-x:clip}
 body.splash .hd-t   {overflow:visible}
 /* the mark, from the left */
 body.splash .hd-m   {animation:spLeft 800ms var(--settle) both}
+/* unless it has just been carried here by hand, in which case it has already
+   arrived and sliding it in from the left would be arriving twice */
+body.splash .hd-m.hd-mk{animation:none}
 /* IT ALL HAPPENS TOGETHER. The first cut of this held the whole page back
    until the name had finished — two acts, and the second one waiting on the
    first, which is what Rashid took out: "ye awami market k text k animation k
@@ -2339,7 +2342,18 @@ const TOKEN = (function () {
    It lifts on whichever comes first: the building arriving (but never before a
    second, or it is a flicker rather than an opening) or 2.8 seconds (because a
    splash that outlives its own page is worse than no splash at all). */
-var ASPLASH = { on: false, at: 0, went: false };
+var ASPLASH = { on: false, at: 0, went: false, then: null };
+
+/* THE SCREEN'S OWN ARRIVAL, held in one place so it can be started late. The
+   class is on the body because the mark and the name are in the header, the
+   chart is in one block and the floors are in another — the dance is the whole
+   of screen one, so the switch for it has to be above all of them. It is taken
+   off once the last piece has landed, so nothing is left carrying an animation
+   it has finished. */
+function arrive() {
+  document.body.classList.add('splash');
+  setTimeout(function () { document.body.classList.remove('splash'); }, 3600);
+}
 function aspBrand(read) {
   try {
     var raw = localStorage.getItem('avail.brand');
@@ -2470,6 +2484,7 @@ function aspGo() {
   if (!a || !b || !a.width || !b.width || still) {
     el.classList.add('out');
     setTimeout(function () { el.hidden = true; }, 460);
+    if (ASPLASH.then) { var go0 = ASPLASH.then; ASPLASH.then = null; go0(); }
     return;
   }
   el.classList.add('lift');
@@ -2490,6 +2505,8 @@ function aspGo() {
     v.classList.add('hd-mv');
     slot.classList.add('hd-mk');
     el.hidden = true;
+    /* and now the screen may have its turn */
+    if (ASPLASH.then) { var go = ASPLASH.then; ASPLASH.then = null; go(); }
   }, 980);
 }
 
@@ -4013,10 +4030,21 @@ function paintHero(av, tot) {
      another block again — the dance is the whole of screen one, so the switch
      for it has to be above all of them. It is taken off once the last piece
      has landed, so nothing is left carrying an animation it has finished. */
+  /* ONE THING AT A TIME. The screen's own arrival used to start the moment the
+     building landed, which is while the opening is still on top of it — so by
+     the time the opening lifted, the ring had turned up, the legend had come
+     in from the right and the floors had arrived, all of it behind a maroon
+     screen nobody could see through. Rashid: "jab splash screen ka animation
+     khatam hota hai tab tak dashboard walay animation khatam ho gaye hotay
+     hain aur show nahi hotay."
+
+     So if the opening is up, the arrival is handed to it and runs the instant
+     it lifts. If there is no opening — a first visit, another project, a
+     reader who asked for stillness — it starts where it always did. */
   if (!SPLASHED) {
-    document.body.classList.add('splash');
     SPLASHED = true;
-    setTimeout(function () { document.body.classList.remove('splash'); }, 3600);
+    if (ASPLASH.on && !ASPLASH.went) ASPLASH.then = arrive;
+    else arrive();
   }
   glowStart();
 
