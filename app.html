@@ -201,6 +201,9 @@
   .c-rms{--c1:#60a5fa;--c2:#6366f1;--tint:rgba(99,102,241,.26)}
   .c-portal{--c1:#a78bfa;--c2:#8b5cf6;--tint:rgba(139,92,246,.26)}
   .c-attend{--c1:#38bdf8;--c2:#22d3ee;--tint:rgba(34,211,238,.22)}
+  /* the fourth is the only one that is not a login, and it does not borrow a
+     blue from the three that are */
+  .c-avail{--c1:#fbbf24;--c2:#f59e0b;--tint:rgba(245,158,11,.24)}
 
   .ic{width:48px;height:48px;flex:0 0 48px;border-radius:14px;display:grid;place-items:center;
     background:linear-gradient(140deg,var(--c1),var(--c2));
@@ -222,6 +225,37 @@
   .who{display:flex;align-items:center;gap:5px;margin-top:5px;font-size:11.5px;font-weight:600;color:var(--ok)}
   .who[hidden]{display:none}
   .foot{margin-top:18px;text-align:center;color:var(--t3);font-size:11.5px;line-height:1.65}
+  .foot a{color:var(--t2);text-decoration:underline;text-underline-offset:2px}
+
+  /* ── ASKING FOR THE LINK ────────────────────────────────────────────────
+     The other three doors know where they are going. This one cannot: an
+     availability link is one project's own address, minted at the desk and
+     sent out by hand, and there is no list of them to pick from here. So the
+     first time it is pressed it asks for the link, and after that it
+     remembers it on this phone and simply opens it.
+     Whatever is pasted is accepted — the whole link, or just the token out of
+     it — because what people have in their hand is a WhatsApp message, not a
+     token. */
+  .ask{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;
+    padding:20px;background:rgba(4,7,16,.72);-webkit-backdrop-filter:blur(4px);
+    backdrop-filter:blur(4px)}
+  .ask.on{display:flex}
+  .ask-c{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);
+    border-radius:18px;padding:18px 16px 16px;box-shadow:var(--sh)}
+  .ask-t{font-size:16px;font-weight:800;letter-spacing:.01em}
+  .ask-s{font-size:12px;color:var(--t3);line-height:1.5;margin:6px 0 12px}
+  .ask-i{width:100%;height:46px;padding:0 13px;border-radius:12px;font-size:15px;
+    font-family:inherit;color:var(--t1);background:#0d1326;
+    border:1px solid rgba(255,255,255,.14);outline:none}
+  .ask-i:focus{border-color:var(--brand);box-shadow:0 0 0 4px rgba(99,102,241,.22)}
+  .ask-e{margin-top:9px;font-size:12px;color:#fca5a5;line-height:1.45;display:none}
+  .ask-e.on{display:block}
+  .ask-r{display:flex;gap:9px;margin-top:14px}
+  .ask-r button{flex:1;height:44px;border:0;border-radius:12px;font-size:14px;font-weight:700;
+    font-family:inherit;cursor:pointer}
+  .ask-no{background:rgba(255,255,255,.07);color:var(--t2)}
+  .ask-ok{background:var(--brand);color:#fff}
+  .ask-r button:active{transform:scale(.98)}
 
   /* Each door arrives on its own, and only once the mark has come to rest —
      they used to start while it was still in the air, so by the time it landed
@@ -245,6 +279,7 @@
   .wrap.landed .card:nth-of-type(1){animation-delay:0s}
   .wrap.landed .card:nth-of-type(2){animation-delay:.14s}
   .wrap.landed .card:nth-of-type(3){animation-delay:.28s}
+  .wrap.landed .card:nth-of-type(4){animation-delay:.42s}
   @keyframes doorIn{
     0%{opacity:0;transform:translateX(-64px) scale(.965);filter:blur(4px)}
     50%{opacity:1}
@@ -256,6 +291,7 @@
   .wrap.landed .card:nth-of-type(1)::after{animation-delay:.22s}
   .wrap.landed .card:nth-of-type(2)::after{animation-delay:.36s}
   .wrap.landed .card:nth-of-type(3)::after{animation-delay:.50s}
+  .wrap.landed .card:nth-of-type(4)::after{animation-delay:.64s}
   @keyframes threadIn{from{transform:scaleY(0);opacity:0}to{transform:scaleY(1);opacity:1}}
 
   /* one pass of light, left to right, as the door comes to rest */
@@ -272,6 +308,8 @@
   .wrap.landed .card:nth-of-type(2)>.sh::before{animation-delay:.32s}
   .wrap.landed .card:nth-of-type(3)>.sh,
   .wrap.landed .card:nth-of-type(3)>.sh::before{animation-delay:.46s}
+  .wrap.landed .card:nth-of-type(4)>.sh,
+  .wrap.landed .card:nth-of-type(4)>.sh::before{animation-delay:.60s}
   @keyframes sheen{0%{opacity:0}22%{opacity:1}100%{opacity:0}}
   @keyframes sheenSweep{from{left:-45%}to{left:118%}}
 
@@ -280,6 +318,7 @@
   .wrap.landed .card:nth-of-type(1) .ic{animation-delay:.12s}
   .wrap.landed .card:nth-of-type(2) .ic{animation-delay:.26s}
   .wrap.landed .card:nth-of-type(3) .ic{animation-delay:.40s}
+  .wrap.landed .card:nth-of-type(4) .ic{animation-delay:.54s}
   @keyframes icIn{
     0%{opacity:0;transform:scale(.55) rotate(-14deg)}
     100%{opacity:1;transform:none}}
@@ -369,9 +408,40 @@
     <span class="go"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></span>
   </button>
 
+  <!-- THE FOURTH DOOR, and the only one that is not a login. An availability
+       link is a public address for one project: whoever holds it can read the
+       building and ask for a unit, and there is nothing to sign in to. -->
+  <button class="card c-avail" id="c-avail" onclick="go('avail')">
+    <span class="sh" aria-hidden="true"></span>
+    <span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/><path d="M15 21V9"/></svg></span>
+    <span class="tx">
+      <span class="tt">LINK</span>
+      <span class="fn">Availability Link</span>
+      <span class="ds">The building floor by floor — what is free, what is held</span>
+      <span class="who" id="w-avail" hidden><i></i><span></span></span>
+    </span>
+    <span class="go"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></span>
+  </button>
+
   <div class="foot">
-    Each one keeps its own sign-in.<br>
+    The first three keep their own sign-in; the link needs none.<br>
     This screen appears again after you sign out.
+    <span id="f-avail" hidden><br><a href="#" id="a-change">Use a different availability link</a></span>
+  </div>
+</div>
+
+<div class="ask" id="ask" role="dialog" aria-modal="true" aria-labelledby="ask-t">
+  <div class="ask-c">
+    <div class="ask-t" id="ask-t">Paste your availability link</div>
+    <div class="ask-s">The office sends it on WhatsApp. Paste the whole message
+      or just the link — this phone will remember it.</div>
+    <input class="ask-i" id="ask-i" type="text" inputmode="url" autocomplete="off"
+           spellcheck="false" placeholder="https://rms.nexunova.com/a/…">
+    <div class="ask-e" id="ask-e"></div>
+    <div class="ask-r">
+      <button type="button" class="ask-no" id="ask-no">Cancel</button>
+      <button type="button" class="ask-ok" id="ask-ok">Open</button>
+    </div>
   </div>
 </div>
 
@@ -382,8 +452,32 @@
   var APPS = {
     rms:    { url: '/login.html',        name: 'RMS' },
     portal: { url: '/sales-portal.html', name: 'Self Service Portal' },
-    attend: { url: 'https://attend.nexunova.com/login.html', name: 'Attendance' }
+    attend: { url: 'https://attend.nexunova.com/login.html', name: 'Attendance' },
+    /* filled in from whatever this phone has been given; see AVAIL below */
+    avail:  { url: '',                   name: 'Availability Link', bare: true }
   };
+
+  /* ── THE LINK THIS PHONE HAS ────────────────────────────────────────────
+     Kept here and nowhere else. The availability page itself deliberately
+     keeps the token out of storage — it is the only credential that page has —
+     so this is a choice made on the hub's side and worth stating plainly: the
+     link a person has already got sitting in their WhatsApp is written to
+     their own phone so the door works on the second press. It can be changed
+     or cleared from the line under the doors. */
+  var AVAIL_KEY = 'nx.hub.avail';
+  var AVAIL = ls(function () { return localStorage.getItem(AVAIL_KEY) || ''; }, '') || '';
+
+  /* A token out of anything: the whole link, a link with ?t=, a WhatsApp
+     message with the link somewhere in it, or the token on its own. */
+  function tokenOf(text) {
+    var s = String(text || '').trim();
+    if (!s) return '';
+    var m = s.match(/\/a\/([A-Za-z0-9_-]{8,})/) ||
+            s.match(/[?&]t=([A-Za-z0-9_-]{8,})/);
+    if (m) return m[1];
+    m = s.match(/^[A-Za-z0-9_-]{8,}$/);
+    return m ? m[0] : '';
+  }
   var splash = document.getElementById('splash');
 
   function ls(fn, dflt) { try { return fn(); } catch (e) { return dflt; } }
@@ -477,7 +571,15 @@
 
   window.go = function (which) {
     var a = APPS[which]; if (!a) return;
-    var url = land(a.url);
+    /* the link door asks before it can go anywhere, and only the first time */
+    if (which === 'avail') {
+      if (!AVAIL) { askOpen(); return; }
+      a.url = '/a/' + AVAIL;
+    }
+    /* THE MARKER IS FOR SIGN-INS. It tells a login it was opened from here so
+       the phone's back key comes back to these doors; the availability page
+       has no login and reads no marker, so it is not given one. */
+    var url = a.bare ? a.url : land(a.url);
     /* The mark grows back out of the header to cover the hop, so the last thing
        seen before an app loads is the same logo the desktop app shows. It is
        the flight run backwards: the flying copy is put back exactly where the
@@ -501,6 +603,43 @@
     setTimeout(function () { location.href = url; }, 330);
   };
 
+  /* ── the panel ─────────────────────────────────────────────────────── */
+  var ask = document.getElementById('ask'), askI = document.getElementById('ask-i'),
+      askE = document.getElementById('ask-e');
+  function askShut() { ask.classList.remove('on'); askE.classList.remove('on'); }
+  function askOpen() {
+    askI.value = AVAIL ? 'https://' + location.host + '/a/' + AVAIL : '';
+    askE.classList.remove('on');
+    ask.classList.add('on');
+    setTimeout(function () { askI.focus(); askI.select(); }, 60);
+  }
+  function askTake() {
+    var t = tokenOf(askI.value);
+    if (!t) {
+      askE.textContent = 'That does not look like an availability link. It ends in /a/ ' +
+        'and then a long code.';
+      askE.classList.add('on');
+      return;
+    }
+    AVAIL = t;
+    ls(function () { localStorage.setItem(AVAIL_KEY, t); });
+    askShut();
+    sayAvail();
+    go('avail');
+  }
+  document.getElementById('ask-ok').onclick = askTake;
+  document.getElementById('ask-no').onclick = askShut;
+  askI.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); askTake(); }
+  });
+  ask.addEventListener('click', function (e) { if (e.target === ask) askShut(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && ask.classList.contains('on')) { e.preventDefault(); askShut(); }
+  });
+  document.getElementById('a-change').addEventListener('click', function (e) {
+    e.preventDefault(); askOpen();
+  });
+
   if (params.has('logout')) document.getElementById('sub').textContent = 'Signed out. Which one now?';
   done = reveal;
 
@@ -511,6 +650,14 @@
     var el = document.getElementById(id); if (!el) return;
     el.querySelector('span').textContent = txt; el.hidden = false;
   }
+  /* and the link door says whether this phone has one yet, which is the whole
+     difference between a door that opens and a door that asks */
+  function sayAvail() {
+    var w = document.getElementById('w-avail'), f = document.getElementById('f-avail');
+    if (AVAIL) { say('w-avail', 'Link saved on this phone'); f.hidden = false; }
+    else { w.hidden = true; f.hidden = true; }
+  }
+  sayAvail();
   ls(function () { if (localStorage.getItem('rms.sales.token')) say('w-portal', 'Already signed in'); });
   ls(function () { if (sessionStorage.getItem('nxn_sess'))      say('w-rms',    'Already signed in'); });
 })();

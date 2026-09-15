@@ -2,7 +2,7 @@
   "_comment": "id is DELIBERATELY unchanged. Chrome matches an installed app by id, so keeping /sales-portal.html means every phone that already has this installed treats the new start_url as an update to the SAME app and applies it in the background — nobody reinstalls anything. Changing id would create a second icon instead. start_url is the hub, which remembers the last app and goes straight there, so an employee's icon still lands them in the portal exactly as before. scope had to widen from the single portal page to the site, or a start_url outside it would be rejected. NOTE: iOS home-screen apps never re-read a manifest — an iPhone installed before this keeps opening the portal directly until it is re-added.",
   "name": "Nexunova",
   "short_name": "Nexunova",
-  "description": "RMS, the Self Service Portal and Attendance — one door to all three.",
+  "description": "RMS, the Self Service Portal, Attendance and the availability link — one door to all four.",
   "id": "/sales-portal.html",
   "start_url": "/app.html",
   "scope": "/",
