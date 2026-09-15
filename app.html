@@ -601,6 +601,28 @@
      picture, then the typing, then the floor. */
   setTimeout(reveal, 6000);
 
+  /* ── COMING BACK IS NOT ARRIVING ───────────────────────────────────────
+     A door leaves this page with the mark grown back over it — that is what
+     covers the hop to the app. A phone that keeps the page alive in its
+     back/forward cache then hands it back EXACTLY like that: the logo filling
+     the screen, the doors underneath it at nothing, and no script running to
+     lift it, because nothing about a restored page runs again. So closing the
+     link came back to a Nexunova logo that just sat there: "cross se close
+     karo to main screen pe jana chahiye … magar nexu k animated logo pe aa k
+     ruk jata hai."
+
+     Restored is not launched. The splash is watched once, on the way in; a
+     page handed back from the cache goes straight to the doors. */
+  window.addEventListener('pageshow', function (e) {
+    if (!e.persisted) return;
+    revealed = true;
+    shell.style.transition = 'none';
+    shell.style.transform = '';
+    splash.classList.remove('zoom');
+    splash.classList.add('gone');
+    wrap.classList.add('show', 'landed');
+  });
+
   /* Every door is opened with #hub on it. It does two jobs. The portal's
      installed start_url still points at the portal itself, so that page sends a
      plain launch back here — the marker is how it knows the hub has ALREADY
