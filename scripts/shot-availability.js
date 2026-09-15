@@ -1619,7 +1619,8 @@ function serve() {
          rather than quietly excused. */
       const arrival = ['spIn', 'spLeft', 'spRight', 'spWord', 'spRing', 'flbeam',
                        'qaBlink',
-                       'aspDraw', 'aspInk', 'aspGlow', 'aspRing', 'aspLtr', 'aspUp'];
+                       'aspDraw', 'aspInk', 'aspGlow', 'aspRing', 'aspLtr', 'aspUp',
+                       'aspTilt', 'mkSpin'];
       [...document.querySelectorAll('*')].forEach(el => {
         [null, '::before', '::after'].forEach(pseudo => {
           const c = getComputedStyle(el, pseudo);
@@ -1638,9 +1639,9 @@ function serve() {
     });
     (budget.ms <= 300 && budget.crawlers === 1)
       ? ok('nothing but the news strip, the page-load arrival, the light round the ' +
-           'register, the contact dot and the opening runs longer than 300ms (worst ' +
-           budget.ms + 'ms, ' + budget.where + '), and the exemptions are a list of ' +
-           'five, every one of them named')
+           'register, the contact dot, the opening and the mark turning in the header ' +
+           'runs longer than 300ms (worst ' + budget.ms + 'ms, ' + budget.where +
+           '), and the exemptions are a list of six, every one of them named')
       : bad(budget.crawlers !== 1
               ? budget.crawlers + ' elements claim the marquee exemption, not 1'
               : 'an animation runs ' + budget.ms + 'ms on ' + budget.where);
