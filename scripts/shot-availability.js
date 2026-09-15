@@ -1619,7 +1619,7 @@ function serve() {
          rather than quietly excused. */
       const arrival = ['spIn', 'spLeft', 'spRight', 'spWord', 'spRing', 'flbeam',
                        'qaBlink',
-                       'aspMark', 'aspGlow', 'aspRing', 'aspSheen', 'aspLtr', 'aspUp'];
+                       'aspDraw', 'aspInk', 'aspGlow', 'aspRing', 'aspLtr', 'aspUp'];
       [...document.querySelectorAll('*')].forEach(el => {
         [null, '::before', '::after'].forEach(pseudo => {
           const c = getComputedStyle(el, pseudo);
