@@ -1620,13 +1620,14 @@ function serve() {
       const arrival = ['spIn', 'spLeft', 'spRight', 'spWord', 'spRing', 'flbeam',
                        'qaBlink',
                        'aspDraw', 'aspInk', 'aspGlow', 'aspRing', 'aspLtr', 'aspUp',
-                       'aspTilt', 'mkSpin'];
+                       'aspTilt', 'mkSpin', 'aspNib', 'aspNibOn'];
       [...document.querySelectorAll('*')].forEach(el => {
         [null, '::before', '::after'].forEach(pseudo => {
           const c = getComputedStyle(el, pseudo);
           const m = Math.max(secs(c.animationDuration), secs(c.transitionDuration));
           if (!pseudo && el.classList.contains('tk-track')) { crawlers++; return; }
           if (!pseudo && el.id === 'asp') return;   /* the opening, lifting */
+          if (!pseudo && el.classList.contains('asp-bg')) return;  /* its ground */
           if (arrival.indexOf(c.animationName) >= 0) return;
           if (m > worst) {
             worst = m;

@@ -90,7 +90,10 @@ function loopsOf(m, w, h) {
         cur = n[0] + ',' + n[1];
         if (cur === start) break;
       }
-      if (loop.length > 8) loops.push(loop);
+      /* A SPECK IS NOT A SHAPE. Antialiasing at the junctions of the M left a
+         handful of loops a few pixels round; they are invisible in the artwork
+         and they were being handed to the pen as shapes to draw. */
+      if (loop.length > 44) loops.push(loop);
     }
   }
   return loops;
