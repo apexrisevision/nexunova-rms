@@ -1019,18 +1019,16 @@ function serve() {
         rowEdge: Math.round(parseFloat(
           getComputedStyle(document.querySelector('#vask .va-r')).borderTopWidth)),
         rowGround: getComputedStyle(document.querySelector('#vask .va-r')).backgroundColor,
-        /* the daylight between the two that share a line */
         gap: (() => {
           const c = [...document.querySelectorAll('#vask .va')];
-          return c.length >= 2 ? Math.round(c[1].getBoundingClientRect().left -
-                                            c[0].getBoundingClientRect().right) : -1;
+          return c.length === 2 ? Math.round(c[1].getBoundingClientRect().left -
+                                             c[0].getBoundingClientRect().right) : -1;
         })()
       };
     }, askFloor);
     (asked.asking && !asked.planShown && asked.unitsDrawn === 0 &&
-     asked.cards.length >= 2 && asked.floor === payload.floors[askFloor].floor_label)
-      ? ok('opening ' + asked.floor + ' stops and asks with ' + asked.cards.length +
-           ' answers on it, and nothing drawn behind the question')
+     asked.cards.length === 2 && asked.floor === payload.floors[askFloor].floor_label)
+      ? ok('opening ' + asked.floor + ' stops and asks, with nothing drawn behind the question')
       : bad('the floor did not stop to ask: ' + JSON.stringify(
             { asking: asked.asking, plan: asked.planShown, units: asked.unitsDrawn,
               cards: asked.cards.length }));
@@ -1040,10 +1038,10 @@ function serve() {
        hain, inhe 2 block karo alag alag". So each answer carries its own
        border and its own ground, the pair carries neither, and there is real
        space between them. */
-    (asked.cards.length >= 2 && asked.cards.every(c => c.edge >= 2) &&
+    (asked.cards.length === 2 && asked.cards.every(c => c.edge >= 2) &&
      asked.rowEdge === 0 && asked.rowGround === 'rgba(0, 0, 0, 0)' &&
      asked.gap >= 8)
-      ? ok('and the answers are blocks of their own, not one — a ' + asked.cards[0].edge +
+      ? ok('and the two answers are two blocks, not one — a ' + asked.cards[0].edge +
            'px border on each, nothing round the pair, and ' + asked.gap +
            'px of daylight between them')
       : bad('the two answers are still one block: ' + JSON.stringify(
@@ -1051,9 +1049,8 @@ function serve() {
               rowGround: asked.rowGround, gap: asked.gap }));
     /* THE SAMPLES ARE THE VIEWS THEMSELVES. A card showing a drawing of a map
        teaches nothing about this map. */
-    (asked.cards.length >= 2 &&
+    (asked.cards.length === 2 &&
      /view-map.png/.test(asked.cards[0].img) && /view-list.png/.test(asked.cards[1].img) &&
-     (asked.cards.length < 3 || /view-corr.png/.test(asked.cards[2].img)) &&
      asked.cards.every(c => c.h >= 120 && c.w >= 120))
       ? ok('and each answer carries a photograph of the view it opens — ' +
            asked.cards.map(c => c.name + ' ' + c.w + 'x' + c.h).join(', '))
@@ -1160,128 +1157,6 @@ function serve() {
     (!upTo.none && Math.abs(upTo.back.z - upTo.before.z) < 0.05)
       ? ok('and closing the sheet walks back to exactly where the reader was standing')
       : bad('the plate stayed zoomed after the sheet closed: ' + JSON.stringify(upTo.back));
-    /* ── THE CORRIDOR, OPENED OUT ─────────────────────────────────────────
-       The answer to the question a drawing on a phone cannot answer: which
-       shop is opposite which. The plate is one to five, so on a phone two
-       shops facing each other across a corridor are two specks.
-
-       Four things have to be true of it, and none of them is a matter of
-       taste. It has to be DERIVED — the corridors and the frontages come off
-       the architect's own outlines, so a floor whose drawing has no corridor
-       in it must not be offered the view. It has to LINE UP — one scale for
-       both sides, which is the whole point. It has to be HONEST about size —
-       a shop's height is its frontage on that corridor, not its area, so two
-       shops of the same area with different frontages must not be drawn the
-       same. And a shop on it has to be the SAME shop — the same sheet, and the
-       same refusal on one already taken. */
-    step('The corridor, opened out');
-    /* the second floor, because a corridor with nothing taken on it cannot
-       answer whether a taken shop refuses the sheet */
-    const corrFloor = payload.floors.findIndex(f => /second/i.test(f.floor_label));
-    const corr = await page.evaluate(async i => {
-      document.getElementById('back') && document.getElementById('back').click();
-      await new Promise(r => setTimeout(r, 250));
-      document.querySelector('#floors button[data-f="' + i + '"]').click();
-      await new Promise(r => setTimeout(r, 1400));
-      const offered = !document.getElementById('va-corr').hidden;
-      document.querySelector('#vask [data-view="corr"]').click();
-      await new Promise(r => setTimeout(r, 700));
-      const host = document.getElementById('cv');
-      const read = s => [...host.querySelectorAll(s)].map(u => ({
-        n: (u.getAttribute('data-u') || (u.querySelector('.n') || {}).textContent || '').trim(),
-        top: Math.round(parseFloat(u.style.top)),
-        h: Math.round(parseFloat(u.style.height)),
-        off: u.classList.contains('off')
-      }));
-      const L = read('.cv-l .cv-u'), R = read('.cv-rt .cv-u');
-      const tall = Math.round(host.querySelector('.cv-r').getBoundingClientRect().height);
-      /* the plan and the list are put away, not stacked under it */
-      return {
-        offered: offered,
-        shown: !document.getElementById('cv-b').hidden,
-        planGone: document.getElementById('pv').hidden,
-        listGone: document.getElementById('units').hidden,
-        corridors: document.querySelectorAll('#cv-pick button').length,
-        L: L, R: R, tall: tall,
-        /* how far down each side reaches, as a share of the whole */
-        endL: L.length ? (L[L.length-1].top + L[L.length-1].h) / tall : 0,
-        endR: R.length ? (R[R.length-1].top + R[R.length-1].h) / tall : 0,
-        dupes: (() => { const s = {}; let d = 0;
-          L.concat(R).forEach(u => { if (s[u.n]) d++; s[u.n] = 1; }); return d; })()
-      };
-    }, corrFloor);
-    (corr.offered && corr.shown && corr.planGone && corr.listGone &&
-     corr.L.length >= 10 && corr.R.length >= 10 && corr.dupes === 0)
-      ? ok('the corridor opens with both its sides on it — ' + corr.L.length +
-           ' shops one side, ' + corr.R.length + ' the other, no shop twice, and the ' +
-           'plate and the list put away rather than stacked under it')
-      : bad('the corridor did not open: ' + JSON.stringify(
-            { offered: corr.offered, shown: corr.shown, plan: corr.planGone,
-              list: corr.listGone, L: corr.L.length, R: corr.R.length, dupes: corr.dupes }));
-    /* ONE SCALE FOR BOTH SIDES. Each side is laid out from its own frontages,
-       so if the two scales ever drifted apart the two sides would end at
-       different depths — which is exactly what "lines up" means here. */
-    (Math.abs(corr.endL - corr.endR) < 0.06 &&
-     corr.endL > 0.9 && corr.endR > 0.9)
-      ? ok('and the two sides are drawn to one scale — they run to ' +
-           Math.round(corr.endL * 100) + '% and ' + Math.round(corr.endR * 100) +
-           '% of the same corridor, so a shop sits opposite what it is really opposite')
-      : bad('the two sides do not line up: ' + JSON.stringify(
-            { left: corr.endL, right: corr.endR }));
-    /* FRONTAGE, NOT AREA. Two shops on this corridor have the same area and
-       different frontages; if the view were drawn from area they would be the
-       same height. And nothing on it is below the 40px a thumb needs. */
-    const hs = corr.L.concat(corr.R).map(u => u.h);
-    (Math.min.apply(null, hs) >= 40 && Math.max.apply(null, hs) > Math.min.apply(null, hs) * 1.5)
-      ? ok('and every shop is drawn its own frontage — ' + Math.min.apply(null, hs) +
-           'px to ' + Math.max.apply(null, hs) + 'px down a ' + corr.tall +
-           'px corridor, nothing under the 40px a thumb needs')
-      : bad('the frontages are not drawn: ' + JSON.stringify(
-            { min: Math.min.apply(null, hs), max: Math.max.apply(null, hs) }));
-    /* THE SAME SHOP, THE SAME SHEET. */
-    const corrTap = await page.evaluate(async () => {
-      const free = [...document.querySelectorAll('#cv .cv-u[data-u]')][2];
-      const no = free.getAttribute('data-u');
-      free.click();
-      await new Promise(r => setTimeout(r, 450));
-      const on = !!window.SHEET;
-      const named = (document.getElementById('sh-n') || {}).textContent || '';
-      if (window.closeSheet) closeSheet();
-      await new Promise(r => setTimeout(r, 350));
-      /* and one already taken opens nothing at all */
-      const taken = [...document.querySelectorAll('#cv .cv-u.off')][0];
-      let after = null;
-      if (taken) { taken.click(); await new Promise(r => setTimeout(r, 300));
-                   after = !!window.SHEET; }
-      return { no: no, on: on, named: named.trim(), takenOpened: after };
-    });
-    (corrTap.on && corrTap.named.indexOf(corrTap.no) >= 0 && corrTap.takenOpened === false)
-      ? ok('and a shop on the corridor is the same shop — tapping ' + corrTap.no +
-           ' opens the sheet it opens anywhere else, and a taken one opens nothing')
-      : bad('the corridor asks a different question: ' + JSON.stringify(corrTap));
-    /* AND IT IS NOT OFFERED WHERE IT LEADS NOWHERE. The third floor is flats,
-       and its drawing has no corridor running through it — so the question
-       does not offer a third answer there. Read off the drawing, not a list of
-       floors somebody kept up to date. */
-    const noCorr = payload.floors.findIndex(f => /third/i.test(f.floor_label));
-    const bare = await page.evaluate(async i => {
-      const b = document.getElementById('back'); if (b) b.click();
-      await new Promise(r => setTimeout(r, 300));
-      document.querySelector('#floors button[data-f="' + i + '"]').click();
-      await new Promise(r => setTimeout(r, 1500));
-      const offered = !document.getElementById('va-corr').hidden;
-      document.querySelector('#vask [data-view="plan"]').click();
-      await new Promise(r => setTimeout(r, 700));
-      return { offered: offered, sw: !document.getElementById('pv-corr').hidden };
-    }, noCorr);
-    (bare.offered === false && bare.sw === false)
-      ? ok('and a floor whose drawing has no corridor in it is not offered one — ' +
-           'neither in the question nor on the switch')
-      : bad('a corridorless floor was offered a corridor: ' + JSON.stringify(bare));
-    await page.evaluate(() => {
-      const b = document.getElementById('back'); if (b) b.click();
-    });
-    await sleep(350);
     /* AND EVERY WAY OUT OF IT ACTUALLY CLOSES IT. This is the one that broke:
        the dialog had to be moved out of the floor screen to be a dialog at all,
        and the moment it was, hiding the floor stopped hiding it — "back to
