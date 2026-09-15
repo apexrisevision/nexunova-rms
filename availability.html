@@ -2344,6 +2344,8 @@ async function load(first) {
   }
 
   P = d; FETCHED = Date.now(); STALE = false;
+  /* it worked, so this phone may keep it — see the note above load() */
+  if (TOKEN) { try { localStorage.setItem('nx.hub.avail', TOKEN); } catch (e) {} }
   refreshMyReqs();          // a decision reaches the dealer on the same rhythm
 
   if (first) {

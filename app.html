@@ -217,6 +217,9 @@
   /* The short name is what the eye finds; the full one sits under it so nobody
      has to already know what the letters stand for. */
   .tt{display:block;font-size:16px;font-weight:800;letter-spacing:.02em}
+  /* three of these are initials and wear the tracking that initials need;
+     this one is words, and words set at .02em read as a sign in a shop */
+  .c-avail .tt{letter-spacing:-.01em}
   .fn{display:block;font-size:12.5px;font-weight:600;color:var(--t2);margin-top:2px;line-height:1.3}
   .ds{display:block;font-size:11.5px;color:var(--t3);margin-top:2px;line-height:1.35}
   .go{color:var(--t3);flex:0 0 auto;transition:transform .18s cubic-bezier(.22,1,.36,1),color .18s ease}
@@ -415,8 +418,8 @@
     <span class="sh" aria-hidden="true"></span>
     <span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/><path d="M15 21V9"/></svg></span>
     <span class="tx">
-      <span class="tt">LINK</span>
-      <span class="fn">Availability Link</span>
+      <span class="tt">Unit Reservation</span>
+      <span class="fn">The availability link</span>
       <span class="ds">The building floor by floor — what is free, what is held</span>
       <span class="who" id="w-avail" hidden><i></i><span></span></span>
     </span>
@@ -466,6 +469,15 @@
      or cleared from the line under the doors. */
   var AVAIL_KEY = 'nx.hub.avail';
   var AVAIL = ls(function () { return localStorage.getItem(AVAIL_KEY) || ''; }, '') || '';
+  /* THREE WAYS THIS PHONE COMES TO HAVE THE LINK, and only the last of them
+     asks anybody anything:
+       · it opened the link once — the availability page writes it down itself,
+         which is the ordinary way and needs nothing from the person;
+       · the hub was opened with it — /app.html?a=<link or token>, which is how
+         the desk can set somebody up in one message;
+       · it was pasted into the panel below.
+     So the door opens the link straight away for anyone who has ever used it,
+     and the panel is what is left for a phone that never has. */
 
   /* A token out of anything: the whole link, a link with ?t=, a WhatsApp
      message with the link somewhere in it, or the token on its own. */
@@ -482,6 +494,21 @@
 
   function ls(fn, dflt) { try { return fn(); } catch (e) { return dflt; } }
   var params = new URLSearchParams(location.search);
+
+  /* the desk can hand somebody the link by handing them this address */
+  (function () {
+    var given = params.get('a');
+    if (!given) return;
+    var t = tokenOf(given);
+    if (!t) return;
+    AVAIL = t;
+    ls(function () { localStorage.setItem(AVAIL_KEY, t); });
+    if (history.replaceState) {
+      params.delete('a');
+      var q = params.toString();
+      history.replaceState(null, '', location.pathname + (q ? '?' + q : ''));
+    }
+  })();
 
   /* Nothing is remembered and nothing is skipped: every launch shows the
      doors. An old install may still carry the key this once wrote, so it is

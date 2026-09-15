@@ -2519,12 +2519,13 @@ function serve() {
       }
       return { ls, ss, cookies: document.cookie };
     });
-    /* THE THEME JOINS THE LIST, and the list is the point: this page is opened
-       by people who never agreed to anything, so what it keeps on their phone
-       has to be nameable in one line. The name they typed, whether they have
-       been asked for it, and which of the two themes they chose. Nothing that
-       identifies anybody, and nothing that ever leaves the phone. */
-    const allowed = ['avail.name', 'avail.name.asked', 'avail.theme'];
+    /* THE LIST IS THE POINT: this page is opened by people who never agreed to
+       anything, so what it keeps on their phone has to be nameable in one line.
+       The name they typed, whether they have been asked for it, which of the
+       two themes they chose — and, since the app grew a door that opens this
+       link, the link itself. Nothing that identifies anybody, and nothing that
+       ever leaves the phone. */
+    const allowed = ['avail.name', 'avail.name.asked', 'avail.theme', 'nx.hub.avail'];
     const extra = Object.keys(store.ls).filter(k => allowed.indexOf(k) < 0);
     extra.length === 0
       ? ok('localStorage holds only ' + Object.keys(store.ls).join(', ') + ' \u2014 the name, the asked flag and the theme')
@@ -2535,12 +2536,31 @@ function serve() {
     !store.cookies
       ? ok('and no cookie is set')
       : bad('a cookie was set: ' + store.cookies);
-    /* The token must never be written down. A dealer forwarding their phone's
-       storage is not a threat we can control, but writing the link into it is. */
-    !JSON.stringify(store).includes('token') &&
-    !Object.values(store.ls).some(v => /^[0-9a-f]{24,}$/i.test(String(v)))
-      ? ok('the link token is nowhere in storage')
-      : bad('the token or something like it was persisted: ' + JSON.stringify(store.ls));
+    /* THE ONE THING THIS PAGE KEEPS THAT IS A CREDENTIAL, and it keeps it on
+       purpose now. It used to keep nothing: the token lived in the address bar
+       and nowhere else. Then the app grew a fourth door onto this very link and
+       Rashid asked for it to open straight away — "tab pe click karnay pe
+       direct link open hona chahiye" — and a door that opens a link has to know
+       the link. So a link that has WORKED is written down, under one name, on
+       the phone that opened it. The phone whose chat app is already carrying
+       that same link.
+
+       What has NOT changed is the part that was ever load-bearing: the desk
+       stores a hash and not the link, so a dump of that table still yields no
+       working link, and this page still never writes the token anywhere but
+       here — not under another name, not inside another value. That is what is
+       checked. */
+    (function () {
+      const vals = Object.keys(store.ls);
+      const hexy = vals.filter(k => k !== 'nx.hub.avail' &&
+                                    /^[0-9a-zA-Z_-]{20,}$/.test(String(store.ls[k])));
+      const noWord = !JSON.stringify(store).toLowerCase().includes('token');
+      (noWord && hexy.length === 0)
+        ? ok('and the link is written down once, under its own name, and nowhere ' +
+             'else — nothing here is called a token and no other value looks like one')
+        : bad('the token turned up somewhere it should not: ' +
+              JSON.stringify({ word: !noWord, others: hexy }));
+    })();
 
     /* ── g. desktop ─────────────────────────────────────────────────────── */
     step('Desktop');
@@ -2842,6 +2862,16 @@ function serve() {
       /* 18 */ (live.unitsOnHome === 0 && live.totalUnits > 0)
         ? ok('on the real route the first screen renders 0 of ' + live.totalUnits + ' units')
         : bad('the first screen rendered ' + live.unitsOnHome + ' units');
+      /* AND THE PHONE IS LEFT HOLDING THE LINK IT OPENED — the whole point of
+         the app's fourth door, and the only place in this suite where a real
+         token is in play, so the only place this can be proved. */
+      (live.kept && live.kept['nx.hub.avail'] === TOKEN &&
+       Object.keys(live.kept).filter(k => k !== 'nx.hub.avail').every(
+         k => String(live.kept[k]).indexOf(TOKEN) < 0))
+        ? ok('and the phone is left holding that link, under nx.hub.avail and ' +
+             'nowhere else — which is what lets the app open it again without asking')
+        : bad('the link was not kept, or was kept twice: ' +
+              JSON.stringify(live.kept || null));
       /* 19 */ (live.unitsAfterFloor > 0 && live.unitsAfterFloor < live.totalUnits)
         ? ok('and opening a floor renders ' + live.unitsAfterFloor + ' of ' + live.totalUnits +
              ' \u2014 never the whole building')
@@ -4065,12 +4095,16 @@ async function visitToken(browser, token) {
       const ask = document.querySelector('#vask:not([hidden]) [data-view="plan"]');
       if (ask) ask.click();
       await new Promise(r => setTimeout(r, 400));
+      const kept = {};
+      try { for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i); kept[k] = localStorage.getItem(k);
+      } } catch (e) {}
       return { home, total, after: document.querySelectorAll('#units button').length,
-               text: document.body.innerText };
+               text: document.body.innerText, kept: kept };
     });
     const code = fs.readFileSync(path.join(ROOT, 'availability.html'), 'utf8');
     return { wire: wire.join('\n'), code,
              unitsOnHome: out.home, unitsAfterFloor: out.after, totalUnits: out.total,
-             text: out.text, url: p.url() };
+             text: out.text, kept: out.kept, url: p.url() };
   } finally { await ctx.close(); }
 }
