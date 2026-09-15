@@ -1724,6 +1724,77 @@ body.splash .fl::before{opacity:0}
 .nm-r button.nm-sk:active{background:var(--sunk)}
 
 /* ── boot and dead link ─────────────────────────────────────────────────── */
+/* ── THE OPENING ─────────────────────────────────────────────────────────
+   Awami Market's own mark, animated, over the second or so this page already
+   spends fetching the building. Asked for by name: "Awami Market ka logo
+   animate karo, app splash k liye."
+
+   IT COVERS A WAIT THAT ALREADY EXISTS and adds none of its own. It lifts the
+   moment the building lands — or at the latest after 2.8s, because a splash
+   that outlives its own page is the worst thing on this list. Underneath it
+   the skeleton is drawn exactly as before, so nothing about the first paint
+   changed; this is a lid on it, not a replacement for it.
+
+   IT IS DARK IN BOTH THEMES. A splash is the one screen on this page that is
+   marketing rather than a reading, and the mark was drawn for a dark ground.
+
+   AND IT ONLY EVER SHOWS AWAMI'S MARK TO AWAMI'S READERS. The page is shared —
+   KBH and FMH open the same file — and at first paint nobody knows yet whose
+   link this is, because that answer comes with the building. So the phone
+   remembers: a link that has once turned out to be Awami's opens with the
+   shield from then on, and a phone that has never seen it gets the skeleton
+   it always got. One brand on one phone, and never somebody else's. */
+.asp{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;
+     background:
+       radial-gradient(120% 80% at 50% 18%, #6E1220 0%, #3B0A12 42%, #150508 78%, #0B0304 100%);
+     transition:opacity 420ms var(--settle), transform 420ms var(--settle)}
+.asp[hidden]{display:none}
+.asp.out{opacity:0;transform:scale(1.05);pointer-events:none}
+.asp-in{display:flex;flex-direction:column;align-items:center;padding:0 24px}
+/* the mark, and the light that lives behind it */
+.asp-m{position:relative;width:160px;height:190px;display:grid;place-items:center}
+.asp-g{position:absolute;width:290px;height:290px;border-radius:50%;
+       background:radial-gradient(circle, rgba(226,178,74,.34) 0%, rgba(226,178,74,.10) 45%,
+                                          transparent 70%);
+       animation:aspGlow 2.6s ease-in-out infinite;will-change:transform,opacity}
+.asp-r{position:absolute;width:196px;height:196px;border-radius:50%;
+       border:1px solid rgba(226,178,74,.55);animation:aspRing 1.9s var(--settle) 280ms 2 backwards}
+.asp-i{position:relative;width:152px;height:180px;
+       background:url(/assets/awami-mark-white.png) center/contain no-repeat;
+       animation:aspMark 900ms var(--settle) both}
+/* one pass of gold across the shield, and nothing of the artwork touched */
+.asp-s{position:absolute;width:152px;height:180px;overflow:hidden;pointer-events:none;
+       -webkit-mask:url(/assets/awami-mark-white.png) center/contain no-repeat;
+               mask:url(/assets/awami-mark-white.png) center/contain no-repeat}
+.asp-s::before{content:'';position:absolute;top:-40%;bottom:-40%;left:-40%;width:24%;
+       background:linear-gradient(100deg,transparent,rgba(255,240,205,.62),transparent);
+       transform:skewX(-16deg);animation:aspSheen 1.1s var(--settle) 620ms backwards}
+/* the name, a letter at a time, and the house under it */
+.asp-n{margin-top:26px;font-size:26px;font-weight:800;letter-spacing:.01em;color:#fff;
+       line-height:1.15;text-align:center;white-space:nowrap}
+.asp-n i{display:inline-block;font-style:normal;
+         animation:aspLtr 620ms var(--settle) both;
+         animation-delay:calc(430ms + var(--i) * 70ms)}
+.asp-n .sp{width:.34em}
+.asp-c{margin-top:9px;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;
+       color:rgba(255,255,255,.62);animation:aspUp 700ms var(--settle) 1080ms both}
+@keyframes aspMark{0%{opacity:0;transform:scale(.62);filter:blur(7px)}
+                   40%{opacity:1}
+                   100%{opacity:1;transform:scale(1);filter:blur(0)}}
+@keyframes aspGlow{0%,100%{transform:scale(.94);opacity:.72}
+                   50%{transform:scale(1.06);opacity:1}}
+@keyframes aspRing{0%{opacity:0;transform:scale(.55)}
+                   25%{opacity:.9}
+                   100%{opacity:0;transform:scale(1.5)}}
+@keyframes aspSheen{from{left:-40%}to{left:130%}}
+@keyframes aspLtr{0%{opacity:0;transform:translateY(14px) scale(1.25)}
+                  100%{opacity:1;transform:none}}
+@keyframes aspUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .asp-i,.asp-g,.asp-r,.asp-s::before,.asp-n i,.asp-c{animation:none}
+  .asp{transition:opacity 200ms linear}
+}
+
 .boot{padding:22px var(--pad) 40px;max-width:520px;margin:0 auto}
 @media (min-width:760px){ .boot{max-width:760px;padding:40px 28px 56px} }
 .dead{max-width:340px;margin:22vh auto;text-align:center;padding:0 var(--pad)}
@@ -1758,6 +1829,20 @@ body.splash .fl::before{opacity:0}
      what the page says and not where anything sits. It does not shimmer: a
      loop on a first paint is the page asking to be watched while it has
      nothing to show. -->
+<!-- THE OPENING. Hidden until the phone knows this link is Awami's; see the
+     note on .asp above, and aspOpen() below. -->
+<div class="asp" id="asp" hidden aria-hidden="true">
+  <div class="asp-in">
+    <div class="asp-m">
+      <i class="asp-g"></i><i class="asp-r"></i>
+      <span class="asp-i"></span>
+      <span class="asp-s"></span>
+    </div>
+    <div class="asp-n" id="asp-n"></div>
+    <div class="asp-c">Fourteen Group of Companies</div>
+  </div>
+</div>
+
 <div class="boot" id="boot" aria-hidden="true">
   <div class="sk-line sk-hd"></div>
   <div class="sk-line sk-co"></div>
@@ -2098,6 +2183,58 @@ const TOKEN = (function () {
   return m ? m[1] : '';
 })();
 
+/* ── THE OPENING ─────────────────────────────────────────────────────────
+   Shown before anything is known about the building, which is the only moment
+   a splash is worth having — and therefore the one moment nobody can be told
+   whose building it is. The answer comes off this phone: a link that has once
+   turned out to be Awami's is written down as Awami's, against that very
+   token, and the shield is shown from the next open onwards. A phone that has
+   never seen this link gets what it always got, and a phone that opens some
+   other project's link is never shown somebody else's mark.
+
+   It lifts on whichever comes first: the building arriving (but never before a
+   second, or it is a flicker rather than an opening) or 2.8 seconds (because a
+   splash that outlives its own page is worse than no splash at all). */
+var ASPLASH = { on: false, at: 0, went: false };
+function aspBrand(read) {
+  try {
+    var raw = localStorage.getItem('avail.brand');
+    if (read) return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+  return null;
+}
+function aspOpen() {
+  if (!TOKEN) return;
+  var last = '';
+  try { last = localStorage.getItem('nx.hub.avail') || ''; } catch (e) {}
+  if (last !== TOKEN) return;          // a different link: not this brand
+  var b = aspBrand(true);
+  if (!b || b.b !== 'awami') return;
+  var el = $('asp'), nm = $('asp-n');
+  if (!el || !nm) return;
+  /* the name is set here rather than in the markup: it is the project's own,
+     escaped, and a letter at a time so each can carry its place in the queue */
+  var k = 0;
+  nm.innerHTML = String(b.n || 'Awami Market').split(/s+/).map(function (w) {
+    return w.split('').map(function (c) {
+      return '<i style="--i:' + (k++) + '">' + esc(c) + '</i>';
+    }).join('');
+  }).join('<i class="sp"></i>');
+  nm.setAttribute('aria-label', String(b.n || 'Awami Market'));
+  el.hidden = false;
+  ASPLASH.on = true; ASPLASH.at = Date.now();
+  setTimeout(aspGo, 2800);            // it never outstays its own page
+}
+function aspGo() {
+  if (!ASPLASH.on || ASPLASH.went) return;
+  var left = 1000 - (Date.now() - ASPLASH.at);
+  if (left > 0) { setTimeout(aspGo, left); return; }
+  ASPLASH.went = true;
+  var el = $('asp'); if (!el) return;
+  el.classList.add('out');
+  setTimeout(function () { el.hidden = true; }, 460);
+}
+
 var P = null;              // the payload, exactly as the server sent it
 var FLOOR = null;          // index into P.floors, or null on screen one
 /* the price list, and whether the director has been let past the password on
@@ -2345,13 +2482,24 @@ async function load(first) {
 
   P = d; FETCHED = Date.now(); STALE = false;
   /* it worked, so this phone may keep it — see the note above load() */
-  if (TOKEN) { try { localStorage.setItem('nx.hub.avail', TOKEN); } catch (e) {} }
+  if (TOKEN) {
+    try { localStorage.setItem('nx.hub.avail', TOKEN); } catch (e) {}
+    /* and whose it turned out to be, against this token and no other, so the
+       next open can raise the right mark before the building arrives */
+    try {
+      localStorage.setItem('avail.brand', JSON.stringify({
+        n: String(P.project || ''),
+        b: /awami/i.test(String(P.project || '')) ? 'awami' : ''
+      }));
+    } catch (e) {}
+  }
   refreshMyReqs();          // a decision reaches the dealer on the same rhythm
 
   if (first) {
     $('boot').hidden = true;
     $('app').hidden = false;
     document.title = (P.project || 'Availability');
+    aspGo();                 // the building is here; the opening may lift
   }
   render();
 }
@@ -5565,7 +5713,7 @@ REQS = readReqs();
 var PREVIEW = new URLSearchParams(location.search).get('preview') === '1';
 if (PREVIEW) { /* wait for _availPreview */ }
 else if (!TOKEN) { dead(); }
-else { load(true).then(schedule); }
+else { aspOpen(); load(true).then(schedule); }
 
 /* the harness renders against a captured payload so the scale screens can be
    photographed without an Awami link being created */

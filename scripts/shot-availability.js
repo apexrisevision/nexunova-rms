@@ -1613,13 +1613,19 @@ function serve() {
          the ::before and ::after of every element are read too, since that is
          where two of those three actually live and a budget that cannot see
          them is a budget that cannot be broken. */
+      /* AND THE OPENING IS THE FIFTH. It is the only screen on this page that
+         is not a reading, it holds a breathing glow while it is up, and it
+         lifts within 2.8s whatever happens — so it is named here like the rest
+         rather than quietly excused. */
       const arrival = ['spIn', 'spLeft', 'spRight', 'spWord', 'spRing', 'flbeam',
-                       'qaBlink'];
+                       'qaBlink',
+                       'aspMark', 'aspGlow', 'aspRing', 'aspSheen', 'aspLtr', 'aspUp'];
       [...document.querySelectorAll('*')].forEach(el => {
         [null, '::before', '::after'].forEach(pseudo => {
           const c = getComputedStyle(el, pseudo);
           const m = Math.max(secs(c.animationDuration), secs(c.transitionDuration));
           if (!pseudo && el.classList.contains('tk-track')) { crawlers++; return; }
+          if (!pseudo && el.id === 'asp') return;   /* the opening, lifting */
           if (arrival.indexOf(c.animationName) >= 0) return;
           if (m > worst) {
             worst = m;
@@ -1632,9 +1638,9 @@ function serve() {
     });
     (budget.ms <= 300 && budget.crawlers === 1)
       ? ok('nothing but the news strip, the page-load arrival, the light round the ' +
-           'register and the contact dot runs longer than 300ms (worst ' + budget.ms +
-           'ms, ' + budget.where + '), and the exemptions are a list of four, every ' +
-           'one of them named')
+           'register, the contact dot and the opening runs longer than 300ms (worst ' +
+           budget.ms + 'ms, ' + budget.where + '), and the exemptions are a list of ' +
+           'five, every one of them named')
       : bad(budget.crawlers !== 1
               ? budget.crawlers + ' elements claim the marquee exemption, not 1'
               : 'an animation runs ' + budget.ms + 'ms on ' + budget.where);
@@ -2522,10 +2528,12 @@ function serve() {
     /* THE LIST IS THE POINT: this page is opened by people who never agreed to
        anything, so what it keeps on their phone has to be nameable in one line.
        The name they typed, whether they have been asked for it, which of the
-       two themes they chose — and, since the app grew a door that opens this
-       link, the link itself. Nothing that identifies anybody, and nothing that
-       ever leaves the phone. */
-    const allowed = ['avail.name', 'avail.name.asked', 'avail.theme', 'nx.hub.avail'];
+       two themes they chose; the link itself, since the app grew a door that
+       opens it; and whose building it turned out to be, so the next open can
+       raise the right mark before the building has arrived. Nothing that
+       identifies anybody, and nothing that ever leaves the phone. */
+    const allowed = ['avail.name', 'avail.name.asked', 'avail.theme', 'nx.hub.avail',
+                     'avail.brand'];
     const extra = Object.keys(store.ls).filter(k => allowed.indexOf(k) < 0);
     extra.length === 0
       ? ok('localStorage holds only ' + Object.keys(store.ls).join(', ') + ' \u2014 the name, the asked flag and the theme')
