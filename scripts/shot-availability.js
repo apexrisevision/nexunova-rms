@@ -4039,24 +4039,55 @@ function serve() {
              desk's own path and not a second one. And it is WRITTEN DOWN,
              because the one thing worse than a unit being freed is nobody
              knowing who freed it. */
-          const relUnit = await rpg.evaluate(async () => {
+          const relUnit = await rpg.evaluate(async (want) => {
             /* into somebody's holdings, the way a director gets there */
             /* a person's page if there is one, otherwise a kind's  either
                way the units themselves are what is wanted */
             /* the tests before this one left the room on one of its inner
                pages; the doors are on the first screen, so go back to it */
-            for (let i = 0; i < 3; i++) {
-              if (document.querySelector('#rep-body [data-go]')) break;
+            const doors = async () => {
+              for (let i = 0; i < 4; i++) {
+                if (document.querySelector('#rep-body [data-go]')) break;
+                document.getElementById('rep-back').click();
+                await new Promise(r => setTimeout(r, 300));
+              }
+              return [...document.querySelectorAll('#rep-body [data-go]')];
+            };
+            /* AND THE DOOR IS THE ONE WITH THE PLANTED UNIT BEHIND IT. Taking
+               the first person's door only worked while ZZTEST held exactly
+               one thing. It holds whatever earlier runs of other scripts left
+               on it — units marked sold by hand, with nobody's name on them —
+               so the first door can lead to a page with no unit on it at all,
+               and this test then proved nothing and crashed on the way out.
+               Every door is tried, the one holding the planted unit wins, and
+               any door with a unit behind it will do if that one is gone. */
+            const keys = (await doors())
+              .filter(d => /^(person|kind)$/.test(d.getAttribute('data-go')))
+              .map(d => d.getAttribute('data-go') + ' ' + (d.getAttribute('data-key') || ''));
+            let row = null, fallback = null, tried = [];
+            for (const k of keys) {
+              const here = await doors();
+              const d = here.find(x => x.getAttribute('data-go') + ' ' +
+                                       (x.getAttribute('data-key') || '') === k);
+              if (!d) continue;
+              d.click();
+              await new Promise(r => setTimeout(r, 400));
+              tried.push(k.replace(' ', ':'));
+              const rows = [...document.querySelectorAll('#rep-body [data-rel]')];
+              const hit = rows.find(r => r.getAttribute('data-rel') === want);
+              if (hit) { row = hit; break; }
+              if (rows.length && !fallback) fallback = k;
               document.getElementById('rep-back').click();
               await new Promise(r => setTimeout(r, 300));
             }
-            const doors = [...document.querySelectorAll('#rep-body [data-go]')];
-            const p = doors.find(d => d.getAttribute('data-go') === 'person') ||
-                      doors.find(d => d.getAttribute('data-go') === 'kind');
-            if (p) { p.click(); await new Promise(r => setTimeout(r, 400)); }
-            const row = document.querySelector('#rep-body [data-rel]');
-            if (!row) return { none: true,
-                               doors: doors.map(d => d.getAttribute('data-go')).join(','),
+            if (!row && fallback) {
+              const here = await doors();
+              const d = here.find(x => x.getAttribute('data-go') + ' ' +
+                                       (x.getAttribute('data-key') || '') === fallback);
+              if (d) { d.click(); await new Promise(r => setTimeout(r, 400)); }
+              row = document.querySelector('#rep-body [data-rel]');
+            }
+            if (!row) return { none: true, want: want, tried: tried.join(' | '),
                                body: document.getElementById('rep-body').innerHTML.length };
             const no = row.getAttribute('data-rel');
             row.click();
@@ -4066,7 +4097,7 @@ function serve() {
             document.getElementById('rel-no').click();
             await new Promise(r => setTimeout(r, 200));
             return { no, asked, says, shut: document.getElementById('relask').hidden };
-          });
+          }, PU && PU.unit_no);
           (!relUnit.none && relUnit.asked && relUnit.shut &&
            relUnit.says.indexOf(relUnit.no) >= 0)
             ? ok('a unit in the room is pressed rather than admired  ' + relUnit.no +
@@ -4080,8 +4111,12 @@ function serve() {
             ? ok('and Cancel released nothing  ' + relUnit.no + ' is still held')
             : bad('cancelling let the unit go anyway');
 
-          const didRel = await rpg.evaluate(async () => {
-            const row = document.querySelector('#rep-body [data-rel]');
+          const didRel = await rpg.evaluate(async (want) => {
+            /* the same unit the question was asked about, not whichever row
+               happens to be first after a redraw */
+            const row = document.querySelector('#rep-body [data-rel="' + want + '"]') ||
+                        document.querySelector('#rep-body [data-rel]');
+            if (!row) return { no: want, shut: true, gone: false, none: true };
             const no = row.getAttribute('data-rel');
             row.click();
             await new Promise(r => setTimeout(r, 250));
@@ -4089,7 +4124,7 @@ function serve() {
             await new Promise(r => setTimeout(r, 2000));
             return { no, shut: document.getElementById('relask').hidden,
                      gone: !document.querySelector('#rep-body [data-rel="' + no + '"]') };
-          });
+          }, relUnit.no);
           const after = await sql(`SELECT
               (SELECT COALESCE(cs.is_available, false) FROM public.units u
                  LEFT JOIN public.category_unit_statuses cs ON cs.id = u.status_id

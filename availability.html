@@ -226,6 +226,19 @@ button{cursor:pointer;background:none;border:0}
   0%  {transform:rotateY(-32deg) rotateX(3deg);filter:brightness(.88)}
   50% {transform:rotateY(32deg) rotateX(-3deg);filter:brightness(1.06)}
   100%{transform:rotateY(-32deg) rotateX(3deg);filter:brightness(.88)}}
+/* THE MARK THAT LETS ITSELF IN. With the opening asleep nothing carries the
+   drawn shape into the slot any more, so it arrives on its own once the page
+   is usable — and it brings its own inks with it, because it is being put
+   into a header that has no defs of its own. These lines come after the ones
+   above on purpose: same weight, later word. */
+.hd-mq{animation:mkSpin 9s ease-in-out infinite, hdIn 260ms ease-out both}
+.hd-mq .asp-k-shield path{--ink:url(#hdInk)}
+.hd-mq .asp-k-chevron path{--ink:url(#hdGold)}
+:root[data-theme="dark"] .hd-mq .asp-k-shield path{--ink:url(#hdShield)}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .hd-mq .asp-k-shield path{--ink:url(#hdShield)}
+}
+@keyframes hdIn{from{opacity:0}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){ .hd-mv{animation:none} }
 :root[data-theme="dark"] .hd-m{background-image:url(/assets/awami-mark-white.png)}
 .hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
@@ -366,10 +379,16 @@ body.splash .hd-r   {animation:spIn 320ms var(--settle) both;animation-delay:285
 /* the chart: its label, its ring, then its legend from the right */
 body.splash .hero-l {animation:spIn 320ms var(--settle) both;animation-delay:350ms}
 body.splash .chart-r{animation:spRing 420ms var(--pop) both;animation-delay:400ms}
+/* A LINE EVERY 55ms, NOT EVERY 70. The legend used to carry four lines and
+   now carries five — Sold (P) is a line of its own since the directors asked
+   for it — and at 70ms apart the fifth one was still starting after the news
+   band underneath it had begun, which reads as the screen arriving out of
+   order. The stagger is tightened instead of the band being pushed back, so
+   the whole arrival is a shade quicker rather than a shade longer. */
 body.splash .ck     {animation:spRight 350ms var(--settle) both;
-                     animation-delay:calc(520ms + var(--i) * 70ms)}
-/* the news band fades up */
-body.splash .hero-f {animation:spIn 360ms var(--settle) both;animation-delay:790ms}
+                     animation-delay:calc(520ms + var(--i) * 55ms)}
+/* the news band fades up, after the last line of the legend above it */
+body.splash .hero-f {animation:spIn 360ms var(--settle) both;animation-delay:800ms}
 /* the field a dealer types into */
 body.splash .sec    {animation:spIn 320ms var(--settle) both;animation-delay:830ms}
 body.splash .sr     {animation:spIn 330ms var(--settle) both;animation-delay:865ms}
@@ -2403,6 +2422,25 @@ const TOKEN = (function () {
    It lifts on whichever comes first: the building arriving (but never before a
    second, or it is a flicker rather than an opening) or 2.8 seconds (because a
    splash that outlives its own page is worse than no splash at all). */
+/* ── THE OPENING IS ASLEEP ───────────────────────────────────────────────
+   It was built, it was liked, and then it was in the way: "ye reservation link
+   pe jo ham ne splash animation banaya hai wo sleep karo q k us se page load
+   honay mai kafi time lag raha hai aur zaroori kaam k liye b wait karna parta
+   hai k ye khatam ho."
+
+   He is right, and the arithmetic says so: the opening held the screen for
+   nearly four seconds before the building was allowed to arrive, on a page
+   whose whole job is to answer "is LG-12 free" in the time it takes to look.
+   A dealer on the phone to a client cannot wait out a logo being drawn.
+
+   So it sleeps rather than being deleted. Every piece of it is still here —
+   the traced paths, the pen, the nib, the ground, the flight — and the one
+   word below wakes it. What stays awake is the part that costs nothing: the
+   mark itself, fetched once the building is already on screen and turning
+   quietly in the header, which is the piece he asked to keep.
+
+   Turn it back on by making this true. */
+var ASPLASH_ON = false;
 var ASPLASH = { on: false, at: 0, went: false, then: null };
 
 /* THE SCREEN'S OWN ARRIVAL, held in one place so it can be started late. The
@@ -2434,7 +2472,7 @@ function aspBrand(read) {
   return null;
 }
 function aspOpen() {
-  if (!TOKEN) return;
+  if (!ASPLASH_ON || !TOKEN) return;
   var last = '';
   try { last = localStorage.getItem('nx.hub.avail') || ''; } catch (e) {}
   if (last !== TOKEN) return;          // a different link: not this brand
@@ -2487,6 +2525,64 @@ function aspOpen() {
     });
     aspPen();
   }).catch(function () { if (!came) { came = true; aspGo(); } });
+}
+
+/* ── THE MARK IN THE HEADER, DRAWN RATHER THAN PRINTED ────────────────────
+   The opening is asleep, and with it the flight that used to carry the drawn
+   mark into the header. The turning shield was never the slow part, though —
+   it is twelve kilobytes fetched after the page is usable — so it stays, and
+   arrives on its own.
+
+   Nothing waits on this. If the file does not come, or comes broken, the
+   printed mark that is already in the slot stays exactly as it is: this is
+   the last thing on the page that matters, and it is allowed to fail. */
+function markLive() {
+  var slot = $('mark');
+  if (!slot || slot.hidden || slot.querySelector('svg')) return;
+  var still = window.matchMedia &&
+              matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (still) return;               // asked for stillness: leave the picture
+  fetch('/assets/awami-mark.svg').then(function (r) {
+    return r.ok ? r.text() : null;
+  }).then(function (txt) {
+    var gs = txt ? new DOMParser().parseFromString(txt, 'image/svg+xml')
+                     .querySelectorAll('g[data-ink]') : [];
+    if (!gs || !gs.length || slot.hidden || slot.querySelector('svg')) return;
+    var NS = 'http://www.w3.org/2000/svg';
+    var v = document.createElementNS(NS, 'svg');
+    v.setAttribute('viewBox', '0 0 160 185');
+    v.setAttribute('aria-hidden', 'true');
+    /* the inks it is printed in travel with it: this shape is being put into
+       a header that has no defs of its own */
+    v.innerHTML =
+      '<defs>' +
+        '<linearGradient id="hdShield" x1=".12" y1="0" x2=".78" y2="1">' +
+          '<stop offset="0" stop-color="#FFFFFF"/><stop offset=".46" stop-color="#F2F3F6"/>' +
+          '<stop offset=".78" stop-color="#CFD3DC"/><stop offset="1" stop-color="#AEB3BF"/>' +
+        '</linearGradient>' +
+        '<linearGradient id="hdGold" x1=".12" y1="0" x2=".78" y2="1">' +
+          '<stop offset="0" stop-color="#FBE49B"/><stop offset=".42" stop-color="#EBC55C"/>' +
+          '<stop offset=".8" stop-color="#C79A2C"/><stop offset="1" stop-color="#A97F1E"/>' +
+        '</linearGradient>' +
+        '<linearGradient id="hdInk" x1=".12" y1="0" x2=".78" y2="1">' +
+          '<stop offset="0" stop-color="#A3282C"/><stop offset=".45" stop-color="#8A2124"/>' +
+          '<stop offset=".8" stop-color="#6B1418"/><stop offset="1" stop-color="#530E12"/>' +
+        '</linearGradient>' +
+      '</defs>';
+    [].forEach.call(gs, function (g) {
+      var out = document.createElementNS(NS, 'g');
+      out.setAttribute('class', 'asp-k asp-k-' + g.getAttribute('data-ink'));
+      [].forEach.call(g.querySelectorAll('path'), function (p) {
+        var q = document.createElementNS(NS, 'path');
+        q.setAttribute('d', p.getAttribute('d'));
+        out.appendChild(q);
+      });
+      v.appendChild(out);
+    });
+    v.setAttribute('class', 'hd-mv hd-mq');
+    slot.appendChild(v);
+    slot.classList.add('hd-mk');
+  }).catch(function () {});
 }
 
 /* ── WHERE THE PEN GOES, AND HOW FAST ──────────────────────────
@@ -2851,6 +2947,13 @@ async function load(first) {
     $('app').hidden = false;
     document.title = (P.project || 'Availability');
     aspGo();                 // the building is here; the opening may lift
+    /* AND THE MARK, LAST OF ALL. The one piece of the opening worth keeping
+       is the shield turning where it sits — "round round 3d rotate hota rahay
+       wahan" — and it costs the reader nothing if it is fetched after the
+       building is on screen and already being read. It puts the same shape in
+       the same slot the picture was in, so there is nothing to see except
+       that it starts to turn. */
+    setTimeout(markLive, 500);
   }
   render();
 }
