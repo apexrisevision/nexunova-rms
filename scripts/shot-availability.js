@@ -2061,14 +2061,18 @@ function serve() {
         b.click();
         return read();
       };
-      return { first, sold: press('Sold'), pagri: press('Pagri'), hold: press('Hold') };
+      return { first, sold: press('Sold'), pagri: press('Sold (P)'), hold: press('Hold') };
     });
 
     /* A LOCK, NOT A DESCRIPTION. Whatever a tenant flags public_choice appears
        here the moment it is flagged, which is the point \u2014 and also the risk. If
        this list changes, somebody meant it to change. Pagri joined it on
-       2026-09-10 at Rashid's asking. */
-    JSON.stringify(kinds.first.labels) === JSON.stringify(['Reserve', 'Hold', 'Pagri', 'Sold'])
+       2026-09-10 at Rashid's asking, and on 2026-09-16 it started calling
+       itself "Sold (P)" on this link \u2014 his directors' wording. The STATUS is
+       still Pagri: only the label the public sees was changed, on the status's
+       own public_label, which is what the 29 units whose status is really
+       "Sold - Entry Pending" have been doing here all along. */
+    JSON.stringify(kinds.first.labels) === JSON.stringify(['Reserve', 'Hold', 'Sold (P)', 'Sold'])
       ? ok('the sheet offers what this project publishes: ' + kinds.first.labels.join(' / '))
       : bad('the choices are ' + JSON.stringify(kinds.first.labels));
     (kinds.first.on === 'Reserve' && kinds.first.days)
@@ -2079,11 +2083,12 @@ function serve() {
            kinds.sold.note.trim() + '\u201d')
       : bad('Sold still asks for days: ' + JSON.stringify(kinds.sold));
     /* Pagri is permanent too, and nothing about it is a special case: it is one
-       more status the tenant published, and it behaves like one. */
+       more status the tenant published, and it behaves like one — under the
+       name it publishes it by, which since 2026-09-16 is "Sold (P)". */
     (kinds.pagri && !kinds.pagri.days && /no end date/i.test(kinds.pagri.note) &&
-     /pagri/i.test(kinds.pagri.msg))
-      ? ok('Pagri asks for no duration either, and the message says what was asked')
-      : bad('Pagri is not behaving as a permanent choice: ' + JSON.stringify(kinds.pagri));
+     kinds.pagri.msg.indexOf('Sold (P)') >= 0)
+      ? ok('Sold (P) asks for no duration either, and the message says what was asked')
+      : bad('Sold (P) is not behaving as a permanent choice: ' + JSON.stringify(kinds.pagri));
     (kinds.hold && kinds.hold.days && kinds.hold.on === 'Hold')
       ? ok('and going back to Hold brings the days question back')
       : bad('Hold did not restore the duration: ' + JSON.stringify(kinds.hold));
@@ -2421,7 +2426,14 @@ function serve() {
       : bad('held units do not read taken: ' + JSON.stringify(
             { off: tog.offBg, on: tog.onBg }));
     {
-      const kinds = Object.keys(tog.byKind || {});
+      /* SOLD (P) IS PAGRI UNDER ANOTHER NAME, so it is not a kind of its own
+         here: it shares Pagri's purple and Pagri's dotted mark on purpose,
+         because the one thing that must never happen is a reader mistaking one
+         of the 341 for one of the 29 that are really sold. The harness invents
+         a Pagri chip and a Sold (P) chip on the same screen, which the real
+         data never does, so the two are counted as the one thing they are. */
+      const kinds = Object.keys(tog.byKind || {})
+        .filter(k => !(k === 'pagri' && tog.byKind['sold-p']));
       const inks = kinds.map(k => tog.byKind[k].ink);
       const pills = kinds.map(k => tog.byKind[k].pill);
       const named = kinds.filter(k => (tog.byKind[k].who || '').trim());
@@ -2431,11 +2443,13 @@ function serve() {
          and does not say who bought them, so a screen telling the truth about
          those would have failed here. At least one kind must still carry a
          name, which still catches a payload that stopped sending it. */
+      const named2 = Object.keys(tog.byKind || {})
+        .filter(k => (tog.byKind[k].who || '').trim());
       (kinds.length >= 2 && new Set(inks).size === kinds.length &&
-       new Set(pills).size === kinds.length && named.length >= 1)
+       new Set(pills).size === kinds.length && named2.length >= 1)
         ? ok('and each kind is its own colour — ' +
              kinds.map(k => k + ' ' + tog.byKind[k].ink).join(', ') +
-             '; ' + named.length + ' of ' + kinds.length + ' name whose word it was on')
+             '; ' + named2.length + ' name whose word it was on')
         : bad('the kinds are not told apart: ' + JSON.stringify(tog.byKind));
     }
     /* the sheet from the step before is still up; a screenshot of a toggle with a

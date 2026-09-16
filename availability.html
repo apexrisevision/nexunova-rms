@@ -2631,12 +2631,12 @@ function short(v) {
    which would repaint every status already on screen the day a new one
    appears. */
 var TINT = {
-  sold: '#b3123c', pagri: '#7c3aed', hold: '#c2760a', 'on-hold': '#c2760a',
+  sold: '#b3123c', pagri: '#7c3aed', 'sold-p': '#7c3aed', hold: '#c2760a', 'on-hold': '#c2760a',
   reserved: '#0f766e', reserve: '#0f766e', booked: '#b45309', landowner: '#4d7c0f'
 };
 var SPARE = ['#0369a1', '#9d174d', '#4d7c0f', '#a16207', '#6d28d9', '#0e7490'];
 /* the mark, as a shape — see .pv .x above for why colour cannot carry alone */
-var DASH = { sold: '', pagri: 'd-dot', hold: 'd-dash', 'on-hold': 'd-dash',
+var DASH = { sold: '', pagri: 'd-dot', 'sold-p': 'd-dot', hold: 'd-dash', 'on-hold': 'd-dash',
              reserved: 'd-dash', reserve: 'd-dash', booked: 'd-dash' };
 function skey(label) {
   return String(label || '').toLowerCase()
