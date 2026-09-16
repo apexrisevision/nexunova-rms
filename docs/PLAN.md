@@ -624,4 +624,67 @@ A parsed line is shown field by field and saved only after the person confirms i
 
 ---
 
-**Phase 1 is being built. It stops before any migration apply, deploy or push.**
+## 9 · Phase 1 — built and rehearsed, NOT applied (2026-09-16)
+
+### 9.1 Files
+
+| File | What it is |
+|---|---|
+| `supabase/migrations/20260916a_nf_tables.sql` | 9 tables, keys, CHECKs, RLS, grants |
+| `supabase/migrations/20260916b_nf_guards.sql` | the triggers that hold R1–R8, position, checks, audit |
+| `supabase/migrations/20260916c_nf_rpcs.sql` | 24 RPCs for the screen; seed and purge for the operator only |
+| `supabase/migrations/20260916d_nf_seed_awami.sql` | **generated** — Awami settings, 110 accounts, 9 floors, 29 report categories. No days, no members. |
+| `supabase/migrations/20260916r_nf_rollback.sql` | tool, never applied; rehearsed every run (RB01) |
+| `scripts/nf/reference.js` | reads HEADS, FLOORS, ACCTS, sample, catIn/catOut out of the reference HTML, and the xlsx |
+| `scripts/nf/gen-seed.js` | builds the seed; asserts it; self-tests its category check with three planted mistakes |
+| `scripts/nf/verify-nf-schema.js` | rehearsal: 157 assertions + 17 mutants, one aborted transaction |
+| `scripts/nf/verify-nf-rules.js` | the same rules over real HTTPS with real sign-ins — **runs only after apply** |
+| `scripts/nf/snapshot-tenants.js` | before/after proof that nothing outside `nf_` changed, for every tenant |
+
+### 9.2 Evidence
+
+- `gen-seed.js`: accounts 110 · heads 78 (reference 76 + 12610/12620) · vias 3 · floors 9 · categories 29, with
+  category parity against the reference's own `catIn`/`catOut` over all 78 heads. Its self-test catches all three
+  planted mistakes, and a neutered copy of it goes red.
+- `verify-nf-schema.js --mutants`: **157 / 157 assertions, 17 / 17 mutants killed.** After every run, live
+  was queried and holds **no nf_ table, no nf_ function, no rehearsal company, no rehearsal user**.
+- The golden day came from the reference file's `sample`, cross-checked against the owner's typed list (G00).
+  The results: Cash 313,000 · Petty 13,500 · Bank 2,108,960 · Total 2,435,460 · Net +665,460 · balanced.
+  The report categories, large payments, cards and PDC totals all equal what the reference's own functions give.
+- `verify-nf-rules.js` against the unapplied database: "COULD NOT RUN — the nf_ migrations are not applied",
+  exit 2, and nothing was created.
+
+### 9.3 Found while building (all fixed, none weaken a rule)
+
+1. **A bad voucher prefix was reported as a Via mismatch** (`XRV-1`). The Via check now judges only C/B prefixes.
+2. **An unknown Via (`12610`) was reported as "not configured".** The RPC now names it `VIA_UNKNOWN` first.
+3. **"Previous day must be closed" lives in four layers** (RPC, trigger, one-unclosed-day index, and the position
+   function refusing an opening from an unclosed day). The first mutant survived because of that. R5-03b now writes
+   past the RPC so the trigger layer is tested on its own.
+4. The rollback rehearsal hit "pending trigger events" — an artefact of one long transaction, not of the file.
+5. `process.exit()` on Windows with fetch sockets open aborted with 127 instead of 2; the suites use `exitCode`.
+
+### 9.4 Not covered yet, named
+
+- Two writers at once (one transaction cannot race itself). The day row is locked `FOR UPDATE` by every line write,
+  but no test has raced it. Proposed: a two-connection test in `verify-nf-rules.js` after apply.
+- The screen, print and PDF — Phases 2 and 3.
+
+### 9.5 What will run, on the owner's OK — and nothing before it
+
+```
+1  node scripts/backup-full.js                                          full verified backup (MANIFEST)
+2  node scripts/nf/snapshot-tenants.js --out backups/nf_before.json     every tenant, read-only
+3  node scripts/nf/verify-nf-schema.js --mutants                        dry run, one more time
+4  node migration_work/_runsql.js supabase/migrations/20260916a_nf_tables.sql
+5  node migration_work/_runsql.js supabase/migrations/20260916b_nf_guards.sql
+6  node migration_work/_runsql.js supabase/migrations/20260916c_nf_rpcs.sql
+7  node migration_work/_runsql.js supabase/migrations/20260916d_nf_seed_awami.sql   ← writes Awami rows (nf_ only)
+8  node scripts/nf/snapshot-tenants.js --out backups/nf_after.json --compare backups/nf_before.json
+9  node scripts/nf/verify-nf-rules.js                                   real HTTPS, ZZTEST-NF-*, cleanup verified
+```
+
+Every run goes to a log file (SR-8). Any step that fails stops the sequence. Rollback is step 4–7 undone by
+`20260916r_nf_rollback.sql`, which is safe only while Awami has no days.
+
+No deploy and no push are part of Phase 1: nothing in the front end changed.
