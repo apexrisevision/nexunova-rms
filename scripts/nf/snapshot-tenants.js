@@ -36,6 +36,23 @@ const { q } = require('../_sbq');
 
 const arg = n => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : null; };
 
+// --tables <from>-<to>  only tenant tables whose name starts with a letter in that
+//                       range (e.g. a-b, c-c, s-z); no fingerprints in that run.
+// --tables fp           only the fingerprints (and the nf_ table list); no row counts.
+// Without --tables, everything in one run, as before. Split runs keep each piece
+// short enough to finish in the foreground; their files together are the snapshot,
+// and each part is compared against the baseline part with the same range.
+const RANGE = arg('--tables');
+const inRange = name => {
+  if (!RANGE) return true;
+  if (RANGE === 'fp') return false;
+  const m = /^([a-z])-([a-z])$/i.exec(RANGE);
+  if (!m) throw new Error(`--tables must be <letter>-<letter> or fp, got "${RANGE}"`);
+  const c = name[0].toLowerCase();
+  return c >= m[1].toLowerCase() && c <= m[2].toLowerCase();
+};
+const WANT_FINGERPRINTS = !RANGE || RANGE === 'fp';
+
 const FINGERPRINTS = {
   payments: `select coalesce(json_object_agg(c, json_build_object('n', n, 'sum', s)), '{}') j from
                (select company_id::text c, count(*) n, sum(amount)::text s from public.payments group by 1 order by 1) x`,
@@ -74,9 +91,16 @@ function loadBaseline(file) {
     if (!base.get('meta:started_at')) { console.log('COULD NOT RUN — the baseline has no meta:started_at line; capture it again.'); process.exitCode = 2; return; }
   }
 
+  try { inRange('a'); } catch (e) { console.log('COULD NOT RUN —', e.message); process.exitCode = 2; return; }
+  if (base && (base.get('meta:range') || 'all') !== (RANGE || 'all')) {
+    console.log(`COULD NOT RUN — baseline was captured for --tables ${base.get('meta:range') || '(all)'}, this run is ${RANGE || '(all)'}.`);
+    process.exitCode = 2; return;
+  }
+
   const fd = fs.openSync(out, 'w');
   const write = (key, value) => fs.writeSync(fd, JSON.stringify({ key, value }) + '\n');
   write('meta:started_at', new Date().toISOString());
+  write('meta:range', RANGE || 'all');
 
   const seen = new Set();
   const countChanges = [];
@@ -105,19 +129,21 @@ function loadBaseline(file) {
         join information_schema.tables t on t.table_schema = c.table_schema and t.table_name = c.table_name and t.table_type = 'BASE TABLE'
        where c.table_schema = 'public' and c.column_name = 'company_id' and c.table_name not like 'nf\\_%'
        order by 1`);
-    tableCount = tables.length;
-    for (const { table_name } of tables) {
+    const mine = tables.filter(t => inRange(t.table_name));
+    tableCount = mine.length;
+    for (const { table_name } of mine) {
       const rows = await q(`select coalesce(company_id::text, 'null') as c, count(*)::int as n from public."${table_name}" group by 1 order by 1`);
       verdict(`count:${table_name}`, Object.fromEntries(rows.map(r => [r.c, r.n])));
     }
-    for (const [key, sql] of Object.entries(FINGERPRINTS)) {
+    for (const [key, sql] of (WANT_FINGERPRINTS ? Object.entries(FINGERPRINTS) : [])) {
       const [row] = await q(sql);
       verdict(`fp:${key}`, row.j);
     }
     const [nf] = await q(`select coalesce(json_agg(relname order by relname), '[]') j from pg_class
                            where relnamespace = 'public'::regnamespace and relkind = 'r' and relname like 'nf\\_%'`);
     write('nf_tables', nf.j);
-    console.log(`\ncaptured ${tableCount} tenant tables + ${Object.keys(FINGERPRINTS).length} fingerprints → ${out}`);
+    console.log(`\ncaptured ${tableCount} tenant tables + ${WANT_FINGERPRINTS ? Object.keys(FINGERPRINTS).length : 0} fingerprints` +
+                `${RANGE ? ` (--tables ${RANGE})` : ''} → ${out}`);
     console.log(`nf_ tables now: ${JSON.stringify(nf.j)}${base ? ` (baseline: ${JSON.stringify(base.get('nf_tables'))})` : ''}`);
   } catch (e) {
     fs.closeSync(fd);
