@@ -1338,18 +1338,21 @@ function serve() {
            ', band ' + order[6] + ', doorways ' + order[7] + '\u2013' + order[8] +
            ', floors ' + order[9] + '\u2013' + order[10] + 'ms')
       : bad('the arrival is out of order: ' + JSON.stringify(order));
-    /* SLOW ENOUGH TO SEE, AND OVER INSIDE FIVE SECONDS. The first cut held
-       every piece to this page's 300ms and was, in his words, invisible; the
-       second was three seconds and read as sharp. The arrival is a named
-       exemption from the 300ms rule now, and what bounds it is the end of it —
-       at both ends, because an entrance that is over before it registers is
-       the fault being fixed here and one that outstays five seconds is a page
-       a dealer is waiting on. "khair hai 3 se 5 second kar do animation time." */
-    (arrive.wordA.d >= 500 && arrive.floorA.d >= 500 &&
-     arrive.ends >= 3000 && arrive.ends <= 5000)
-      ? ok('slow enough to watch \u2014 nothing under half a second \u2014 and the whole of ' +
-           'it lands at ' + arrive.ends + 'ms, inside the three to five seconds asked for')
-      : bad('the arrival is too fast to see or outside three to five seconds: ' +
+    /* TWO SECONDS. It has been three different numbers and each was right for
+       what the page was at the time: 300ms per piece was invisible, three
+       seconds read as sharp, three and a half was fine while this was the only
+       thing that happened. It is not the only thing any more — on Awami's own
+       link an opening runs for five seconds first — so nine seconds of
+       ceremony stood between a dealer and a page they could already see.
+       "Dashboard walay animations 2 second mai simet do."
+
+       Bounded at both ends, as before: nothing so short it cannot be seen, and
+       the whole of it over in about two seconds. */
+    (arrive.wordA.d >= 350 && arrive.floorA.d >= 350 &&
+     arrive.ends >= 1600 && arrive.ends <= 2600)
+      ? ok('slow enough to watch \u2014 nothing under 350ms \u2014 and the whole of it lands ' +
+           'at ' + arrive.ends + 'ms, the two seconds asked for')
+      : bad('the arrival is too fast to see or is not about two seconds: ' +
             JSON.stringify({ letter: arrive.wordA && arrive.wordA.d,
                              floor: arrive.floorA && arrive.floorA.d, ends: arrive.ends }));
     /* AND IT PLAYS ONCE. */
@@ -1358,11 +1361,19 @@ function serve() {
     const twice = await sp.evaluate(async p => {
       window._availPreview(p);
       await new Promise(r => setTimeout(r, 80));
+      const l = document.querySelector('.hd-t .ttll');
       return { splashing: document.body.classList.contains('splash'),
-               words: document.querySelectorAll('.hd-t .ttll').length };
+               words: document.querySelectorAll('.hd-t .ttll').length,
+               moving: l ? getComputedStyle(l).animationName : 'none' };
     }, payload);
-    (!twice.splashing && twice.words === 0)
-      ? ok('and a reread does not play it again — the page never flinches at a reader')
+    /* THE LETTERS STAY, AND THAT IS THE POINT. The heading used to be rewritten
+       on every render, which threw the letters away before they could animate —
+       so it is written once now and left alone. What must not happen on a
+       reread is the MOVEMENT, not the markup: the switch must not go back on,
+       and the letters that are sitting there must not be animating. */
+    (!twice.splashing && twice.moving === 'none')
+      ? ok('and a reread does not play it again — the letters are still there, ' +
+           'standing still, and the switch stays off')
       : bad('the arrival played again on a reread: ' + JSON.stringify(twice));
     await sp.close();
 

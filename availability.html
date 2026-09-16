@@ -326,7 +326,7 @@ body.splash,
 body.splash .wrap   {overflow-x:clip}
 body.splash .hd-t   {overflow:visible}
 /* the mark, from the left */
-body.splash .hd-m   {animation:spLeft 800ms var(--settle) both}
+body.splash .hd-m   {animation:spLeft 480ms var(--settle) both}
 /* unless it has just been carried here by hand, in which case it has already
    arrived and sliding it in from the left would be arriving twice */
 body.splash .hd-m.hd-mk{animation:none}
@@ -344,31 +344,43 @@ body.splash .hd-m.hd-mk{animation:none}
    inside the three to five seconds he asked for, because everything that used
    to wait its turn now overlaps what is ahead of it.
 
+   THE WHOLE OF IT IS TWO SECONDS NOW. It used to be three and a half, which
+   was right when it was the only thing that happened; behind an opening that
+   already takes five it was making a reader wait nine seconds for a page they
+   could see. Rashid: "dashboard walay animations 2 second mai simet do."
+
+   AND THE NAME IS INSIDE THE SAME SWITCH AS EVERYTHING ELSE. It was not: the
+   letters animated the moment they were written into the header, which on this
+   link is while the opening is still on top of them, so the one piece he most
+   wanted to watch had been and gone behind the maroon — "sab se pehla
+   dashboard animation b nazar nahi aata font wala". It waits for the switch
+   now, like the ring and the legend and the floors.
+
    The word wrapper holds its own letters on one line and does nothing else. */
 .hd-t .ttlw         {display:inline-block;vertical-align:top;white-space:nowrap}
-.hd-t .ttll         {display:inline-block;vertical-align:top;
-                     animation:spWord 700ms var(--pop) both;
-                     animation-delay:calc(60ms + var(--i) * 110ms)}
-body.splash .hd-c   {animation:spIn 600ms var(--settle) both;animation-delay:500ms}
-body.splash .hd-r   {animation:spIn 600ms var(--settle) both;animation-delay:560ms}
+.hd-t .ttll         {display:inline-block;vertical-align:top}
+body.splash .hd-t .ttll{animation:spWord 420ms var(--pop) both;
+                     animation-delay:calc(40ms + var(--i) * 55ms)}
+body.splash .hd-c   {animation:spIn 380ms var(--settle) both;animation-delay:300ms}
+body.splash .hd-r   {animation:spIn 380ms var(--settle) both;animation-delay:340ms}
 /* the chart: its label, its ring, then its legend from the right */
-body.splash .hero-l {animation:spIn 600ms var(--settle) both;animation-delay:700ms}
-body.splash .chart-r{animation:spRing 800ms var(--pop) both;animation-delay:820ms}
-body.splash .ck     {animation:spRight 650ms var(--settle) both;
-                     animation-delay:calc(1050ms + var(--i) * 140ms)}
+body.splash .hero-l {animation:spIn 380ms var(--settle) both;animation-delay:420ms}
+body.splash .chart-r{animation:spRing 480ms var(--pop) both;animation-delay:480ms}
+body.splash .ck     {animation:spRight 400ms var(--settle) both;
+                     animation-delay:calc(620ms + var(--i) * 85ms)}
 /* the news band fades up */
-body.splash .hero-f {animation:spIn 700ms var(--settle) both;animation-delay:1600ms}
+body.splash .hero-f {animation:spIn 420ms var(--settle) both;animation-delay:950ms}
 /* the field a dealer types into */
-body.splash .sec    {animation:spIn 600ms var(--settle) both;animation-delay:1700ms}
-body.splash .sr     {animation:spIn 650ms var(--settle) both;animation-delay:1760ms}
+body.splash .sec    {animation:spIn 360ms var(--settle) both;animation-delay:1000ms}
+body.splash .sr     {animation:spIn 380ms var(--settle) both;animation-delay:1040ms}
 /* the three doorways: outside in from their own sides, the middle one fading */
-body.splash #myq      {animation:spLeft 700ms var(--settle) both;animation-delay:1900ms}
-body.splash #allrow   {animation:spIn 700ms var(--settle) both;animation-delay:1980ms}
-body.splash #pricerow {animation:spRight 700ms var(--settle) both;animation-delay:2060ms}
+body.splash #myq      {animation:spLeft 420ms var(--settle) both;animation-delay:1120ms}
+body.splash #allrow   {animation:spIn 420ms var(--settle) both;animation-delay:1170ms}
+body.splash #pricerow {animation:spRight 420ms var(--settle) both;animation-delay:1220ms}
 /* and the floors, from the right, one after another */
-body.splash .sec-r  {animation:spIn 600ms var(--settle) both;animation-delay:2140ms}
-body.splash .fl button{animation:spRight 650ms var(--settle) both;
-                       animation-delay:calc(2220ms + var(--i) * 90ms)}
+body.splash .sec-r  {animation:spIn 360ms var(--settle) both;animation-delay:1270ms}
+body.splash .fl button{animation:spRight 400ms var(--settle) both;
+                       animation-delay:calc(1320ms + var(--i) * 55ms)}
 @media (prefers-reduced-motion:reduce){
   body.splash *,.hd-t .ttll{animation:none !important}
 }
@@ -1878,6 +1890,15 @@ body.splash .fl::before{opacity:0}
    while their own animations were still asserting where they were. So the
    animations are switched off in the same breath. */
 .asp.lift{pointer-events:none}
+/* HELD AT THE FIRST FRAME UNTIL THE GROUND HAS GONE. The screen's arrival is
+   started at the moment the opening begins to lift rather than when it has
+   finished, so the page is already in its not-yet-arrived state behind the
+   maroon — otherwise the reader watches the finished page through the fade and
+   then sees the whole of it blink out as the arrival begins, which is the
+   white flash: "logo k jaghan pe poonchnay k baad screen refresh hoti hai jo
+   k white blink karti hai". Paused, everything sits on its opening frame; let
+   go as the ground clears, it all plays in full view. */
+body.held *{animation-play-state:paused !important}
 .asp.lift .asp-bg{opacity:0}
 .asp.lift .asp-g,.asp.lift .asp-r{animation:none;opacity:0;
        transition:opacity 340ms ease}
@@ -2350,9 +2371,20 @@ var ASPLASH = { on: false, at: 0, went: false, then: null };
    of screen one, so the switch for it has to be above all of them. It is taken
    off once the last piece has landed, so nothing is left carrying an animation
    it has finished. */
-function arrive() {
+var ARRIVE = 2100;                 // the whole of it, once it is let go
+function arrive(hold) {
   document.body.classList.add('splash');
-  setTimeout(function () { document.body.classList.remove('splash'); }, 3600);
+  if (!hold) {
+    setTimeout(function () { document.body.classList.remove('splash'); }, ARRIVE);
+    return;
+  }
+  /* behind the opening: hold every piece on its first frame until the maroon
+     has faded off it, then let the whole thing play in the clear */
+  document.body.classList.add('held');
+  setTimeout(function () {
+    document.body.classList.remove('held');
+    setTimeout(function () { document.body.classList.remove('splash'); }, ARRIVE);
+  }, hold);
 }
 function aspBrand(read) {
   try {
@@ -2484,10 +2516,13 @@ function aspGo() {
   if (!a || !b || !a.width || !b.width || still) {
     el.classList.add('out');
     setTimeout(function () { el.hidden = true; }, 460);
-    if (ASPLASH.then) { var go0 = ASPLASH.then; ASPLASH.then = null; go0(); }
+    if (ASPLASH.then) { var go0 = ASPLASH.then; ASPLASH.then = null; go0(320); }
     return;
   }
   el.classList.add('lift');
+  /* the screen goes to its opening frame now, under the maroon, so there is
+     never a moment where the finished page is shown and then taken away */
+  if (ASPLASH.then) { var begin = ASPLASH.then; ASPLASH.then = null; begin(820); }
   v.style.transition = 'transform 950ms cubic-bezier(.4,0,.2,1)';
   var dx = (b.left + b.width / 2) - (a.left + a.width / 2);
   var dy = (b.top + b.height / 2) - (a.top + a.height / 2);
@@ -2505,8 +2540,6 @@ function aspGo() {
     v.classList.add('hd-mv');
     slot.classList.add('hd-mk');
     el.hidden = true;
-    /* and now the screen may have its turn */
-    if (ASPLASH.then) { var go = ASPLASH.then; ASPLASH.then = null; go(); }
   }, 980);
 }
 
@@ -3249,17 +3282,27 @@ function render() {
      the spaces between the words are real spaces — so the whole thing is still
      the project's name to anything reading it rather than watching it, which
      is what the label below is for. */
-  var nm = String(P.project || 'Availability'), ltr = 0;
-  if (!SPLASHED) {
-    $('ttl').setAttribute('aria-label', nm);
-    $('ttl').innerHTML = nm.split(/\s+/).map(function (w, i) {
-      return '<span class="ttlw">' + w.split('').map(function (c) {
-        return '<span class="ttll" style="--i:' + (ltr++) + '">' + esc(c) + '</span>';
-      }).join('') + '</span>';
-    }).join(' ');
-  } else {
-    $('ttl').textContent = nm;
-    $('ttl').removeAttribute('aria-label');
+  /* THE NAME IS WRITTEN ONCE AND THEN LEFT ALONE. It used to be rewritten on
+     every render, and the second render is milliseconds after the first — so
+     the letters were built, thrown away and replaced with plain text before
+     anything had a chance to animate them. On this link the arrival waits for
+     the opening to lift, which made a race into a certainty: "sab se pehla
+     dashboard animation b nazar nahi aata font wala". So the heading is only
+     touched when the name it is showing is not the name it should be. */
+  var nm = String(P.project || 'Availability'), ltr = 0, ttl = $('ttl');
+  if (ttl.getAttribute('data-nm') !== nm) {
+    ttl.setAttribute('data-nm', nm);
+    if (!SPLASHED) {
+      ttl.setAttribute('aria-label', nm);
+      ttl.innerHTML = nm.split(/\s+/).map(function (w) {
+        return '<span class="ttlw">' + w.split('').map(function (c) {
+          return '<span class="ttll" style="--i:' + (ltr++) + '">' + esc(c) + '</span>';
+        }).join('') + '</span>';
+      }).join(' ');
+    } else {
+      ttl.textContent = nm;
+      ttl.removeAttribute('aria-label');
+    }
   }
   $('co').textContent = P.company || '';
   /* ONE TENANT HAS ARTWORK IN THIS REPO, so one tenant gets it. The page is
