@@ -84,6 +84,25 @@
       ".rd-rel button:disabled{opacity:.6;cursor:default}" +
       "@media (hover:hover){.rd-rel button:hover:not(:disabled){filter:brightness(.97)}}" +
       ".rd-rel button:active:not(:disabled){transform:scale(.98)}" +
+      /* CHANGING A HELD UNIT sits under the release, and does not wear the
+         release's red: one of the two takes a unit off the market and the
+         other puts it back, and they must not look like the same gesture. */
+      ".rd-chg{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:9px}" +
+      ".rd-chg>button{height:38px;padding:0 15px;border-radius:var(--fk-radius-control);" +
+        "border:1px solid var(--fk-border);background:var(--fk-surface);" +
+        "color:var(--fk-text);font:inherit;font-weight:600;cursor:pointer}" +
+      ".rd-chgf{width:100%;margin-top:4px}" +
+      ".rd-chgf .rd-chips{display:flex;flex-wrap:wrap;gap:7px;margin:7px 0}" +
+      ".rd-chgf .rd-chip.on{border-color:var(--fk-accent);background:var(--fk-accent);" +
+        "color:#fff}" +
+      ".rd-chgr{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}" +
+      ".rd-chgr input{height:38px;padding:0 11px;border-radius:var(--fk-radius-control);" +
+        "border:1px solid var(--fk-border);background:var(--fk-surface);font:inherit;" +
+        "color:var(--fk-text);min-width:0;flex:1}" +
+      ".rd-chgr input[type=number]{flex:0 0 92px}" +
+      ".rd-chgr [data-chgdo]{flex:1;height:38px;border:0;border-radius:var(--fk-radius-control);" +
+        "background:var(--fk-accent);color:#fff;font:inherit;font-weight:700;cursor:pointer}" +
+      ".rd-chgr [data-chgdo]:disabled{opacity:.5;cursor:default}" +
       ".rd-rel .rd-meta{margin-top:0}" +
       ".rd-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:6px}" +
       ".rd-chip{height:38px;min-width:44px;padding:0 13px;border-radius:var(--fk-radius-control);" +
@@ -857,9 +876,21 @@
 
     var hitBox = _q('#rd-hit');
     if (hitBox) hitBox.addEventListener('click', function (e) {
-      var b = e.target.closest ? e.target.closest('[data-rel]') : null;
-      if (!b || b.disabled) return;
-      _release(b.getAttribute('data-rel'), b.getAttribute('data-reln'));
+      if (!e.target.closest) return;
+      var b = e.target.closest('[data-rel]');
+      if (b && !b.disabled) {
+        return _release(b.getAttribute('data-rel'), b.getAttribute('data-reln'));
+      }
+      var c = e.target.closest('[data-chg]');
+      if (c) { return _chgOpen(c.getAttribute('data-chg'), c.getAttribute('data-chgn')); }
+      var t = e.target.closest('[data-chgtag]');
+      if (t) { return _chgPick(t); }
+      if (e.target.closest('[data-chgdo]')) { return _chgDo(); }
+      if (e.target.closest('[data-chgno]')) {
+        DESK.chg = null;
+        var box3 = _q('#rd-unit');
+        return _lookup(box3 ? box3.value : '');
+      }
     });
 
     var unit = _q('#rd-unit');
@@ -1195,7 +1226,26 @@
           ? '<div class="rd-rel"><button type="button" ' +
               'data-rel="' + esc(u.h.rid) + '" data-reln="' + esc(u.n) + '">Release this unit</button>' +
             '<span class="rd-meta">Puts ' + esc(u.n) + ' back on the market</span></div>'
-          : '');
+          : '') +
+        /* ── AND CHANGE IT WITHOUT LETTING IT GO FIRST ──────────────────
+           Rashid: "suppose aik unit already reserve hai, hold hai ya sold
+           hai ya hold for x days hai, kisi b cheez ko insaan change kar
+           sake … abhi muje wapis unit ko pehle release karna parta hai
+           pehle aur phir dobara se new status dena parta hai."
+
+           The desk's booking call refuses a unit that is not free, and it
+           should: two dealers reaching for the same shop is what that
+           guard is for. So the change does both steps server-side in one
+           transaction — end the hold, then book it again through that very
+           function — and if the booking refuses, the release goes back with
+           it. Offered on ANY unit that is not available, held or merely
+           tagged, because "sold to hold" is as much a change as
+           "reserved to sold". */
+        '<div class="rd-chg" data-chgbox>' +
+          '<button type="button" data-chg="' + esc(u.id) + '" data-chgn="' + esc(u.n) + '">' +
+            'Change status</button>' +
+          '<span class="rd-meta">Set a new status without releasing it first</span>' +
+        '</div>';
       return;
     }
     hit.className = 'rd-hit no';
@@ -1221,12 +1271,114 @@
       if (btn) { btn.disabled = false; btn.textContent = 'Release this unit'; }
       return toast((d && d.message) || 'Could not release ' + unitNo, 'err');
     }
-    /* the unit is free again, and the card under the cursor has to say so */
-    var u = DESK.idx[String(unitNo).toUpperCase()];
-    if (u) { u.s = 'available'; u.sn = 'Available'; u.h = null; }
+    /* THE UNIT IS FREE AGAIN, AND THE INDEX HAS TO SAY SO. This wrote the
+       three fields onto the ARRAY the index keeps for a unit number rather
+       than onto the unit inside it — a number can answer for more than one
+       unit, so the index holds a list. The properties landed on the list,
+       nothing read them, and searching the same unit again showed the hold
+       that had just been released until the page was reloaded. Rashid:
+       "jab search bar mai dobara search karta hun to tab b purana status aa
+       raha hota hai, until and unless refresh na kar dun."
+
+       Matched on the reservation that was just cancelled, not on the number,
+       so the right one of two units sharing a number is the one that comes
+       free — the same rule the daybook's undo already follows. */
+    var all = DESK.idx[String(unitNo).toUpperCase()] || [], k, hit = false;
+    for (k = 0; k < all.length; k++) {
+      if (all[k].h && String(all[k].h.rid) === String(rid)) {
+        all[k].s = 'available'; all[k].sn = 'Available'; all[k].h = null;
+        hit = true; break;
+      }
+    }
+    /* and if the hold could not be matched — an older payload, a unit that
+       came free some other way — the desk is read again rather than left
+       showing something it has just undone */
+    if (!hit) { await _load(DESK.projectId, true); }
     toast(unitNo + ' released — back on the market', 'ok');
     var box = _q('#rd-unit');
     _lookup(box ? box.value : unitNo);
+  }
+
+  /* ── CHANGING A UNIT THAT IS ALREADY HELD ────────────────────────────────
+     Rashid: "suppose aik unit already reserve hai, hold hai ya sold hai ya hold
+     for x days hai, kisi b cheez ko insaan change kar sake."
+
+     The panel opens under the card that is already on screen, carries this
+     project's own statuses (never a hardcoded list), asks for days only where
+     the status is a temporary one, and starts with the name already on the
+     hold so the commonest change — the same person, a different tag — is two
+     taps. The server does the release and the booking in one transaction; if
+     the booking refuses, nothing moved. */
+  function _chgOpen(unitId, unitNo) {
+    var u = DESK.byId[String(unitId)];
+    var box = _q('[data-chgbox]'); if (!box) return;
+    var tags = _tags();
+    if (!tags.length) return toast('This project has no statuses to choose from.', 'err');
+    DESK.chg = { id: unitId, n: unitNo, tag: null };
+    box.innerHTML =
+      '<div class="rd-chgf">' +
+        '<div class="rd-meta">New status for <b>' + esc(unitNo) + '</b></div>' +
+        '<div class="rd-chips" data-chgtags>' +
+          tags.map(function (t) {
+            return '<button type="button" class="rd-chip" data-chgtag="' + esc(t.id) +
+                   '" data-nature="' + esc(t.nature || '') + '">' + esc(t.name) +
+                   (t.nature === 'permanent' ? ' ∞' : '') + '</button>';
+          }).join('') +
+        '</div>' +
+        '<div class="rd-chgr">' +
+          '<input type="text" data-chgwho placeholder="On whose word" value="' +
+            esc((u && u.h && u.h.who) || '') + '">' +
+          '<input type="number" data-chgdays min="1" max="365" placeholder="days" hidden>' +
+        '</div>' +
+        '<div class="rd-chgr">' +
+          '<button type="button" data-chgdo disabled>Change</button>' +
+          '<button type="button" data-chgno class="rd-chip">Cancel</button>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function _chgPick(btn) {
+    var wrap = _q('[data-chgtags]'); if (!wrap) return;
+    [].forEach.call(wrap.querySelectorAll('[data-chgtag]'), function (b) {
+      b.classList.toggle('on', b === btn);
+    });
+    DESK.chg.tag = btn.getAttribute('data-chgtag');
+    var temp = btn.getAttribute('data-nature') === 'temporary';
+    var days = _q('[data-chgdays]');
+    if (days) { days.hidden = !temp; if (temp && !days.value) days.value = 7; }
+    var go = _q('[data-chgdo]'); if (go) go.disabled = false;
+  }
+
+  async function _chgDo() {
+    var c = DESK.chg; if (!c || !c.tag) return;
+    var go = _q('[data-chgdo]');
+    var daysEl = _q('[data-chgdays]');
+    var whoEl = _q('[data-chgwho]');
+    var days = (daysEl && !daysEl.hidden && Number(daysEl.value) > 0) ? Number(daysEl.value) : null;
+    var who = whoEl ? String(whoEl.value || '').trim() : '';
+    if (go) { go.disabled = true; go.textContent = 'Changing…'; }
+    var res;
+    try {
+      res = await sb.rpc('change_unit_status_desk', {
+        p_session_token: TOKEN, p_unit_id: c.id, p_unit_status_id: c.tag,
+        p_expiry_days: days, p_requested_by_name: who || null
+      });
+    } catch (e) { res = null; }
+    var d = res && res.data;
+    if (d && d.error === 'session_expired') return sessionGone();
+    if (!d || !d.success) {
+      if (go) { go.disabled = false; go.textContent = 'Change'; }
+      return toast((d && (d.message || d.error)) || ('Could not change ' + c.n), 'err');
+    }
+    toast(c.n + ' is now ' + (d.tag || 'changed') +
+          (d.expiry_days ? ' for ' + d.expiry_days + ' days' : ''), 'ok');
+    DESK.chg = null;
+    /* read the desk again rather than patch it: a change touches the status,
+       the hold and the dates at once, and half a patch is how a screen starts
+       disagreeing with the building */
+    await _load(DESK.projectId, true);
+    var box2 = _q('#rd-unit');
+    _lookup(box2 ? box2.value : c.n);
   }
 
   /* ── requester: resolved against the picker, free text only as a fallback ─ */
