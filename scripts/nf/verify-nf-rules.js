@@ -16,6 +16,12 @@
  * Cleanup (owner, 2026-09-16): always runs, then is VERIFIED BY QUERY and
  * printed — nf_ rows for the test company, the company row, the auth users.
  *
+ * RACES (owner, 2026-09-16): R1 and R2 are also driven from two database
+ * connections at once, with the overlap proven from pg_stat_activity (side 2
+ * waiting on a Lock whose blocker is side 1's pid). R1: two payments that each
+ * fit but not together → exactly one accepted. A paired race that fits → both
+ * accepted. R2: the same voucher twice → exactly one row.
+ *
  * The service-role key is fetched from the Management API into memory for
  * creating and deleting the test users. It is never written anywhere.
  *
@@ -61,6 +67,66 @@ function rpc(K, jwt, name, args) {
 }
 const code = r => (r.json && typeof r.json === 'object' && r.json.message) || null;
 
+// ── two-connection race ────────────────────────────────────────────────────
+// Each side is its own Management API request, i.e. its own database backend
+// and its own transaction, calling the real public.nf_save_line as the
+// accountant (JWT claims + SET LOCAL ROLE authenticated). Side 1 writes, then
+// holds its transaction open; side 2 starts while side 1 still holds it. A third
+// connection samples pg_stat_activity to PROVE side 2 was blocked by side 1 —
+// without that, "one accepted, one refused" could come from two calls that
+// never overlapped, and the test would say nothing about locking.
+const { REF: _REF, TOKEN: _TOKEN } = require('../_sbq');
+async function rawSql(sql) {
+  const r = await fetch(`https://api.supabase.com/v1/projects/${_REF}/database/query`, {
+    method: 'POST', headers: { Authorization: `Bearer ${_TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: sql }),
+  });
+  const text = await r.text();
+  let msg = text; try { const j = JSON.parse(text); msg = Array.isArray(j) ? text : (j.message || text); } catch { /* keep text */ }
+  return { status: r.status, msg };
+}
+
+const lineSide = ({ userId, dayId, a, b }) => (tag, n, hold) => {
+  const line = n === 1 ? a : b;
+  return `/* ${tag}-${n} */
+BEGIN;
+SELECT set_config('request.jwt.claims', '${JSON.stringify({ sub: userId, role: 'authenticated' })}', true);
+SET LOCAL ROLE authenticated;
+SELECT public.nf_save_line('${dayId}'::uuid, NULL, 'OUT', '${line.voucher}', 'race ${tag}-${n}', '81300', 'P-W', 'Cash', ${line.amount}, NULL);
+${hold ? `SELECT pg_sleep(${hold / 1000});` : ''}
+COMMIT;`;
+};
+
+async function race({ tag, sides, holdMs = 4000, staggerMs = 1500 }) {
+  const side = (n, _unused, hold) => sides(tag, n, hold);
+
+  const samples = [];
+  let done = false;
+  const observer = (async () => {
+    while (!done) {
+      const r = await rawSql(`select coalesce(json_agg(json_build_object(
+          'side', substring(query from '${tag}-([12])'), 'pid', pid, 'wait', wait_event_type, 'blockers', pg_blocking_pids(pid))), '[]') j
+        from pg_stat_activity where query like '%${tag}-%' and query not like '%pg_stat_activity%' and pid <> pg_backend_pid()`);
+      if (r.status === 201) { try { samples.push(JSON.parse(r.msg)[0].j); } catch { /* ignore a malformed sample */ } }
+      await new Promise(res => setTimeout(res, 250));
+    }
+  })();
+
+  const t0 = Date.now();
+  const p1 = rawSql(side(1, null, holdMs)).then(r => ({ ...r, ms: Date.now() - t0 }));
+  await new Promise(res => setTimeout(res, staggerMs));
+  const t2 = Date.now();
+  const p2 = rawSql(side(2, null, 0)).then(r => ({ ...r, ms: Date.now() - t2 }));
+  const [r1, r2] = await Promise.all([p1, p2]);
+  done = true;
+  await observer;
+
+  const pid1 = samples.flat().find(s => s.side === '1')?.pid;
+  const blockedBy1 = samples.flat().some(s => s.side === '2' && s.wait === 'Lock' && pid1 && (s.blockers || []).includes(pid1));
+  return { r1, r2, pid1, blockedBy1, samples: samples.length };
+}
+
+module.exports = { race, rawSql };
+
 async function nfCounts(companyId) {
   const [row] = await q(`select json_build_object(
       'members', (select count(*) from nf_members where company_id='${companyId}'),
@@ -75,7 +141,7 @@ async function nfCounts(companyId) {
   return row.j;
 }
 
-(async () => {
+if (require.main === module) (async () => {
   const run = crypto.randomBytes(4).toString('hex');
   console.log(`[verify-nf-rules] project ${REF} · run ${run}`);
 
@@ -205,6 +271,41 @@ async function nfCounts(companyId) {
     ok('H-R7 director reopen', r.status === 200 && r.json.day.status === 'OPEN' && r.json.day.reopen_count === 1, JSON.stringify(r.json.day));
     r = await rpc(K, D, 'nf_list_audit', { p_day_id: day2 });
     ok('H-R7 reopen logged', r.status === 200 && r.json.some(a => a.action === 'REOPEN' && a.reason === 'wrong count'), JSON.stringify(r.json).slice(0, 400));
+
+    // ── RACES: two connections at once (day 2 is open again) ───────────────────
+    console.log('\n── races (two database connections, overlap proven from pg_stat_activity)');
+    const cashNow = async () => {
+      const [row] = await q(`select close_cash from public.nf_position_row('${day2}')`);
+      return Number(row.close_cash);
+    };
+    const vouchersOnDay2 = async list => (await q(`select coalesce(json_agg(voucher_key order by voucher_key), '[]') j
+        from public.nf_lines where day_id = '${day2}' and voucher_key in (${list.map(v => `'${v}'`).join(',')})`))[0].j;
+    const describe = x => `side1 HTTP ${x.r1.status} in ${x.r1.ms} ms: ${String(x.r1.msg).slice(0, 120)} | side2 HTTP ${x.r2.status} in ${x.r2.ms} ms: ${String(x.r2.msg).slice(0, 160)} | pid1 ${x.pid1} · side2 blocked by side1: ${x.blockedBy1} · ${x.samples} samples`;
+
+    // R1: each payment fits alone; together they would take Cash below zero.
+    const X = await cashNow();
+    const each = Math.floor(X * 0.6 * 100) / 100;
+    let x = await race({ tag: `nf-race-${run}-r1`, sides: lineSide({ userId: users.A.id, dayId: day2, a: { voucher: 'CPV-R1A', amount: each }, b: { voucher: 'CPV-R1B', amount: each } }) });
+    ok('RACE-R1 overlap', x.blockedBy1, describe(x));
+    ok('RACE-R1 one accepted, one refused', x.r1.status === 201 && x.r2.status !== 201 && /NF:NEGATIVE_POSITION/.test(x.r2.msg), describe(x));
+    const afterR1 = await cashNow();
+    const v1 = await vouchersOnDay2(['CPV-R1A', 'CPV-R1B']);
+    ok('RACE-R1 state', JSON.stringify(v1) === '["CPV-R1A"]' && afterR1 === Math.round((X - each) * 100) / 100 && afterR1 >= 0,
+       `cash before ${X}, each ${each}, cash after ${afterR1}, vouchers ${JSON.stringify(v1)}`);
+
+    // Paired allow: two payments that fit together are both accepted — and the
+    // second still waited, so the lock serialises writers whether or not money is short.
+    x = await race({ tag: `nf-race-${run}-ok`, sides: lineSide({ userId: users.A.id, dayId: day2, a: { voucher: 'CPV-OKA', amount: 1 }, b: { voucher: 'CPV-OKB', amount: 1 } }) });
+    ok('RACE-OK overlap', x.blockedBy1, describe(x));
+    ok('RACE-OK both accepted', x.r1.status === 201 && x.r2.status === 201, describe(x));
+    ok('RACE-OK state', JSON.stringify(await vouchersOnDay2(['CPV-OKA', 'CPV-OKB'])) === '["CPV-OKA","CPV-OKB"]', 'vouchers');
+
+    // R2: the same voucher from two connections at once.
+    x = await race({ tag: `nf-race-${run}-r2`, sides: lineSide({ userId: users.A.id, dayId: day2, a: { voucher: 'CPV-R2', amount: 1 }, b: { voucher: 'CPV-R2', amount: 1 } }) });
+    ok('RACE-R2 overlap', x.blockedBy1, describe(x));
+    ok('RACE-R2 one accepted, one refused', x.r1.status === 201 && x.r2.status !== 201 && /NF:DUPLICATE_VOUCHER/.test(x.r2.msg), describe(x));
+    const [cnt] = await q(`select count(*)::int n from public.nf_lines where company_id = '${C}' and voucher_key = 'CPV-R2'`);
+    ok('RACE-R2 state', cnt.n === 1, `rows with CPV-R2: ${cnt.n}`);
   } catch (e) {
     ok('RUN', false, e.stack || e.message);
   } finally {

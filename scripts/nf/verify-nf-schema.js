@@ -44,6 +44,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { REF, TOKEN } = require('../_sbq');
 const { buildSeed, seedSql } = require('./gen-seed');
+const { WRITTEN_OUTSIDE_NF } = require('./write-guard');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MIG = path.join(ROOT, 'supabase', 'migrations');
@@ -80,6 +81,16 @@ function buildTests(ids, golden, ref) {
   // expect: { ok: '<boolean sql>' } | { err: 'NF:CODE' } | { like: 'sql LIKE pattern' }
   const t = (id, rule, who, body, expect) => T.push({ id, rule, who, body, expect });
   const C = lit(ids.C);
+
+  // ── WRITE GUARD: what this transaction wrote outside nf_ ──────────────────
+  // W01 the migrations wrote nothing outside nf_; W02 the positive control —
+  // the rehearsal's own fixture inserts ARE seen; W03 the seed and the members
+  // added nothing to that.
+  t('W01', 'write-guard', 'op', `res := ${get('w_after_migrations')}::jsonb;`, { ok: `res = '{}'::jsonb` });
+  t('W02', 'write-guard', 'op', `res := ${get('w_after_fixtures')}::jsonb;`,
+    { ok: `(res->>'public.companies')::int = 2 AND (res->>'auth.users')::int = 4` });
+  t('W03', 'write-guard', 'op', `res := jsonb_build_object('fixtures', ${get('w_after_fixtures')}::jsonb, 'seed', ${get('w_after_seed')}::jsonb);`,
+    { ok: `res->'fixtures' = res->'seed'` });
 
   // ── STRUCTURE ─────────────────────────────────────────────────────────────
   const TABLES = ['nf_members', 'nf_settings', 'nf_accounts', 'nf_floors', 'nf_report_categories', 'nf_days', 'nf_lines', 'nf_pdcs', 'nf_audit'];
@@ -456,7 +467,7 @@ function migrationBody(file, mutate) {
 }
 
 function buildBatch({ ids, seed, golden, ref, mutate }) {
-  const setup = `
+  const temp = `
 CREATE TEMP TABLE nf_results (seq serial, id text, rule text, who text, pass boolean, detail text);
 CREATE TEMP TABLE nf_ctx (k text PRIMARY KEY, v text);
 GRANT ALL ON pg_temp.nf_results, pg_temp.nf_ctx TO authenticated, anon;
@@ -464,7 +475,11 @@ GRANT USAGE ON SEQUENCE pg_temp.nf_results_seq_seq TO authenticated, anon;
 CREATE FUNCTION pg_temp.nf_set(k text, v text) RETURNS void LANGUAGE sql AS
   $f$ INSERT INTO pg_temp.nf_ctx VALUES (k, v) ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v $f$;
 CREATE FUNCTION pg_temp.nf_get(k text) RETURNS text LANGUAGE sql STABLE AS $f$ SELECT v FROM pg_temp.nf_ctx WHERE nf_ctx.k = $1 $f$;
-
+`;
+  // what this transaction has written outside nf_, captured at three points (W01–W03)
+  const capture = k => `SELECT pg_temp.nf_set(${lit(k)}, ${WRITTEN_OUTSIDE_NF}::text);`;
+  const setup = `
+${capture('w_after_migrations')}
 -- throwaway rehearsal fixtures (all rolled back)
 INSERT INTO public.companies (id, company_code, company_name) VALUES
   (${lit(ids.C)}, ${lit('ZZNF' + ids.run)}, ${lit('ZZTEST-NF-rehearsal-' + ids.run)}),
@@ -474,11 +489,13 @@ INSERT INTO auth.users (id, email, aud, role, raw_app_meta_data, raw_user_meta_d
   (${lit(ids.A)}, ${lit('nf-a-' + ids.run + '@rehearsal.invalid')}, 'authenticated', 'authenticated', '{}', '{}', now(), now()),
   (${lit(ids.V)}, ${lit('nf-v-' + ids.run + '@rehearsal.invalid')}, 'authenticated', 'authenticated', '{}', '{}', now(), now()),
   (${lit(ids.O)}, ${lit('nf-o-' + ids.run + '@rehearsal.invalid')}, 'authenticated', 'authenticated', '{}', '{}', now(), now());
+${capture('w_after_fixtures')}
 ${seedSql(ids.C, seed)}
 INSERT INTO public.nf_members (company_id, user_id, role, display_name, active) VALUES
   (${lit(ids.C)}, ${lit(ids.D)}, 'director',   'Test Director',   true),
   (${lit(ids.C)}, ${lit(ids.A)}, 'accountant', 'Test Accountant', true),
   (${lit(ids.C)}, ${lit(ids.V)}, 'viewer',     'Test Viewer',     true);
+${capture('w_after_seed')}
 `;
   const tests = buildTests(ids, golden, ref);
   const finish = `
@@ -492,7 +509,7 @@ END
 $fin$;`;
   return {
     tests,
-    sql: ['BEGIN;', ...FILES.map(f => migrationBody(f, mutate)), setup, ...tests.map(t => block(t, ids)), finish, 'ROLLBACK;'].join('\n'),
+    sql: ['BEGIN;', temp, ...FILES.map(f => migrationBody(f, mutate)), setup, ...tests.map(t => block(t, ids)), finish, 'ROLLBACK;'].join('\n'),
   };
 }
 

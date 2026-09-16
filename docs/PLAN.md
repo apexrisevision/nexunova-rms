@@ -673,18 +673,60 @@ A parsed line is shown field by field and saved only after the person confirms i
 ### 9.5 What will run, on the owner's OK — and nothing before it
 
 ```
-1  node scripts/backup-full.js                                          full verified backup (MANIFEST)
-2  node scripts/nf/snapshot-tenants.js --out backups/nf_before.json     every tenant, read-only
-3  node scripts/nf/verify-nf-schema.js --mutants                        dry run, one more time
-4  node migration_work/_runsql.js supabase/migrations/20260916a_nf_tables.sql
-5  node migration_work/_runsql.js supabase/migrations/20260916b_nf_guards.sql
-6  node migration_work/_runsql.js supabase/migrations/20260916c_nf_rpcs.sql
-7  node migration_work/_runsql.js supabase/migrations/20260916d_nf_seed_awami.sql   ← writes Awami rows (nf_ only)
-8  node scripts/nf/snapshot-tenants.js --out backups/nf_after.json --compare backups/nf_before.json
-9  node scripts/nf/verify-nf-rules.js                                   real HTTPS, ZZTEST-NF-*, cleanup verified
+1  node scripts/backup-full.js                                              full verified backup (MANIFEST)
+2  node scripts/nf/snapshot-tenants.js --out backups/nf_before.jsonl        every tenant, read-only
+3  node scripts/nf/verify-nf-schema.js --mutants                            dry run, one more time
+4  node scripts/nf/apply-phase1.js                                          dry run of the apply itself
+5  node scripts/nf/apply-phase1.js --apply --owner-ok                       ← the only step that writes
+6  node scripts/nf/snapshot-tenants.js --out backups/nf_after.jsonl --compare backups/nf_before.jsonl
+7  node scripts/nf/verify-nf-race-harness.js                                the race detector, before it is relied on
+8  node scripts/nf/verify-nf-rules.js                                       real HTTPS, races, ZZTEST-NF-*, cleanup verified
 ```
 
-Every run goes to a log file (SR-8). Any step that fails stops the sequence. Rollback is step 4–7 undone by
-`20260916r_nf_rollback.sql`, which is safe only while Awami has no days.
+**Step 5 is the whole apply, in one transaction**: the four `nf_` files are named in the script (nothing is found by
+listing a folder), each must be byte-identical to its committed version, and the transaction ends with a guard that
+reads `pg_stat_xact_user_tables` and aborts unless every table this transaction wrote is an `nf_` table. A failure
+anywhere — a file or the guard — rolls back all four. `20260916e` (the other session's) is listed as NOT APPLIED and
+never sent.
+
+Every run goes to a log file (SR-8). Any step that fails stops the sequence. Rollback is `20260916r_nf_rollback.sql`,
+which is safe only while Awami has no days.
+
+### 9.6 A, B and C — asked for before the OK (2026-09-16)
+
+**A · which migrations run.** `scripts/nf/apply-phase1.js`, dry run: the four `nf_` files, each identical to HEAD, no
+statement on an object outside `nf_`; `20260916e` and the rollback listed as NOT APPLIED. The "outside nf_" detector
+self-tests on six planted statements and stays silent on four `nf_`-only ones, and it correctly reports `20260916e`'s
+own `availability_releases` objects — a live positive control.
+
+**B · the tenant snapshot.** Now streams to disk, one line per table, and judges each item as it is captured.
+- *Planted run:* all four plants caught — the functions fingerprint, a payment total +1, a payment count that looked
+  like 500 vanished rows, and a unit count that looked like 500 appeared rows.
+- *Clean run:* fingerprints (triggers, functions, policies, columns) and every tenant's payment count and sum were
+  **identical**, twice. Row counts were **not** identical and cannot be on a live database: during the five minutes,
+  real users filed two reservation requests through the Awami availability link, sales phones sent location pings,
+  and the other session's smoke tests created and deleted ZZTEST rows. Increases that timestamps explain are marked
+  EXPLAINED with evidence; anything else is DIFFERS.
+- **Therefore the row-count compare is evidence, not proof.** The proof that the apply wrote nothing outside `nf_` is
+  the in-transaction guard in step 5, which live activity cannot disturb. It is asserted in the rehearsal as W01
+  (migrations wrote nothing outside `nf_`), W02 (positive control: the rehearsal's own fixture writes to
+  `public.companies` and `auth.users` **are** seen) and W03 (the seed added nothing).
+
+**C · concurrency.**
+- R1 takes a **row lock on the day**: `SELECT … FROM nf_days … FOR UPDATE` in the BEFORE trigger of every line
+  insert/update/delete (`20260916b_nf_guards.sql:448`), with the position re-checked in the AFTER trigger (`:488`,
+  trigger at `:492`). Transfers take the same row lock in `nf_set_transfers` (`20260916c_nf_rpcs.sql:460`) and are
+  re-checked by the AFTER trigger on `nf_days` (`20260916b:414`). Starting a day also takes an advisory lock per
+  company (`20260916b:269`).
+- R2 rests on the unique index `nf_lines_voucher_unique` (`20260916a_nf_tables.sql:191`): a second insert of the same
+  key waits on the first's uncommitted row and then fails. Since only one day per company can be open, those writes
+  also queue behind the same day-row lock.
+- `verify-nf-rules.js` now drives both from **two connections at once**, and proves the overlap from
+  `pg_stat_activity` (side 2 waiting on a Lock whose blocker is side 1's pid): two payments that each fit but not
+  together → exactly one accepted, one `NEGATIVE_POSITION`, cash never below zero; a paired race that does fit → both
+  accepted (so a refusal means money, not blocking); the same voucher twice → exactly one row and one
+  `DUPLICATE_VOUCHER`.
+- `verify-nf-race-harness.js` checks the detector itself on advisory locks, touching no table: overlapping → blocked
+  **true**; staggered apart → blocked **false**. It passed before apply, which is when it is worth knowing.
 
 No deploy and no push are part of Phase 1: nothing in the front end changed.
