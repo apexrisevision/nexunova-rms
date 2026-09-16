@@ -1,0 +1,117 @@
+!ACCNT	NAME	ACCNTTYPE	DESC	ACCNUM	EXTRA
+ACCNT	Cash & Bank	BANK	All cash and bank accounts	10000	
+ACCNT	Cash & Bank:Cash in Hand	BANK	Main project cash	10100	
+ACCNT	Cash & Bank:Petty Cash	BANK	Small day to day office cash	10200	
+ACCNT	Cash & Bank:Bank Al-Habib - Awami Market	BANK	Project bank account	10300	
+ACCNT	Cash & Bank:Cash with Directors	BANK	Company cash physically held by a director	10400	
+ACCNT	Cash & Bank:Cash with Directors:Syed Yousaf Shah	BANK	Cash held on the project's behalf	10410	
+ACCNT	Cash & Bank:Cash with Directors:Naeem Hussain	BANK	Cash held on the project's behalf	10420	
+ACCNT	Accounts Receivable	AR	Not used day to day - the system runs on cash basis	11000	
+ACCNT	Current Assets	OCASSET	Short term assets other than cash	12000	
+ACCNT	Current Assets:Supplier & Contractor Advances	OCASSET	Advance paid against material or work	12100	
+ACCNT	Current Assets:Staff Advances	OCASSET	Advance salary or money given to staff	12200	
+ACCNT	Current Assets:PDC Receivable	OCASSET	Post dated cheques received not yet cleared	12300	
+ACCNT	Current Assets:Prepaid Expenses	OCASSET	Expenses paid in advance	12400	
+ACCNT	Current Assets:Security Deposits	OCASSET	Deposits with utilities and authorities	12500	
+ACCNT	Project Inventory	OCASSET	Units held for sale	13000	
+ACCNT	Project Inventory:Unsold Units - Shops	OCASSET	Units not yet sold	13100	
+ACCNT	Fixed Assets	FIXASSET	Assets for the company's own use	15000	
+ACCNT	Fixed Assets:Furniture & Fixtures	FIXASSET	Office furniture and fittings	15100	
+ACCNT	Fixed Assets:Office Equipment	FIXASSET	Office machines and equipment	15200	
+ACCNT	Fixed Assets:Computer & IT Equipment	FIXASSET	Computers laptops and IT hardware	15300	
+ACCNT	Fixed Assets:Vehicles	FIXASSET	Project owned vehicles	15400	
+ACCNT	Fixed Assets:Accumulated Depreciation	FIXASSET	Total depreciation charged to date	15900	
+ACCNT	Other Assets	OASSET	Long term assets other than fixed assets	16000	
+ACCNT	Other Assets:Software & Licences	OASSET	Accounting and other software	16100	
+ACCNT	Accounts Payable	AP	Money owed to suppliers	20000	
+ACCNT	Customer Advances	OCLIAB	Money taken from buyers before it becomes a sale	21000	
+ACCNT	Customer Advances:Token Money - Units	OCLIAB	Token taken against a unit - moves to sales by JV once the deal is final	21100	
+ACCNT	Customer Advances:Advance - Advertising Units	OCLIAB	Advance taken against ad units	21200	
+ACCNT	Customer Advances:Refunds Payable to Customers	OCLIAB	Cancelled tokens due back to the buyer	21300	
+ACCNT	Due to / from Group Companies	OCLIAB	One running account per group company - swings either way	22000	
+ACCNT	Due to / from Group Companies:FMH - Fourteen Manzil Heights	OCLIAB	What FMH spends for Awami increases this - what FMH receives for Awami reduces it	22100	
+ACCNT	Due to / from Group Companies:KBH - Khushal Bagh Heights	OCLIAB	Running account with KBH	22200	
+ACCNT	Due to / from Group Companies:14 Development - BAHL	OCLIAB	Running account with the 14 Development account	22300	
+ACCNT	Due to / from Group Companies:Fourteen Group - Head Office	OCLIAB	Running account with head office	22400	
+ACCNT	Accrued & Other Payables	OCLIAB	Amounts owed but not yet paid	23000	
+ACCNT	Accrued & Other Payables:Salaries Payable	OCLIAB	Salaries earned but not yet paid	23100	
+ACCNT	Accrued & Other Payables:Dealer Commission Payable	OCLIAB	Commission owed to dealers and sub dealers	23200	
+ACCNT	Accrued & Other Payables:Accrued Expenses	OCLIAB	Expenses incurred but not yet paid	23300	
+ACCNT	Accrued & Other Payables:PDC Payable	OCLIAB	Post dated cheques issued not yet cleared	23400	
+ACCNT	Taxes Payable	OCLIAB	Taxes collected or due to government	24500	
+ACCNT	Taxes Payable:KPRA Sales Tax on Services	OCLIAB	KPRA sales tax collected and payable	24510	
+ACCNT	Taxes Payable:Withholding Tax Payable	OCLIAB	Tax deducted at source from payments	24520	
+ACCNT	Taxes Payable:Income Tax Payable	OCLIAB	Income tax due	24530	
+ACCNT	Short Term Loans	OCLIAB	Loans due within one year	25000	
+ACCNT	Short Term Loans:Loan Payable - Short Term	OCLIAB	Short term borrowing	25100	
+ACCNT	Long Term Liabilities	LTLIAB	Loans due after one year	26000	
+ACCNT	Long Term Liabilities:Loan Payable - Long Term	LTLIAB	Long term borrowing	26100	
+ACCNT	Long Term Liabilities:Directors & Related Party Loan	LTLIAB	Money lent by directors or related parties	26200	
+ACCNT	Owners Equity	EQUITY	Capital and accumulated results	31000	
+ACCNT	Owners Equity:Capital - Fourteen Group	EQUITY	Investment into the project	31100	
+ACCNT	Owners Equity:Drawings	EQUITY	Money taken out	31200	
+ACCNT	Revenue	INC	All project income	40000	
+ACCNT	Revenue:Unit & Shop Sales	INC	Sale of units and shops - recognised as the cash comes in	40100	
+ACCNT	Revenue:Advertising Unit Income	INC	Income from advertising units	40200	
+ACCNT	Revenue:Transfer & Processing Fee	INC	Fees on transfers and file processing	40300	
+ACCNT	Revenue:Forfeited Token Income	INC	Token kept when a buyer walks away	40400	
+ACCNT	Revenue:Other Income	INC	Income not fitting the heads above	40900	
+ACCNT	Cost of Sales	COGS	Everything spent to build and sell the project	50000	
+ACCNT	Cost of Sales:Land Cost	COGS	Land and everything to acquire it	51000	
+ACCNT	Cost of Sales:Land Cost:Land Purchase Cost	COGS	Payments to the landlord	51100	
+ACCNT	Cost of Sales:Land Cost:Registration, Stamp & Mutation	COGS	Registry stamp duty and mutation charges	51200	
+ACCNT	Cost of Sales:Construction Cost	COGS	Material labour and everything built on site	52000	
+ACCNT	Cost of Sales:Construction Cost:Steel	COGS	Steel and reinforcement	52100	
+ACCNT	Cost of Sales:Construction Cost:Cement	COGS	Cement	52200	
+ACCNT	Cost of Sales:Construction Cost:Crush & Sand	COGS	Crush sand and aggregate	52300	
+ACCNT	Cost of Sales:Construction Cost:Bricks & Blocks	COGS	Bricks and blocks	52400	
+ACCNT	Cost of Sales:Construction Cost:Other Construction Material	COGS	Material not covered above	52500	
+ACCNT	Cost of Sales:Construction Cost:Labour	COGS	Site labour	52600	
+ACCNT	Cost of Sales:Construction Cost:Contractor Payments	COGS	Payments to contractors	52700	
+ACCNT	Cost of Sales:Construction Cost:Machinery Rent & Fuel	COGS	Machinery hire and fuel	52800	
+ACCNT	Cost of Sales:Construction Cost:Site Utilities & Temp Works	COGS	Site electricity water and temporary structures	52900	
+ACCNT	Cost of Sales:Project Development Cost	COGS	Project costs that are not construction material	53000	
+ACCNT	Cost of Sales:Project Development Cost:Architecture, Design & Drawings	COGS	Architect structure design and drawings	53100	
+ACCNT	Cost of Sales:Project Development Cost:Soil Testing & Survey	COGS	Soil testing and site survey	53200	
+ACCNT	Cost of Sales:Project Development Cost:NOC & Approvals	COGS	PDA TMA and other approvals	53300	
+ACCNT	Cost of Sales:Project Development Cost:Government & Regulatory Fees	COGS	KPRA PDA and other statutory project payments	53400	
+ACCNT	Cost of Sales:Project Development Cost:Regulatory & Facilitation	COGS	Facilitation payments made to move approvals along	53500	
+ACCNT	Cost of Sales:Project Development Cost:Consultancy & Professional Fees	COGS	Consultants engaged for the project	53600	
+ACCNT	Cost of Sales:Selling Cost	COGS	Cost of making the sale	54000	
+ACCNT	Cost of Sales:Selling Cost:Dealer & Sub-dealer Commission	COGS	Commission paid on sales	54100	
+ACCNT	Marketing & Sales Expenses	EXP	Cost of the marketing side of the business	60000	
+ACCNT	Marketing & Sales Expenses:Advertising & Promotion	EXP	Banners hoardings print and outdoor	60100	
+ACCNT	Marketing & Sales Expenses:Digital & Social Media Ads	EXP	Facebook Google and other online ads	60200	
+ACCNT	Marketing & Sales Expenses:Marketing Printing & Material	EXP	Brochures maps flyers and giveaways	60300	
+ACCNT	Marketing & Sales Expenses:Events & Client Entertainment	EXP	Events stalls and hosting clients	60400	
+ACCNT	Marketing & Sales Expenses:Sales Office Expense	EXP	Running the sales office	60500	
+ACCNT	Administrative Expenses	EXP	Cost of running the office	70000	
+ACCNT	Administrative Expenses:Salaries & Wages	EXP	Staff salaries and wages	70100	
+ACCNT	Administrative Expenses:Security & Guards	EXP	Guards pay and related cost	70200	
+ACCNT	Administrative Expenses:Office Rent	EXP	Rent of office premises	70300	
+ACCNT	Administrative Expenses:Utilities	EXP	Office utility bills	70400	
+ACCNT	Administrative Expenses:Utilities:Electricity	EXP	Electricity bills	70410	
+ACCNT	Administrative Expenses:Utilities:Sui Gas	EXP	SNGPL gas bills	70420	
+ACCNT	Administrative Expenses:Utilities:Water	EXP	Water charges	70430	
+ACCNT	Administrative Expenses:Printing & Stationery	EXP	Voucher books receipts and office stationery	70500	
+ACCNT	Administrative Expenses:Communication & Internet	EXP	Phone internet and business numbers	70600	
+ACCNT	Administrative Expenses:Travelling & Conveyance	EXP	Travel fuel and conveyance	70700	
+ACCNT	Administrative Expenses:Repair & Maintenance	EXP	Repairs and upkeep	70800	
+ACCNT	Administrative Expenses:Legal & Professional Fees	EXP	Lawyers auditors and consultants for the company	70900	
+ACCNT	Other Operating Expenses	EXP	Operating costs not covered above	81000	
+ACCNT	Other Operating Expenses:Donations, Sadqa & Khairat	EXP	Charity khatam and sadqa	81100	
+ACCNT	Other Operating Expenses:Depreciation Expense	EXP	Yearly depreciation on fixed assets	81200	
+ACCNT	Other Operating Expenses:Miscellaneous Expense	EXP	Small items not worth their own head	81300	
+ACCNT	Financial Charges	EXP	Cost of banking and borrowing	85000	
+ACCNT	Financial Charges:Bank Charges	EXP	Bank fees and charges	85100	
+ACCNT	Financial Charges:Markup & Interest	EXP	Markup and interest on loans	85200	
+!CLASS	NAME
+CLASS	LG
+CLASS	GF
+CLASS	FF
+CLASS	SF
+CLASS	TF
+CLASS	4F
+CLASS	5F
+CLASS	CB
+CLASS	Project-wide

@@ -1,0 +1,182 @@
+!TRNS	TRNSID	TRNSTYPE	DATE	ACCNT	NAME	CLASS	AMOUNT	DOCNUM	MEMO
+!SPL	SPLID	TRNSTYPE	DATE	ACCNT	NAME	CLASS	AMOUNT	DOCNUM	MEMO
+!ENDTRNS
+TRNS		GENERAL JOURNAL	07/10/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	10000.00	JV-0001	Token 102 received by FMH office - Cash
+SPL		GENERAL JOURNAL	07/10/2026	Customer Advances:Token Money - Units	Suhail:GF-129	GF	-10000.00	JV-0001	Token 102 - unit GF-129
+ENDTRNS
+TRNS		GENERAL JOURNAL	07/29/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	40000.00	JV-0002	Token 103 received by FMH office - Online to 14 Development
+SPL		GENERAL JOURNAL	07/29/2026	Customer Advances:Token Money - Units	Hassan Jan:GF-129	GF	-40000.00	JV-0002	Token 103 - unit GF-129
+ENDTRNS
+TRNS		GENERAL JOURNAL	08/19/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	10000.00	JV-0003	Token 105 received by FMH office - Cash
+SPL		GENERAL JOURNAL	08/19/2026	Customer Advances:Token Money - Units	Raza Ullah:GF-112	GF	-10000.00	JV-0003	Token 105 - unit GF-112
+ENDTRNS
+TRNS		GENERAL JOURNAL	08/19/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	10000.00	JV-0004	Token 106 received by FMH office - Cash
+SPL		GENERAL JOURNAL	08/19/2026	Customer Advances:Token Money - Units	Raza Ullah:GF-176	GF	-10000.00	JV-0004	Token 106 - unit GF-176
+ENDTRNS
+TRNS		GENERAL JOURNAL	08/28/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	10000.00	JV-0005	Token 107 received by FMH office - Cash
+SPL		GENERAL JOURNAL	08/28/2026	Customer Advances:Token Money - Units	Samin Khan Bangash:LG-132	LG	-5000.00	JV-0005	Token 107 - unit LG-132
+SPL		GENERAL JOURNAL	08/28/2026	Customer Advances:Token Money - Units	Samin Khan Bangash:LG-133	LG	-5000.00	JV-0005	Token 107 - unit LG-133
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/01/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	100000.00	JV-0006	Token 108 received by FMH office - Online to 14 Development
+SPL		GENERAL JOURNAL	09/01/2026	Customer Advances:Token Money - Units	Hassan Jan:GF-129	GF	-100000.00	JV-0006	Token 108 - unit GF-129
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/04/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	500000.00	JV-0007	Token 109 received by FMH office - Cash
+SPL		GENERAL JOURNAL	09/04/2026	Customer Advances:Token Money - Units	Haji Ibrar:LG-05	LG	-55555.56	JV-0007	Token 109 - unit LG-05
+SPL		GENERAL JOURNAL	09/04/2026	Customer Advances:Token Money - Units	Haji Ibrar:LG-06	LG	-55555.56	JV-0007	Token 109 - unit LG-06
+SPL		GENERAL JOURNAL	09/04/2026	Customer Advances:Token Money - Units	Waqar Ahmad - Units:LG-47	LG	-55555.56	JV-0007	Token 109 - unit LG-47
+SPL		GENERAL JOURNAL	09/04/2026	Customer Advances:Token Money - Units	Waqar Ahmad - Units:LG-48	LG	-55555.56	JV-0007	Token 109 - unit LG-48
+SPL		GENERAL JOURNAL	09/04/2026	Customer Advances:Token Money - Units	Waqar Ahmad - Units:LG-49	LG	-55555.56	JV-0007	Token 109 - unit LG-49
+SPL		GENERAL JOURNAL	09/04/2026	Customer Advances:Token Money - Units	Waqar Ahmad - Units:LG-50	LG	-55555.56	JV-0007	Token 109 - unit LG-50
+SPL		GENERAL JOURNAL	09/04/2026	Customer Advances:Token Money - Units	Waqar Ahmad - Units:LG-91	LG	-55555.56	JV-0007	Token 109 - unit LG-91
+SPL		GENERAL JOURNAL	09/04/2026	Customer Advances:Token Money - Units	Waqar Ahmad - Units:LG-92	LG	-55555.56	JV-0007	Token 109 - unit LG-92
+SPL		GENERAL JOURNAL	09/04/2026	Customer Advances:Token Money - Units	Waqar Ahmad - Units:LG-93	LG	-55555.52	JV-0007	Token 109 - unit LG-93
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/04/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	200000.00	JV-0008	Token 110 received by FMH office - Cash
+SPL		GENERAL JOURNAL	09/04/2026	Customer Advances:Token Money - Units	Hussain:LG-54	LG	-100000.00	JV-0008	Token 110 - unit LG-54
+SPL		GENERAL JOURNAL	09/04/2026	Customer Advances:Token Money - Units	Hussain:LG-97	LG	-100000.00	JV-0008	Token 110 - unit LG-97
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/05/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	600000.00	JV-0009	Token 111 received by FMH office - Cash
+SPL		GENERAL JOURNAL	09/05/2026	Customer Advances:Token Money - Units	Haji Ibrar:LG-01	LG	-66666.67	JV-0009	Token 111 - unit LG-01
+SPL		GENERAL JOURNAL	09/05/2026	Customer Advances:Token Money - Units	Haji Ibrar:LG-02	LG	-66666.67	JV-0009	Token 111 - unit LG-02
+SPL		GENERAL JOURNAL	09/05/2026	Customer Advances:Token Money - Units	Haji Ibrar:LG-03	LG	-66666.67	JV-0009	Token 111 - unit LG-03
+SPL		GENERAL JOURNAL	09/05/2026	Customer Advances:Token Money - Units	Haji Ibrar:LG-04	LG	-66666.67	JV-0009	Token 111 - unit LG-04
+SPL		GENERAL JOURNAL	09/05/2026	Customer Advances:Token Money - Units	Haji Ibrar:LG-05	LG	-66666.67	JV-0009	Token 111 - unit LG-05
+SPL		GENERAL JOURNAL	09/05/2026	Customer Advances:Token Money - Units	Haji Ibrar:LG-06	LG	-66666.67	JV-0009	Token 111 - unit LG-06
+SPL		GENERAL JOURNAL	09/05/2026	Customer Advances:Token Money - Units	Haji Ibrar:LG-07	LG	-66666.67	JV-0009	Token 111 - unit LG-07
+SPL		GENERAL JOURNAL	09/05/2026	Customer Advances:Token Money - Units	Haji Ibrar:LG-08	LG	-66666.67	JV-0009	Token 111 - unit LG-08
+SPL		GENERAL JOURNAL	09/05/2026	Customer Advances:Token Money - Units	Haji Ibrar:LG-09	LG	-66666.64	JV-0009	Token 111 - unit LG-09
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/05/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	500000.00	JV-0010	Token 112 received by FMH office - Cash
+SPL		GENERAL JOURNAL	09/05/2026	Customer Advances:Token Money - Units	Malak Ibrar:GF-13	GF	-500000.00	JV-0010	Token 112 - unit GF-13
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/11/2026	Cash & Bank:Cash with Directors:Syed Yousaf Shah	Syed Yousaf Shah	Project-wide	800000.00	JV-0011	Token 113 received by Syed Yousaf Shah - Cash
+SPL		GENERAL JOURNAL	09/11/2026	Customer Advances:Token Money - Units	Meena Gul:LG-51	LG	-114285.71	JV-0011	Token 113 - unit LG-51
+SPL		GENERAL JOURNAL	09/11/2026	Customer Advances:Token Money - Units	Meena Gul:LG-52	LG	-114285.71	JV-0011	Token 113 - unit LG-52
+SPL		GENERAL JOURNAL	09/11/2026	Customer Advances:Token Money - Units	Meena Gul:LG-53	LG	-114285.71	JV-0011	Token 113 - unit LG-53
+SPL		GENERAL JOURNAL	09/11/2026	Customer Advances:Token Money - Units	Meena Gul:LG-94	LG	-114285.71	JV-0011	Token 113 - unit LG-94
+SPL		GENERAL JOURNAL	09/11/2026	Customer Advances:Token Money - Units	Meena Gul:LG-95	LG	-114285.71	JV-0011	Token 113 - unit LG-95
+SPL		GENERAL JOURNAL	09/11/2026	Customer Advances:Token Money - Units	Meena Gul:LG-96	LG	-114285.71	JV-0011	Token 113 - unit LG-96
+SPL		GENERAL JOURNAL	09/11/2026	Customer Advances:Token Money - Units	Meena Gul:GF-90	GF	-114285.74	JV-0011	Token 113 - unit GF-90
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/14/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	100000.00	JV-0012	Token 114 received by FMH office - Cash
+SPL		GENERAL JOURNAL	09/14/2026	Customer Advances:Token Money - Units	Azhar Ud Din:LG-10	LG	-100000.00	JV-0012	Token 114 - unit LG-10
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/14/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	200000.00	JV-0013	Token 115 received by FMH office - Cash
+SPL		GENERAL JOURNAL	09/14/2026	Customer Advances:Token Money - Units	Sudais:LG-55	LG	-100000.00	JV-0013	Token 115 - unit LG-55
+SPL		GENERAL JOURNAL	09/14/2026	Customer Advances:Token Money - Units	Shuraim:LG-98	LG	-100000.00	JV-0013	Token 115 - unit LG-98
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/14/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	200000.00	JV-0014	Token 116 received by FMH office - Cash
+SPL		GENERAL JOURNAL	09/14/2026	Customer Advances:Token Money - Units	Salman:CB-16	CB	-100000.00	JV-0014	Token 116 - unit CB-16
+SPL		GENERAL JOURNAL	09/14/2026	Customer Advances:Token Money - Units	Salman:CB-45	CB	-100000.00	JV-0014	Token 116 - unit CB-45
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/11/2026	Cash & Bank:Cash with Directors:Syed Yousaf Shah	Syed Yousaf Shah	Project-wide	2300000.00	JV-0015	Token money handed over by FMH office
+SPL		GENERAL JOURNAL	09/11/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-2300000.00	JV-0015	Token money handed over to Syed Yousaf Shah
+ENDTRNS
+TRNS		GENERAL JOURNAL	06/16/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	250000.00	JV-0016	Token 101 - unit LG-03 - Abdullah
+SPL		GENERAL JOURNAL	06/16/2026	Customer Advances:Token Money - Units	Abdullah:LG-03	LG	-250000.00	JV-0016	Token 101 - unit LG-03 - Abdullah
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/18/2026	Customer Advances:Token Money - Units	Abdullah:LG-03	LG	250000.00	JV-0017	Token 101 returned to Abdullah - unit LG-03
+SPL		GENERAL JOURNAL	09/18/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-250000.00	JV-0017	Token 101 returned to Abdullah - unit LG-03
+ENDTRNS
+TRNS		GENERAL JOURNAL	02/06/2026	Cost of Sales:Land Cost:Land Purchase Cost	Syed Yousaf Shah	Project-wide	10000000.00	JV-0018	Ch# 10318764 deposited to Yousaf saib UBL
+SPL		GENERAL JOURNAL	02/06/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-10000000.00	JV-0018	Paid by FMH for Awami Market - Ch# 10318764 deposited to Yousaf saib UBL
+ENDTRNS
+TRNS		GENERAL JOURNAL	03/30/2026	Cost of Sales:Land Cost:Land Purchase Cost	Syed Yousaf Shah	Project-wide	4000000.00	JV-0019	Ch# 10323992 issued to Yousaf saib as loan return
+SPL		GENERAL JOURNAL	03/30/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-4000000.00	JV-0019	Paid by FMH for Awami Market - Ch# 10323992 issued to Yousaf saib as loan return
+ENDTRNS
+TRNS		GENERAL JOURNAL	03/30/2026	Cost of Sales:Land Cost:Land Purchase Cost	Syed Yousaf Shah	Project-wide	4000000.00	JV-0020	Ch# 10323992 issued to Yousaf saib as loan return - second entry
+SPL		GENERAL JOURNAL	03/30/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-4000000.00	JV-0020	Paid by FMH for Awami Market - Ch# 10323992 issued to Yousaf saib as loan return - second entry
+ENDTRNS
+TRNS		GENERAL JOURNAL	04/17/2026	Administrative Expenses:Printing & Stationery	Kashif	Project-wide	15000.00	JV-0021	Paid to Kashif as stamp navi
+SPL		GENERAL JOURNAL	04/17/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-15000.00	JV-0021	Paid by FMH for Awami Market - Paid to Kashif as stamp navi
+ENDTRNS
+TRNS		GENERAL JOURNAL	04/20/2026	Marketing & Sales Expenses:Marketing Printing & Material	Waqar Easypaisa	Project-wide	10000.00	JV-0022	Paid to Waqar easypaisa for project MAP
+SPL		GENERAL JOURNAL	04/20/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-10000.00	JV-0022	Paid by FMH for Awami Market - Paid to Waqar easypaisa for project MAP
+ENDTRNS
+TRNS		GENERAL JOURNAL	04/21/2026	Cost of Sales:Project Development Cost:Architecture, Design & Drawings	Shah Khalid	Project-wide	500000.00	JV-0023	Paid to Shah Khalid online by Naeem saib
+SPL		GENERAL JOURNAL	04/21/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-500000.00	JV-0023	Paid by FMH for Awami Market - Paid to Shah Khalid online by Naeem saib
+ENDTRNS
+TRNS		GENERAL JOURNAL	04/23/2026	Cost of Sales:Project Development Cost:Soil Testing & Survey	Alam	Project-wide	100000.00	JV-0024	Ch# 10324016 issued to Alam c/o Dr Irshad
+SPL		GENERAL JOURNAL	04/23/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-100000.00	JV-0024	Paid by FMH for Awami Market - Ch# 10324016 issued to Alam c/o Dr Irshad
+ENDTRNS
+TRNS		GENERAL JOURNAL	04/24/2026	Fixed Assets:Computer & IT Equipment	Rashid	Project-wide	95000.00	JV-0025	Paid for laptop c/o Rashid
+SPL		GENERAL JOURNAL	04/24/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-95000.00	JV-0025	Paid by FMH for Awami Market - Paid for laptop c/o Rashid
+ENDTRNS
+TRNS		GENERAL JOURNAL	04/27/2026	Fixed Assets:Computer & IT Equipment		Project-wide	35000.00	JV-0026	Paid for Kharkhano map laptop
+SPL		GENERAL JOURNAL	04/27/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-35000.00	JV-0026	Paid by FMH for Awami Market - Paid for Kharkhano map laptop
+ENDTRNS
+TRNS		GENERAL JOURNAL	04/30/2026	Cost of Sales:Project Development Cost:Regulatory & Facilitation	Noor Zaman TMA	Project-wide	100000.00	JV-0027	Paid to Noor Zaman TMA b/o Yousaf saib
+SPL		GENERAL JOURNAL	04/30/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-100000.00	JV-0027	Paid by FMH for Awami Market - Paid to Noor Zaman TMA b/o Yousaf saib
+ENDTRNS
+TRNS		GENERAL JOURNAL	05/04/2026	Cost of Sales:Project Development Cost:Soil Testing & Survey	Alam	Project-wide	100000.00	JV-0028	Paid to Alam c/o Dr Irshad
+SPL		GENERAL JOURNAL	05/04/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-100000.00	JV-0028	Paid by FMH for Awami Market - Paid to Alam c/o Dr Irshad
+ENDTRNS
+TRNS		GENERAL JOURNAL	05/05/2026	Administrative Expenses:Salaries & Wages	Rashid	Project-wide	50000.00	JV-0029	Paid to Rashid as salary April 2026
+SPL		GENERAL JOURNAL	05/05/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-50000.00	JV-0029	Paid by FMH for Awami Market - Paid to Rashid as salary April 2026
+ENDTRNS
+TRNS		GENERAL JOURNAL	06/05/2026	Other Assets:Software & Licences	Rashid	Project-wide	100000.00	JV-0030	Paid to Rashid for QuickBooks
+SPL		GENERAL JOURNAL	06/05/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-100000.00	JV-0030	Paid by FMH for Awami Market - Paid to Rashid for QuickBooks
+ENDTRNS
+TRNS		GENERAL JOURNAL	05/21/2026	Administrative Expenses:Printing & Stationery	RX Printings	Project-wide	20000.00	JV-0031	Paid to RX Printings, receipts etc
+SPL		GENERAL JOURNAL	05/21/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-20000.00	JV-0031	Paid by FMH for Awami Market - Paid to RX Printings, receipts etc
+ENDTRNS
+TRNS		GENERAL JOURNAL	06/02/2026	Other Assets:Software & Licences	Rashid	Project-wide	80000.00	JV-0032	Paid to Rashid saib for QuickBooks software
+SPL		GENERAL JOURNAL	06/02/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-80000.00	JV-0032	Paid by FMH for Awami Market - Paid to Rashid saib for QuickBooks software
+ENDTRNS
+TRNS		GENERAL JOURNAL	06/05/2026	Administrative Expenses:Printing & Stationery		Project-wide	45000.00	JV-0033	Paid for receipt books CRV CPV and tokens, Awami mobile
+SPL		GENERAL JOURNAL	06/05/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-45000.00	JV-0033	Paid by FMH for Awami Market - Paid for receipt books CRV CPV and tokens, Awami mobile
+ENDTRNS
+TRNS		GENERAL JOURNAL	06/08/2026	Cost of Sales:Project Development Cost:Government & Regulatory Fees	PRF	Project-wide	850000.00	JV-0034	Ch# 10324046 issued to PRF
+SPL		GENERAL JOURNAL	06/08/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-850000.00	JV-0034	Paid by FMH for Awami Market - Ch# 10324046 issued to PRF
+ENDTRNS
+TRNS		GENERAL JOURNAL	06/09/2026	Cost of Sales:Project Development Cost:Soil Testing & Survey	Eng Hamza	Project-wide	100000.00	JV-0035	Ch# 10324047 issued for soil testing by Eng Hamza
+SPL		GENERAL JOURNAL	06/09/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-100000.00	JV-0035	Paid by FMH for Awami Market - Ch# 10324047 issued for soil testing by Eng Hamza
+ENDTRNS
+TRNS		GENERAL JOURNAL	06/09/2026	Cost of Sales:Project Development Cost:Government & Regulatory Fees	KPRA	Project-wide	350000.00	JV-0036	Ch# 10324048 issued for KPRA payment by Yousaf saib
+SPL		GENERAL JOURNAL	06/09/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-350000.00	JV-0036	Paid by FMH for Awami Market - Ch# 10324048 issued for KPRA payment by Yousaf saib
+ENDTRNS
+TRNS		GENERAL JOURNAL	06/11/2026	Cost of Sales:Project Development Cost:Regulatory & Facilitation	PDA	Project-wide	375000.00	JV-0037	Ch# 10324043 issued to PDA
+SPL		GENERAL JOURNAL	06/11/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-375000.00	JV-0037	Paid by FMH for Awami Market - Ch# 10324043 issued to PDA
+ENDTRNS
+TRNS		GENERAL JOURNAL	06/11/2026	Cost of Sales:Project Development Cost:NOC & Approvals	Syed Yousaf Shah	Project-wide	50000.00	JV-0038	Paid to Yousaf saib as NOC payment PDA
+SPL		GENERAL JOURNAL	06/11/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-50000.00	JV-0038	Paid by FMH for Awami Market - Paid to Yousaf saib as NOC payment PDA
+ENDTRNS
+TRNS		GENERAL JOURNAL	06/11/2026	Marketing & Sales Expenses:Marketing Printing & Material	Fayyaz Printing	Project-wide	1500.00	JV-0039	Paid to Fayyaz for A3 map printing
+SPL		GENERAL JOURNAL	06/11/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-1500.00	JV-0039	Paid by FMH for Awami Market - Paid to Fayyaz for A3 map printing
+ENDTRNS
+TRNS		GENERAL JOURNAL	06/11/2026	Marketing & Sales Expenses:Marketing Printing & Material	RX Printings	Project-wide	28000.00	JV-0040	Paid to RX Printings for Awami Market printing
+SPL		GENERAL JOURNAL	06/11/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-28000.00	JV-0040	Paid by FMH for Awami Market - Paid to RX Printings for Awami Market printing
+ENDTRNS
+TRNS		GENERAL JOURNAL	06/12/2026	Marketing & Sales Expenses:Marketing Printing & Material		Project-wide	5200.00	JV-0041	Paid for Kharkhano map A6 size printing
+SPL		GENERAL JOURNAL	06/12/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-5200.00	JV-0041	Paid by FMH for Awami Market - Paid for Kharkhano map A6 size printing
+ENDTRNS
+TRNS		GENERAL JOURNAL	06/17/2026	Administrative Expenses:Printing & Stationery	Momain Photocopy	Project-wide	18250.00	JV-0042	Paid to Momain photocopy online
+SPL		GENERAL JOURNAL	06/17/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-18250.00	JV-0042	Paid by FMH for Awami Market - Paid to Momain photocopy online
+ENDTRNS
+TRNS		GENERAL JOURNAL	07/21/2026	Cost of Sales:Project Development Cost:Architecture, Design & Drawings	Sabir	Project-wide	500000.00	JV-0043	Paid to Sabir for structure design
+SPL		GENERAL JOURNAL	07/21/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	-500000.00	JV-0043	Paid by FMH for Awami Market - Paid to Sabir for structure design
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/07/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	1000000.00	JV-0044	Paid to Ismail and Mikael, FMH landlord, as loan to FMH
+SPL		GENERAL JOURNAL	09/07/2026	Cash & Bank:Cash with Directors:Syed Yousaf Shah	Syed Yousaf Shah	Project-wide	-1000000.00	JV-0044	Paid by Syed Yousaf Shah - Paid to Ismail and Mikael, FMH landlord, as loan to FMH
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/07/2026	Marketing & Sales Expenses:Events & Client Entertainment		Project-wide	43600.00	JV-0045	Dinner with clients by Syed Yousaf Shah
+SPL		GENERAL JOURNAL	09/07/2026	Cash & Bank:Cash with Directors:Syed Yousaf Shah	Syed Yousaf Shah	Project-wide	-43600.00	JV-0045	Paid by Syed Yousaf Shah - Dinner with clients by Syed Yousaf Shah
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/10/2026	Marketing & Sales Expenses:Marketing Printing & Material		Project-wide	16000.00	JV-0046	Karkhano map printing
+SPL		GENERAL JOURNAL	09/10/2026	Cash & Bank:Cash with Directors:Syed Yousaf Shah	Syed Yousaf Shah	Project-wide	-16000.00	JV-0046	Paid by Syed Yousaf Shah - Karkhano map printing
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/11/2026	Other Operating Expenses:Donations, Sadqa & Khairat		Project-wide	27000.00	JV-0047	Khatam ul Quran
+SPL		GENERAL JOURNAL	09/11/2026	Cash & Bank:Cash with Directors:Syed Yousaf Shah	Syed Yousaf Shah	Project-wide	-27000.00	JV-0047	Paid by Syed Yousaf Shah - Khatam ul Quran
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/12/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	76500.00	JV-0048	Paid for FMH head office construction
+SPL		GENERAL JOURNAL	09/12/2026	Cash & Bank:Cash with Directors:Syed Yousaf Shah	Syed Yousaf Shah	Project-wide	-76500.00	JV-0048	Paid by Syed Yousaf Shah - Paid for FMH head office construction
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/12/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	73000.00	JV-0049	Paid for FMH head office construction
+SPL		GENERAL JOURNAL	09/12/2026	Cash & Bank:Cash with Directors:Syed Yousaf Shah	Syed Yousaf Shah	Project-wide	-73000.00	JV-0049	Paid by Syed Yousaf Shah - Paid for FMH head office construction
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/13/2026	Other Operating Expenses:Donations, Sadqa & Khairat		Project-wide	29000.00	JV-0050	Khairat at Karkhano
+SPL		GENERAL JOURNAL	09/13/2026	Cash & Bank:Cash with Directors:Syed Yousaf Shah	Syed Yousaf Shah	Project-wide	-29000.00	JV-0050	Paid by Syed Yousaf Shah - Khairat at Karkhano
+ENDTRNS
+TRNS		GENERAL JOURNAL	09/13/2026	Due to / from Group Companies:FMH - Fourteen Manzil Heights	FMH	Project-wide	74000.00	JV-0051	Paid for FMH head office construction, bricks
+SPL		GENERAL JOURNAL	09/13/2026	Cash & Bank:Cash with Directors:Syed Yousaf Shah	Syed Yousaf Shah	Project-wide	-74000.00	JV-0051	Paid by Syed Yousaf Shah - Paid for FMH head office construction, bricks
+ENDTRNS

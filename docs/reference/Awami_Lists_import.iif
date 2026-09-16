@@ -1,0 +1,80 @@
+!OTHERNAME	NAME	NOTEPAD
+OTHERNAME	FMH	Fourteen Manzil Heights - group company
+OTHERNAME	KBH	Khushal Bagh Heights - group company
+OTHERNAME	14 Development	14 Development account at BAHL
+OTHERNAME	Fourteen Group Head Office	Group head office
+OTHERNAME	Syed Yousaf Shah	Director - holds project cash
+OTHERNAME	Naeem Hussain	Director
+OTHERNAME	Waqar Ahmad	Sub agent - books units before naming the client
+OTHERNAME	Rashid	Staff - CFO
+!VEND	NAME	PRINTAS	VTYPE
+VEND	Kashif	Kashif	Supplier
+VEND	Waqar Easypaisa	Waqar Easypaisa	Supplier
+VEND	Shah Khalid	Shah Khalid	Supplier
+VEND	Alam	Alam	Supplier
+VEND	Dr Irshad	Dr Irshad	Supplier
+VEND	Noor Zaman TMA	Noor Zaman TMA	Supplier
+VEND	RX Printings	RX Printings	Supplier
+VEND	PRF	PRF	Supplier
+VEND	Eng Hamza	Eng Hamza	Supplier
+VEND	PDA	PDA	Supplier
+VEND	Fayyaz Printing	Fayyaz Printing	Supplier
+VEND	Momain Photocopy	Momain Photocopy	Supplier
+VEND	Sabir	Sabir	Supplier
+VEND	Ismail	Ismail	Supplier
+VEND	Mikael	Mikael	Supplier
+VEND	TMA Karkhano	TMA Karkhano	Supplier
+VEND	KPRA	KPRA	Supplier
+!CUST	NAME	COMPANYNAME	CTYPE	TERMS	NOTEPAD
+CUST	Suhail	Suhail	Buyer		Awami Market buyer
+CUST	Suhail:GF-129		Buyer		Unit GF-129 - floor GF
+CUST	Hassan Jan	Hassan Jan	Buyer		Awami Market buyer
+CUST	Hassan Jan:GF-129		Buyer		Unit GF-129 - floor GF
+CUST	Raza Ullah	Raza Ullah	Buyer		Awami Market buyer
+CUST	Raza Ullah:GF-112		Buyer		Unit GF-112 - floor GF
+CUST	Raza Ullah:GF-176		Buyer		Unit GF-176 - floor GF
+CUST	Samin Khan Bangash	Samin Khan Bangash	Buyer		Awami Market buyer
+CUST	Samin Khan Bangash:LG-132		Buyer		Unit LG-132 - floor LG
+CUST	Samin Khan Bangash:LG-133		Buyer		Unit LG-133 - floor LG
+CUST	Waqar Ahmad - Units	Waqar Ahmad - Units	Buyer		Awami Market buyer
+CUST	Waqar Ahmad - Units:LG-47		Buyer		Unit LG-47 - floor LG
+CUST	Waqar Ahmad - Units:LG-48		Buyer		Unit LG-48 - floor LG
+CUST	Waqar Ahmad - Units:LG-49		Buyer		Unit LG-49 - floor LG
+CUST	Waqar Ahmad - Units:LG-50		Buyer		Unit LG-50 - floor LG
+CUST	Waqar Ahmad - Units:LG-91		Buyer		Unit LG-91 - floor LG
+CUST	Waqar Ahmad - Units:LG-92		Buyer		Unit LG-92 - floor LG
+CUST	Waqar Ahmad - Units:LG-93		Buyer		Unit LG-93 - floor LG
+CUST	Hussain	Hussain	Buyer		Awami Market buyer
+CUST	Hussain:LG-54		Buyer		Unit LG-54 - floor LG
+CUST	Hussain:LG-97		Buyer		Unit LG-97 - floor LG
+CUST	Haji Ibrar	Haji Ibrar	Buyer		Awami Market buyer
+CUST	Haji Ibrar:LG-01		Buyer		Unit LG-01 - floor LG
+CUST	Haji Ibrar:LG-02		Buyer		Unit LG-02 - floor LG
+CUST	Haji Ibrar:LG-03		Buyer		Unit LG-03 - floor LG
+CUST	Haji Ibrar:LG-04		Buyer		Unit LG-04 - floor LG
+CUST	Haji Ibrar:LG-05		Buyer		Unit LG-05 - floor LG
+CUST	Haji Ibrar:LG-06		Buyer		Unit LG-06 - floor LG
+CUST	Haji Ibrar:LG-07		Buyer		Unit LG-07 - floor LG
+CUST	Haji Ibrar:LG-08		Buyer		Unit LG-08 - floor LG
+CUST	Haji Ibrar:LG-09		Buyer		Unit LG-09 - floor LG
+CUST	Malak Ibrar	Malak Ibrar	Buyer		Awami Market buyer
+CUST	Malak Ibrar:GF-13		Buyer		Unit GF-13 - floor GF
+CUST	Meena Gul	Meena Gul	Buyer		Awami Market buyer
+CUST	Meena Gul:LG-51		Buyer		Unit LG-51 - floor LG
+CUST	Meena Gul:LG-52		Buyer		Unit LG-52 - floor LG
+CUST	Meena Gul:LG-53		Buyer		Unit LG-53 - floor LG
+CUST	Meena Gul:LG-94		Buyer		Unit LG-94 - floor LG
+CUST	Meena Gul:LG-95		Buyer		Unit LG-95 - floor LG
+CUST	Meena Gul:LG-96		Buyer		Unit LG-96 - floor LG
+CUST	Meena Gul:GF-90		Buyer		Unit GF-90 - floor GF
+CUST	Azhar Ud Din	Azhar Ud Din	Buyer		Awami Market buyer
+CUST	Azhar Ud Din:LG-10		Buyer		Unit LG-10 - floor LG
+CUST	Sudais	Sudais	Buyer		Awami Market buyer
+CUST	Sudais:LG-55		Buyer		Unit LG-55 - floor LG
+CUST	Shuraim	Shuraim	Buyer		Awami Market buyer
+CUST	Shuraim:LG-98		Buyer		Unit LG-98 - floor LG
+CUST	Salman	Salman	Buyer		Awami Market buyer
+CUST	Salman:CB-16		Buyer		Unit CB-16 - floor CB
+CUST	Salman:CB-45		Buyer		Unit CB-45 - floor CB
+CUST	Abdullah	Abdullah	Buyer		Awami Market buyer
+CUST	Abdullah:LG-03		Buyer		Unit LG-03 - floor LG
