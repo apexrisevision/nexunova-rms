@@ -326,7 +326,7 @@ body.splash,
 body.splash .wrap   {overflow-x:clip}
 body.splash .hd-t   {overflow:visible}
 /* the mark, from the left */
-body.splash .hd-m   {animation:spLeft 480ms var(--settle) both}
+body.splash .hd-m   {animation:spLeft 400ms var(--settle) both}
 /* unless it has just been carried here by hand, in which case it has already
    arrived and sliding it in from the left would be arriving twice */
 body.splash .hd-m.hd-mk{animation:none}
@@ -359,28 +359,28 @@ body.splash .hd-m.hd-mk{animation:none}
    The word wrapper holds its own letters on one line and does nothing else. */
 .hd-t .ttlw         {display:inline-block;vertical-align:top;white-space:nowrap}
 .hd-t .ttll         {display:inline-block;vertical-align:top}
-body.splash .hd-t .ttll{animation:spWord 420ms var(--pop) both;
-                     animation-delay:calc(40ms + var(--i) * 55ms)}
-body.splash .hd-c   {animation:spIn 380ms var(--settle) both;animation-delay:300ms}
-body.splash .hd-r   {animation:spIn 380ms var(--settle) both;animation-delay:340ms}
+body.splash .hd-t .ttll{animation:spWord 360ms var(--pop) both;
+                     animation-delay:calc(30ms + var(--i) * 46ms)}
+body.splash .hd-c   {animation:spIn 320ms var(--settle) both;animation-delay:250ms}
+body.splash .hd-r   {animation:spIn 320ms var(--settle) both;animation-delay:285ms}
 /* the chart: its label, its ring, then its legend from the right */
-body.splash .hero-l {animation:spIn 380ms var(--settle) both;animation-delay:420ms}
-body.splash .chart-r{animation:spRing 480ms var(--pop) both;animation-delay:480ms}
-body.splash .ck     {animation:spRight 400ms var(--settle) both;
-                     animation-delay:calc(620ms + var(--i) * 85ms)}
+body.splash .hero-l {animation:spIn 320ms var(--settle) both;animation-delay:350ms}
+body.splash .chart-r{animation:spRing 420ms var(--pop) both;animation-delay:400ms}
+body.splash .ck     {animation:spRight 350ms var(--settle) both;
+                     animation-delay:calc(520ms + var(--i) * 70ms)}
 /* the news band fades up */
-body.splash .hero-f {animation:spIn 420ms var(--settle) both;animation-delay:950ms}
+body.splash .hero-f {animation:spIn 360ms var(--settle) both;animation-delay:790ms}
 /* the field a dealer types into */
-body.splash .sec    {animation:spIn 360ms var(--settle) both;animation-delay:1000ms}
-body.splash .sr     {animation:spIn 380ms var(--settle) both;animation-delay:1040ms}
+body.splash .sec    {animation:spIn 320ms var(--settle) both;animation-delay:830ms}
+body.splash .sr     {animation:spIn 330ms var(--settle) both;animation-delay:865ms}
 /* the three doorways: outside in from their own sides, the middle one fading */
-body.splash #myq      {animation:spLeft 420ms var(--settle) both;animation-delay:1120ms}
-body.splash #allrow   {animation:spIn 420ms var(--settle) both;animation-delay:1170ms}
-body.splash #pricerow {animation:spRight 420ms var(--settle) both;animation-delay:1220ms}
+body.splash #myq      {animation:spLeft 360ms var(--settle) both;animation-delay:930ms}
+body.splash #allrow   {animation:spIn 360ms var(--settle) both;animation-delay:975ms}
+body.splash #pricerow {animation:spRight 360ms var(--settle) both;animation-delay:1020ms}
 /* and the floors, from the right, one after another */
-body.splash .sec-r  {animation:spIn 360ms var(--settle) both;animation-delay:1270ms}
-body.splash .fl button{animation:spRight 400ms var(--settle) both;
-                       animation-delay:calc(1320ms + var(--i) * 55ms)}
+body.splash .sec-r  {animation:spIn 320ms var(--settle) both;animation-delay:1060ms}
+body.splash .fl button{animation:spRight 350ms var(--settle) both;
+                       animation-delay:calc(1100ms + var(--i) * 46ms)}
 @media (prefers-reduced-motion:reduce){
   body.splash *,.hd-t .ttll{animation:none !important}
 }
@@ -1799,7 +1799,7 @@ body.splash .fl::before{opacity:0}
 .asp-bg{position:absolute;inset:0;pointer-events:none;
      background:
        radial-gradient(120% 80% at 50% 18%, #6E1220 0%, #3B0A12 42%, #150508 78%, #0B0304 100%);
-     transition:opacity 900ms var(--settle)}
+     transition:opacity 700ms var(--settle)}
 .asp[hidden]{display:none}
 .asp.out{opacity:0;transform:scale(1.05);pointer-events:none}
 .asp-in{display:flex;flex-direction:column;align-items:center;padding:0 24px}
@@ -1810,7 +1810,7 @@ body.splash .fl::before{opacity:0}
                                           transparent 70%);
        animation:aspGlow 2.6s ease-in-out infinite;will-change:transform,opacity}
 .asp-r{position:absolute;width:196px;height:196px;border-radius:50%;
-       border:1px solid rgba(226,178,74,.55);animation:aspRing 2.8s var(--settle) 600ms 2 backwards}
+       border:1px solid rgba(226,178,74,.55);animation:aspRing 2.2s var(--settle) 500ms 2 backwards}
 /* ── THE MARK DRAWS ITSELF ───────────────────────────────────────────────
    "logo hee yahin banay samnay animate hotay howay" — the logo built in front
    of you rather than handed over finished. A picture cannot be drawn a line at
@@ -1869,7 +1869,7 @@ body.splash .fl::before{opacity:0}
 @keyframes aspNibOn{0%{opacity:0}6%{opacity:1}90%{opacity:1}100%{opacity:0}}
 /* and the whole of it leans, settles and squares up as it is being drawn, so
    the shape is being looked at rather than presented */
-.asp-v.asp-on{animation:aspTilt 3000ms var(--settle) both}
+.asp-v.asp-on{animation:aspTilt 2200ms var(--settle) both}
 @keyframes aspDraw{to{stroke-dashoffset:0}}
 @keyframes aspInk{to{fill:var(--ink);stroke-opacity:0}}
 /* WHEN THE DRAWING IS DONE IT IS WRITTEN DOWN. An animation with a fill mode
@@ -1916,10 +1916,10 @@ body.held *{animation-play-state:paused !important}
        line-height:1.15;text-align:center;white-space:nowrap}
 .asp-n i{display:inline-block;font-style:normal;
          animation:aspLtr 620ms var(--settle) both;
-         animation-delay:calc(3120ms + var(--i) * 72ms)}
+         animation-delay:calc(2350ms + var(--i) * 60ms)}
 .asp-n .asp-sp{width:.34em}
 .asp-c{margin-top:9px;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;
-       color:rgba(255,255,255,.62);animation:aspUp 800ms var(--settle) 4060ms both}
+       color:rgba(255,255,255,.62);animation:aspUp 650ms var(--settle) 3200ms both}
 @keyframes aspGlow{0%,100%{transform:scale(.94);opacity:.72}
                    50%{transform:scale(1.06);opacity:1}}
 @keyframes aspRing{0%{opacity:0;transform:scale(.55)}
@@ -2371,7 +2371,7 @@ var ASPLASH = { on: false, at: 0, went: false, then: null };
    of screen one, so the switch for it has to be above all of them. It is taken
    off once the last piece has landed, so nothing is left carrying an animation
    it has finished. */
-var ARRIVE = 2100;                 // the whole of it, once it is let go
+var ARRIVE = 1800;                 // the whole of it, once it is let go
 function arrive(hold) {
   document.body.classList.add('splash');
   if (!hold) {
@@ -2423,7 +2423,7 @@ function aspOpen() {
      that this page does not carry, so it is asked for now. If it is not here
      inside a second and a bit — a bad connection, a missing file — the opening
      lifts and the reader gets the building, which is what they came for. */
-  setTimeout(aspGo, 7000);            // it never outstays its own page, ever
+  setTimeout(aspGo, 5600);            // it never outstays its own page, ever
   var came = false;
   var giveUp = setTimeout(function () { if (!came) { came = true; aspGo(); } }, 1300);
   fetch('/assets/awami-mark.svg').then(function (r) {
@@ -2464,7 +2464,10 @@ function aspPen() {
   var box = $('asp-v'); if (!box) return;
   var vs = [].slice.call(box.querySelectorAll('path'));
   if (!vs.length) { aspGo(); return; }
-  var DRAW = 3000, total = 0;
+  /* THE PEN IS QUICKER. Three seconds was the first honest attempt at "slow
+     enough to watch"; watched a few times it is longer than it needs to be, so
+     it is 2.2 and everything behind it moves up with it. */
+  var DRAW = 2200, total = 0;
   vs.forEach(function (p) {
     var L = 0; try { L = p.getTotalLength(); } catch (e) {}
     p.__len = L || 420; total += p.__len;
@@ -2496,7 +2499,7 @@ function aspGo() {
   if (!ASPLASH.on || ASPLASH.went) return;
   /* long enough to watch the mark be drawn — that is the whole of what this
      screen is for now, and half a drawing is worse than none */
-  var left = 4900 - (Date.now() - ASPLASH.at);
+  var left = 3900 - (Date.now() - ASPLASH.at);
   if (left > 0) { setTimeout(aspGo, left); return; }
   ASPLASH.went = true;
   var el = $('asp'); if (!el) return;
@@ -2516,14 +2519,14 @@ function aspGo() {
   if (!a || !b || !a.width || !b.width || still) {
     el.classList.add('out');
     setTimeout(function () { el.hidden = true; }, 460);
-    if (ASPLASH.then) { var go0 = ASPLASH.then; ASPLASH.then = null; go0(320); }
+    if (ASPLASH.then) { var go0 = ASPLASH.then; ASPLASH.then = null; go0(260); }
     return;
   }
   el.classList.add('lift');
   /* the screen goes to its opening frame now, under the maroon, so there is
      never a moment where the finished page is shown and then taken away */
-  if (ASPLASH.then) { var begin = ASPLASH.then; ASPLASH.then = null; begin(820); }
-  v.style.transition = 'transform 950ms cubic-bezier(.4,0,.2,1)';
+  if (ASPLASH.then) { var begin = ASPLASH.then; ASPLASH.then = null; begin(620); }
+  v.style.transition = 'transform 800ms cubic-bezier(.4,0,.2,1)';
   var dx = (b.left + b.width / 2) - (a.left + a.width / 2);
   var dy = (b.top + b.height / 2) - (a.top + a.height / 2);
   var sc = b.width / a.width;
@@ -2540,7 +2543,7 @@ function aspGo() {
     v.classList.add('hd-mv');
     slot.classList.add('hd-mk');
     el.hidden = true;
-  }, 980);
+  }, 830);
 }
 
 var P = null;              // the payload, exactly as the server sent it
