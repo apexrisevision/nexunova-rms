@@ -2901,7 +2901,8 @@ function serve() {
       const allowedRpc = ['get_availability_price_log', 'get_availability_report',
                           'get_public_availability', 'get_request_status',
                           'submit_availability_request', 'submit_availability_requests',
-                          'submit_change_request', 'update_availability_prices'].sort();
+                          'submit_change_request', 'update_availability_prices',
+                          'release_availability_unit'].sort();
       (JSON.stringify(rpcNames.slice().sort()) === JSON.stringify(allowedRpc))
         ? ok('the page can call exactly these and nothing else: ' + rpcNames.sort().join(', '))
         : bad('the page calls: ' + (rpcNames.join(', ') || 'nothing at all'));
@@ -4024,6 +4025,94 @@ function serve() {
                  'navigation off, disclaimer still there')
             : bad('the printed sheet is wrong: ' + JSON.stringify(paper));
           await rpg.emulateMediaType(null);
+
+          /*    A DIRECTOR LETS A UNIT GO, FROM IN HERE                   
+             The first thing on this public link that WRITES. Rashid asked for
+             it: "agar director kisi banday ki holdings kholay to kisi b unit
+             pe click karkay release kar sakay."
+
+             Four things have to be true and each is measured against the
+             building rather than the screen. It ASKS  a stray tap on a phone
+             must not free a shop. Cancel does NOTHING  checked in the units
+             table, not in the dialog. Release actually frees it  the status
+             moves and the live hold is cancelled behind it, which is the
+             desk's own path and not a second one. And it is WRITTEN DOWN,
+             because the one thing worse than a unit being freed is nobody
+             knowing who freed it. */
+          const relUnit = await rpg.evaluate(async () => {
+            /* into somebody's holdings, the way a director gets there */
+            /* a person's page if there is one, otherwise a kind's  either
+               way the units themselves are what is wanted */
+            /* the tests before this one left the room on one of its inner
+               pages; the doors are on the first screen, so go back to it */
+            for (let i = 0; i < 3; i++) {
+              if (document.querySelector('#rep-body [data-go]')) break;
+              document.getElementById('rep-back').click();
+              await new Promise(r => setTimeout(r, 300));
+            }
+            const doors = [...document.querySelectorAll('#rep-body [data-go]')];
+            const p = doors.find(d => d.getAttribute('data-go') === 'person') ||
+                      doors.find(d => d.getAttribute('data-go') === 'kind');
+            if (p) { p.click(); await new Promise(r => setTimeout(r, 400)); }
+            const row = document.querySelector('#rep-body [data-rel]');
+            if (!row) return { none: true,
+                               doors: doors.map(d => d.getAttribute('data-go')).join(','),
+                               body: document.getElementById('rep-body').innerHTML.length };
+            const no = row.getAttribute('data-rel');
+            row.click();
+            await new Promise(r => setTimeout(r, 250));
+            const asked = !document.getElementById('relask').hidden;
+            const says = (document.getElementById('rel-w').textContent || '').trim();
+            document.getElementById('rel-no').click();
+            await new Promise(r => setTimeout(r, 200));
+            return { no, asked, says, shut: document.getElementById('relask').hidden };
+          });
+          (!relUnit.none && relUnit.asked && relUnit.shut &&
+           relUnit.says.indexOf(relUnit.no) >= 0)
+            ? ok('a unit in the room is pressed rather than admired  ' + relUnit.no +
+                 ' asks first, and Cancel shuts it')
+            : bad('the unit did not ask before releasing: ' + JSON.stringify(relUnit));
+
+          const stillHeld = await sql(`SELECT NOT COALESCE(cs.is_available, true) AS held
+             FROM public.units u LEFT JOIN public.category_unit_statuses cs ON cs.id = u.status_id
+            WHERE u.project_id = '${RP}' AND u.unit_no = '${relUnit.no}';`);
+          (stillHeld[0] && stillHeld[0].held)
+            ? ok('and Cancel released nothing  ' + relUnit.no + ' is still held')
+            : bad('cancelling let the unit go anyway');
+
+          const didRel = await rpg.evaluate(async () => {
+            const row = document.querySelector('#rep-body [data-rel]');
+            const no = row.getAttribute('data-rel');
+            row.click();
+            await new Promise(r => setTimeout(r, 250));
+            document.getElementById('rel-ok').click();
+            await new Promise(r => setTimeout(r, 2000));
+            return { no, shut: document.getElementById('relask').hidden,
+                     gone: !document.querySelector('#rep-body [data-rel="' + no + '"]') };
+          });
+          const after = await sql(`SELECT
+              (SELECT COALESCE(cs.is_available, false) FROM public.units u
+                 LEFT JOIN public.category_unit_statuses cs ON cs.id = u.status_id
+                WHERE u.project_id = '${RP}' AND u.unit_no = '${didRel.no}') AS free_now,
+              (SELECT count(*)::int FROM public.reservations r
+                 JOIN public.units u ON u.id = r.unit_id
+                WHERE u.project_id = '${RP}' AND u.unit_no = '${didRel.no}'
+                  AND r.status = 'active') AS live_holds,
+              (SELECT count(*)::int FROM public.availability_releases
+                WHERE project_id = '${RP}' AND unit_no = '${didRel.no}') AS written_down,
+              (SELECT was_status FROM public.availability_releases
+                WHERE project_id = '${RP}' AND unit_no = '${didRel.no}'
+                ORDER BY at DESC LIMIT 1) AS was;`);
+          const relDb = after[0] || {};
+          (didRel.shut && relDb.free_now && relDb.live_holds === 0 && relDb.written_down >= 1)
+            ? ok('and pressing Release actually lets it go  ' + didRel.no + ' was ' +
+                 relDb.was + ', is on the shelf now, carries no live hold, and the ' +
+                 'release is written down')
+            : bad('the release did not take: ' + JSON.stringify({ ui: didRel, db: relDb }));
+          didRel.gone
+            ? ok('and the room redraws without it, so a director is not looking at a ' +
+                 'unit they have just freed')
+            : bad('the released unit is still listed in the room');
 
           const wrote = await rpg.evaluate(() => Object.keys(localStorage)
             .filter(k => /pw|pass|report/i.test(k) || /pw|pass/i.test(String(localStorage[k]))));

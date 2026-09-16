@@ -1488,6 +1488,31 @@ body.splash .fl::before{opacity:0}
 .pw-ok{background:var(--accent);color:#fff}
 .pw-r button:active{transform:scale(.98)}
 .prc-e{margin-top:9px;font-size:12.5px;color:#B3123C;line-height:1.5}
+
+/* ── LETTING A UNIT GO, FROM IN HERE ─────────────────────────────────────
+   Every unit in the room is pressable. It is underlined the way a link is,
+   because a row that does something and a row that does not must not look the
+   same — and it asks before it does it, on its own ground, with the two
+   answers a question like this is allowed to have.
+
+   On paper none of this exists: the room prints as a document, and a document
+   does not have buttons in it. */
+.ut .ur .rel-u{text-decoration:underline;text-decoration-style:dotted;
+     text-underline-offset:3px;cursor:pointer}
+.ut .ur:active{background:var(--sunk)}
+@media print{ .ut .ur .rel-u{text-decoration:none} }
+.rel-c{max-width:380px;padding:18px 16px 16px}
+.rel-w{font-size:13px;color:var(--soft);line-height:1.55;margin:8px 0 0}
+.rel-w b{color:var(--ink)}
+.rel-e{margin-top:10px;font-size:12.5px;color:#B3123C;line-height:1.5;display:none}
+.rel-e.on{display:block}
+.rel-r{display:flex;gap:9px;margin-top:15px}
+.rel-r button{flex:1;height:46px;border:0;border-radius:var(--r);font-size:14px;
+     font-weight:700;font-family:inherit;cursor:pointer}
+.rel-no{background:var(--sunk);color:var(--soft)}
+.rel-ok{background:#B3123C;color:#fff}
+.rel-r button:active{transform:scale(.98)}
+.rel-r button[disabled]{opacity:.55}
 /* the form, which exists only after the password */
 .prc-fm{margin:14px 0 0;padding:15px;border-radius:var(--r-lg);background:var(--card)}
 .prc-l{display:block;font-size:10px;font-weight:750;letter-spacing:.13em;
@@ -2310,6 +2335,21 @@ body.held *{animation-play-state:paused !important}
     <div class="pw-r">
       <button type="button" class="pw-no" id="prc-no">Cancel</button>
       <button type="button" class="pw-ok" id="prc-in">OK</button>
+    </div>
+  </div>
+</div>
+<!-- LETTING A UNIT GO. Out here with the other dialogs, for the same reason:
+     a fixed dialog nested inside a screen that gets hidden is a dialog that
+     can be left on the page. -->
+<div id="relask" class="vw" hidden role="dialog" aria-modal="true"
+     aria-labelledby="rel-t">
+  <div class="va-c rel-c">
+    <div class="va-t" id="rel-t">Release this unit?</div>
+    <div class="rel-w" id="rel-w"></div>
+    <div class="rel-e" id="rel-e"></div>
+    <div class="rel-r">
+      <button type="button" class="rel-no" id="rel-no">Cancel</button>
+      <button type="button" class="rel-ok" id="rel-ok">Release</button>
     </div>
   </div>
 </div>
@@ -5564,6 +5604,16 @@ $('all-back').onclick = function () {
    room shuts, which is the behaviour a password on a forwarded link has to
    have. */
 var REPV = false, REP = null;
+/* AND THE PASSWORD, WHILE THE ROOM IS OPEN. It used to be typed, used and
+   dropped, which was right while the room only read: every page behind the
+   door was a slice of the one answer already in hand. A director can now let a
+   unit go from in here, and each release is a call of its own, so the word has
+   to last as long as the room does. It is held in this variable and nowhere
+   else — not in storage, not in the address — and it goes when the room
+   closes, so a forwarded link still opens on the door. */
+var REPPW = '';
+/* the unit a director has pressed and not yet answered for */
+var RELQ = null;
 /* WHICH PAGE OF THE ROOM IS OPEN. The first screen is short on purpose —
    Rashid read the first cut and said so: "mai professional ho k confuse ho gaya
    hun to mere directors to non professional hain". So it carries four things,
@@ -5691,7 +5741,7 @@ async function repOpen() {
       $('dir-pw').value = '';
       return;
     }
-    REP = d; REPP = { view: 'home', key: '' };
+    REP = d; REPP = { view: 'home', key: '' }; REPPW = pw;
     $('dir-pw').value = ''; err.hidden = true;
     showRep(); window.scrollTo(0, 0);
   } catch (e) {
@@ -5737,6 +5787,77 @@ $('dir-go').onclick = repOpen;
 $('dir-pw').addEventListener('keydown', function (e) {
   if (e.key === 'Enter') { e.preventDefault(); repOpen(); }
 });
+/* ── A DIRECTOR LETS A UNIT GO ────────────────────────────────────────────
+   Pressed in the room, answered for in a dialog, done by the server. The page
+   does not decide anything: it asks release_availability_unit and reports what
+   came back. The unit goes to this project's own available status and whatever
+   live reservation was on it is cancelled behind that — the same single path
+   the Reserve Desk uses, so there is one way for a unit to come free and not
+   two.
+
+   Afterwards both readings are taken again: the room, because it is what is on
+   screen, and the building, because the dealer's own pages are a slice of it
+   and would otherwise still show the unit as gone. */
+$('rep-body').addEventListener('click', function (e) {
+  var row = e.target.closest('[data-rel]'); if (!row) return;
+  var no = row.getAttribute('data-rel');
+  var u = held().filter(function (r) { return r.n === no; })[0];
+  if (!u) return;
+  RELQ = no;
+  $('rel-w').innerHTML =
+    '<b>' + esc(no) + '</b> on ' + esc(u.f || 'this floor') +
+    ' is ' + esc(u.k || 'not available') +
+    (u.w ? ' on <b>' + esc(u.w) + '</b>’s word' : '') + '.<br>' +
+    'Releasing puts it back on the shelf for anybody to ask for, ' +
+    'and ends the hold on it.';
+  $('rel-e').classList.remove('on');
+  $('rel-ok').disabled = false;
+  $('rel-ok').textContent = 'Release';
+  $('relask').hidden = false;
+});
+function relShut() { $('relask').hidden = true; RELQ = null; }
+$('rel-no').onclick = relShut;
+$('relask').addEventListener('click', function (e) {
+  if (e.target === $('relask')) relShut();
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' && !$('relask').hidden) { e.preventDefault(); relShut(); }
+});
+$('rel-ok').onclick = async function () {
+  if (!RELQ) return;
+  var no = RELQ, err = $('rel-e');
+  $('rel-ok').disabled = true; $('rel-ok').textContent = 'Releasing…';
+  try {
+    var r = await sb.rpc('release_availability_unit',
+      { p_token: TOKEN, p_password: REPPW, p_unit_no: no });
+    var d = r.data;
+    if (!d || !d.success) {
+      err.textContent =
+        (d && d.error === 'too_many') ? 'Too many wrong tries on this link. It opens again in an hour.'
+        : (d && d.error === 'already_free') ? esc(no) + ' is already on the shelf.'
+        : (d && d.error === 'unit_not_found') ? 'This project has no unit ' + esc(no) + '.'
+        : 'That did not go through. Nothing was released.';
+      err.classList.add('on');
+      $('rel-ok').disabled = false; $('rel-ok').textContent = 'Release';
+      return;
+    }
+    relShut();
+    toast(esc(no) + ' released — it is back on the shelf.');
+    /* the room again, and the building again */
+    var rep = await sb.rpc('get_availability_report',
+      { p_token: TOKEN, p_password: REPPW });
+    if (rep && rep.data && rep.data.success) {
+      REP = rep.data;
+      $('rep-body').innerHTML = repRender();
+    }
+    load(false);
+  } catch (e2) {
+    err.textContent = 'Could not reach the office. Nothing was released.';
+    err.classList.add('on');
+    $('rel-ok').disabled = false; $('rel-ok').textContent = 'Release';
+  }
+};
+
 $('rep-back').onclick = function () {
   /* one step back inside the room before leaving it */
   if (REP && REPP.view !== 'home') {
@@ -5745,7 +5866,7 @@ $('rep-back').onclick = function () {
     window.scrollTo(0, 0);
     return;
   }
-  REPV = false; BACKING = true;
+  REPV = false; BACKING = true; REPPW = ''; RELQ = null;
   $('rep').hidden = true;
   paintNameAsk();
   renderHome(); window.scrollTo(0, 0);
@@ -5852,7 +5973,12 @@ function unitTable(rows, opts) {
       '<th>Value</th><th>Ends</th></tr>' +
     rows.map(function (r) {
       var d = daysTo(r.e);
-      return '<tr><td class="nm">' + esc(r.n) + '</td>' +
+      /* EVERY UNIT IN HERE IS A BUTTON NOW. "Agar director kisi banday ki
+         holdings kholay to kisi b unit pe click karkay release kar sakay." The
+         number itself is what is pressed — it is the thing a director is
+         looking at — and it asks before it does anything. */
+      return '<tr class="ur" data-rel="' + esc(r.n) + '">' +
+        '<td class="nm"><span class="rel-u">' + esc(r.n) + '</span></td>' +
         '<td class="w">' + (opts.who ? esc(r.w || '—') : esc(r.f)) + '</td>' +
         '<td class="n">' + pkr(r.v) + '</td>' +
         '<td class="n' + (d !== null && d <= 7 ? ' warn' : '') + '">' +
@@ -5863,7 +5989,8 @@ function unitTable(rows, opts) {
       '<td class="n">' + pkr(sum(rows, 'v')) + '</td><td></td></tr>' +
     '</table>' +
     '<div class="say">Value is the register’s asking price for the unit. ' +
-      '“Open” means the hold carries no end date and does not lapse on its own.</div>' +
+      '“Open” means the hold carries no end date and does not lapse on its own. ' +
+      '<b>Tap a unit to release it.</b></div>' +
   '</div>';
 }
 /* short enough to sit in its column on a 380px phone, and unambiguous */
