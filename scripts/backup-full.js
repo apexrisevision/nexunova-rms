@@ -27,6 +27,33 @@ const fs = require('fs');
 const path = require('path');
 const { q, REF } = require('./_sbq.js');
 
+// ── Finding O (2026-09-16) ──────────────────────────────────────────────────
+// This script used to hold the whole database in memory (every table's rows,
+// and then every row again per tenant for the Excel phase). On 2026-09-16 the
+// OS killed it mid-run; a killed process runs no catch, so it wrote no manifest,
+// printed no error, and the shell reported exit 0. 236 MB of half a backup looked
+// exactly like a good one.
+//
+// Now: pages are streamed to disk and never accumulated, the heap limit is
+// raised explicitly, row counts taken at the start are checked at the end, the
+// manifest is written last, and a DONE file is the final action.
+//
+//   A directory without DONE *and* MANIFEST.json is a FAILED backup,
+//   whatever the exit code says.  `--verify <dir>` answers that question.
+// ────────────────────────────────────────────────────────────────────────────
+
+// Raise the heap before doing any work: re-exec once, with the same arguments.
+if (!process.env.NXN_BACKUP_CHILD) {
+  const { spawnSync } = require('child_process');
+  const r = spawnSync(process.execPath, ['--max-old-space-size=4096', __filename, ...process.argv.slice(2)],
+    { stdio: 'inherit', env: { ...process.env, NXN_BACKUP_CHILD: '1' } });
+  process.exit(r.status === null ? 1 : r.status);
+}
+
+// A crash or a rejected promise must fail loudly, not end the run quietly.
+process.on('unhandledRejection', e => { console.error('\nBACKUP FAILED (unhandled rejection):', e && e.message || e); process.exit(1); });
+process.on('uncaughtException', e => { console.error('\nBACKUP FAILED (uncaught exception):', e && e.message || e); process.exit(1); });
+
 const args = process.argv.slice(2);
 const SKIP_AUDIT = args.includes('--skip-audit');
 const NO_STORAGE = args.includes('--no-storage');
@@ -53,8 +80,50 @@ const EXCEL_EXCLUDE = new Set(['audit_logs', 'audit_log_archive']);
 const ONLY = arg('--only');
 const doPhase = p => !ONLY || ONLY.split(',').map(s => s.trim()).includes(p);
 
-const PAGE = 2000;
+const PAGE = 1000;                     // rows per request, ordered by primary key
+const DONE_FILE = 'DONE';
 const log = (...a) => console.log(...a);
+const mb = n => (n / 1048576).toFixed(1) + ' MB';
+const mem = () => {
+  const m = process.memoryUsage();
+  return 'heap ' + mb(m.heapUsed) + ' · rss ' + mb(m.rss);
+};
+
+// ── --verify <dir> : is this directory a finished backup? ───────────────────
+if (args.includes('--verify')) {
+  const dir = path.resolve(args[args.indexOf('--verify') + 1] || '.');
+  const problems = [];
+  const has = f => fs.existsSync(path.join(dir, f));
+  if (!has(DONE_FILE)) problems.push('no DONE marker');
+  if (!has('MANIFEST.json')) problems.push('no MANIFEST.json');
+  let man = null;
+  if (has('MANIFEST.json')) {
+    try { man = JSON.parse(fs.readFileSync(path.join(dir, 'MANIFEST.json'), 'utf8')); }
+    catch (e) { problems.push('MANIFEST.json is not readable: ' + e.message); }
+  }
+  if (man) {
+    if (!man.complete) problems.push('MANIFEST.json does not say complete');
+    for (const [t, n] of Object.entries(man.tables || {})) {
+      const f = path.join(dir, 'data', t + '.json');
+      if (!fs.existsSync(f)) { problems.push('data/' + t + '.json missing'); continue; }
+      let rows;
+      try { rows = JSON.parse(fs.readFileSync(f, 'utf8')).length; }
+      catch (e) { problems.push('data/' + t + '.json unreadable: ' + e.message); continue; }
+      if (rows !== n) problems.push(`data/${t}.json holds ${rows} rows, the manifest says ${n}`);
+    }
+    if (man.mismatches && man.mismatches.length) problems.push(man.mismatches.length + ' table(s) did not match the live counts');
+  }
+  console.log('[verify] ' + dir);
+  if (man) console.log('  taken ' + man.taken_at + ' · ' + Object.keys(man.tables || {}).length + ' tables · ' +
+    Object.values(man.tables || {}).reduce((a, b) => a + b, 0).toLocaleString() + ' rows');
+  if (problems.length) {
+    console.log('  FAILED — ' + problems.length + ' problem(s):');
+    problems.slice(0, 20).forEach(p => console.log('    ✗ ' + p));
+    process.exit(1);
+  }
+  console.log('  PASS — DONE marker present, manifest complete, every table file matches its manifest count.');
+  process.exit(0);
+}
 const mk = d => { fs.mkdirSync(d, { recursive: true }); return d; };
 const w = (f, s) => fs.writeFileSync(f, s, 'utf8');
 
@@ -211,70 +280,134 @@ const ident = n => '"' + String(n).replace(/"/g, '""') + '"';
     project: REF, taken_at: prior.taken_at || new Date().toISOString(), companies,
     tables: prior.tables || {}, storage: prior.storage || {}, functions: fnCount || prior.functions || 0
   };
-  const perCompany = {};
-  const shared = {};
   let grandRows = 0;
+  const SHARDS = path.join(ROOT, '_shards');       // per-tenant spool for the Excel phase
+  const sharedTables = [];                          // tables with no company_id, for _SHARED.xlsx
 
   const needRows = doPhase('data') || doPhase('excel');
+
+  // Primary keys, for ordered paging. A table without one falls back to ctid.
+  const pkRows = needRows ? await q(
+    `select c.relname tbl, a.attname col, array_position(i.indkey::int2[], a.attnum) ord, format_type(a.atttypid, a.atttypmod) typ
+       from pg_index i join pg_class c on c.oid = i.indrelid
+       join pg_attribute a on a.attrelid = c.oid and a.attnum = any(i.indkey)
+      where i.indisprimary and c.relnamespace = 'public'::regnamespace
+      order by 1, 3`) : [];
+  const pks = {};
+  for (const r of pkRows) (pks[r.tbl] = pks[r.tbl] || []).push(r);
+
+  // Live row counts, taken NOW, so the manifest can be checked against them at the end.
+  const liveCounts = {};
+  if (needRows) {
+    log('-- live row counts (the figure the manifest is checked against) --');
+    for (let i = 0; i < tables.length; i += 25) {
+      const chunk = tables.slice(i, i + 25);
+      const rows = await q(chunk.map(t => `select ${qstr(t)} t, count(*)::bigint n from public.${ident(t)}`).join(' union all '));
+      for (const r of rows) liveCounts[r.t] = Number(r.n);
+    }
+    log('  ' + Object.keys(liveCounts).length + ' tables · ' +
+        Object.values(liveCounts).reduce((a, b) => a + b, 0).toLocaleString() + ' rows\n');
+  }
+  manifest.live_counts_at_start = liveCounts;
+  manifest.started_at = new Date().toISOString();
+
+  if (needRows) log('-- data (streamed: 1,000 rows per request, appended to disk, never held in memory) --');
   for (const t of (needRows ? tables : [])) {
     if (SKIP_AUDIT && (t === 'audit_logs' || t === 'audit_log_archive')) { log('  ' + t + ' - skipped'); continue; }
     const tcols = cols[t];
     const hasCid = tcols.some(c => c.col === 'company_id');
+    const typs = Object.fromEntries(tcols.map(c => [c.col, c.typ]));
+    const insertCols = tcols.filter(c => c.gen !== 's').map(c => c.col);
+    const head = 'INSERT INTO public.' + ident(t) + ' (' + insertCols.map(ident).join(', ') + ') VALUES\n';
 
     const dataFile = path.join(ROOT, 'data', t + '.json');
-    let rows = [];
-    let cached = false;
-    if (RESUME && fs.existsSync(dataFile)) {
-      try { rows = JSON.parse(fs.readFileSync(dataFile, 'utf8')); cached = true; } catch { rows = []; }
-    }
-    if (!cached) {
-      let page = PAGE, off = 0;
-      for (;;) {
-        let batch;
-        try {
-          batch = await q('select * from public.' + ident(t) + ' order by ctid limit ' + page + ' offset ' + off);
-        } catch (e) {
-          if (page > 50) { page = Math.floor(page / 4); continue; }   // response too big -> smaller pages
-          throw e;
-        }
-        rows.push(...batch);
-        if (batch.length < page) break;
-        off += batch.length;
-        process.stdout.write('\r  ' + t + ' ... ' + rows.length);
+    const sqlFile = path.join(ROOT, 'sql', t + '.sql');
+    if (RESUME && fs.existsSync(dataFile) && fs.existsSync(sqlFile)) {
+      let n = 0;
+      try { n = JSON.parse(fs.readFileSync(dataFile, 'utf8')).length; } catch { n = -1; }
+      if (n >= 0) {
+        manifest.tables[t] = n; grandRows += n;
+        log('  ' + t.padEnd(44) + String(n).padStart(8) + ' rows  (already on disk)');
+        continue;
       }
-      fs.writeFileSync(dataFile, JSON.stringify(rows, null, rows.length > 5000 ? 0 : 1));
-    }
-    grandRows += rows.length;
-    manifest.tables[t] = rows.length;
-
-    if (rows.length && !(cached && fs.existsSync(path.join(ROOT, 'sql', t + '.sql')))) {
-      // generated (computed) columns cannot be inserted into - Postgres recomputes them
-      const names = tcols.filter(c => c.gen !== 's').map(c => c.col);
-      const typs = Object.fromEntries(tcols.map(c => [c.col, c.typ]));
-      const head = 'INSERT INTO public.' + ident(t) + ' (' + names.map(ident).join(', ') + ') VALUES\n';
-      const out = ['-- ' + t + ': ' + rows.length + ' rows\n'];
-      const CHUNK = 200;
-      for (let i = 0; i < rows.length; i += CHUNK) {
-        const vals = rows.slice(i, i + CHUNK)
-          .map(r => '(' + names.map(n => lit(r[n], typs[n])).join(', ') + ')').join(',\n');
-        out.push(head + vals + '\nON CONFLICT DO NOTHING;\n');
-      }
-      w(path.join(ROOT, 'sql', t + '.sql'), out.join('\n'));
     }
 
-    if (!EXCEL_EXCLUDE.has(t)) {
-      if (hasCid) {
-        for (const r of rows) {
-          const c = r.company_id || '_null';
-          perCompany[c] = perCompany[c] || {};
-          (perCompany[c][t] = perCompany[c][t] || []).push(r);
+    const pk = pks[t];
+    const order = pk ? pk.map(c => ident(c.col)).join(', ') : 'ctid';
+    const data = fs.createWriteStream(dataFile);
+    const sqlOut = fs.createWriteStream(sqlFile);
+    const shardStreams = new Map();
+    data.write('[');
+    sqlOut.write('-- ' + t + '\n');
+
+    let n = 0, last = null, page = PAGE, valueBuf = [], bytes = 0;
+    const flushSql = () => {
+      if (!valueBuf.length) return;
+      sqlOut.write(head + valueBuf.join(',\n') + '\nON CONFLICT DO NOTHING;\n\n');
+      valueBuf = [];
+    };
+    for (;;) {
+      let where = '';
+      if (last) {
+        if (pk) {
+          where = ' where (' + pk.map(c => ident(c.col)).join(', ') + ') > (' +
+                  pk.map(c => lit(last[c.col], c.typ)).join(', ') + ')';
+        } else {
+          where = ' where ctid > ' + qstr(last.__ctid) + '::tid';
         }
-      } else if (rows.length) {
-        shared[t] = rows;
       }
+      const select = pk ? 'select * from public.' + ident(t)
+                        : 'select *, ctid::text __ctid from public.' + ident(t);
+      let batch;
+      try {
+        batch = await q(select + where + ' order by ' + order + ' limit ' + page);
+      } catch (e) {
+        if (page > 50) { page = Math.floor(page / 4); continue; }   // response too big -> smaller pages
+        data.destroy(); sqlOut.destroy();
+        throw new Error(`${t}: ${e.message}`);
+      }
+      if (!batch.length) break;
+      for (const r of batch) {
+        const row = { ...r };
+        delete row.__ctid;
+        const line = JSON.stringify(row);
+        bytes += line.length;
+        data.write((n ? ',\n' : '\n') + line);
+        valueBuf.push('(' + insertCols.map(c => lit(row[c], typs[c])).join(', ') + ')');
+        if (valueBuf.length >= 200) flushSql();
+        if (!EXCEL_EXCLUDE.has(t)) {
+          const cid = hasCid ? (row.company_id || '_null') : null;
+          if (cid) {
+            let s = shardStreams.get(cid);
+            if (!s) {
+              mk(path.join(SHARDS, cid));
+              s = fs.createWriteStream(path.join(SHARDS, cid, t + '.jsonl'));
+              shardStreams.set(cid, s);
+            }
+            s.write(line + '\n');
+          }
+        }
+        n++;
+      }
+      last = batch[batch.length - 1];
+      if (batch.length < page) break;
+      process.stdout.write('\r  ' + t.padEnd(44) + String(n).padStart(8) + ' rows · ' + mem() + '   ');
     }
-    process.stdout.write('\r  ' + t.padEnd(44) + String(rows.length).padStart(7) + ' rows' +
-      (cached ? '  (already on disk)' : '') + '\n');
+    flushSql();
+    data.write(n ? '\n]\n' : ']\n');
+    await Promise.all([
+      new Promise(res => data.end(res)),
+      new Promise(res => sqlOut.end(res)),
+      ...[...shardStreams.values()].map(s => new Promise(res => s.end(res))),
+    ]);
+    if (!n) fs.unlinkSync(sqlFile);
+    if (!hasCid && n && !EXCEL_EXCLUDE.has(t)) sharedTables.push(t);
+
+    grandRows += n;
+    manifest.tables[t] = n;
+    const flag = liveCounts[t] === undefined ? '' : (n === liveCounts[t] ? '' : `  ← live said ${liveCounts[t]}`);
+    process.stdout.write('\r  ' + t.padEnd(44) + String(n).padStart(8) + ' rows · ' + mb(bytes).padStart(9) +
+                         ' · ' + mem() + flag + '\n');
   }
   if (needRows) log('  -> ' + grandRows.toLocaleString() + ' rows across ' +
     Object.keys(manifest.tables).length + ' tables\n');
@@ -303,35 +436,56 @@ const ident = n => '"' + String(n).replace(/"/g, '""') + '"';
     used.add(n);
     return n;
   };
-  function workbook(file, byTable, title) {
+  // Sheets are built one at a time from what the data phase spooled to disk, so
+  // no tenant's rows — and never the whole database — sit in the heap (Finding O).
+  const readJsonl = f => {
+    const rows = [];
+    for (const line of fs.readFileSync(f, 'utf8').split('\n')) if (line.trim()) rows.push(JSON.parse(line));
+    return rows;
+  };
+  const readJsonArray = f => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return []; } };
+
+  function workbook(file, sources, title) {
     const wb = XLSX.utils.book_new();
     const used = new Set();
-    const names = Object.keys(byTable).filter(t => byTable[t].length).sort();
+    const names = Object.keys(sources).sort();
     const idxRows = [[title], ['Taken', new Date().toISOString()], [], ['Sheet', 'Table', 'Rows']];
-    for (const t of names) idxRows.push([t.slice(0, 31), t, byTable[t].length]);
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(idxRows), sheetName(used, '00_INDEX'));
+    const counts = {};
     for (const t of names) {
-      const rows = byTable[t];
+      const rows = sources[t]();            // read, write the sheet, drop the rows
+      if (!rows.length) continue;
+      counts[t] = rows.length;
+      idxRows.push([t.slice(0, 31), t, rows.length]);
       const hdr = Object.keys(rows[0]);
       const aoa = [hdr, ...rows.map(r => hdr.map(h => clean(r[h])))];
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), sheetName(used, t));
     }
+    // the index sheet goes first
+    const idx = XLSX.utils.aoa_to_sheet(idxRows);
+    const idxName = sheetName(used, '00_INDEX');
+    XLSX.utils.book_append_sheet(wb, idx, idxName);
+    wb.SheetNames = [idxName, ...wb.SheetNames.filter(n => n !== idxName)];
     XLSX.writeFile(wb, file);
-    return names.length;
+    return { sheets: Object.keys(counts).length, rows: Object.values(counts).reduce((a, b) => a + b, 0) };
   }
 
   const nameOf = id => (companies.find(c => c.id === id) || {}).company_name || id;
   const safe = s => String(s).replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '_');
-  for (const [cid, byTable] of Object.entries(perCompany)) {
+  const shardDirs = fs.existsSync(SHARDS) ? fs.readdirSync(SHARDS) : [];
+  for (const cid of shardDirs) {
+    const dir = path.join(SHARDS, cid);
+    const sources = {};
+    for (const f of fs.readdirSync(dir)) sources[f.replace(/\.jsonl$/, '')] = () => readJsonl(path.join(dir, f));
     const label = cid === '_null' ? 'NO_COMPANY_ID' : nameOf(cid);
-    const f = path.join(ROOT, 'excel', safe(label) + '.xlsx');
-    const n = workbook(f, byTable, 'Nexunova RMS backup - ' + label);
-    const total = Object.values(byTable).reduce((a, b) => a + b.length, 0);
-    log('  ' + path.basename(f).padEnd(40) + n + ' sheets, ' + total.toLocaleString() + ' rows');
+    const file = path.join(ROOT, 'excel', safe(label) + '.xlsx');
+    const r = workbook(file, sources, 'Nexunova RMS backup - ' + label);
+    log('  ' + path.basename(file).padEnd(40) + r.sheets + ' sheets, ' + r.rows.toLocaleString() + ' rows · ' + mem());
   }
-  const sharedSheets = workbook(path.join(ROOT, 'excel', '_SHARED.xlsx'), shared,
+  const sharedSources = {};
+  for (const t of sharedTables) sharedSources[t] = () => readJsonArray(path.join(ROOT, 'data', t + '.json'));
+  const sh = workbook(path.join(ROOT, 'excel', '_SHARED.xlsx'), sharedSources,
     'Nexunova RMS backup - shared / platform tables');
-  log('  _SHARED.xlsx'.padEnd(42) + sharedSheets + ' sheets\n');
+  log('  _SHARED.xlsx'.padEnd(42) + sh.sheets + ' sheets, ' + sh.rows.toLocaleString() + ' rows\n');
   }
 
   // ---------- 5. storage ----------
@@ -390,8 +544,39 @@ const ident = n => '"' + String(n).replace(/"/g, '""') + '"';
     log('');
   }
 
-  // ---------- 6. manifest + restore notes ----------
+  // ---------- 6. check every table against the live counts ----------
+  // A table may legitimately hold MORE rows than the count taken at the start —
+  // people keep using RMS while this runs — but only if those rows are newer than
+  // the start. Anything else fails the backup (Finding O).
+  const mismatches = [];
+  if (doPhase('data')) {
+    log('-- checking every table against the counts taken at the start --');
+    const tsCols = await q(
+      `select table_name tbl, column_name col from information_schema.columns
+        where table_schema = 'public' and column_name in ('created_at','changed_at','recorded_at')`);
+    const tsOf = {};
+    for (const r of tsCols) if (!tsOf[r.tbl] || r.col === 'created_at') tsOf[r.tbl] = r.col;
+
+    for (const [t, want] of Object.entries(liveCounts)) {
+      if (SKIP_AUDIT && (t === 'audit_logs' || t === 'audit_log_archive')) continue;
+      const got = manifest.tables[t];
+      if (got === want) continue;
+      const extra = got - want;
+      if (extra > 0 && tsOf[t]) {
+        const [row] = await q(`select count(*)::int n from public.${ident(t)} where ${ident(tsOf[t])} >= ${qstr(manifest.started_at)}::timestamptz`);
+        if (row.n >= extra) { log(`  ${t}: ${want} → ${got} (+${extra}); ${row.n} row(s) newer than the start — fine`); continue; }
+      }
+      mismatches.push({ table: t, live_at_start: want, backed_up: got });
+      log(`  ✗ ${t}: live said ${want}, the backup holds ${got}`);
+    }
+    log(mismatches.length ? `  ${mismatches.length} table(s) do not match\n` : '  every table matches\n');
+  }
+  manifest.mismatches = mismatches;
+
+  // ---------- 7. manifest + restore notes, written LAST ----------
   manifest.duration_sec = Math.round((Date.now() - started) / 1000);
+  manifest.finished_at = new Date().toISOString();
+  manifest.complete = mismatches.length === 0;
   w(path.join(ROOT, 'MANIFEST.json'), JSON.stringify(manifest, null, 2));
 
   const top = Object.entries(manifest.tables).sort((a, b) => b[1] - a[1]).slice(0, 12)
@@ -438,7 +623,25 @@ const ident = n => '"' + String(n).replace(/"/g, '""') + '"';
       : '') +
     '\n## Biggest tables in this snapshot\n\n| Table | Rows |\n|---|---|\n' + top + '\n');
 
+  // the per-tenant spool is only needed while the workbooks are being written
+  if (doPhase('excel') && fs.existsSync(SHARDS)) fs.rmSync(SHARDS, { recursive: true, force: true });
+
   const du = d => fs.readdirSync(d, { withFileTypes: true })
     .reduce((a, e) => a + (e.isDirectory() ? du(path.join(d, e.name)) : fs.statSync(path.join(d, e.name)).size), 0);
+
+  if (mismatches.length) {
+    console.error('\nBACKUP FAILED: ' + mismatches.length + ' table(s) do not match the live counts taken at the start.');
+    console.error(JSON.stringify(mismatches.slice(0, 10), null, 2));
+    console.error('No DONE marker written. This directory is NOT a usable backup.');
+    process.exit(1);
+  }
+
+  // The last action, and the only thing that makes this directory a backup.
+  w(path.join(ROOT, DONE_FILE),
+    'Finished ' + manifest.finished_at + '\n' +
+    Object.keys(manifest.tables).length + ' tables · ' +
+    Object.values(manifest.tables).reduce((a, b) => a + b, 0).toLocaleString() + ' rows\n' +
+    'Verify with:  node scripts/backup-full.js --verify "' + ROOT + '"\n');
   log('DONE in ' + manifest.duration_sec + 's - ' + (du(ROOT) / 1048576).toFixed(1) + ' MB at\n' + ROOT);
-})().catch(e => { console.error('\nBACKUP FAILED:', e.message); process.exit(1); });
+  log('Verify with:  node scripts/backup-full.js --verify "' + ROOT + '"');
+})().catch(e => { console.error('\nBACKUP FAILED:', e && e.stack || e); process.exit(1); });
