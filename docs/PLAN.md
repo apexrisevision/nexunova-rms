@@ -730,3 +730,19 @@ own `availability_releases` objects — a live positive control.
   **true**; staggered apart → blocked **false**. It passed before apply, which is when it is worth knowing.
 
 No deploy and no push are part of Phase 1: nothing in the front end changed.
+
+### 9.7 APPLIED — 2026-09-16 21:26 PKT
+
+- Backup `backups/BACKUP_20260916_1759` — `--verify` PASS, 180 tables, 129,470 rows, 0 mismatches.
+  (Storage: 152 of 365 files; private buckets need the service key — separate change, owner item 1.)
+- Snapshot before: 6 parts, 136 tenant tables + 7 fingerprints.
+- Rehearsal: 160/160, 17/17 mutants killed, RB01 and W01–W03 PASS.
+- Apply: `apply-phase1.js --apply`, one transaction, 3,350 ms, write guard passed. `20260916e` and `20260916f`
+  (the other session's) listed and not applied.
+- Live after apply: 9 nf_ tables with RLS, 55 functions, 50 SECURITY DEFINER all with search_path pinned,
+  0 executable by anon, 18 triggers. Awami: settings 1, accounts 110, heads 78, vias 3, floors 9, categories 29,
+  **members 0, days 0**. nf_audit 149 = the seed's own inserts.
+- Snapshot after: all 143 items identical, DIFFERS 0.
+- `verify-nf-race-harness.js` PASS. `verify-nf-rules.js` **45/45**, including RACE-R1, RACE-OK and RACE-R2;
+  cleanup verified by query (company 0, auth users 0, nf rows 0); Awami nf_ rows identical before and after.
+- **No members added.** First business date and member names still to come from the owner.
