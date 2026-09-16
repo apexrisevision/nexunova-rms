@@ -1,0 +1,35 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   NexuFinance v1 — print CSS for the closing sheet, ported verbatim from
+   docs/reference/awami-daily-closing.html (§3.10 of docs/PLAN.md). One A4
+   page on a normal day. The filename comes from document.title, set by
+   nf-sheet.js just before window.print() and restored after (§4B item 14).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@page{size:A4 portrait;margin:9mm}
+@media print{
+  :root,:root[data-theme="dark"]{
+    --bg:#fff;--card:#fff;--ink:#111827;--ink2:#374151;--muted:#6B7280;--line:#E5E7EB;--line2:#CBD2DC;
+    --brand:#1B365D;--brand-2:#2C5282;--soft:#F3F5F8;--field:transparent;--field-b:transparent;
+    --pos:#18794E;--pos-soft:#EAF7F0;--neg:#B42318;--neg-soft:#FDF1F0;--shadow:none;color-scheme:light}
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff}
+  .sheet{margin:0;width:1100px;max-width:none;border:0;border-radius:0;zoom:.665}
+  .hdr{padding:10px 24px}.docmeta>div{padding-top:6px;padding-bottom:6px}
+  .sec{padding:12px 24px 0}.signs{padding:30px 24px 0}.docfoot{margin-top:12px;padding:8px 24px}
+  .row{padding-top:2px;padding-bottom:2px}
+  td{padding-top:4px;padding-bottom:4px}
+  .den td,.den th{white-space:nowrap}
+  :focus,:focus-visible{outline:none!important}
+  .kpis{gap:6px;padding:10px 12px}
+  .actions,.add,.del,.note,.nf-day-actions{display:none!important}
+  .fld,.remarks{border:0!important;padding:0}
+  input::-webkit-calendar-picker-indicator{display:none}
+  .row.empty,.pdc tr.blank{display:none}
+  .remarks{resize:none;min-height:0}.remarks::placeholder{color:transparent}
+  .hdr{padding-top:4px}
+  .box,.book,.kpis,.tri>div,.pdcs>div,.checks,.signs{break-inside:avoid}
+  .pos-grid{grid-template-columns:minmax(0,1fr) 230px}
+  .tri{grid-template-columns:1.4fr 1fr 1fr;gap:14px}
+  .books,.pdcs{gap:14px}
+  .row-err{display:none}
+  .state-pill{display:none}
+}

@@ -82,6 +82,26 @@ function selfTest() {
   }
   console.log(`[apply-phase1] mode: ${real ? 'APPLY' : 'DRY RUN — nothing is sent to the database'}\n`);
 
+  // Owner condition 3a: every SECURITY DEFINER function must pin its search_path.
+  const searchPathCheck = sql => {
+    const bad = [];
+    // one entry per CREATE FUNCTION header, up to its AS $...$ body marker
+    const re = /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+([\w."]+)\s*\(([\s\S]*?)\)\s*([\s\S]*?)AS\s*\$/gi;
+    let m, total = 0, definers = 0;
+    while ((m = re.exec(sql))) {
+      total++;
+      const header = m[3];
+      if (!/SECURITY\s+DEFINER/i.test(header)) continue;
+      definers++;
+      if (!/SET\s+search_path\s+TO\s+[\w ,]*public/i.test(header)) bad.push(m[1]);
+    }
+    return { total, definers, bad };
+  };
+
+  // Owner condition 3b: the rollback was rehearsed and left no nf_ object.
+  const rehearsalLog = arg => { const i = process.argv.indexOf(arg); return i > 0 ? process.argv[i + 1] : null; };
+  const evidence = rehearsalLog('--rehearsal-log');
+
   let refused = false;
   const st = selfTest();
   console.log(`  detector self-test: ${st.missed.length ? '✗ missed ' + JSON.stringify(st.missed) : 'caught all 6 planted outside-nf_ statements'} · ` +
@@ -110,7 +130,10 @@ function selfTest() {
     console.log(`     ${disk.length} bytes · sha256 ${sha(disk).slice(0, 16)}… · ${same ? 'identical to HEAD' : '✗ DIFFERS FROM HEAD'}`);
     console.log(`     contains: ${JSON.stringify(counts)}`);
     console.log(`     statements on objects outside nf_: ${outside.length ? '✗ ' + outside.join('; ') : 'none'}`);
-    if (!same || outside.length) refused = true;
+    const sp = searchPathCheck(sql);
+    console.log(`     functions: ${sp.total} · SECURITY DEFINER: ${sp.definers} · search_path pinned on all of them: ` +
+                `${sp.bad.length ? '✗ NOT ' + sp.bad.join(', ') : sp.definers ? 'yes' : '(none in this file)'}`);
+    if (!same || outside.length || sp.bad.length) refused = true;
     plan.push({ rel, sql });
   }
 
@@ -121,6 +144,22 @@ function selfTest() {
     const hits = targetsOutsideNf(fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', f), 'utf8'));
     console.log(`     · ${f}  (outside-nf_ statements the detector sees in it: ${hits.length ? hits.slice(0, 4).join('; ') + (hits.length > 4 ? ` … ${hits.length} total` : '') : 'none'})`);
   });
+
+  // the rehearsal's own evidence, read from its log rather than asserted here
+  if (evidence) {
+    const log = fs.existsSync(evidence) ? fs.readFileSync(evidence, 'utf8') : '';
+    const rb = /PASS\s+RB01/.test(log);
+    const clean = /0 failed · 0 missing/.test(log);
+    const mut = /all \d+ mutants killed/.test(log);
+    const live = /→ nothing from this run exists on live/.test(log);
+    console.log(`\n  rehearsal evidence (${path.basename(evidence)}):`);
+    console.log(`     RB01 — the rollback file ran and left 0 nf_ tables and 0 nf_ functions: ${rb ? 'PASS' : '✗ not found'}`);
+    console.log(`     every assertion passed: ${clean ? 'yes' : '✗ no'} · every mutant killed: ${mut ? 'yes' : '✗ no'} · live clean afterwards: ${live ? 'yes' : '✗ no'}`);
+    if (!(rb && clean && mut && live)) refused = true;
+  } else if (real) {
+    console.log('\n  ✗ --apply needs --rehearsal-log <file> so the rollback rehearsal can be confirmed.');
+    refused = true;
+  }
 
   if (refused) { console.log('\nREFUSED — see ✗ above. Nothing was sent.'); process.exitCode = 1; return; }
 

@@ -746,3 +746,56 @@ No deploy and no push are part of Phase 1: nothing in the front end changed.
 - `verify-nf-race-harness.js` PASS. `verify-nf-rules.js` **45/45**, including RACE-R1, RACE-OK and RACE-R2;
   cleanup verified by query (company 0, auth users 0, nf rows 0); Awami nf_ rows identical before and after.
 - **No members added.** First business date and member names still to come from the owner.
+
+---
+
+## 10 · Phase 2 — closing sheet screen (2026-09-16, in progress)
+
+### 10.1 Built
+
+`nexufinance.html` (rewritten for v1), `js/nf/nf-format.js`, `js/nf/nf-api.js`, `js/nf/nf-messages.js`,
+`js/nf/nf-sheet.js`, `css/nf/nf.css`, `css/nf/nf-print.css`. The screen matches the reference layout and the
+light/dark toggle, calls the real `nf_` RPCs (no stub), keeps an incomplete line as an unsaved draft row with the
+reference's own check wording, shows a database refusal in plain language on the line that caused it, and carries
+amounts to two decimals shown only when present, per §4B.
+
+### 10.2 Test: `scripts/nf/verify-nf-golden-ui.js`
+
+Real HTTP, real Puppeteer, a real signed-in session (director + accountant, `ZZTEST-NF-*`, own browser contexts),
+against `nexufinance.html` served for real. **27 of 28 checks pass**, including the golden day end to end (totals
+exact to the rupee, status Balanced), a negative-cash payment refused inline with nothing written, a duplicate
+voucher refused inline, and light/dark screenshots.
+
+**Three real product bugs were found and fixed by this testing, not just test bugs:**
+1. **A version race that could silently drop part of a cash count.** `S.day.version` was only updated by a
+   *separate* follow-up `nf_get_day` fetch after every save. Two saves close enough together (the bank transfer,
+   then the cash count, typed within about a second — an ordinary pace) both read the stale version before either's
+   fetch came back; the second lost the optimistic-lock check with `NF:VERSION_CONFLICT` and its edit vanished with
+   only a toast, easy to miss. Fixed by applying the fresh day every mutation ALREADY returns directly (`applyDay()`
+   in `nf-sheet.js`), removing the extra round trip and the window for the race entirely — not a test-only fix.
+2. **A render mid-keystroke could erase what was being typed.** The cash-count and transfer fields lived only in the
+   DOM; a re-render triggered by an unrelated save landing late rebuilt them from stale server state and dropped
+   whatever had just been typed. Fixed with a state overlay (`countDraft`/`transferDraft`), the same pattern the
+   draft lines already used.
+3. **A plain debounce let one save's digits split across two requests** when a person paused more than 500ms
+   between two denomination fields. Replaced with `serialDebounce`, which queues a trailing edit instead of firing
+   a second overlapping request.
+
+### 10.3 Known issue — NOT blocking Phase 2
+
+**`UI-06 print is one A4 page` fails: the golden day prints as 2 pages, the second blank.** All other content and
+layout checks pass. Six attempts were made (in order): fixed a `Uint8Array`/`Buffer` bug in the page-counter itself
+(was misreporting 0); found that a diagnostic screenshot wasn't actually in print mode, because
+`emulateMediaType()` and `emulateMediaFeatures()` overwrite each other on this Puppeteer version (also the cause of
+an early light/dark toggle test failure, fixed); rendered the real PDF through Chrome's own viewer and confirmed
+page 1 holds all content with visible room to spare and page 2 is blank; hid the Submit/Close day buttons in print
+(no effect); hid the standalone "← Back to RMS" topbar in print (no effect); measured the live DOM under print
+media and found `getComputedStyle(.sheet).zoom` reads `"1"`, not the `.665` the print CSS sets — **the print
+zoom rule is not landing at all**, which is the likelier real cause and needs its own investigation (load order or
+specificity of the `@page`/`@media print` rules against `css/nf/nf.css` vs `css/nf/nf-print.css`), not a content
+overflow. Left for a dedicated pass rather than continued iteration on the same failing test, per the owner's
+instruction (2026-09-16): **if the same test fails three times running, stop and report — do not keep iterating.**
+
+### 10.4 Not done
+
+Days list/navigation beyond the latest day, the director report screen (Phase 3), WhatsApp share (Phase 3).
