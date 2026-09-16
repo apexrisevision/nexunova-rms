@@ -103,6 +103,25 @@
       ".rd-chgr [data-chgdo]{flex:1;height:38px;border:0;border-radius:var(--fk-radius-control);" +
         "background:var(--fk-accent);color:#fff;font:inherit;font-weight:700;cursor:pointer}" +
       ".rd-chgr [data-chgdo]:disabled{opacity:.5;cursor:default}" +
+      /* THE SENTENCE READ BACK BEFORE ANYTHING IS SAVED. Its own ground, so
+         nothing behind it can be pressed by accident. */
+      ".rd-ask{position:fixed;inset:0;z-index:70;display:flex;align-items:center;" +
+        "justify-content:center;padding:20px;background:rgba(12,16,24,.55)}" +
+      ".rd-ask-c{width:100%;max-width:400px;background:var(--fk-surface);" +
+        "border:1px solid var(--fk-border);border-radius:16px;padding:18px 16px 15px;" +
+        "box-shadow:0 22px 54px rgba(0,0,0,.28)}" +
+      ".rd-ask-t{font-size:16px;font-weight:700;color:var(--fk-text)}" +
+      ".rd-ask-l{list-style:none;margin:11px 0 0;padding:0}" +
+      ".rd-ask-l li{padding:7px 0;border-top:1px solid var(--fk-border);" +
+        "font-size:13.5px;color:var(--fk-text);line-height:1.45}" +
+      ".rd-ask-l li:first-child{border-top:0;padding-top:2px}" +
+      ".rd-ask-r{display:flex;gap:9px;margin-top:15px}" +
+      ".rd-ask-r button{flex:1;height:44px;border-radius:var(--fk-radius-control);" +
+        "font:inherit;font-weight:700;cursor:pointer;border:1px solid var(--fk-border);" +
+        "background:var(--fk-surface);color:var(--fk-text)}" +
+      ".rd-ask-r [data-askok]{border:0;background:var(--fk-accent);color:#fff}" +
+      ".rd-ask.danger .rd-ask-r [data-askok]{background:var(--fk-danger)}" +
+      ".rd-ask-r button:active{transform:scale(.98)}" +
       ".rd-rel .rd-meta{margin-top:0}" +
       ".rd-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:6px}" +
       ".rd-chip{height:38px;min-width:44px;padding:0 13px;border-radius:var(--fk-radius-control);" +
@@ -1259,7 +1278,19 @@
      so the answer is instant on a phone, and the desk re-reads the unit from
      the payload on the next fetch anyway. */
   async function _release(rid, unitNo) {
-    if (!confirm('Release ' + unitNo + '?\n\nThe hold ends now and the unit goes back on the market.')) return;
+    /* the same dialog the other three use, so a release reads like the rest of
+       this screen rather than like the browser */
+    var onIt = (DESK.idx[String(unitNo).toUpperCase()] || []).filter(function (x) {
+      return x.h && String(x.h.rid) === String(rid);
+    })[0];
+    var okr = await _askOk('Release this unit?', [
+      '<b>' + esc(unitNo) + '</b> → <b>Available</b>',
+      (onIt && onIt.h && onIt.h.who)
+        ? 'Ends the hold on <b>' + esc(onIt.h.who) + '</b>’s word'
+        : 'Ends the hold on it',
+      'It goes back on the market for anybody to ask for'
+    ], 'OK, release', true);
+    if (!okr) return;
     var btn = _q('[data-rel="' + rid + '"]');
     if (btn) { btn.disabled = true; btn.textContent = 'Releasing…'; }
     var res;
@@ -1356,6 +1387,14 @@
     var whoEl = _q('[data-chgwho]');
     var days = (daysEl && !daysEl.hidden && Number(daysEl.value) > 0) ? Number(daysEl.value) : null;
     var who = whoEl ? String(whoEl.value || '').trim() : '';
+    var picked = _q('[data-chgtag].on');
+    var permNow = picked && picked.getAttribute('data-nature') === 'permanent';
+    var okc = await _askOk('Change this unit?',
+      _sayWhat([c.n], picked ? picked.textContent.replace(/\s*∞$/, '').trim() : null,
+               permNow, days, who, null)
+        .concat(['Whatever is on it now ends with this change']),
+      'OK, change');
+    if (!okc) return;
     if (go) { go.disabled = true; go.textContent = 'Changing…'; }
     var res;
     try {
@@ -1548,6 +1587,75 @@
     _paintCart();
   }
 
+  /* ── SAY WHAT IS ABOUT TO HAPPEN, THEN DO IT ─────────────────────────────
+     Rashid: "jab b koi unit reserve ya release ya hold sold ya pagri whatever
+     karain to aik confirmation bataye k ye ho raha hai, like ye unit hold for
+     x days for abc person for this client if any etc. aur phir OK karnay pe
+     save ho jai."
+
+     One dialog for all of it, because the four things a director does on this
+     screen — book, change, release, book a trayful — are the same decision
+     wearing four labels, and a sentence read back before saving is the only
+     thing that catches the wrong unit, the wrong name or the wrong number of
+     days. It is the page's own dialog rather than window.confirm: a sentence
+     with four facts in it needs lines, and a browser's confirm gives one
+     unstyled paragraph.
+
+     Nothing else changes. Cancel leaves everything exactly as it was, and OK
+     does precisely what the button under it would have done. */
+  function _askOk(title, lines, okWord, danger) {
+    return new Promise(function (done) {
+      var host = _q('#rd-root') || document.body;
+      var old = _q('#rd-ask'); if (old) old.parentNode.removeChild(old);
+      var wrap = document.createElement('div');
+      wrap.id = 'rd-ask';
+      wrap.className = 'rd-ask' + (danger ? ' danger' : '');
+      wrap.innerHTML =
+        '<div class="rd-ask-c">' +
+          '<div class="rd-ask-t">' + esc(title) + '</div>' +
+          '<ul class="rd-ask-l">' +
+            lines.filter(Boolean).map(function (l) { return '<li>' + l + '</li>'; }).join('') +
+          '</ul>' +
+          '<div class="rd-ask-r">' +
+            '<button type="button" data-askno>Cancel</button>' +
+            '<button type="button" data-askok>' + esc(okWord || 'OK') + '</button>' +
+          '</div>' +
+        '</div>';
+      host.appendChild(wrap);
+      var shut = function (yes) {
+        document.removeEventListener('keydown', key);
+        if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+        done(yes);
+      };
+      var key = function (e) {
+        if (e.key === 'Escape') { e.preventDefault(); shut(false); }
+        if (e.key === 'Enter') { e.preventDefault(); shut(true); }
+      };
+      wrap.addEventListener('click', function (e) {
+        if (e.target === wrap || e.target.closest('[data-askno]')) return shut(false);
+        if (e.target.closest('[data-askok]')) return shut(true);
+      });
+      document.addEventListener('keydown', key);
+      var ok = wrap.querySelector('[data-askok]'); if (ok) ok.focus();
+    });
+  }
+
+  /* the sentence itself, written once so book and change cannot describe the
+     same action differently */
+  function _sayWhat(units, tagName, permanent, days, who, client) {
+    var what = units.length === 1
+      ? '<b>' + esc(units[0]) + '</b>'
+      : '<b>' + units.length + ' units</b> — ' + esc(units.slice(0, 6).join(', ')) +
+        (units.length > 6 ? ' and ' + (units.length - 6) + ' more' : '');
+    return [
+      what + ' → <b>' + esc(tagName || 'a new status') + '</b>',
+      permanent ? 'No end date — it will not release itself'
+                : (days ? 'For <b>' + days + '</b> day' + (days === 1 ? '' : 's') : null),
+      who ? 'On <b>' + esc(who) + '</b>’s word' : 'No name recorded',
+      client ? 'For client <b>' + esc(client) + '</b>' : null
+    ];
+  }
+
   /* ── the batch ───────────────────────────────────────────────────────── */
   async function _bulkReserve() {
     if (DESK.busy) return;
@@ -1562,12 +1670,23 @@
       return;
     }
 
+    /* READ IT BACK BEFORE IT IS SAVED. Everything the sentence needs is
+       already in hand here: the units, the tag, the days, the person and the
+       client. */
+    var cname = String((_q('#rd-cname') || {}).value || '').trim() || null;
+    var _t = _armedTag(), _perm = _armedPermanent();
+    var _okd = await _askOk(
+      units.length === 1 ? 'Save this?' : 'Save these ' + units.length + '?',
+      _sayWhat(units.map(function (u) { return u.n; }),
+               _t && _t.name, _perm, _perm ? null : DESK.days, r.name, cname),
+      'OK, save');
+    if (!_okd) return;
+
     var go = _q('#rd-go');
     DESK.busy = true;
     if (go) { go.disabled = true; go.textContent = 'Saving ' + units.length + '\u2026'; }
 
     var tamt = Number(String((_q('#rd-tamt') || {}).value || '').replace(/[^0-9.]/g, '')) || 0;
-    var cname = String((_q('#rd-cname') || {}).value || '').trim() || null;
     var args = {
       p_session_token: TOKEN,
       p_unit_ids: units.map(function (u) { return u.id; }),
