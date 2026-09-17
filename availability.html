@@ -2335,7 +2335,7 @@ body.held *{animation-play-state:paused !important}
        The desk below it can, and the desk asks for a CRM sign-in of its own. -->
   <section id="rep" hidden>
     <div class="ft"><button class="bk" id="rep-back"><i></i>All floors</button></div>
-    <div class="fh"><h1>Directors</h1><span id="rep-as"></span></div>
+    <div class="fh"><h1 id="rep-ttl">Director Level Report</h1><span id="rep-as"></span></div>
     <div id="rep-gate">
       <div class="dr-c">
         <div class="dr-t">This part is not for the link</div>
@@ -6556,8 +6556,20 @@ async function forgetPhone() {
   setTimeout(function () { $('dir-pw').focus(); }, 60);
 }
 
+/* WHAT THE PAGE IS ABOUT, in the words of the page itself. Written here rather
+   than inside each page so the heading and the body can never name two
+   different things. */
+function repSubject() {
+  if (REPP.view === 'person') return REPP.key || '(not recorded)';
+  if (REPP.view === 'kind')   return REPP.key || 'Held';
+  if (REPP.view === 'ending') return 'Ending within seven days';
+  if (REPP.view === 'floors') return 'What each floor is worth';
+  return 'Director Level Report';
+}
 function repRender() {
   var d = REP;
+  var t = $('rep-ttl');
+  if (t) t.textContent = repSubject();
   if (REPP.view === 'person') return repPeoplePage(d, REPP.key);
   if (REPP.view === 'kind')   return repKindPage(d, REPP.key);
   if (REPP.view === 'ending') return repEndingPage(d);
@@ -6737,20 +6749,21 @@ function unitTable(rows, opts) {
         '<td class="n' + (d !== null && d <= 7 ? ' warn' : '') + '">' +
           (r.e ? shortDay(r.e) : '<span class="mut">open</span>') + '</td></tr>';
     }).join('') +
-    /* AND THE SAME THREE NUMBERS FOR THE LOT. The rate on this line is the
-       whole of the value over the whole of the area — the blended rate, which
-       is the one a director quotes for a set of shops — and not an average of
-       the rates above it, which would weigh a 200ft kiosk the same as a
-       2,000ft showroom. */
+    /* THE TWO THAT ADD UP, AND A BLANK WHERE THE THIRD WAS. Area adds and
+       money adds; a rate does not — dividing one total by the other gives a
+       number that is true of no unit on the list. It is left empty rather than
+       filled with a dash, because a dash in a column of figures reads as a
+       missing number rather than as a question nobody should be asking. */
     '<tr class="tot"><td>' + num(rows.length) + '</td>' +
       '<td class="w">units</td>' +
       '<td class="n">' + num(Math.round(tA)) + '</td>' +
-      '<td class="n">' + (tA > 0 ? num(Math.round(tV / tA)) : '—') + '</td>' +
+      '<td></td>' +
       '<td class="n">' + pkr(tV) + '</td><td></td></tr>' +
     '</table>' +
     '<div class="say">Value is the register’s asking price for the unit, and ' +
-      'Rate is that value over its area — PKR per ' + esc(U) + '. The last line ' +
-      'carries the blended rate for all of them together. ' +
+      'Rate is that value over its area — PKR per ' + esc(U) + ', for that one ' +
+      'unit. There is no rate on the last line: area and money add up, a rate ' +
+      'does not. ' +
       '“Open” means the hold carries no end date and does not lapse on its own. ' +
       '<b>Tap a unit to release it.</b></div>' +
   '</div>';
@@ -6782,6 +6795,7 @@ function repPeoplePage(d, who) {
   var rows = held().filter(function (r) {
     return (String(r.w || '').trim() || '(not recorded)') === who;
   });
+  /* the name is the heading now; this line says what the document is */
   var by = kindsOf(rows);
   var gone = Number(d.totals.held) || 0;
   var share = gone ? Math.round(rows.length * 1000 / gone) / 10 : 0;
@@ -6789,19 +6803,14 @@ function repPeoplePage(d, who) {
   var floors = {};
   rows.forEach(function (r) { floors[r.f] = (floors[r.f] || 0) + 1; });
   return '<div class="rp">' + printHead(d, 'Units held by ' + who) +
-    '<h2>' + esc(who || 'Not recorded') + '</h2>' +
+    '<h2>Director Level Report</h2>' +
     '<div class="card"><div class="p-h">' +
-      /* THE RATE BELONGS AT THE TOP TOO. This line is what a director reads
-         before anything else on an agent's page, and "so many units, so much
-         money, so much area" is three quarters of a sentence — the rate those
-         three make between them is the quarter that says whether the agent is
-         selling at the building's price or under it. */
+      /* NO RATE ON THIS LINE. It carried the blended one for a day and it was
+         wrong to: an agent holds units priced four different ways on four
+         floors, and one rate over the top of them describes none of them.
+         Units, money, area — three figures that each mean what they say. */
       '<div><b>' + units(rows.length) + '</b> · <b>PKR ' + pkr(sum(rows, 'v')) + '</b> · ' +
-        num(Math.round(sum(rows, 'a'))) + ' ' + esc(d.area_unit || 'sqft') +
-        (sum(rows, 'a') > 0
-          ? ' · <b>PKR ' + num(Math.round(sum(rows, 'v') / sum(rows, 'a'))) + '</b>/' +
-            esc(d.area_unit || 'sqft')
-          : '') + '</div>' +
+        num(Math.round(sum(rows, 'a'))) + ' ' + esc(d.area_unit || 'sqft') + '</div>' +
       '<div class="p-p">' + kindPills(by) + '</div>' +
       '<div class="say">' + share + '% of everything taken in this project, across ' +
         Object.keys(floors).length + ' floor' + (Object.keys(floors).length === 1 ? '' : 's') +
@@ -6817,13 +6826,12 @@ function repKindPage(d, kind) {
   rows.forEach(function (r) { people[r.w || '—'] = (people[r.w || '—'] || 0) + 1; });
   var names = Object.keys(people).sort(function (x, y) { return people[y] - people[x]; });
   return '<div class="rp">' + printHead(d, kind + ' — every unit') +
-    '<h2><span class="pill" style="--t:' + tint(skey(kind)) + '">' + esc(kind) + '</span></h2>' +
+    '<h2>Director Level Report <span class="pill" style="--t:' + tint(skey(kind)) + '">' +
+      esc(kind) + '</span></h2>' +
     '<div class="card"><div class="p-h">' +
       '<div><b>' + units(rows.length) + '</b> · <b>PKR ' + pkr(sum(rows, 'v')) + '</b>' +
         (sum(rows, 'a') > 0
-          ? ' · ' + num(Math.round(sum(rows, 'a'))) + ' ' + esc(d.area_unit || 'sqft') +
-            ' · <b>PKR ' + num(Math.round(sum(rows, 'v') / sum(rows, 'a'))) + '</b>/' +
-            esc(d.area_unit || 'sqft')
+          ? ' · ' + num(Math.round(sum(rows, 'a'))) + ' ' + esc(d.area_unit || 'sqft')
           : '') + '</div>' +
       '<div class="say">' + names.map(function (n) {
         return '<b>' + esc(n) + '</b> ' + people[n];
@@ -6835,7 +6843,7 @@ function repKindPage(d, kind) {
 function repEndingPage(d) {
   var rows = endingSoon();
   return '<div class="rp">' + printHead(d, 'Ending within seven days') +
-    '<h2>Ending within seven days</h2>' +
+    '<h2>Director Level Report</h2>' +
     '<div class="card"><div class="p-h">' +
       (rows.length
         ? '<div><b>' + num(rows.length) + '</b> holds · <b>PKR ' + pkr(sum(rows, 'v')) + '</b></div>' +
@@ -6883,7 +6891,7 @@ function repFloorPage(d) {
   var big = f.reduce(function (m, r) { return Math.max(m, Number(r.value) || 0); }, 0);
 
   return '<div class="rp">' + printHead(d, 'What each floor is worth') +
-    '<h2>What each floor is worth</h2>' +
+    '<h2>Director Level Report</h2>' +
     '<div class="wl">' + f.map(function (r) {
       var share = big ? Math.round((Number(r.value) || 0) * 100 / big) : 0;
       var takenPc = r.units ? Math.round(r.held * 1000 / r.units) / 10 : 0;
