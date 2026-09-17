@@ -2627,13 +2627,37 @@ function serve() {
     await desk.waitForFunction(() => typeof window._availPreview === 'function', { timeout: 20000 });
     await desk.evaluate(p => window._availPreview(p), payload);
     await sleep(300);
+    await sleep(2400);                 // let the arrival land before measuring
     const dw = await desk.evaluate(() => {
       const w  = document.querySelector('.wrap').getBoundingClientRect();
       const fl = document.getElementById('floors').getBoundingClientRect();
       const sr = document.querySelector('.sr').getBoundingClientRect();
+      /* AND NOTHING SITTING ON TOP OF ANYTHING ELSE. Two of the dashboard's
+         pieces landed in the same grid cell and printed over each other, and
+         the check below this one could not see it: the rail was beside the
+         building exactly as asked while a heading was unreadable. Every pair
+         of them is compared now, and every piece has to be PLACED — one that
+         is not gets auto-placed into whatever hole the grid can find, which
+         is how the contact line ended up above the floors. */
+      const kids = [...document.getElementById('home').children]
+        .filter(e => !e.hidden && e.getBoundingClientRect().height > 0)
+        .map(e => ({ n: e.id || e.className, r: e.getBoundingClientRect(),
+                     placed: getComputedStyle(e).gridColumnStart !== 'auto' }));
+      const over = [];
+      for (let i = 0; i < kids.length; i++) for (let j = i + 1; j < kids.length; j++) {
+        const a = kids[i].r, b = kids[j].r;
+        if (a.left < b.right - 1 && b.left < a.right - 1 &&
+            a.top < b.bottom - 1 && b.top < a.bottom - 1) {
+          over.push(kids[i].n + ' over ' + kids[j].n);
+        }
+      }
+      const qa = document.querySelector('.qa');
       return { wrap: Math.round(w.width), left: Math.round(w.left), win: window.innerWidth,
                /* the rail is beside the building, not stacked under it */
-               beside: Math.round(sr.left) >= Math.round(fl.right) - 1 };
+               beside: Math.round(sr.left) >= Math.round(fl.right) - 1,
+               over: over, loose: kids.filter(k => !k.placed).map(k => k.n),
+               qaBelow: qa ? Math.round(qa.getBoundingClientRect().top) >= Math.round(fl.bottom) - 1 : false,
+               sideways: document.documentElement.scrollWidth > window.innerWidth };
     });
     /* WHAT A DESKTOP IS FOR. This used to ask for a narrow centred column with
        the floors three across, which was the best a grid of cards could do with
@@ -2645,6 +2669,13 @@ function serve() {
     dw.wrap > 900 && dw.left > 60 && dw.beside
       ? ok('the page uses its width: ' + dw.wrap + 'px, the rail beside the building rather than under it')
       : bad('desktop layout: ' + JSON.stringify(dw));
+    (dw.over.length === 0 && dw.loose.length === 0 && dw.qaBelow && !dw.sideways)
+      ? ok('and nothing on it sits on top of anything else \u2014 every piece of the ' +
+           'dashboard is placed in the grid by name, the contact line is under the ' +
+           'building, and the page does not run off the side')
+      : bad('the desktop dashboard is out of place: ' + JSON.stringify(
+            { overlapping: dw.over, unplaced: dw.loose,
+              contactUnderBuilding: dw.qaBelow, sideways: dw.sideways }));
     await desk.screenshot({ path: path.join(OUT, 'g-desktop-1280.png') });
 
     /* ── NOTHING INVISIBLE IS SITTING ON THE PAGE ─────────────────────────

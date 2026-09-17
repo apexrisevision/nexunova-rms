@@ -906,16 +906,25 @@ body.splash .fl::before{opacity:0}
   .wrap{max-width:1120px}
   #home{display:grid;grid-template-columns:minmax(0,1fr) 340px;
         gap:0 44px;align-items:start}
-  /* placed by row and column rather than nudged with margins, so nothing
-     depends on how tall its neighbour happens to be */
-  #home .hero   {grid-column:1;grid-row:1;margin-bottom:0}
-  #home .hero-f {grid-column:1;grid-row:2;margin:10px 0 0}
-  #home .sec-r  {grid-column:1;grid-row:3;margin:18px 0 6px}
-  #home .fl     {grid-column:1;grid-row:4/span 4}
-  #home .sec    {grid-column:2;grid-row:1;margin:0 0 6px}
-  #home .sr     {grid-column:2;grid-row:2;margin-bottom:18px}
+  /* PLACED BY ROW AND COLUMN, and every child of the grid placed — one that
+     is not gets auto-placed into the first hole the grid can find, which is
+     how the contact line ended up above the floors.
+
+     The hero spans the rail's three rows so the rail can stack tightly
+     against its own contents: pinned one-per-row, the search field was pushed
+     140px down the page by the height of the ring beside it. */
+  #home .hero      {grid-column:1;grid-row:1/span 3;margin-bottom:0}
+  #home .hero-f    {grid-column:1;grid-row:4;margin:14px 0 0}
+  /* BOTH classes, or the rail's rule wins on source order and this heading
+     lands on top of the rail's own — see the note above this block */
+  #home .sec.sec-r {grid-column:1;grid-row:5;margin:18px 0 6px}
+  #home .fl        {grid-column:1;grid-row:6}
+  #home .sec       {grid-column:2;grid-row:1;margin:0 0 6px;align-self:start}
+  #home .sr        {grid-column:2;grid-row:2;margin-bottom:16px;align-self:start}
   /* the three doorways travel together now, so they are placed together */
-  #home .pair   {grid-column:2;grid-row:3;margin-top:0}
+  #home .pair      {grid-column:2;grid-row:3;margin-top:0;align-self:start}
+  /* and the way to reach a person sits under the whole of it, across both */
+  #home .qa        {grid-column:1/-1;grid-row:7;margin:26px 0 0}
   .fl button{min-height:64px}
   .fl .fb{height:10px}
   .fl .fn{font-size:15.5px}
@@ -1474,8 +1483,13 @@ body.splash .fl::before{opacity:0}
    way back. The one thing worth saying twice is that #app-body is not a name
    chosen here — it is the id the desk renders into, and renaming it would
    break the file this page is deliberately not copying. */
-#desk{
-  padding-bottom:40px;
+#desk{padding-bottom:40px}
+/* THE PORTAL'S VOCABULARY, SPOKEN IN THIS PAGE'S COLOURS — and said to the
+   whole document rather than to the desk's own screen. The desk appends its
+   dialogs to document.body; scoped to #desk, every one of them came out with
+   no surface and no ink. Nothing else on this page uses an --fk- name, so
+   there is nothing for these to collide with. */
+:root{
   /* the portal's vocabulary, spoken in this page's colours */
   --fk-bg-card:var(--card); --fk-surface:var(--card); --fk-bg-input:var(--card);
   --fk-bg-subtle:var(--sunk); --fk-bg-soft:var(--sunk);
@@ -6233,7 +6247,7 @@ async function repOpen() {
 var TOKEN = '';           // the SALES SESSION. The link is LINK, up above.
 var ME = null;
 var TAB = 'desk';
-var DESK_SRC = '/js/portal-reserve-desk.js?v=20260917day';
+var DESK_SRC = '/js/portal-reserve-desk.js?v=20260918chg';
 var DESK_UP = false, DESKV = false;
 /* the portal's own key, on purpose: same origin, same phone, so a director
    already signed into the CRM here is not asked twice */

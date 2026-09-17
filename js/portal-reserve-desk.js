@@ -1628,7 +1628,11 @@
      does precisely what the button under it would have done. */
   function _askOk(title, lines, okWord, danger) {
     return new Promise(function (done) {
-      var host = _q('#rd-root') || document.body;
+      /* THE DESK'S OWN ROOT, not "#rd-root inside #rd-root" — which is what
+         _q('#rd-root') asks for, and it is always null. The dialog was landing
+         on document.body, which is invisible in the portal and unreadable on
+         the reservation link, where this screen's colours are its own. */
+      var host = _root() || document.body;
       var old = _q('#rd-ask'); if (old) old.parentNode.removeChild(old);
       var wrap = document.createElement('div');
       wrap.id = 'rd-ask';
