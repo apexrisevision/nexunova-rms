@@ -1250,6 +1250,25 @@ body.splash .fl::before{opacity:0}
          overflow:hidden;text-overflow:ellipsis}
 .rp td.warn{color:#b3123c;font-weight:650}
 .rp .c-u{width:22%} .rp .c-w{width:32%} .rp .c-v{width:22%} .rp .c-e{width:24%}
+/* SIX COLUMNS RATHER THAN FOUR, since the area and the rate came in beside the
+   value. Nothing is cramped to fit them: the type drops a step, the gutters
+   close from 10px to 6px, and the value column gets away with being narrow
+   because pkr() writes crores and lakhs rather than eleven digits. The floor
+   and the holder are the two that give way — both are ellipsised, and the unit
+   number carries its own floor code anyway. */
+.rp .ut6{font-size:11px}
+.rp .ut6 th, .rp .ut6 td{padding-left:6px}
+.rp .ut6 th:first-child, .rp .ut6 td:first-child{padding-left:0}
+.rp .ut6 td.w{font-size:10.5px}
+.rp .ut6 .c-u{width:17%} .rp .ut6 .c-w{width:20%} .rp .ut6 .c-a{width:14%}
+.rp .ut6 .c-r{width:16%} .rp .ut6 .c-v{width:16%} .rp .ut6 .c-e{width:17%}
+/* and without the floor there is room to spare, so the type goes back up */
+.rp .ut5{font-size:12px}
+.rp .ut5 th, .rp .ut5 td{padding-left:8px}
+.rp .ut5 th:first-child, .rp .ut5 td:first-child{padding-left:0}
+.rp .ut5 .c-u{width:24%} .rp .ut5 .c-a{width:15%} .rp .ut5 .c-r{width:19%}
+.rp .ut5 .c-v{width:21%} .rp .ut5 .c-e{width:21%}
+.rp .ut5 .tot td:first-child{white-space:nowrap}
 .rp .ft4 .c-f{width:40%} .rp .ft4 .c-n{width:20%}
 .rp .w4 td{vertical-align:top}
 .rp .w4 td:first-child{white-space:normal}
@@ -6201,41 +6220,92 @@ function repHome(d) {
 function unitTable(rows, opts) {
   opts = opts || {};
   var U = (REP && REP.area_unit) || 'sqft';
-  return '<div class="card"><table class="ut">' +
-    '<colgroup><col class="c-u"><col class="c-w"><col class="c-v"><col class="c-e"></colgroup>' +
-    '<tr><th>Unit</th><th>' + (opts.who ? 'Held by' : 'Floor') + '</th>' +
-      '<th>Value</th><th>Ends</th></tr>' +
+  /* THE TWO NUMBERS A DIRECTOR CHECKS A DEAL BY. Rashid, reading the agent-wise
+     report: "units k sath sq ft nahi aa raha hai, aur per sq ft rate b nahi aa
+     raha". A value on its own says what a shop is worth; it takes the area and
+     the rate beside it to say whether that is the right price — and the rate is
+     the number every conversation in this business is actually had in.
+
+     The rate is not carried on the wire and is not stored anywhere: it is this
+     unit's own value divided by this unit's own area, worked out here, so it
+     can never drift away from the two numbers it sits between. A unit with no
+     area on the register says so with a dash rather than a nought, because a
+     nought here would read as "free". */
+  var tA = sum(rows, 'a'), tV = sum(rows, 'v');
+  /* AND THE FLOOR STEPS ASIDE ON AN AGENT'S PAGE. Six columns fit on a 380px
+     phone, but only just, and the first one to suffer was the floor: "Ground
+     Floor" came out as "Ground F…". It is also the one column nobody needs
+     here — GF-01 says which floor it is on before the column does. Where the
+     second column carries a NAME it stays, because a name cannot be read off a
+     unit number. */
+  var w = !!opts.who;
+  return '<div class="card"><table class="ut ' + (w ? 'ut6' : 'ut5') + '">' +
+    '<colgroup><col class="c-u">' + (w ? '<col class="c-w">' : '') +
+      '<col class="c-a"><col class="c-r"><col class="c-v"><col class="c-e"></colgroup>' +
+    '<tr><th>Unit</th>' + (w ? '<th>Held by</th>' : '') +
+      '<th>' + esc(U) + '</th><th>Rate</th><th>Value</th><th>Ends</th></tr>' +
     rows.map(function (r) {
       var d = daysTo(r.e);
+      var a = Number(r.a) || 0;
       /* EVERY UNIT IN HERE IS A BUTTON NOW. "Agar director kisi banday ki
          holdings kholay to kisi b unit pe click karkay release kar sakay." The
          number itself is what is pressed — it is the thing a director is
          looking at — and it asks before it does anything. */
       return '<tr class="ur" data-rel="' + esc(r.n) + '">' +
         '<td class="nm"><span class="rel-u">' + esc(r.n) + '</span></td>' +
-        '<td class="w">' + (opts.who ? esc(r.w || '—') : esc(r.f)) + '</td>' +
+        (w ? '<td class="w">' + esc(r.w || '—') + '</td>' : '') +
+        '<td class="n">' + (a ? num(Math.round(a)) : '<span class="mut">—</span>') + '</td>' +
+        '<td class="n">' + (a ? num(Math.round((Number(r.v) || 0) / a))
+                              : '<span class="mut">—</span>') + '</td>' +
         '<td class="n">' + pkr(r.v) + '</td>' +
         '<td class="n' + (d !== null && d <= 7 ? ' warn' : '') + '">' +
           (r.e ? shortDay(r.e) : '<span class="mut">open</span>') + '</td></tr>';
     }).join('') +
-    '<tr class="tot"><td>' + num(rows.length) + '</td>' +
-      '<td class="w">' + (opts.who ? 'units' : num(Math.round(sum(rows, 'a'))) + ' ' + esc(U)) + '</td>' +
-      '<td class="n">' + pkr(sum(rows, 'v')) + '</td><td></td></tr>' +
+    /* AND THE SAME THREE NUMBERS FOR THE LOT. The rate on this line is the
+       whole of the value over the whole of the area — the blended rate, which
+       is the one a director quotes for a set of shops — and not an average of
+       the rates above it, which would weigh a 200ft kiosk the same as a
+       2,000ft showroom. */
+    '<tr class="tot"><td>' + (w ? num(rows.length) : units(rows.length)) + '</td>' +
+      (w ? '<td class="w">units</td>' : '') +
+      '<td class="n">' + num(Math.round(tA)) + '</td>' +
+      '<td class="n">' + (tA > 0 ? num(Math.round(tV / tA)) : '—') + '</td>' +
+      '<td class="n">' + pkr(tV) + '</td><td></td></tr>' +
     '</table>' +
-    '<div class="say">Value is the register’s asking price for the unit. ' +
+    '<div class="say">Value is the register’s asking price for the unit, and ' +
+      'Rate is that value over its area — PKR per ' + esc(U) + '. The last line ' +
+      'carries the blended rate for all of them together. ' +
       '“Open” means the hold carries no end date and does not lapse on its own. ' +
       '<b>Tap a unit to release it.</b></div>' +
   '</div>';
 }
 /* short enough to sit in its column on a 380px phone, and unambiguous */
+/* THE YEAR ONLY WHEN IT IS NEWS. "Sep 24 '26" needs sixty pixels in a column
+   that now has fifty, because the area and the rate came in beside it — and
+   the year it spends them on is this year on almost every line. It is written
+   when the date is not in the year being read, which is when a reader needs to
+   be told, and left off when it is. */
 function shortDay(s) {
   var d = new Date(s);
-  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) +
-         " '" + String(d.getFullYear()).slice(2);
+  var short = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+  return d.getFullYear() === new Date().getFullYear()
+    ? short : short + " '" + String(d.getFullYear()).slice(2);
 }
 
+/* THE ONE NAME THAT IS NOT A NAME. The report counts holders by
+   COALESCE(who, '(not recorded)') and sends the units themselves with
+   COALESCE(who, '') — two different words for the same nobody — so the door
+   said "(not recorded) · 339 units · PKR 409 cr" and opened on an empty table.
+   On Awami that is 68% of everything taken, unreachable.
+
+   Both spellings are folded here, at the one place they meet, rather than the
+   payload being changed: the two fields are read by other screens and by the
+   suite, and a blank holder is genuinely blank on a unit and genuinely a
+   heading on a list. */
 function repPeoplePage(d, who) {
-  var rows = held().filter(function (r) { return (r.w || '') === who; });
+  var rows = held().filter(function (r) {
+    return (String(r.w || '').trim() || '(not recorded)') === who;
+  });
   var by = kindsOf(rows);
   var gone = Number(d.totals.held) || 0;
   var share = gone ? Math.round(rows.length * 1000 / gone) / 10 : 0;
@@ -6245,8 +6315,17 @@ function repPeoplePage(d, who) {
   return '<div class="rp">' + printHead(d, 'Units held by ' + who) +
     '<h2>' + esc(who || 'Not recorded') + '</h2>' +
     '<div class="card"><div class="p-h">' +
+      /* THE RATE BELONGS AT THE TOP TOO. This line is what a director reads
+         before anything else on an agent's page, and "so many units, so much
+         money, so much area" is three quarters of a sentence — the rate those
+         three make between them is the quarter that says whether the agent is
+         selling at the building's price or under it. */
       '<div><b>' + units(rows.length) + '</b> · <b>PKR ' + pkr(sum(rows, 'v')) + '</b> · ' +
-        num(Math.round(sum(rows, 'a'))) + ' ' + esc(d.area_unit || 'sqft') + '</div>' +
+        num(Math.round(sum(rows, 'a'))) + ' ' + esc(d.area_unit || 'sqft') +
+        (sum(rows, 'a') > 0
+          ? ' · <b>PKR ' + num(Math.round(sum(rows, 'v') / sum(rows, 'a'))) + '</b>/' +
+            esc(d.area_unit || 'sqft')
+          : '') + '</div>' +
       '<div class="p-p">' + kindPills(by) + '</div>' +
       '<div class="say">' + share + '% of everything taken in this project, across ' +
         Object.keys(floors).length + ' floor' + (Object.keys(floors).length === 1 ? '' : 's') +
@@ -6264,7 +6343,12 @@ function repKindPage(d, kind) {
   return '<div class="rp">' + printHead(d, kind + ' — every unit') +
     '<h2><span class="pill" style="--t:' + tint(skey(kind)) + '">' + esc(kind) + '</span></h2>' +
     '<div class="card"><div class="p-h">' +
-      '<div><b>' + units(rows.length) + '</b> · <b>PKR ' + pkr(sum(rows, 'v')) + '</b></div>' +
+      '<div><b>' + units(rows.length) + '</b> · <b>PKR ' + pkr(sum(rows, 'v')) + '</b>' +
+        (sum(rows, 'a') > 0
+          ? ' · ' + num(Math.round(sum(rows, 'a'))) + ' ' + esc(d.area_unit || 'sqft') +
+            ' · <b>PKR ' + num(Math.round(sum(rows, 'v') / sum(rows, 'a'))) + '</b>/' +
+            esc(d.area_unit || 'sqft')
+          : '') + '</div>' +
       '<div class="say">' + names.map(function (n) {
         return '<b>' + esc(n) + '</b> ' + people[n];
       }).join(' · ') + '</div></div></div>' +
