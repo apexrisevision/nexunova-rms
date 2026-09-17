@@ -11,8 +11,13 @@
      docs/PLAN.md is the spec this was built from; docs/reference/
      awami-daily-closing.html is the approved design this screen ports.
 
-     Same session as RMS (this page never shows a login form — sign in at
-     /login.html and this page is simply already signed in, same as v0 was).
+     Signs in directly (owner, 2026-09-17): the same verify_login RPC and the
+     same session-bridge RMS's own /login.html uses, so it is one password
+     everywhere and one place (verify_login) that ever checks one. Not a
+     second session path — signing in here still ends at the ONE place every
+     load checks: is there a Supabase session? If yes, mount; if no, ask.
+     "Remember me" only pre-fills the username next time (Supabase's own
+     client already persists the session either way, same as RMS's).
      Everything else about a person — role, which company, the chart of
      accounts, floors — comes from ONE server call, nf_get_context(), never
      assumed here. A feature flag is not part of that answer: whether
@@ -36,6 +41,17 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
      to spill a second, nearly blank page. Navigation chrome has no business
      on a printed cash book regardless. */
   @media print{.nf-topbar{display:none}}
+
+  .nf-login{max-width:360px;margin:64px auto;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:28px}
+  .nf-login h2{margin:0 0 4px;font-size:16px}
+  .nf-login p.sub{margin:0 0 20px;color:var(--muted);font-size:12.5px}
+  .nf-login label{display:block;font-size:11px;color:var(--muted);margin:0 0 4px}
+  .nf-login input[type=text],.nf-login input[type=password]{width:100%;border:1px solid var(--field-b);background:var(--field);border-radius:7px;padding:8px 10px;font-size:13px;margin-bottom:14px}
+  .nf-login .row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .nf-login .remember{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2)}
+  .nf-login button{width:100%;background:var(--brand);color:var(--card);border:0;border-radius:8px;padding:10px;font-weight:600;font-size:13px;cursor:pointer}
+  .nf-login button:disabled{opacity:.6;cursor:not-allowed}
+  .nf-login .err{background:var(--neg-soft);color:var(--neg);border-radius:7px;padding:8px 10px;font-size:12px;margin-bottom:14px}
 </style>
 </head>
 <body>
@@ -81,41 +97,116 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
   }
 
   var api = window.NfApi.build(SB);
+  var REMEMBER_KEY = 'nf-remember-username';
 
-  // ONE session path. There is no "fresh login" branch — nobody logs in
-  // here. There is a session or there is not.
-  SB.auth.getSession()
-    .then(function (s) {
-      var session = s && s.data && s.data.session;
-      if (!session) {
-        gate('Sign in first', 'NexuFinance uses your RMS sign-in. Sign in there and open this page again.',
-          '<a class="btn primary" href="/login.html" style="text-decoration:none;display:inline-block">Go to sign in</a>');
-        return null;
+  // Whether we got here from an existing session or a password just typed
+  // into the form below, this is the one place either path ends up: is there
+  // a Supabase session, and does it have a cash book. Nothing upstream of
+  // this is allowed to assume the answer.
+  function enter() {
+    return SB.auth.getSession()
+      .then(function (s) {
+        var session = s && s.data && s.data.session;
+        if (!session) { showLogin(); return null; }
+        return api.getContext();
+      })
+      .then(function (ctx) {
+        if (!ctx) return;
+        var memberships = ctx.memberships || [];
+        if (!memberships.length) {
+          return gate('You do not have a cash book here',
+            'Your account is not set up for Daily Closing on any company. A director can add you.');
+        }
+        var wantedId = params.get('company');
+        var m = memberships.filter(function (x) { return x.company_id === wantedId; })[0] || memberships[0];
+
+        document.title = 'NexuFinance — ' + (m.company_name || 'Daily Closing');
+
+        return window.NfSheet.mount(root, {
+          api: api,
+          companyId: m.company_id,
+          role: m.role,
+          displayName: m.display_name,
+          companyName: m.company_name,
+          settings: m.settings || {},
+        });
+      })
+      .catch(function (e) { fail('Could not open the cash book', e); });
+  }
+
+  // Same verify_login RPC and the same session-bridge js/auth.js uses, so
+  // there is exactly one place a password is ever checked — this form is a
+  // second DOOR onto that, not a second CHECK. Deliberately trimmed against
+  // js/auth.js's doLogin(): no 2FA, no forced password change, no invoice
+  // gate — a director/accountant login has no business hitting those here,
+  // and if one ever does, the plain error message below still names it.
+  var ERR_MAP = {
+    invalid_credentials: 'Username or password is incorrect.',
+    company_inactive: 'This company account is inactive.',
+    user_inactive: 'Your account is disabled. Contact a director.',
+    account_locked: 'Too many failed attempts. Try again in a few minutes.',
+    email_not_verified: 'Please confirm your email before signing in here.',
+  };
+
+  function showLogin() {
+    var rememberedUser = '';
+    try { rememberedUser = localStorage.getItem(REMEMBER_KEY) || ''; } catch (e) {}
+    root.innerHTML =
+      '<div class="nf-login"><h2>NexuFinance</h2><p class="sub">Sign in with your RMS username and password.</p>' +
+      '<div id="nf-li-err" class="err" hidden></div>' +
+      '<form id="nf-li-form">' +
+      '<label for="nf-li-u">Username</label>' +
+      '<input type="text" id="nf-li-u" placeholder="username@COMPANYCODE" autocomplete="username" value="' + rememberedUser.replace(/"/g, '&quot;') + '">' +
+      '<label for="nf-li-p">Password</label>' +
+      '<input type="password" id="nf-li-p" autocomplete="current-password">' +
+      '<div class="row"><label class="remember"><input type="checkbox" id="nf-li-remember" checked> Remember me</label></div>' +
+      '<button type="submit" id="nf-li-btn">Sign in</button>' +
+      '</form></div>';
+
+    document.getElementById('nf-li-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var raw = document.getElementById('nf-li-u').value.trim();
+      var pass = document.getElementById('nf-li-p').value;
+      var remember = document.getElementById('nf-li-remember').checked;
+      var errEl = document.getElementById('nf-li-err');
+      var btn = document.getElementById('nf-li-btn');
+      errEl.hidden = true;
+
+      var at = raw.lastIndexOf('@');
+      var username = at > -1 ? raw.slice(0, at).trim() : raw.trim();
+      var companyCode = at > -1 ? raw.slice(at + 1).trim() : '';
+      if (!username || !companyCode || !pass) {
+        errEl.textContent = 'Enter username@COMPANYCODE and your password.'; errEl.hidden = false; return;
       }
-      return api.getContext();
-    })
-    .then(function (ctx) {
-      if (!ctx) return;
-      var memberships = ctx.memberships || [];
-      if (!memberships.length) {
-        return gate('You do not have a cash book here',
-          'Your account is not set up for Daily Closing on any company. A director can add you.');
-      }
-      var wantedId = params.get('company');
-      var m = memberships.filter(function (x) { return x.company_id === wantedId; })[0] || memberships[0];
 
-      document.title = 'NexuFinance — ' + (m.company_name || 'Daily Closing');
+      btn.disabled = true; btn.textContent = 'Signing in…';
+      SB.rpc('verify_login', { p_company_code: companyCode, p_username: username, p_password: pass })
+        .then(function (r) {
+          if (r.error) throw new Error(r.error.message);
+          var res = r.data;
+          if (!res || !res.success) {
+            var code = res && res.error;
+            throw Object.assign(new Error((ERR_MAP[code]) || (res && res.message) || 'Sign in failed.'), { handled: true });
+          }
+          var user = res.user;
+          if (!user || !user.email) throw Object.assign(new Error('This account has no email on file.'), { handled: true });
+          return SB.auth.signInWithPassword({ email: user.email, password: pass });
+        })
+        .then(function (authRes) {
+          if (authRes.error) throw new Error('Your session could not be established. Try again.');
+          try {
+            if (remember) localStorage.setItem(REMEMBER_KEY, raw); else localStorage.removeItem(REMEMBER_KEY);
+          } catch (e) {}
+          return enter();
+        })
+        .catch(function (e) {
+          btn.disabled = false; btn.textContent = 'Sign in';
+          errEl.textContent = e.message || 'Sign in failed.'; errEl.hidden = false;
+        });
+    });
+  }
 
-      return window.NfSheet.mount(root, {
-        api: api,
-        companyId: m.company_id,
-        role: m.role,
-        displayName: m.display_name,
-        companyName: m.company_name,
-        settings: m.settings || {},
-      });
-    })
-    .catch(function (e) { fail('Could not open the cash book', e); });
+  enter();
 })();
 </script>
 </body>
