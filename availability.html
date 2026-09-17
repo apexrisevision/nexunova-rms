@@ -1372,6 +1372,48 @@ body.splash .fl::before{opacity:0}
       margin:14px 0 2px;font-size:11.5px;color:var(--mut)}
 .rm-f button{font:inherit;color:#b3123c;text-decoration:underline;padding:4px 0}
 
+/* ── THE DESK'S SCREEN ────────────────────────────────────────────────────
+   The desk brings its own stylesheet with it (it injects #rd-style on load),
+   so what is needed here is the frame around it: a heading, a sign-in, and a
+   way back. The one thing worth saying twice is that #app-body is not a name
+   chosen here — it is the id the desk renders into, and renaming it would
+   break the file this page is deliberately not copying. */
+#desk{
+  padding-bottom:40px;
+  /* the portal's vocabulary, spoken in this page's colours */
+  --fk-bg-card:var(--card); --fk-surface:var(--card); --fk-bg-input:var(--card);
+  --fk-bg-subtle:var(--sunk); --fk-bg-soft:var(--sunk);
+  --fk-border:var(--line);
+  --fk-text:var(--ink); --fk-text-muted:var(--mut); --fk-text-soft:var(--soft);
+  --fk-primary:var(--accent); --fk-primary-tint:var(--ring);
+  --fk-primary-surface:var(--accent-soft); --fk-accent:var(--accent);
+  --fk-danger:#B3123C; --fk-danger-surface:rgba(179,18,60,.10);
+  --fk-danger-edge:rgba(179,18,60,.32);
+  --fk-success-surface:rgba(20,107,58,.10); --fk-success-edge:rgba(20,107,58,.32);
+  --fk-warning:var(--warn); --fk-warning-surface:rgba(217,164,65,.12);
+  --fk-warning-edge:rgba(217,164,65,.36); --fk-warning-tint:rgba(217,164,65,.16);
+  --fk-radius:12px; --fk-radius-card:14px; --fk-radius-control:12px;
+  --fk-shadow:0 1px 2px rgba(15,23,42,.06);
+  --fk-fs-label:11px
+}
+.dk-h{margin:2px 0 14px}
+.dk-t{font-size:22px;font-weight:750;letter-spacing:-.02em}
+.dk-s{font-size:12.5px;color:var(--mut);margin-top:3px}
+.dk-out{margin-left:auto;font-size:12px;color:#b3123c;text-decoration:underline;
+        padding:6px 2px}
+.dk-f{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.dk-f input{width:100%;padding:12px 14px;border:1px solid var(--line);
+            border-radius:12px;font:inherit;font-size:15px;background:var(--card);
+            color:var(--ink)}
+.dk-f input:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--ring);
+                  outline:none}
+.dk-f button{padding:12px 16px;border-radius:12px;background:var(--ink);
+             color:var(--bg);font:inherit;font-size:15px;font-weight:650}
+.dk-f button:disabled{opacity:.6}
+/* THE DESK WAS DRAWN FOR THE PORTAL'S CARDS, not this page's. Only the one
+   class they both use is reconciled, so the desk looks like itself here. */
+#app-body .card{background:var(--card);border-radius:var(--r);padding:14px 15px}
+
 /* ── the whole building ──────────────────────────────────────────────────
    A different question from a floor, so a different chip: lighter, wider,
 /* MY RESERVATIONS, AT THE TOP. It was a panel that listed the newest six
@@ -2023,6 +2065,8 @@ body.held *{animation-play-state:paused !important}
        transition:opacity var(--t) var(--ease),transform var(--t) var(--ease);
        z-index:60;max-width:90vw;line-height:1.4}
 .toast.on{opacity:1;transform:translateX(-50%)}
+.toast.bad{background:#B3123C;color:#fff}
+.toast.good{background:#146B3A;color:#fff}
 
 /* NOTHING MOVES FOR ANYONE WHO HAS ASKED FOR THAT. One rule, at the end, so
    it cannot be forgotten by whatever is added above it. */
@@ -2245,8 +2289,11 @@ body.held *{animation-play-state:paused !important}
        The same link, a different question. The dealer's screens answer "what
        can I sell"; this one answers "where does the building stand" — who is
        holding what, for how long, worth how much, and what that adds up to.
-       It writes nothing and it books nothing: a password that leaks costs the
-       company its numbers, not its inventory. -->
+
+       WHAT THIS PASSWORD IS WORTH, kept honest as the room has grown: it reads
+       the building, and since 2026-09-16 it can let a unit GO, because a
+       director asked to be able to release one from here. It cannot book one.
+       The desk below it can, and the desk asks for a CRM sign-in of its own. -->
   <section id="rep" hidden>
     <div class="ft"><button class="bk" id="rep-back"><i></i>All floors</button></div>
     <div class="fh"><h1>Directors</h1><span id="rep-as"></span></div>
@@ -2266,6 +2313,57 @@ body.held *{animation-play-state:paused !important}
       </div>
     </div>
     <div id="rep-body"></div>
+  </section>
+
+  <!-- SCREEN SIX — THE DESK, ON THE LINK ──────────────────────────────────
+       "Muje ye Reservation link aur reservation desk muje aik jaghan chahiye
+       q k ye kaam almost aik sa hai magar alag alag jaghan pe."
+
+       They are the same work: a unit number, a name, a number of days. One of
+       them was in the CRM and the other was on this link, and whoever was
+       doing both was doing them in two places.
+
+       What is mounted below is not a copy of the desk. It is the desk — the
+       same js/portal-reserve-desk.js the portal loads, fetched only when this
+       door is opened, running against the same RPCs with the same rules. A
+       second implementation of a screen that books real units is how the two
+       of them start disagreeing about what a booking is.
+
+       TWO LOCKS, NOT ONE. The door to this is inside the directors' room, so
+       the report password gets a person as far as seeing it. Opening it takes
+       a portal sign-in of their own — the same company code, mobile and PIN as
+       the CRM — and every desk call carries that session, so the server's own
+       role checks decide what may be booked. A leaked report password does not
+       reach this. -->
+  <section id="desk" hidden>
+    <div class="ft">
+      <button class="bk" id="dk-back"><i></i>Directors</button>
+      <button class="dk-out" id="dk-out" hidden>Sign out</button>
+    </div>
+    <div class="dk-h">
+      <div class="dk-t">Reserve Desk</div>
+      <div class="dk-s" id="dk-who">The CRM's own desk, on this link</div>
+    </div>
+    <!-- the sign-in, shown only while there is no session on this phone -->
+    <div id="dk-gate" hidden>
+      <div class="dr-c">
+        <div class="dr-t">Sign in to book</div>
+        <div class="dr-s">Your own CRM sign-in. The report password reads the
+          building; booking a unit is done as you.</div>
+        <div class="dk-f">
+          <input id="dk-co" type="text" autocomplete="off" spellcheck="false"
+                 placeholder="Company code" aria-label="Company code">
+          <input id="dk-ph" type="tel" autocomplete="username"
+                 placeholder="+923001234567" aria-label="Mobile">
+          <input id="dk-pin" type="password" inputmode="numeric"
+                 autocomplete="current-password" placeholder="PIN" aria-label="PIN">
+          <button id="dk-go">Sign in</button>
+        </div>
+        <div class="dr-e" id="dk-err" hidden></div>
+      </div>
+    </div>
+    <!-- and the desk itself renders in here, which is the id it looks for -->
+    <div id="app-body"></div>
   </section>
 
   <!-- SCREEN THREE — THE WHOLE BUILDING, WHEN SOMEBODY ASKS FOR IT ────────
@@ -2439,7 +2537,10 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY,
   { auth: { persistSession: false } });
 
 /* the token rides in the path (/a/<token>) or as ?t=<token> */
-const TOKEN = (function () {
+/* The link itself. It was called TOKEN until the Reserve Desk came to live on
+   this page, and the desk's own TOKEN is a sales session — see the note above
+   openDesk(). One word, two meanings, one global scope: this one changed. */
+const LINK = (function () {
   var q = new URLSearchParams(location.search).get('t');
   if (q) return q;
   var m = location.pathname.match(/\/a\/([A-Za-z0-9_-]{8,})/);
@@ -2508,10 +2609,10 @@ function aspBrand(read) {
   return null;
 }
 function aspOpen() {
-  if (!ASPLASH_ON || !TOKEN) return;
+  if (!ASPLASH_ON || !LINK) return;
   var last = '';
   try { last = localStorage.getItem('nx.hub.avail') || ''; } catch (e) {}
-  if (last !== TOKEN) return;          // a different link: not this brand
+  if (last !== LINK) return;          // a different link: not this brand
   var b = aspBrand(true);
   if (!b || b.b !== 'awami') return;
   var el = $('asp'), nm = $('asp-n');
@@ -2882,10 +2983,20 @@ function hhmm(ms) {
   return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
 }
 var TT;
-function toast(msg) {
+/* THE KIND WAS ALWAYS PASSED AND NEVER USED. Every caller on this page already
+   wrote toast(msg, 'ok') or toast(msg, 'err') and the second word fell on the
+   floor; the desk, which is now hosted here, leans on it to tell a refused
+   booking from a saved one. A failure that looks exactly like a success is the
+   one thing a booking screen must never do. */
+function toast(msg, kind) {
   var t = $('toast');
-  t.textContent = msg; t.classList.add('on');
-  clearTimeout(TT); TT = setTimeout(function () { t.classList.remove('on'); }, 2400);
+  t.textContent = msg;
+  t.classList.remove('bad', 'good');
+  if (kind === 'err') t.classList.add('bad');
+  else if (kind === 'ok') t.classList.add('good');
+  t.classList.add('on');
+  clearTimeout(TT); TT = setTimeout(function () { t.classList.remove('on'); },
+                                    kind === 'err' ? 4200 : 2400);
 }
 
 /* ── the name, stored here and nowhere else ──────────────────────────────
@@ -2953,7 +3064,7 @@ function paintNameAsk() {
 var TIMER = null;
 async function load(first) {
   var r;
-  try { r = await sb.rpc('get_public_availability', { p_token: TOKEN }); }
+  try { r = await sb.rpc('get_public_availability', { p_token: LINK }); }
   catch (e) { r = null; }
   var d = r && r.data;
 
@@ -2965,8 +3076,8 @@ async function load(first) {
 
   P = d; FETCHED = Date.now(); STALE = false;
   /* it worked, so this phone may keep it — see the note above load() */
-  if (TOKEN) {
-    try { localStorage.setItem('nx.hub.avail', TOKEN); } catch (e) {}
+  if (LINK) {
+    try { localStorage.setItem('nx.hub.avail', LINK); } catch (e) {}
     /* and whose it turned out to be, against this token and no other, so the
        next open can raise the right mark before the building arrives */
     try {
@@ -3332,7 +3443,7 @@ async function sendAsk(ref) {
   var r;
   try {
     r = await sb.rpc('submit_change_request',
-      { p_token: TOKEN, p_ref: ref, p_note: note || null });
+      { p_token: LINK, p_ref: ref, p_note: note || null });
   } catch (e) { r = null; }
   var d = r && r.data;
   if (b) { b.disabled = false; b.textContent = 'Send'; }
@@ -3359,7 +3470,7 @@ async function refreshMyReqs() {
   if (!open.length) return;
   try {
     var r = await sb.rpc('get_request_status',
-      { p_token: TOKEN, p_refs: open.map(function (x) { return x.ref; }) });
+      { p_token: LINK, p_refs: open.map(function (x) { return x.ref; }) });
     var d = r && r.data;
     if (!d || !d.success) return;
     var by = {};
@@ -3448,6 +3559,14 @@ function renderMine() {
 
 /* ── render ──────────────────────────────────────────────────────────────── */
 function render() {
+  /* AND THE DESK IS NOT REPAINTED BY THE CLOCK AT ALL, which is why this is
+     the first line and not one more guard among the others further down. The
+     desk is not a reading of this payload — it is the CRM's own screen, with
+     its own cache and possibly a half-typed unit number in it — and it covers
+     the page while it is up, so there is nothing behind it worth repainting.
+     Beside the room's guard it was already too late: paintNameAsk() runs
+     before that point and put a "Your name" card above the desk. */
+  if (DESKV) return;
   /* THE NAME ARRIVES A LETTER AT A TIME — "pehle sirf A bilkul screen k andar
      se means fullest zoom se zoom out ho aur apni jaghan pe jai, phir W isi
      tarhan phir isi tarhan A phir M phir so on."
@@ -3529,6 +3648,9 @@ function renderHome() {
   $('mine').hidden = true;
   $('rep').hidden = true; REPV = false;
   $('price').hidden = true; PRICEV = false;
+  /* every road home closes the desk, including the ones that do not go
+     through its own way out */
+  $('desk').hidden = true; DESKV = false;
   /* the question is a dialog over the whole page, not a block inside a screen:
      every way back to screen one has to take it down */
   VIEWASK = false; $('vask').hidden = true;
@@ -3833,7 +3955,7 @@ async function priceOpen() {
   if (!pw) { err.hidden = false; err.textContent = 'Enter the password.'; return; }
   $('prc-in').disabled = true;
   try {
-    var r = await sb.rpc('get_availability_price_log', { p_token: TOKEN, p_password: pw });
+    var r = await sb.rpc('get_availability_price_log', { p_token: LINK, p_password: pw });
     var d = r.data;
     if (!d || !d.success) {
       err.hidden = false;
@@ -3956,7 +4078,7 @@ async function priceApply() {
   $('prc-apply').disabled = true;
   try {
     var r = await sb.rpc('update_availability_prices', {
-      p_token: TOKEN, p_password: PRICEPW, p_floor: floor,
+      p_token: LINK, p_password: PRICEPW, p_floor: floor,
       p_from: from, p_to: to, p_rate: rate });
     var d = r.data;
     if (!d || !d.success) {
@@ -3972,7 +4094,7 @@ async function priceApply() {
     renderPrice();
     $('prc-gate').hidden = true;
     paintPriceForm();
-    var lg = await sb.rpc('get_availability_price_log', { p_token: TOKEN, p_password: PRICEPW });
+    var lg = await sb.rpc('get_availability_price_log', { p_token: LINK, p_password: PRICEPW });
     PRICELOG = (lg.data && lg.data.log) || PRICELOG;
     paintPriceLog();
   } catch (e) {
@@ -5254,7 +5376,7 @@ async function submitRequest() {
   if (sheetFree().length > 1) return submitMany();
   try {
     var r = await sb.rpc('submit_availability_request', {
-      p_token: TOKEN, p_unit_no: SHEET.n, p_days: SHEET.days, p_name: NAME || null,
+      p_token: LINK, p_unit_no: SHEET.n, p_days: SHEET.days, p_name: NAME || null,
       /* An ASK, not a decision. The server re-derives it against this link's
          own project and a director still applies it. */
       p_status_id: SHEET.choice || null });
@@ -5278,7 +5400,7 @@ async function submitMany() {
   var units = sheetFree();
   try {
     var r = await sb.rpc('submit_availability_requests', {
-      p_token: TOKEN, p_unit_nos: units, p_days: SHEET.days, p_name: NAME || null,
+      p_token: LINK, p_unit_nos: units, p_days: SHEET.days, p_name: NAME || null,
       p_status_id: SHEET.choice || null });
     var d = r && r.data;
     if (!d || !d.ok) {
@@ -5786,7 +5908,7 @@ var REPPW = '';
    What is stored here is that key and nothing else. It is not the password, it
    cannot be turned back into the password, and it cannot mint another key. */
 function roomKey(v) {
-  var k = 'avail.room.' + (TOKEN || '-');
+  var k = 'avail.room.' + (LINK || '-');
   try {
     if (v === undefined) return localStorage.getItem(k) || '';
     if (v === null) { localStorage.removeItem(k); return ''; }
@@ -5797,7 +5919,7 @@ function roomKey(v) {
    password itself — so the key is the reward for having known it */
 async function rememberRoom(pw) {
   try {
-    var r = await sb.rpc('remember_availability_room', { p_token: TOKEN, p_password: pw });
+    var r = await sb.rpc('remember_availability_room', { p_token: LINK, p_password: pw });
     if (r && r.data && r.data.success && r.data.key) { roomKey(r.data.key); return r.data.key; }
   } catch (e) {}
   return '';
@@ -5809,7 +5931,7 @@ async function rememberRoom(pw) {
 async function roomUnlock(fn) {
   var k = roomKey(); if (!k) return null;
   try {
-    var r = await sb.rpc(fn || 'get_availability_report', { p_token: TOKEN, p_password: k });
+    var r = await sb.rpc(fn || 'get_availability_report', { p_token: LINK, p_password: k });
     if (r && r.data && r.data.success) return { key: k, data: r.data };
     if (r && r.data && r.data.error === 'too_many') return null;   // not the key's fault
     roomKey(null);
@@ -5920,6 +6042,8 @@ function repTools(title) {
 function showRep() {
   REPV = true;
   ['home', 'all', 'mine', 'floor'].forEach(function (id) { $(id).hidden = true; });
+  /* and the desk, if the room is being reached from on top of it */
+  $('desk').hidden = true; DESKV = false;
   /* the card that asks a dealer's name is screen one's furniture, and a
      director reading the building is not being asked to introduce himself */
   $('name-ask').hidden = true;
@@ -5952,7 +6076,7 @@ async function repOpen() {
   if (!pw) { err.hidden = false; err.textContent = 'Enter the password.'; return; }
   $('dir-go').disabled = true;
   try {
-    var r = await sb.rpc('get_availability_report', { p_token: TOKEN, p_password: pw });
+    var r = await sb.rpc('get_availability_report', { p_token: LINK, p_password: pw });
     var d = r.data;
     if (!d || !d.success) {
       err.hidden = false;
@@ -5975,6 +6099,238 @@ async function repOpen() {
     err.hidden = false; err.textContent = 'Could not reach the office. Try again.';
   } finally { $('dir-go').disabled = false; }
 }
+/* ══ THE RESERVE DESK, ON THIS LINK ═══════════════════════════════════════
+   "Muje ye Reservation link aur reservation desk muje aik jaghan chahiye q k
+   ye kaam almost aik sa hai magar alag alag jaghan pe. Lehaza is ko solve
+   karo. Magar aik cheez remember k ye reservation desk sirf mere login pe hai
+   Rashid walay."
+
+   The desk is not rebuilt here. js/portal-reserve-desk.js is fetched when this
+   door is opened and run as it is, because a second implementation of a screen
+   that books real units is how two screens start disagreeing about what a
+   booking is. Its own header states the contract it needs from a shell, and
+   everything below is that shell and nothing more:
+
+     TOKEN        the sales session — see the note on LINK above, which is the
+                  name this page used for its own token until the desk arrived
+     ME           who signed in, for the role check and the daybook's byline
+     TAB          which of the desk's two screens is up; the desk aborts a
+                  render if this does not say what it expected, so it exists
+     setTab       moving between the desk and its daybook
+     sessionGone  what to do when the server says the session is over
+     li, pkrFull, _isOfficeRole, _waNum   small shell helpers it draws with
+     sb, esc, toast, _portalCopy          already on this page
+
+   AND THE LOCK IS NOT THE REPORT PASSWORD. The door is inside the directors'
+   room, so the password gets a person as far as seeing it; opening it takes a
+   CRM sign-in of their own, and every call the desk makes carries that
+   session. The server decides what that person may book, exactly as it does in
+   the portal. A leaked report password reads the building — it does not reach
+   this. */
+var TOKEN = '';           // the SALES SESSION. The link is LINK, up above.
+var ME = null;
+var TAB = 'desk';
+var DESK_SRC = '/js/portal-reserve-desk.js?v=20260912rel';
+var DESK_UP = false, DESKV = false;
+/* the portal's own key, on purpose: same origin, same phone, so a director
+   already signed into the CRM here is not asked twice */
+var DESK_TOK_KEY = 'rms.sales.token', DESK_CO_KEY = 'rms.sales.co';
+
+function pkrFull(n) {
+  return '\u20A8' + (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+var OFFICE_ROLES = ['accounts', 'recovery_officer', 'hr', 'reception', 'engineer', 'general'];
+function _isOfficeRole(r) { return OFFICE_ROLES.indexOf(r) > -1; }
+function _waNum(p) {
+  var d = String(p || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d[0] === '0') d = '92' + d.slice(1);
+  else if (d.slice(0, 2) !== '92') d = '92' + d;
+  return d;
+}
+/* the five the desk actually draws with, and nothing else — an icon set is not
+   worth carrying on a page a dealer opens to look at one shop */
+var _LIP = {
+  search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  fileText: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>' +
+            '<path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  copy: '<rect x="9" y="9" width="12" height="12" rx="2"/>' +
+        '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>'
+};
+function li(n, sz, sw) {
+  sz = sz || 16;
+  return '<svg width="' + sz + '" height="' + sz + '" viewBox="0 0 24 24" fill="none" ' +
+         'stroke="currentColor" stroke-width="' + (sw || 1.9) + '" stroke-linecap="round" ' +
+         'stroke-linejoin="round" style="vertical-align:middle;flex:none">' +
+         (_LIP[n] || '') + '</svg>';
+}
+/* THE THREE ITS OWN HEADER DOES NOT LIST. Found by running it: the first
+   mount reached "Opening the desk…" and stopped on _skel. A skeleton, a
+   network-error state and a sidebar-badge sync — and this page has no sidebar,
+   so the last of them has nothing to do here and says so rather than being
+   left undefined for the next path that calls it. */
+function _skel() {
+  return '<div class="card"><div class="dk-s">Loading the building\u2026</div></div>';
+}
+function _netErr() {
+  var b = $('app-body'); if (!b) return;
+  b.innerHTML = '<div class="card"><div class="dk-s">Could not load the desk. ' +
+    'Check the connection.</div>' +
+    '<div class="dk-f"><button id="dk-retry">Try again</button></div></div>';
+  var r = $('dk-retry'); if (r) r.onclick = function () { deskRun(); };
+}
+function _syncGroupBadges() {}        // no sidebar on this page to badge
+
+/* the desk moves between itself and its daybook through this, and nothing
+   else on this page has tabs, so this is the whole of it */
+function setTab(t) {
+  TAB = t;
+  if (t === 'daybook' && typeof window.renderDaybook === 'function') return window.renderDaybook();
+  if (t === 'desk' && typeof window.renderReserveDesk === 'function') return window.renderReserveDesk();
+  shutDesk();                       // anything else means "leave", and there is
+}                                   // only one place to leave to from here
+
+function sessionGone() {
+  try { localStorage.removeItem(DESK_TOK_KEY); } catch (e) {}
+  TOKEN = ''; ME = null;
+  $('app-body').innerHTML = '';
+  $('dk-gate').hidden = false;
+  $('dk-out').hidden = true;
+  $('dk-who').textContent = 'Signed out — sign in again to book';
+  toast('Your session has ended. Sign in again.', 'err');
+}
+
+/* ── opening it ──────────────────────────────────────────────────────────
+   A session already on this phone is used rather than asked for again: same
+   origin as the CRM, same storage, so a director who is signed in over there
+   walks straight in over here. */
+async function openDesk() {
+  DESKV = true; TAB = 'desk';
+  ['home', 'all', 'mine', 'floor', 'price', 'rep'].forEach(function (id) {
+    var e = $(id); if (e) e.hidden = true;
+  });
+  $('name-ask').hidden = true;
+  $('desk').hidden = false;
+  window.scrollTo(0, 0);
+  var tok = '';
+  try { tok = localStorage.getItem(DESK_TOK_KEY) || ''; } catch (e) {}
+  if (!tok) return deskAsk();
+  TOKEN = tok;
+  $('dk-gate').hidden = true;
+  $('app-body').innerHTML = '<div class="card"><div class="dk-s">Opening the desk\u2026</div></div>';
+  var p = null;
+  try { p = (await sb.rpc('get_my_profile', { p_session_token: TOKEN })).data; } catch (e) {}
+  if (!p || !p.success) { TOKEN = ''; return deskAsk(); }
+  var pr = p.profile || {};
+  ME = { role: pr.role, sales_user_name: pr.name || pr.full_name || pr.sales_user_name || 'Desk',
+         company_name: pr.company_name || '' };
+  deskIn();
+}
+function deskAsk() {
+  $('dk-gate').hidden = false;
+  $('dk-out').hidden = true;
+  $('app-body').innerHTML = '';
+  $('dk-who').textContent = 'The CRM\u2019s own desk, on this link';
+  try { $('dk-co').value = localStorage.getItem(DESK_CO_KEY) || ''; } catch (e) {}
+  setTimeout(function () { ($('dk-co').value ? $('dk-ph') : $('dk-co')).focus(); }, 60);
+}
+async function deskLogin() {
+  var co = ($('dk-co').value || '').trim().toUpperCase();
+  var ph = ($('dk-ph').value || '').trim().replace(/\s+/g, '');
+  var pin = ($('dk-pin').value || '').trim();
+  var err = $('dk-err');
+  if (ph && ph[0] === '0') ph = '+92' + ph.slice(1);
+  if (!co) return deskErr('Enter your company code.');
+  if (!/^\+92\d{10}$/.test(ph)) return deskErr('Enter your mobile, e.g. +923001234567.');
+  if (!pin) return deskErr('Enter your PIN.');
+  err.hidden = true;
+  $('dk-go').disabled = true; $('dk-go').textContent = 'Signing in\u2026';
+  try {
+    var r = await sb.rpc('sales_login', { p_company_code: co, p_phone: ph, p_pin: pin });
+    var d = r && r.data;
+    if (!d || !d.success) {
+      return deskErr((d && (d.message || d.error)) || 'That sign-in did not work.');
+    }
+    TOKEN = d.session_token; ME = d;
+    try {
+      localStorage.setItem(DESK_TOK_KEY, TOKEN);
+      localStorage.setItem(DESK_CO_KEY, co);
+    } catch (e) {}
+    $('dk-pin').value = '';
+    $('dk-gate').hidden = true;
+    deskIn();
+  } catch (e) {
+    deskErr('Could not reach the office. Try again.');
+  } finally {
+    $('dk-go').disabled = false; $('dk-go').textContent = 'Sign in';
+  }
+}
+function deskErr(m) {
+  var err = $('dk-err'); err.hidden = false; err.textContent = m;
+  $('dk-go').disabled = false; $('dk-go').textContent = 'Sign in';
+}
+/* WHO MAY BOOK FROM A PUBLIC LINK. The server refuses the rest anyway — every
+   desk call carries the session and is checked there — but this link is a
+   different room from the CRM, and "sirf mere login pe" is the rule it was
+   asked for. A seller signing in here is told plainly rather than shown a desk
+   that will refuse them. */
+var DESK_ROLES = ['director', 'admin', 'cfo'];
+function deskIn() {
+  $('dk-out').hidden = false;
+  $('dk-who').textContent = ((ME && ME.sales_user_name) || 'Signed in') +
+    (ME && ME.company_name ? ' \u00b7 ' + ME.company_name : '');
+  if (ME && ME.role && DESK_ROLES.indexOf(ME.role) < 0) {
+    $('app-body').innerHTML = '<div class="card"><div class="dk-s">Booking from ' +
+      'the link is a director\u2019s desk. Your sign-in reads the building; it ' +
+      'does not book from here.</div></div>';
+    return;
+  }
+  deskRun();
+}
+/* THE DESK ITSELF, FETCHED THE FIRST TIME IT IS WANTED. A dealer opening this
+   link to look at one shop never downloads it. */
+function deskRun() {
+  if (DESK_UP) { TAB = 'desk'; return window.renderReserveDesk(); }
+  $('app-body').innerHTML = '<div class="card"><div class="dk-s">Opening the desk\u2026</div></div>';
+  var sc = document.createElement('script');
+  sc.src = DESK_SRC;
+  sc.onload = function () {
+    DESK_UP = true; TAB = 'desk';
+    if (typeof window.renderReserveDesk !== 'function') {
+      $('app-body').innerHTML = '<div class="card"><div class="dk-s">The desk did ' +
+        'not load. Reload the page and try again.</div></div>';
+      return;
+    }
+    window.renderReserveDesk();
+  };
+  sc.onerror = function () {
+    $('app-body').innerHTML = '<div class="card"><div class="dk-s">The desk could ' +
+      'not be reached. Check the connection and try again.</div></div>';
+  };
+  document.head.appendChild(sc);
+}
+function shutDesk() {
+  DESKV = false;
+  $('desk').hidden = true;
+  $('app-body').innerHTML = '';
+  /* back into the room it was opened from, which is still unlocked */
+  if (REP) { showRep(); } else { BACKING = true; renderHome(); }
+  window.scrollTo(0, 0);
+}
+$('dk-back').onclick = shutDesk;
+$('dk-go').onclick = deskLogin;
+$('dk-pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') deskLogin(); });
+$('dk-co').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('dk-ph').focus(); });
+$('dk-ph').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('dk-pin').focus(); });
+$('dk-out').onclick = function () {
+  try { localStorage.removeItem(DESK_TOK_KEY); } catch (e) {}
+  TOKEN = ''; ME = null; DESK_UP = DESK_UP;      // the file stays; the session does not
+  deskAsk();
+  toast('Signed out of the desk.', 'ok');
+};
+
 /* ══ LIGHT OR DARK ════════════════════════════════════════════════════════
    Rashid asked for both on this link. The choice is this phone's own — it is
    written to localStorage like the dealer's name, never to the wire, and it
@@ -6056,7 +6412,7 @@ $('rel-ok').onclick = async function () {
   $('rel-ok').disabled = true; $('rel-ok').textContent = 'Releasing…';
   try {
     var r = await sb.rpc('release_availability_unit',
-      { p_token: TOKEN, p_password: REPPW, p_unit_no: no });
+      { p_token: LINK, p_password: REPPW, p_unit_no: no });
     var d = r.data;
     if (!d || !d.success) {
       err.textContent =
@@ -6072,7 +6428,7 @@ $('rel-ok').onclick = async function () {
     toast(esc(no) + ' released — it is back on the shelf.');
     /* the room again, and the building again */
     var rep = await sb.rpc('get_availability_report',
-      { p_token: TOKEN, p_password: REPPW });
+      { p_token: LINK, p_password: REPPW });
     if (rep && rep.data && rep.data.success) {
       REP = rep.data;
       $('rep-body').innerHTML = repRender();
@@ -6101,6 +6457,7 @@ $('rep-back').onclick = function () {
 $('rep-body').addEventListener('click', function (e) {
   if (e.target.closest('#rep-pdf')) { window.print(); return; }
   if (e.target.closest('#rm-forget')) { forgetPhone(); return; }
+  if (e.target.closest('#rd-door')) { openDesk(); return; }
   var go = e.target.closest('[data-go]');
   if (!go) return;
   REPP = { view: go.getAttribute('data-go'), key: go.getAttribute('data-key') || '' };
@@ -6114,7 +6471,7 @@ $('rep-body').addEventListener('click', function (e) {
    behind it — which is what a director pressing this expects to see. */
 async function forgetPhone() {
   var k = roomKey(); if (!k) return;
-  try { await sb.rpc('forget_availability_room', { p_token: TOKEN, p_secret: k }); } catch (e) {}
+  try { await sb.rpc('forget_availability_room', { p_token: LINK, p_secret: k }); } catch (e) {}
   roomKey(null);
   REP = null; REPPW = ''; PRICEPW = ''; REPP = { view: 'home', key: '' };
   toast('This phone will ask for the password again.', 'ok');
@@ -6188,6 +6545,22 @@ function repHome(d) {
     '<button class="row" data-go="floors">' +
       '<span class="r-m"><span class="r-t">What each floor is worth</span>' +
         '<span class="r-s">floor by floor: worth, what is on the shelf, what is committed</span></span>' +
+      '<span class="r-a"></span></button>' +
+    '</div>');
+
+  /* ── AND THE DESK, FOR WHOEVER ALSO TAKES THE BOOKINGS ──────────────────
+     "Ye Reservation link aur reservation desk muje aik jaghan chahiye q k ye
+     kaam almost aik sa hai magar alag alag jaghan pe."
+
+     It is a door and not a screen: what opens is the CRM's own Reserve Desk,
+     and it asks to know who is booking before it shows anything. It sits here
+     rather than on screen one so that a dealer reading the link never meets
+     it — this side of the password is where the people who book are. */
+  H.push('<h2>Booking</h2><div class="rows">' +
+    '<button class="row" id="rd-door">' +
+      '<span class="r-m"><span class="r-t">Open the Reserve Desk</span>' +
+        '<span class="r-s">book, hold, change or release \u2014 the same desk as ' +
+          'the CRM, signed in as you</span></span>' +
       '<span class="r-a"></span></button>' +
     '</div>');
 
@@ -6489,7 +6862,7 @@ REQS = readReqs();
    leaves the page blank until a script hands it data. */
 var PREVIEW = new URLSearchParams(location.search).get('preview') === '1';
 if (PREVIEW) { /* wait for _availPreview */ }
-else if (!TOKEN) { dead(); }
+else if (!LINK) { dead(); }
 else { aspOpen(); load(true).then(schedule); }
 
 /* the harness renders against a captured payload so the scale screens can be

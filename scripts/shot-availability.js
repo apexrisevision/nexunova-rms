@@ -2909,13 +2909,28 @@ function serve() {
          unit. remember_ takes the PASSWORD and nothing else — a key cannot mint
          a second key — and hands back one key, kept as a hash at the office and
          dead the moment the password changes. forget_ only ever revokes. Both
-         are tested end to end in the room's own section. */
+         are tested end to end in the room's own section.
+
+         sales_login and get_my_profile came with the Reserve Desk, which now
+         lives behind the room on this link — "ye Reservation link aur
+         reservation desk muje aik jaghan chahiye". They are the CRM's own
+         sign-in and nothing else: neither reads a unit, neither books one, and
+         both refuse everything without a company code, a mobile and a PIN.
+
+         WHAT THIS LIST NO LONGER COVERS ON ITS OWN, said plainly rather than
+         quietly: once that sign-in succeeds, the page loads
+         js/portal-reserve-desk.js and that file can call the desk's own RPCs.
+         Every one of them carries the sales session and is checked at the
+         server against the role behind it, exactly as in the portal. The lock
+         this list is about — what an outsider holding the LINK can reach — is
+         unchanged, and the test below proves the desk does not load for them. */
       const allowedRpc = ['get_availability_price_log', 'get_availability_report',
                           'get_public_availability', 'get_request_status',
                           'submit_availability_request', 'submit_availability_requests',
                           'submit_change_request', 'update_availability_prices',
                           'release_availability_unit', 'remember_availability_room',
-                          'forget_availability_room'].sort();
+                          'forget_availability_room', 'sales_login',
+                          'get_my_profile'].sort();
       (JSON.stringify(rpcNames.slice().sort()) === JSON.stringify(allowedRpc))
         ? ok('the page can call exactly these and nothing else: ' + rpcNames.sort().join(', '))
         : bad('the page calls: ' + (rpcNames.join(', ') || 'nothing at all'));
@@ -3919,7 +3934,14 @@ function serve() {
              professional ho k confuse ho gaya hun to mere directors to non
              professional hain". So what is asserted is that it is four blocks
              of DOORS and not a wall of tables \u2014 a fifth table creeping back
-             onto it fails here. */
+             onto it fails here.
+
+             FIVE BLOCKS SINCE 2026-09-17, not four: the fifth is the door to
+             the Reserve Desk, which is an ACTION rather than another question
+             about the building, and which earns a heading of its own because
+             a director looking for it should not have to know where it hides.
+             The half of this that was ever load-bearing is untouched — the
+             screen is still doors and still carries no table at all. */
           const room = await rpg.evaluate(() => {
             const b = document.getElementById('rep-body');
             const t = (b.innerText || '');
@@ -3934,8 +3956,8 @@ function serve() {
                      hasPkr: /PKR/.test(t) };
           });
           (room.len > 200 && !room.gate && room.tables === 0 && room.hasPkr &&
-           room.heads.length === 4 && room.doors >= 3 && room.pdf && room.unitsMounted === 0)
-            ? ok('and the right one opens it \u2014 four blocks, ' + room.doors +
+           room.heads.length === 5 && room.doors >= 3 && room.pdf && room.unitsMounted === 0)
+            ? ok('and the right one opens it \u2014 ' + room.heads.length + ' blocks, ' + room.doors +
                  ' doors, no table on the way in: ' + room.heads.join(' / '))
             : bad('the room did not open properly: ' + JSON.stringify(room));
           /* THE DISCLAIMER IS NOT DECORATION. It is the reason this page can be
@@ -3972,7 +3994,7 @@ function serve() {
             return { heads: [...document.querySelectorAll('#rep-body h2')].map(h => h.textContent.trim()),
                      stillIn: !document.getElementById('rep').hidden };
           });
-          (backIn.stillIn && backIn.heads.length === 4)
+          (backIn.stillIn && backIn.heads.length === 5)
             ? ok('and Back goes one step into the room, not out of it')
             : bad('Back left the room: ' + JSON.stringify(backIn));
 
@@ -4172,6 +4194,60 @@ function serve() {
              took the other road  the office mints this phone a key, the key
              is what is stored, and the word itself is nowhere on the phone
              and nowhere in the clear at the far end either. */
+          /*    THE DESK IS BEHIND TWO LOCKS, NOT ONE
+             The Reserve Desk is on this link now because the work is the same
+             work — "ye kaam almost aik sa hai magar alag alag jaghan pe" — and
+             the whole question this raises is who can reach it. The answer has
+             to be measurable: the report password gets a person as far as
+             SEEING the door, and opening it takes a CRM sign-in of their own.
+
+             Three things are checked, in the order an outsider would meet
+             them: a dealer holding the link never even downloads the desk; the
+             door is inside the room and not on screen one; and pressing it
+             with no session shows a sign-in rather than a booking screen. */
+          /* the tests before this one left the room on an inner page, and the
+             door is on its first screen */
+          await rpg.evaluate(async () => {
+            for (let i = 0; i < 4; i++) {
+              if (document.getElementById('rd-door')) break;
+              const b = document.getElementById('rep-back'); if (b) b.click();
+              await new Promise(r => setTimeout(r, 300));
+            }
+          });
+          await sleep(400);
+          const deskDoor = await rpg.evaluate(() => ({
+            inRoom: !!document.getElementById('rd-door'),
+            onScreenOne: !!document.querySelector('#home #rd-door'),
+            loaded: !!document.querySelector('script[src*="portal-reserve-desk"]'),
+            styled: !!document.getElementById('rd-style'),
+            mounted: !!document.querySelector('#rd-root')
+          }));
+          (deskDoor.inRoom && !deskDoor.onScreenOne && !deskDoor.loaded &&
+           !deskDoor.styled && !deskDoor.mounted)
+            ? ok('the Reserve Desk is a door inside the room, not a screen on the ' +
+                 'link \u2014 a dealer holding this link has not even downloaded it')
+            : bad('the desk is not where it should be: ' + JSON.stringify(deskDoor));
+
+          await rpg.evaluate(() => document.getElementById('rd-door').click());
+          await sleep(900);
+          const deskShut = await rpg.evaluate(() => ({
+            screen: !document.getElementById('desk').hidden,
+            gate: !document.getElementById('dk-gate').hidden,
+            mounted: !!document.querySelector('#rd-root'),
+            loaded: !!document.querySelector('script[src*="portal-reserve-desk"]'),
+            asks: [...document.querySelectorAll('#dk-gate input')].map(i => i.placeholder),
+            body: (document.getElementById('app-body').innerText || '').trim().length
+          }));
+          (deskShut.screen && deskShut.gate && !deskShut.mounted && !deskShut.loaded &&
+           deskShut.body === 0 && deskShut.asks.length === 3)
+            ? ok('and the report password does not open it \u2014 pressing the door asks ' +
+                 'for a CRM sign-in (' + deskShut.asks.join(', ') + ') and loads nothing')
+            : bad('the desk opened on the report password alone: ' + JSON.stringify(deskShut));
+          /* and back into the room, so the tests after this one are where they
+             expect to be */
+          await rpg.evaluate(() => document.getElementById('dk-back').click());
+          await sleep(500);
+
           const kept = await rpg.evaluate(pw => {
             const names = Object.keys(localStorage);
             return { keys: names.filter(k => /^avail\.room\./.test(k)),
@@ -4223,7 +4299,7 @@ function serve() {
             gate: !document.getElementById('rep-gate').hidden,
             heads: [...document.querySelectorAll('#rep-body h2')].map(h => h.textContent.trim()).length,
             forget: !!document.getElementById('rm-forget') }));
-          (walkedIn && !silent.gate && silent.typed === '' && silent.heads === 4 && silent.forget)
+          (walkedIn && !silent.gate && silent.typed === '' && silent.heads === 5 && silent.forget)
             ? ok('and the next open walks straight in \u2014 same link, same phone, nothing typed, ' +
                  'and the room offers to forget the phone again')
             : bad('the remembered phone was asked again: ' + JSON.stringify(silent));
