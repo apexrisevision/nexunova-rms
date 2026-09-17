@@ -4156,9 +4156,14 @@ function serve() {
             row.click();
             await new Promise(r => setTimeout(r, 250));
             document.getElementById('rel-ok').click();
-            await new Promise(r => setTimeout(r, 2000));
+            var t0 = Date.now(), gone = false;
+            while (Date.now() - t0 < 8000) {
+              gone = !document.querySelector('#rep-body [data-rel="' + no + '"]');
+              if (gone) break;
+              await new Promise(r => setTimeout(r, 150));
+            }
             return { no, shut: document.getElementById('relask').hidden,
-                     gone: !document.querySelector('#rep-body [data-rel="' + no + '"]') };
+                     gone: gone, took: Date.now() - t0 };
           }, relUnit.no);
           const after = await sql(`SELECT
               (SELECT COALESCE(cs.is_available, false) FROM public.units u
@@ -4180,8 +4185,8 @@ function serve() {
                  'release is written down')
             : bad('the release did not take: ' + JSON.stringify({ ui: didRel, db: relDb }));
           didRel.gone
-            ? ok('and the room redraws without it, so a director is not looking at a ' +
-                 'unit they have just freed')
+            ? ok('and the room redraws without it in ' + didRel.took + 'ms, so a director ' +
+                 'is not looking at a unit they have just freed')
             : bad('the released unit is still listed in the room');
 
           /*    A PHONE IS REMEMBERED, A PASSWORD IS NOT

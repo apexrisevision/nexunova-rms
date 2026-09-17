@@ -1249,6 +1249,14 @@ body.splash .fl::before{opacity:0}
 .rp td.w{text-align:left;color:var(--soft);font-size:11.5px;
          overflow:hidden;text-overflow:ellipsis}
 .rp td.warn{color:#b3123c;font-weight:650}
+/* THE LINE THAT NAMES A RUN. It is a row of the same table rather than a
+   heading above it, so the columns underneath stay in their columns — a
+   separate heading would have started a new table and a new set of widths. */
+.rp tr.grp td{padding:11px 0 5px;border-top:0;text-align:left;
+              font-size:10.5px;color:var(--mut);letter-spacing:.02em}
+.rp tr.grp .pill{margin-right:7px}
+.rp tr.grp b{color:var(--soft);font-weight:700}
+.rp tr:first-child + tr.grp td, .rp tr.grp:first-child td{padding-top:2px}
 .rp .c-u{width:22%} .rp .c-w{width:32%} .rp .c-v{width:22%} .rp .c-e{width:24%}
 /* SIX COLUMNS RATHER THAN FOUR, since the area and the rate came in beside the
    value. Nothing is cramped to fit them: the type drops a step, the gutters
@@ -1262,13 +1270,17 @@ body.splash .fl::before{opacity:0}
 .rp .ut6 td.w{font-size:10.5px}
 .rp .ut6 .c-u{width:17%} .rp .ut6 .c-w{width:20%} .rp .ut6 .c-a{width:14%}
 .rp .ut6 .c-r{width:16%} .rp .ut6 .c-v{width:16%} .rp .ut6 .c-e{width:17%}
-/* and without the floor there is room to spare, so the type goes back up */
-.rp .ut5{font-size:12px}
-.rp .ut5 th, .rp .ut5 td{padding-left:8px}
-.rp .ut5 th:first-child, .rp .ut5 td:first-child{padding-left:0}
-.rp .ut5 .c-u{width:24%} .rp .ut5 .c-a{width:15%} .rp .ut5 .c-r{width:19%}
-.rp .ut5 .c-v{width:21%} .rp .ut5 .c-e{width:21%}
-.rp .ut5 .tot td:first-child{white-space:nowrap}
+/* AND THE SAME SIX WITH A STATUS IN THE SECOND COLUMN, on an agent's page —
+   "Sold (P)" is the longest word this project puts there, and it is given
+   enough width to stay on one line inside its pill. */
+.rp .ut-k{font-size:11px}
+.rp .ut-k th, .rp .ut-k td{padding-left:6px}
+.rp .ut-k th:first-child, .rp .ut-k td:first-child{padding-left:0}
+.rp .ut-k .c-u{width:17%} .rp .ut-k .c-k{width:20%} .rp .ut-k .c-a{width:13%}
+.rp .ut-k .c-r{width:16%} .rp .ut-k .c-v{width:16%} .rp .ut-k .c-e{width:18%}
+.rp .ut-k td.w{overflow:visible}
+.rp .ut-k .pill{max-width:100%}
+.rp .ut-k .tot td:first-child{white-space:nowrap}
 .rp .ft4 .c-f{width:40%} .rp .ft4 .c-n{width:20%}
 .rp .w4 td{vertical-align:top}
 .rp .w4 td:first-child{white-space:normal}
@@ -1337,22 +1349,49 @@ body.splash .fl::before{opacity:0}
 @media print {
   /* ONLY THE REPORT GOES ON THE PAPER. Everything else on this page is a way
      of getting to it. */
+  @page{margin:11mm 10mm}
   body{background:#fff}
-  .hd, .ft, #home, #all, #mine, #floor, #rep-gate, .rp-x, .toast, #sheet, #boot{display:none !important}
+  .hd, .ft, #home, #all, #mine, #floor, #rep-gate, .rp-x, .toast, #sheet, #boot,
+  #desk, #price, #name-ask, #vask, #relask, #prc-gate{display:none !important}
   .wrap{max-width:none;padding:0}
   #rep{display:block !important}
   .fh{margin:0 0 4px}
-  .pr-h{display:block;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #111}
-  .pr-t{font-size:17px;font-weight:750;letter-spacing:-.02em}
-  .pr-p{font-size:12.5px;margin-top:3px}
-  .pr-d{font-size:10.5px;color:#555;margin-top:3px}
+  .pr-h{display:block;margin-bottom:9px;padding-bottom:7px;border-bottom:2px solid #111}
+  .pr-t{font-size:15px;font-weight:750;letter-spacing:-.02em}
+  .pr-p{font-size:11.5px;margin-top:2px}
+  .pr-d{font-size:10px;color:#555;margin-top:2px}
   .rp .card, .rp .b, .rp .row{border:1px solid #ddd;background:#fff !important;
                               break-inside:avoid}
+  /* EXCEPT THE ONE THAT HOLDS THE UNITS, and this is the whole of the blank
+     first page. Told never to break, a card wrapping 340 rows cannot fit on a
+     sheet — so the browser abandoned page one and started the table on page
+     two, leaving a letterhead alone on the first sheet. It is the one card
+     that MUST be allowed to run across pages. */
+  .rp .ut-w{break-inside:auto;page-break-inside:auto;border:0;padding:0}
   .rp .row{page-break-inside:avoid}
-  .rp h2{margin:14px 0 6px;color:#333}
-  .rp table{font-size:10.5px}
-  .rp td{padding:6px 0 6px 8px}
-  .dis{break-inside:avoid;background:#fff}
+  .rp h2{margin:9px 0 4px;color:#333}
+  /* AS MUCH ON A SHEET AS STAYS READABLE, which is what was asked for: the
+     type comes down a step and the air between the rows comes down harder,
+     because on paper it is the leading that eats the page, not the letters. */
+  .rp table{font-size:9.5px}
+  .rp th{padding:0 0 3px 7px;font-size:8.5px}
+  .rp td{padding:2.5px 0 2.5px 7px}
+  .rp tr.grp td{padding:7px 0 2px;font-size:9.5px}
+  .rp .card{padding:8px 9px}
+  .rp .big{gap:4px}
+  .rp .big .b{padding:7px 9px}
+  .rp .big .bn{font-size:17px}
+  .rp .rows{gap:3px}
+  .rp .row{padding:6px 9px}
+  .rp .say{font-size:9.5px;line-height:1.4;margin-top:5px}
+  .rp .p-h{font-size:11px;line-height:1.35}
+  .rp .wl{gap:4px}
+  .rp .wf{padding:8px 9px}
+  /* A RUN OF UNITS SHOULD NOT BE ORPHANED FROM THE LINE THAT NAMES IT. */
+  .rp tr.grp{break-after:avoid;page-break-after:avoid}
+  .dis{break-inside:avoid;background:#fff;margin:9px 0 0;padding:8px 9px}
+  .dis li{font-size:9.5px;line-height:1.35;margin-bottom:2px}
+  .dis-h{margin-bottom:5px}
   /* colour is meaning here — a Hold and a Sold must not print as the same
      grey pill, so the browser is told to keep the ink */
   .rp .pill, .rp .r-d, .rp .sh i{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -6648,21 +6687,49 @@ function unitTable(rows, opts) {
      second column carries a NAME it stays, because a name cannot be read off a
      unit number. */
   var w = !!opts.who;
-  return '<div class="card"><table class="ut ' + (w ? 'ut6' : 'ut5') + '">' +
-    '<colgroup><col class="c-u">' + (w ? '<col class="c-w">' : '') +
+  /* IN THE ROOM'S OWN ORDER. by_status is how the first screen lists what is
+     holding the building; reusing it here means a report and the screen that
+     opened it put Hold, Sold, Sold (P) and Reserve in the same order, every
+     time, without a second list of names to keep in step. Anything the room
+     does not know about falls to the end rather than to the front. */
+  var ord = ((REP && REP.by_status) || []).map(function (x) { return x.kind; });
+  var rank = function (k) { var i = ord.indexOf(k); return i < 0 ? 99 : i; };
+  var seen = {};
+  rows.forEach(function (r) { seen[r.k || '\u2014'] = 1; });
+  var many = Object.keys(seen).length > 1;
+  /* stable: within one status the register's own unit order survives */
+  rows = rows.slice().sort(function (a, b) { return rank(a.k) - rank(b.k); });
+  /* the status is a COLUMN where it changes row by row, and a LINE where it
+     changes in runs — never both on one table */
+  var kcol = !w;
+  var group = null, cols = 6;
+  return '<div class="card ut-w"><table class="ut ' + (w ? 'ut6' : 'ut-k') + '">' +
+    '<colgroup><col class="c-u">' + (w ? '<col class="c-w">' : '<col class="c-k">') +
       '<col class="c-a"><col class="c-r"><col class="c-v"><col class="c-e"></colgroup>' +
-    '<tr><th>Unit</th>' + (w ? '<th>Held by</th>' : '') +
+    '<tr><th>Unit</th><th>' + (w ? 'Held by' : 'Status') + '</th>' +
       '<th>' + esc(U) + '</th><th>Rate</th><th>Value</th><th>Ends</th></tr>' +
     rows.map(function (r) {
       var d = daysTo(r.e);
       var a = Number(r.a) || 0;
+      /* a line that names the run it starts, and says how many are in it */
+      var head = '';
+      if (!kcol && many && (r.k || '\u2014') !== group) {
+        group = r.k || '\u2014';
+        var n = rows.filter(function (x) { return (x.k || '\u2014') === group; }).length;
+        head = '<tr class="grp"><td colspan="' + cols + '">' +
+          '<span class="pill" style="--t:' + tint(skey(group)) + '">' + esc(group) + '</span>' +
+          '<b>' + num(n) + '</b> unit' + (n === 1 ? '' : 's') + '</td></tr>';
+      }
+      return head +
       /* EVERY UNIT IN HERE IS A BUTTON NOW. "Agar director kisi banday ki
          holdings kholay to kisi b unit pe click karkay release kar sakay." The
          number itself is what is pressed — it is the thing a director is
          looking at — and it asks before it does anything. */
-      return '<tr class="ur" data-rel="' + esc(r.n) + '">' +
+      '<tr class="ur" data-rel="' + esc(r.n) + '">' +
         '<td class="nm"><span class="rel-u">' + esc(r.n) + '</span></td>' +
-        (w ? '<td class="w">' + esc(r.w || '—') + '</td>' : '') +
+        (w ? '<td class="w">' + esc(r.w || '—') + '</td>'
+           : '<td class="w"><span class="pill" style="--t:' + tint(skey(r.k || '')) + '">' +
+             esc(r.k || '\u2014') + '</span></td>') +
         '<td class="n">' + (a ? num(Math.round(a)) : '<span class="mut">—</span>') + '</td>' +
         '<td class="n">' + (a ? num(Math.round((Number(r.v) || 0) / a))
                               : '<span class="mut">—</span>') + '</td>' +
@@ -6675,8 +6742,8 @@ function unitTable(rows, opts) {
        is the one a director quotes for a set of shops — and not an average of
        the rates above it, which would weigh a 200ft kiosk the same as a
        2,000ft showroom. */
-    '<tr class="tot"><td>' + (w ? num(rows.length) : units(rows.length)) + '</td>' +
-      (w ? '<td class="w">units</td>' : '') +
+    '<tr class="tot"><td>' + num(rows.length) + '</td>' +
+      '<td class="w">units</td>' +
       '<td class="n">' + num(Math.round(tA)) + '</td>' +
       '<td class="n">' + (tA > 0 ? num(Math.round(tV / tA)) : '—') + '</td>' +
       '<td class="n">' + pkr(tV) + '</td><td></td></tr>' +
