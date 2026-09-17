@@ -2348,9 +2348,16 @@ body.held *{animation-play-state:paused !important}
     <div id="dk-gate" hidden>
       <div class="dr-c">
         <div class="dr-t">Sign in to book</div>
-        <div class="dr-s">Your own CRM sign-in. The report password reads the
-          building; booking a unit is done as you.</div>
+        <div class="dr-s" id="dk-sub">Your own CRM sign-in. The report password
+          reads the building; booking a unit is done as you.</div>
         <div class="dk-f">
+          <!-- ASKED ONLY WHEN IT CANNOT BE ANSWERED. A company code is the one
+               thing on this form nobody types from memory: on a phone the
+               password manager fills it, on a laptop there is nothing to fill
+               it with, and the sign-in then fails on the one field the person
+               could not have got right. The room knows whose building this is,
+               so it answers instead — and this stays for the case where it
+               does not. -->
           <input id="dk-co" type="text" autocomplete="off" spellcheck="false"
                  placeholder="Company code" aria-label="Company code">
           <input id="dk-ph" type="tel" autocomplete="username"
@@ -6228,21 +6235,50 @@ async function openDesk() {
          company_name: pr.company_name || '' };
   deskIn();
 }
+/* whose building this is, in order of how sure we are: what the room was told
+   just now, then what this phone was told last time */
+function deskCo() {
+  if (REP && REP.company_code) return String(REP.company_code);
+  try { return localStorage.getItem(DESK_CO_KEY) || ''; } catch (e) { return ''; }
+}
 function deskAsk() {
   $('dk-gate').hidden = false;
   $('dk-out').hidden = true;
   $('app-body').innerHTML = '';
   $('dk-who').textContent = 'The CRM\u2019s own desk, on this link';
-  try { $('dk-co').value = localStorage.getItem(DESK_CO_KEY) || ''; } catch (e) {}
-  setTimeout(function () { ($('dk-co').value ? $('dk-ph') : $('dk-co')).focus(); }, 60);
+  var co = deskCo();
+  $('dk-co').value = co;
+  /* and the mobile, if the CRM on this same browser was told to remember it —
+     the portal's own key, read and never written here */
+  if (!$('dk-ph').value) {
+    try {
+      if (localStorage.getItem('nx.portal.remember') === '1') {
+        $('dk-ph').value = localStorage.getItem('nx.portal.phone') || '';
+      }
+    } catch (e) {}
+  }
+  /* KNOWN MEANS NOT ASKED. Left on screen and filled in, it is one more box
+     between a director and their own desk, and one more thing to get wrong. */
+  $('dk-co').hidden = !!co;
+  $('dk-sub').textContent = co
+    ? 'Signing in to ' + ((REP && REP.company) || 'your company') + '. Your own CRM mobile and PIN.'
+    : 'Your own CRM sign-in. The report password reads the building; booking a unit is done as you.';
+  setTimeout(function () {
+    ($('dk-ph').value ? $('dk-pin') : co ? $('dk-ph') : $('dk-co')).focus();
+  }, 60);
 }
 async function deskLogin() {
-  var co = ($('dk-co').value || '').trim().toUpperCase();
+  var co = (deskCo() || $('dk-co').value || '').trim();
   var ph = ($('dk-ph').value || '').trim().replace(/\s+/g, '');
   var pin = ($('dk-pin').value || '').trim();
   var err = $('dk-err');
-  if (ph && ph[0] === '0') ph = '+92' + ph.slice(1);
-  if (!co) return deskErr('Enter your company code.');
+  /* 0321…, 321…, 92321…, +92321… are all the same number said four ways, and
+     the office's own login accepts any of them. This form used to accept one. */
+  ph = ph.replace(/[()\-\.]/g, '');
+  if (/^0\d{10}$/.test(ph)) ph = '+92' + ph.slice(1);
+  else if (/^3\d{9}$/.test(ph)) ph = '+92' + ph;
+  else if (/^92\d{10}$/.test(ph)) ph = '+' + ph;
+  if (!co) { $('dk-co').hidden = false; return deskErr('Enter your company code.'); }
   if (!/^\+92\d{10}$/.test(ph)) return deskErr('Enter your mobile, e.g. +923001234567.');
   if (!pin) return deskErr('Enter your PIN.');
   err.hidden = true;

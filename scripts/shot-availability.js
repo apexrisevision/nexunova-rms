@@ -4235,11 +4235,22 @@ function serve() {
             gate: !document.getElementById('dk-gate').hidden,
             mounted: !!document.querySelector('#rd-root'),
             loaded: !!document.querySelector('script[src*="portal-reserve-desk"]'),
-            asks: [...document.querySelectorAll('#dk-gate input')].map(i => i.placeholder),
+            asks: [...document.querySelectorAll('#dk-gate input')]
+                    .filter(i => !i.hidden).map(i => i.placeholder),
+            /* THE COMPANY CODE IS NOT ASKED. It is the one field on this form
+               nobody types from memory: on a phone a password manager fills
+               it, on a laptop there is nothing to fill it with, and Rashid's
+               sign-in failed on the one field he could not have got right —
+               "laptop pe login aur password nahi laita, login ghalat deta
+               hai, jab k mai theek de raha hun". The room knows whose
+               building it is and answers it. */
+            codeAsked: !document.getElementById('dk-co').hidden,
+            codeKnown: !!document.getElementById('dk-co').value,
             body: (document.getElementById('app-body').innerText || '').trim().length
           }));
           (deskShut.screen && deskShut.gate && !deskShut.mounted && !deskShut.loaded &&
-           deskShut.body === 0 && deskShut.asks.length === 3)
+           deskShut.body === 0 && deskShut.asks.length === 2 &&
+           !deskShut.codeAsked && deskShut.codeKnown)
             ? ok('and the report password does not open it \u2014 pressing the door asks ' +
                  'for a CRM sign-in (' + deskShut.asks.join(', ') + ') and loads nothing')
             : bad('the desk opened on the report password alone: ' + JSON.stringify(deskShut));
