@@ -1340,6 +1340,19 @@ body.splash .fl::before{opacity:0}
   tr, .dis li{page-break-inside:avoid}
 }
 
+/* THE LINE THAT OFFERS TO REMEMBER. Quiet, under the field, and ticked — a
+   director opening this door on their own phone wants it, which is the whole
+   reason it exists. */
+.dr-k{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;
+      color:var(--mut);cursor:pointer;user-select:none}
+.dr-k input{width:16px;height:16px;accent-color:var(--accent);flex:none;margin:0}
+.pw-k{margin-top:9px;justify-content:center}
+/* AND THE WAY TO UNDO IT, at the foot of the room where a director reading the
+   building will come across it rather than hunt for it. */
+.rm-f{display:flex;align-items:center;justify-content:space-between;gap:10px;
+      margin:14px 0 2px;font-size:11.5px;color:var(--mut)}
+.rm-f button{font:inherit;color:#b3123c;text-decoration:underline;padding:4px 0}
+
 /* ── the whole building ──────────────────────────────────────────────────
    A different question from a floor, so a different chip: lighter, wider,
 /* MY RESERVATIONS, AT THE TOP. It was a panel that listed the newest six
@@ -2228,6 +2241,8 @@ body.held *{animation-play-state:paused !important}
                  placeholder="Password" aria-label="Directors password">
           <button id="dir-go">Open</button>
         </div>
+        <label class="dr-k"><input type="checkbox" id="dir-keep" checked>
+          <span>Keep this phone signed in for 30 days</span></label>
         <div class="dr-e" id="dir-err" hidden></div>
       </div>
     </div>
@@ -2350,6 +2365,8 @@ body.held *{animation-play-state:paused !important}
       move without it.</div>
     <input class="pw-in" id="prc-pw" type="password" autocomplete="off"
            spellcheck="false" placeholder="Password">
+    <label class="dr-k pw-k"><input type="checkbox" id="prc-keep" checked>
+      <span>Keep this phone signed in for 30 days</span></label>
     <div class="prc-e" id="prc-err" hidden></div>
     <div class="pw-r">
       <button type="button" class="pw-no" id="prc-no">Cancel</button>
@@ -3810,6 +3827,9 @@ async function priceOpen() {
     PRICEPW = pw; PRICELOG = d.log || [];
     $('prc-pw').value = ''; err.hidden = true; $('prc-gate').hidden = true;
     paintPriceForm(); paintPriceLog();
+    if ($('prc-keep') && $('prc-keep').checked) {
+      rememberRoom(pw).then(function (k) { if (k && PRICEPW === pw) PRICEPW = k; });
+    }
   } catch (e) {
     err.hidden = false; err.textContent = 'Could not reach the office. Try again.';
   } finally { $('prc-in').disabled = false; }
@@ -5412,12 +5432,29 @@ $('pricerow').addEventListener('click', function (e) {
   renderPrice(); window.scrollTo(0, 0);
 });
 $('prc-back').onclick = function () {
-  PRICEV = false; PRICEPW = ''; PRICELOG = null;
+  /* the WORD goes when the screen does, as it always has; the key does not,
+     because the key is the thing this phone was given to keep */
+  PRICEV = false; PRICEPW = roomKey(); PRICELOG = null;
   priceGateShut();
   $('price').hidden = true; BACKING = true; renderHome(); window.scrollTo(0, 0);
 };
 $('prc-open').onclick = function () {
   $('prc-err').hidden = true; $('prc-pw').value = '';
+  /* A REMEMBERED PHONE IS NOT ASKED AGAIN. Same key, same door — the price
+     list is behind the same password as the room, so being let into one is
+     being let into the other. The dialog is only raised if the key is gone. */
+  if (roomKey()) {
+    $('prc-in').disabled = true;
+    roomUnlock('get_availability_price_log').then(function (got) {
+      $('prc-in').disabled = false;
+      if (!got) { $('prc-gate').hidden = false;
+                  setTimeout(function () { $('prc-pw').focus(); }, 60); return; }
+      PRICEPW = got.key; PRICELOG = got.data.log || [];
+      $('prc-gate').hidden = true;
+      paintPriceForm(); paintPriceLog();
+    });
+    return;
+  }
   $('prc-gate').hidden = false;
   setTimeout(function () { $('prc-pw').focus(); }, 60);
 };
@@ -5715,6 +5752,51 @@ var REPV = false, REP = null;
    else — not in storage, not in the address — and it goes when the room
    closes, so a forwarded link still opens on the door. */
 var REPPW = '';
+
+/* ── A KEY, NOT THE WORD ──────────────────────────────────────────────────
+   "Ye director password mai save password ka option karo yaar, baar baar
+   password dena parta hai."
+
+   The obvious way to do that is to keep the password on the phone, and it is
+   the one way it must not be done: this is a public link, and a password left
+   in a phone's storage belongs to whoever picks the phone up. So the office
+   mints this phone a key of its own instead — random, good for thirty days,
+   good for this link only, dead the moment the password is changed, and
+   throw-away-able from inside the room.
+
+   What is stored here is that key and nothing else. It is not the password, it
+   cannot be turned back into the password, and it cannot mint another key. */
+function roomKey(v) {
+  var k = 'avail.room.' + (TOKEN || '-');
+  try {
+    if (v === undefined) return localStorage.getItem(k) || '';
+    if (v === null) { localStorage.removeItem(k); return ''; }
+    localStorage.setItem(k, v); return v;
+  } catch (e) { return ''; }
+}
+/* asked for once, straight after the password has worked, and only with the
+   password itself — so the key is the reward for having known it */
+async function rememberRoom(pw) {
+  try {
+    var r = await sb.rpc('remember_availability_room', { p_token: TOKEN, p_password: pw });
+    if (r && r.data && r.data.success && r.data.key) { roomKey(r.data.key); return r.data.key; }
+  } catch (e) {}
+  return '';
+}
+/* THE DOOR OPENING ON ITS OWN. Handed to whichever screen wants in, so the
+   room and the price list both stop asking once one of them has been told. A
+   key that no longer works is thrown away here rather than kept and retried,
+   so a revoked phone falls back to the password on the very next tap. */
+async function roomUnlock(fn) {
+  var k = roomKey(); if (!k) return null;
+  try {
+    var r = await sb.rpc(fn || 'get_availability_report', { p_token: TOKEN, p_password: k });
+    if (r && r.data && r.data.success) return { key: k, data: r.data };
+    if (r && r.data && r.data.error === 'too_many') return null;   // not the key's fault
+    roomKey(null);
+  } catch (e) {}
+  return null;
+}
 /* the unit a director has pressed and not yet answered for */
 var RELQ = null;
 /* WHICH PAGE OF THE ROOM IS OPEN. The first screen is short on purpose —
@@ -5826,7 +5908,24 @@ function showRep() {
   $('rep-gate').hidden = !!REP;
   $('rep-body').innerHTML = REP ? repRender() : '';
   $('rep-as').textContent = REP ? 'as of ' + hhmm(new Date(REP.as_of).getTime()) : '';
-  if (!REP) setTimeout(function () { $('dir-pw').focus(); }, 60);
+  if (REP) return;
+  /* A REMEMBERED PHONE WALKS IN. The door is drawn first and then opens by
+     itself, rather than the page sitting on a blank while it asks: if the key
+     has been thrown away at the other end, what is already on screen is the
+     password field, which is exactly where the director needs to be. */
+  if (roomKey()) {
+    $('dir-go').disabled = true;
+    $('dir-pw').placeholder = 'Opening\u2026';
+    roomUnlock().then(function (got) {
+      $('dir-go').disabled = false;
+      $('dir-pw').placeholder = 'Password';
+      if (!got || !REPV || REP) { if (REPV && !REP) $('dir-pw').focus(); return; }
+      REP = got.data; REPP = { view: 'home', key: '' }; REPPW = got.key;
+      showRep(); window.scrollTo(0, 0);
+    });
+    return;
+  }
+  setTimeout(function () { $('dir-pw').focus(); }, 60);
 }
 async function repOpen() {
   var pw = $('dir-pw').value.trim();
@@ -5847,6 +5946,12 @@ async function repOpen() {
     REP = d; REPP = { view: 'home', key: '' }; REPPW = pw;
     $('dir-pw').value = ''; err.hidden = true;
     showRep(); window.scrollTo(0, 0);
+    /* and if this phone is to be remembered, the word is swapped for a key the
+       moment the office hands one over — so what the room runs on from here is
+       the thing that can be taken back */
+    if ($('dir-keep') && $('dir-keep').checked) {
+      rememberRoom(pw).then(function (k) { if (k && REPPW === pw) REPPW = k; });
+    }
   } catch (e) {
     err.hidden = false; err.textContent = 'Could not reach the office. Try again.';
   } finally { $('dir-go').disabled = false; }
@@ -5969,19 +6074,36 @@ $('rep-back').onclick = function () {
     window.scrollTo(0, 0);
     return;
   }
-  REPV = false; BACKING = true; REPPW = ''; RELQ = null;
+  REPV = false; BACKING = true; REPPW = roomKey(); RELQ = null;
   $('rep').hidden = true;
   paintNameAsk();
   renderHome(); window.scrollTo(0, 0);
 };
 $('rep-body').addEventListener('click', function (e) {
   if (e.target.closest('#rep-pdf')) { window.print(); return; }
+  if (e.target.closest('#rm-forget')) { forgetPhone(); return; }
   var go = e.target.closest('[data-go]');
   if (!go) return;
   REPP = { view: go.getAttribute('data-go'), key: go.getAttribute('data-key') || '' };
   $('rep-body').innerHTML = repRender();
   window.scrollTo(0, 0);
 });
+
+/* FORGETTING IS TOLD TO THE OFFICE, not just to this phone. Clearing the
+   storage alone would leave a live key sitting in the table with nothing to
+   revoke it, so the key is revoked at the other end first and the room shuts
+   behind it — which is what a director pressing this expects to see. */
+async function forgetPhone() {
+  var k = roomKey(); if (!k) return;
+  try { await sb.rpc('forget_availability_room', { p_token: TOKEN, p_secret: k }); } catch (e) {}
+  roomKey(null);
+  REP = null; REPPW = ''; PRICEPW = ''; REPP = { view: 'home', key: '' };
+  toast('This phone will ask for the password again.', 'ok');
+  $('rep-body').innerHTML = '';
+  $('rep-gate').hidden = false;
+  $('dir-pw').value = '';
+  setTimeout(function () { $('dir-pw').focus(); }, 60);
+}
 
 function repRender() {
   var d = REP;
@@ -6051,6 +6173,15 @@ function repHome(d) {
     '</div>');
 
   H.push(repTools('Position summary'));
+  /* AND THE WAY OUT OF BEING REMEMBERED. A phone that lets its owner in
+     without asking has to let them take that back, in the room itself, where
+     they are — not in a settings screen this page does not have. It is here
+     rather than in the tools row because the tools row is on every page and
+     this belongs once, at the foot of the first one. */
+  if (roomKey()) {
+    H.push('<div class="rm-f"><span>This phone is signed in without a password.</span>' +
+      '<button type="button" id="rm-forget">Forget this phone</button></div>');
+  }
   H.push(disclaimer(d));
   H.push('</div>');
   return H.join('');

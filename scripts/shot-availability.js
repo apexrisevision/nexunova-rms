@@ -2578,7 +2578,12 @@ function serve() {
        identifies anybody, and nothing that ever leaves the phone. */
     const allowed = ['avail.name', 'avail.name.asked', 'avail.theme', 'nx.hub.avail',
                      'avail.brand'];
-    const extra = Object.keys(store.ls).filter(k => allowed.indexOf(k) < 0);
+    /* AND ONE MORE, WHICH IS A CREDENTIAL AND IS NAMED LIKE ONE: the key a
+       director's own phone is given so the room stops asking for the password
+       every time. It is not the password and cannot be turned back into one —
+       the section on the room proves that where it is minted. */
+    const extra = Object.keys(store.ls)
+      .filter(k => allowed.indexOf(k) < 0 && !/^avail\.room\./.test(k));
     extra.length === 0
       ? ok('localStorage holds only ' + Object.keys(store.ls).join(', ') + ' \u2014 the name, the asked flag and the theme')
       : bad('the page wrote something else to localStorage: ' + extra.join(', '));
@@ -2897,12 +2902,20 @@ function serve() {
 
          get_availability_report was added on 2026-09-10 and is the first thing
          here gated by a secret rather than by the token. It READS: no unit
-         changes hands through it. Its lock is tested end to end further down. */
+         changes hands through it. Its lock is tested end to end further down.
+
+         remember_ and forget_availability_room were added on 2026-09-17, when
+         Rashid asked for the room to stop asking every time. Neither touches a
+         unit. remember_ takes the PASSWORD and nothing else — a key cannot mint
+         a second key — and hands back one key, kept as a hash at the office and
+         dead the moment the password changes. forget_ only ever revokes. Both
+         are tested end to end in the room's own section. */
       const allowedRpc = ['get_availability_price_log', 'get_availability_report',
                           'get_public_availability', 'get_request_status',
                           'submit_availability_request', 'submit_availability_requests',
                           'submit_change_request', 'update_availability_prices',
-                          'release_availability_unit'].sort();
+                          'release_availability_unit', 'remember_availability_room',
+                          'forget_availability_room'].sort();
       (JSON.stringify(rpcNames.slice().sort()) === JSON.stringify(allowedRpc))
         ? ok('the page can call exactly these and nothing else: ' + rpcNames.sort().join(', '))
         : bad('the page calls: ' + (rpcNames.join(', ') || 'nothing at all'));
@@ -4149,11 +4162,92 @@ function serve() {
                  'unit they have just freed')
             : bad('the released unit is still listed in the room');
 
-          const wrote = await rpg.evaluate(() => Object.keys(localStorage)
-            .filter(k => /pw|pass|report/i.test(k) || /pw|pass/i.test(String(localStorage[k]))));
-          wrote.length === 0
-            ? ok('and the password is not written to the phone \u2014 the room shuts with the tab')
-            : bad('the page stored something about the password: ' + wrote.join(', '));
+          /*    A PHONE IS REMEMBERED, A PASSWORD IS NOT
+             "Ye director password mai save password ka option karo yaar, baar
+             baar password dena parta hai."
+
+             The convenience is real and so is the danger: this is a public
+             link, and a password sitting in a phone's storage belongs to
+             whoever picks the phone up. What is checked here is that the page
+             took the other road  the office mints this phone a key, the key
+             is what is stored, and the word itself is nowhere on the phone
+             and nowhere in the clear at the far end either. */
+          const kept = await rpg.evaluate(pw => {
+            const names = Object.keys(localStorage);
+            return { keys: names.filter(k => /^avail\.room\./.test(k)),
+                     value: (names.filter(k => /^avail\.room\./.test(k))
+                              .map(k => localStorage[k])[0] || ''),
+                     wordAnywhere: names.filter(k => String(localStorage[k]).indexOf(pw) >= 0),
+                     looksLikeAPassword: names.filter(
+                       k => /pw|pass/i.test(k) || /pw|pass/i.test(String(localStorage[k]))) };
+          }, PW);
+          (kept.keys.length === 1 && /^k\./.test(kept.value) && kept.value !== PW &&
+           kept.wordAnywhere.length === 0 && kept.looksLikeAPassword.length === 0)
+            ? ok('this phone is remembered by a key of its own (' +
+                 kept.value.slice(0, 6) + '\u2026, ' + kept.value.length + ' chars), and the ' +
+                 'password itself is nowhere on it')
+            : bad('what the phone kept is wrong: ' + JSON.stringify(kept));
+          /* AND THE OFFICE KEEPS ONLY ITS SHADOW, exactly as it keeps the
+             link's own token. A key readable out of the table would be a
+             password list by another name. */
+          const keyDb = await sql(`SELECT
+              (SELECT count(*)::int FROM public.availability_room_keys
+                WHERE project_id = '${RP}' AND NOT revoked
+                  AND key_hash = public._availability_token_hash('${kept.value}')) AS stored_as_hash,
+              (SELECT count(*)::int FROM public.availability_room_keys
+                WHERE key_hash = '${kept.value}') AS stored_in_the_clear,
+              (SELECT count(*)::int FROM pg_trigger
+                WHERE tgname = 'availability_keys_die_with_the_password') AS dies_with_the_password;`);
+          (keyDb[0] && keyDb[0].stored_as_hash === 1 && keyDb[0].stored_in_the_clear === 0 &&
+           keyDb[0].dies_with_the_password === 1)
+            ? ok('and the office holds only its sha256 \u2014 never the key itself \u2014 with every ' +
+                 'key on the project dying the moment the password is changed')
+            : bad('the key is not held the way it must be: ' + JSON.stringify(keyDb[0]));
+
+          /*    AND THE NEXT OPEN DOES NOT ASK
+             The whole point, measured the only way that means anything: open
+             the link again on the same phone, press the same door, and be
+             inside without a key having been pressed on the keyboard. */
+          await rpg.goto(BASE + '/a/' + RT, { waitUntil: 'domcontentloaded', timeout: 30000 });
+          await rpg.waitForFunction(
+            () => !!document.getElementById('dir-open') &&
+                  document.getElementById('dir-open').getBoundingClientRect().width > 0,
+            { timeout: 30000 });
+          await rpg.evaluate(() => document.getElementById('dir-open').click());
+          const walkedIn = await rpg.waitForFunction(
+            () => (document.getElementById('rep-body').innerHTML || '').length > 200 &&
+                  document.getElementById('rep-gate').hidden,
+            { timeout: 20000 }).then(() => true).catch(() => false);
+          const silent = await rpg.evaluate(() => ({
+            typed: document.getElementById('dir-pw').value,
+            gate: !document.getElementById('rep-gate').hidden,
+            heads: [...document.querySelectorAll('#rep-body h2')].map(h => h.textContent.trim()).length,
+            forget: !!document.getElementById('rm-forget') }));
+          (walkedIn && !silent.gate && silent.typed === '' && silent.heads === 4 && silent.forget)
+            ? ok('and the next open walks straight in \u2014 same link, same phone, nothing typed, ' +
+                 'and the room offers to forget the phone again')
+            : bad('the remembered phone was asked again: ' + JSON.stringify(silent));
+
+          /*    AND IT CAN BE TAKEN BACK
+             A phone that lets its owner in without asking has to let them
+             undo that, and undoing it has to reach the office  clearing the
+             phone alone would leave a live key in the table with nothing to
+             revoke it. */
+          await rpg.evaluate(() => document.getElementById('rm-forget').click());
+          await sleep(1200);
+          const forgot = await rpg.evaluate(() => ({
+            stored: Object.keys(localStorage).filter(k => /^avail\.room\./.test(k)).length,
+            gate: !document.getElementById('rep-gate').hidden }));
+          const deadKey = await sql(`SELECT
+              (public.get_availability_report('${RT}', '${kept.value}')->>'error') AS opens_now,
+              (SELECT count(*)::int FROM public.availability_room_keys
+                WHERE key_hash = public._availability_token_hash('${kept.value}')
+                  AND NOT revoked) AS still_live;`);
+          (forgot.stored === 0 && forgot.gate &&
+           deadKey[0] && deadKey[0].still_live === 0 && deadKey[0].opens_now === 'no')
+            ? ok('and Forget this phone takes it back at both ends \u2014 the phone is clean, the ' +
+                 'key is revoked at the office, and it opens nothing any more')
+            : bad('forgetting did not take: ' + JSON.stringify({ forgot, db: deadKey[0] }));
           rerr.length === 0 ? ok('no page errors in the room')
                             : bad('the room threw: ' + rerr.slice(0, 2).join(' | '));
           await rc.close();
