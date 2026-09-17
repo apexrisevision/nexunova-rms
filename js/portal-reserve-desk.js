@@ -202,7 +202,7 @@
       ".rd-more{margin-top:10px;border-top:1px dashed var(--fk-border);padding-top:10px}" +
       ".rd-more summary{cursor:pointer;font-size:var(--fs-caption);color:var(--fk-text-muted);font-weight:600}" +
       ".rd-2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}" +
-      ".rd-sm{width:100%;height:42px;padding:0 11px;border:1px solid var(--fk-border);" +
+      ".rd-sm{width:100%;height:36px;padding:0 9px;border:1px solid var(--fk-border);" +
         "border-radius:var(--fk-radius-control);background:var(--fk-bg-card);color:var(--fk-text);font:inherit}" +
       ".rd-h{font-weight:700;margin:16px 2px 8px;display:flex;align-items:center;gap:8px}" +
       ".rd-h span.n{font-size:var(--fs-caption);color:var(--fk-text-muted);font-weight:600}" +
@@ -274,21 +274,44 @@
       ".rq-bar button.ok{border-color:transparent;background:var(--fk-primary);color:#fff}" +
       ".rq-bar button:disabled{opacity:.45;cursor:default}" +
       ".rd-empty{padding:20px;text-align:center;color:var(--fk-text-muted);font-size:var(--fs-secondary)}" +
-      ".rd-top{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}" +
+      ".rd-top{display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap}" +
+      /* the date pair is two fields and two words, not a paragraph */
+      ".db-rng .rd-sm{width:auto;min-width:118px;flex:0 1 auto}" +
+      ".db-acts{gap:6px}" +
       ".rd-top select{flex:1 1 160px;min-width:0}" +
       /* ── daybook ── */
-      ".db-sec{margin-bottom:16px}" +
-      ".db-t{font-weight:700;margin:0 2px 7px;display:flex;align-items:center;gap:8px}" +
+      /* the position across the top: numbers big enough to read at arm's
+         length, labels small enough to stay out of their way */
+      ".db-tot{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));" +
+        "gap:6px;margin:0 0 10px}" +
+      ".db-tot-c{padding:7px 9px;border-radius:10px;" +
+        "background:var(--fk-bg-card);border:1px solid var(--fk-border)}" +
+      ".db-tot-n{font-size:19px;font-weight:750;letter-spacing:-.02em;" +
+        "font-variant-numeric:tabular-nums;line-height:1.1}" +
+      ".db-tot-k{font-size:10.5px;color:var(--fk-text-muted);margin-top:1px;" +
+        "white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
+      ".db-tot-free{background:var(--fk-success-surface);border-color:var(--fk-success-edge)}" +
+      ".db-tot-all{background:var(--fk-bg-subtle)}" +
+      /* the day's events, each kind its own colour so the eye can sort them */
+      ".db-ev-on{background:var(--fk-primary-tint);color:var(--fk-primary)}" +
+      ".db-ev-sold{background:var(--fk-danger-surface);color:var(--fk-danger)}" +
+      ".db-ev-chg{background:var(--fk-warning-surface);color:var(--fk-warning)}" +
+      ".db-ev-lapse{background:var(--fk-bg-subtle);color:var(--fk-text-muted);" +
+        "border:1px dashed var(--fk-border)}" +
+      ".db-ev-off{background:var(--fk-bg-subtle);color:var(--fk-text-muted)}" +
+      ".db-sec{margin-bottom:11px}" +
+      ".db-t{font-weight:700;margin:0 2px 5px;display:flex;align-items:center;gap:8px}" +
       ".db-t .c{font-size:var(--fs-caption);color:var(--fk-text-muted);font-weight:600}" +
       ".db-tbl{width:100%;border-collapse:collapse;font-size:var(--fs-secondary)}" +
       ".db-tbl th{text-align:left;font-size:11px;letter-spacing:.05em;text-transform:uppercase;" +
         "color:var(--fk-text-muted);padding:6px 8px;border-bottom:1px solid var(--fk-border)}" +
-      ".db-tbl td{padding:8px;border-bottom:1px solid var(--fk-border);vertical-align:top}" +
+      ".db-tbl td{padding:5px 8px;border-bottom:1px solid var(--fk-border);vertical-align:top}" +
       ".db-tbl td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}" +
+      ".db-tbl td:nth-child(-n+3){white-space:nowrap}" +
       ".db-wrap{overflow-x:auto;border:1px solid var(--fk-border);border-radius:11px;background:var(--fk-bg-card)}" +
-      ".db-asat{padding:8px 10px;font-size:11px;color:var(--fk-text-soft);border-bottom:1px solid var(--fk-border)}" +
+      ".db-asat{padding:6px 9px;font-size:11px;color:var(--fk-text-soft);border-bottom:1px solid var(--fk-border)}" +
       ".db-rng{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}" +
-      ".db-opts{display:flex;gap:14px;flex-wrap:wrap;margin:2px 2px 10px}" +
+      ".db-opts{display:flex;gap:14px;flex-wrap:wrap;margin:2px 2px 7px}" +
       ".db-opts label{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-caption);color:var(--fk-text-muted);font-weight:600;cursor:pointer}" +
       ".db-opts input{width:15px;height:15px;accent-color:var(--fk-primary);cursor:pointer}" +
       ".db-rng label{font-size:var(--fs-caption);color:var(--fk-text-muted);font-weight:600}" +
@@ -2559,6 +2582,11 @@
         /* "Booked today" rather than "Reserved today": with three tags in play
            the old heading named only one of them. A booking that was undone is
            not here at all — see the RPC. The desk's own list still has it. */
+        /* WHERE IT STANDS, THEN WHAT MOVED. Both before the ledger, because
+           a person opening this wants the position and the day's events, and
+           the ledger is the working that explains them. */
+        _dbTotals(d) +
+        _dbDay(d) +
         /* The same four numbers as the PDF, in the same order. If the screen
            and the paper ever disagree about an opening balance, the one being
            looked at is the one that will be believed. */
@@ -2760,6 +2788,153 @@
       : ((d && (d.message || d.error)) || 'Could not release that hold.'), 'err');
   }
 
+  /* ── WHERE THE BUILDING STANDS, ACROSS THE TOP ──────────────────────────
+     "Top pe totals like total of Reserve, total hold, total sold, total sold
+     (P) etc."
+
+     The floor table at the foot of this report has carried these numbers all
+     along, one row per floor, in six columns — which is the right shape for
+     "which floor has room" and the wrong one for "where do we stand". Summed
+     across the top they answer the second question in one look.
+
+     AND THE TAGS THIS PROJECT INVENTED ARE NAMED. The floor table knows three
+     holds by code — RESERVED, HOLD, BOOKED — and sweeps everything else into
+     Other, which on Awami means 341 Pagri units hiding under a word that says
+     nothing. The holdings carry their own tag, so the extras are counted by
+     the name the project gave them and only what is left over is Other. */
+  var _DB_CODES = ['RESERVED', 'HOLD', 'BOOKED'];
+  /* Counted once, for the screen AND for the message, so the two can never
+     quote the building differently. */
+  function _dbPosition(d) {
+    var av = d.available || [], hold = d.holding || [];
+    var sum = function (k) {
+      return av.reduce(function (n, f) { return n + Number(f[k] || 0); }, 0);
+    };
+    var other = sum('other');
+    /* the project's own words, biggest first */
+    var extra = {};
+    hold.forEach(function (r) {
+      if (_DB_CODES.indexOf(r.tag_code) >= 0) return;
+      var t = r.tag || 'Other';
+      extra[t] = (extra[t] || 0) + 1;
+    });
+    var named = Object.keys(extra).sort(function (a, b) { return extra[b] - extra[a]; });
+    var accounted = named.reduce(function (n, t) { return n + extra[t]; }, 0);
+    var cells = [
+      { k: 'Available', v: sum('available'), tone: 'free', always: true },
+      { k: 'Reserve', v: sum('reserved'), always: true },
+      { k: 'Hold', v: sum('hold'), always: true },
+      { k: 'Booked', v: sum('booked') },
+      { k: 'Sold', v: sum('sold'), always: true }
+    ].concat(named.map(function (t) { return { k: t, v: extra[t] }; }));
+    /* what the floor table calls Other and the holdings could not name */
+    if (other - accounted > 0) cells.push({ k: 'Other', v: other - accounted });
+    cells.push({ k: 'Total units', v: sum('total'), tone: 'all' });
+    return cells.filter(function (c) { return c.v > 0 || c.always || c.tone; });
+  }
+  function _dbTotals(d) {
+    return '<div class="db-tot">' +
+      _dbPosition(d).map(function (c) {
+        return '<div class="db-tot-c' + (c.tone ? ' db-tot-' + c.tone : '') + '">' +
+          '<div class="db-tot-n">' + esc(String(c.v)) + '</div>' +
+          '<div class="db-tot-k">' + esc(c.k) + '</div></div>';
+      }).join('') +
+      '</div>';
+  }
+
+  /* ── WHAT ACTUALLY HAPPENED, IN ONE LIST ────────────────────────────────
+     "Just today ki transactions batao — agar koi auto release howa, koi
+     reserve sold ya status change howa wo batao."
+
+     Everything below is already on this page in three separate sections, and
+     that is the problem it is fixing: a unit whose Hold became Sold (P) this
+     afternoon appears once as a release and once as a booking, in two tables,
+     eleven rows apart, and nobody reading either one can see that a STATUS was
+     CHANGED. So the day is assembled here instead:
+
+       · a unit released and booked again the same day is ONE line — the change
+         it actually was, with the tag it came off and the tag it went on
+       · a hold that ran out of days says so in those words. It is the only
+         line on this report nobody did: the clock did it
+       · and the rest are plain — booked, sold, released by hand
+
+     Newest first, because the question being asked is "what just happened". */
+  function _dbDay(d) {
+    var ev = [], by = {};
+    var push = function (e) {
+      ev.push(e);
+      (by[e.unit] = by[e.unit] || []).push(e);
+    };
+    /* every booking the period saw, INCLUDING one that was undone an hour
+       later: the day happened, and a report of the day that quietly drops the
+       half that was reversed is how two people remember one afternoon
+       differently. The sections below keep their own live-only filters. */
+    (d.reserved || []).forEach(function (r) {
+      push({ t: r.reserved_at || r.created_at, unit: r.unit_no, kind: 'on',
+             tag: r.tag || 'Reserved', code: r.tag_code, who: r.requested_by,
+             client: r.client_name });
+    });
+    (d.sold || []).forEach(function (x) {
+      push({ t: x.sale_date, unit: x.unit_no, kind: 'sold', tag: 'Sold',
+             who: x.agent, client: x.client_name, ref: x.sale_number });
+    });
+    (d.released || []).forEach(function (r) {
+      push({ t: r.went_at, unit: r.unit_no, kind: r.went === 'lapsed' ? 'lapsed' : 'off',
+             tag: r.tag || 'Reserved', code: r.tag_code, who: r.requested_by,
+             went: r.went });
+    });
+
+    /* a release and a booking on the same unit, the same day, is a change */
+    var rows = [], used = {};
+    ev.forEach(function (e) {
+      if (used[e.unit + '|' + e.kind + '|' + e.t]) return;
+      if (e.kind === 'off') {
+        var back = (by[e.unit] || []).filter(function (x) {
+          if (x.kind !== 'on' || !x.t || !e.t) return false;
+          var gap = new Date(x.t) - new Date(e.t);
+          return gap >= -1000 && gap < 5 * 60 * 1000;   // the rebook, not a later day's work
+        })[0];
+        if (back) {
+          used[back.unit + '|on|' + back.t] = 1;
+          rows.push({ t: back.t || e.t, unit: e.unit, what: 'Status changed',
+                      from: e.tag, to: back.tag, who: back.who || e.who,
+                      client: back.client, cls: 'chg' });
+          return;
+        }
+      }
+      rows.push(
+        e.kind === 'on'     ? { t: e.t, unit: e.unit, what: 'Booked', to: e.tag,
+                                who: e.who, client: e.client, cls: 'on' } :
+        e.kind === 'sold'   ? { t: e.t, unit: e.unit, what: 'Sold', to: 'Sold',
+                                who: e.who, client: e.client, cls: 'sold' } :
+        e.kind === 'lapsed' ? { t: e.t, unit: e.unit, what: 'Expired on its own',
+                                from: e.tag, who: e.who, cls: 'lapse' }
+                            : { t: e.t, unit: e.unit,
+                                what: e.went === 'sold' ? 'Sold off a hold' : 'Released',
+                                from: e.tag, who: e.who, cls: 'off' });
+    });
+    rows.sort(function (a, b) { return String(b.t || '').localeCompare(String(a.t || '')); });
+    if (!rows.length) {
+      return _dbSec(d.single_day ? 'What happened today' : 'What happened in this period', 0,
+        '<div class="rd-empty">Nothing moved ' + esc(_periodPhrase(d)) + '.</div>');
+    }
+    return _dbSec(d.single_day ? 'What happened today' : 'What happened in this period',
+      rows.length,
+      _dbTable(['Time', 'Unit', 'What', 'Status', 'Whose'],
+        rows.map(function (r) {
+          return [
+            '<span class="n">' + esc(r.t ? _pkTime(r.t) : '\u2014') + '</span>',
+            '<b>' + esc(r.unit) + '</b>',
+            '<span class="tg db-ev-' + r.cls + '">' + esc(r.what) + '</span>',
+            (r.from ? '<span class="t">' + esc(r.from) + '</span>' : '') +
+              (r.from && r.to ? ' \u2192 ' : '') +
+              (r.to ? '<b>' + esc(r.to) + '</b>' : ''),
+            esc(r.who || '\u2014') +
+              (r.client ? ' <span class="t">for ' + esc(r.client) + '</span>' : '')
+          ];
+        })));
+  }
+
   function _dbSec(title, count, inner) {
     return '<div class="db-sec"><div class="db-t">' + esc(title) +
       ' <span class="c">' + esc(String(count)) + '</span></div>' +
@@ -2783,6 +2958,16 @@
     L.push('*' + (h.project || 'Inventory') + '* — ' + _periodShort(d));
     if (h.company) L.push(h.company);
     L.push('');
+
+    /* WHERE IT STANDS, FIRST. The same numbers the screen opens with, in the
+       same order, so a figure quoted out of the group and a figure read off
+       the phone are the same figure. */
+    var pos = _dbPosition(d);
+    if (pos.length) {
+      L.push('*Where it stands*');
+      L.push(pos.map(function (c) { return c.k + ' ' + c.v; }).join('  ·  '));
+      L.push('');
+    }
 
     /* Cancelled bookings are not in this payload and are not listed here. The
        group reads every line as a unit that is off the board, so a released one

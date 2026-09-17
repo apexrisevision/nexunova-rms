@@ -1196,22 +1196,22 @@ body.splash .fl::before{opacity:0}
              color:#fff;font-size:14px;font-weight:650;font-family:inherit}
 .dr-e{margin-top:10px;font-size:12.5px;color:#b3123c;line-height:1.5}
 
-.rp{margin-top:14px}
+.rp{margin-top:10px}
 .rp h2{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-       color:var(--mut);margin:22px 0 8px}
-.rp .card{background:var(--card);border-radius:var(--r);padding:15px 16px}
+       color:var(--mut);margin:15px 0 6px}
+.rp .card{background:var(--card);border-radius:var(--r);padding:11px 13px}
 /* the four readings at the head: a number and what it is, nothing else */
-.rp .big{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-.rp .big .b{background:var(--card);border-radius:var(--r);padding:13px 14px}
+.rp .big{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.rp .big .b{background:var(--card);border-radius:var(--r);padding:10px 12px}
 .rp .big .bn{font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
 .rp .big .bl{font-size:11px;color:var(--mut);margin-top:2px;line-height:1.35}
-.rp .big .bs{font-size:11px;color:var(--mut);margin-top:4px;line-height:1.35}
+.rp .big .bs{font-size:11px;color:var(--mut);margin-top:3px;line-height:1.3}
 /* ── A ROW THAT IS A DOOR ─────────────────────────────────────────────────
    The first screen is a short list of these and nothing else. Each one names a
    thing, says what it is worth, and opens a page of its own. */
-.rp .rows{display:flex;flex-direction:column;gap:6px}
+.rp .rows{display:flex;flex-direction:column;gap:4px}
 .rp .row{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
-         background:var(--card);border:0;border-radius:var(--r);padding:13px 14px;
+         background:var(--card);border:0;border-radius:var(--r);padding:11px 13px;
          font-family:inherit;color:inherit;
          transition:background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease)}
 @media (hover:hover){ .rp .row:hover{background:#FDFDFD} }
@@ -1219,17 +1219,17 @@ body.splash .fl::before{opacity:0}
 .rp .r-d{width:9px;height:9px;border-radius:3px;background:var(--t,var(--held));flex:none}
 .rp .r-m{flex:1;min-width:0}
 .rp .r-t{display:block;font-size:14px;font-weight:650;letter-spacing:-.015em;line-height:1.3}
-.rp .r-s{display:block;font-size:11.5px;color:var(--mut);line-height:1.45;margin-top:2px}
+.rp .r-s{display:block;font-size:11.5px;color:var(--mut);line-height:1.35;margin-top:1px}
 .rp .r-n{font-size:19px;font-weight:700;letter-spacing:-.02em;flex:none;
          font-variant-numeric:tabular-nums}
 .rp .r-a{flex:none;width:7px;height:7px;border-right:1.6px solid var(--mut);
          border-top:1.6px solid var(--mut);transform:rotate(45deg);opacity:.5}
 /* one plain sentence under a block, where a sentence says it better than a table */
-.rp .say{font-size:12px;color:var(--mut);line-height:1.6;margin-top:9px}
+.rp .say{font-size:12px;color:var(--mut);line-height:1.45;margin-top:7px}
 .rp .say b{color:var(--soft);font-weight:650}
-.rp .p-h{font-size:13.5px;line-height:1.6}
+.rp .p-h{font-size:13.5px;line-height:1.45}
 .rp .p-h b{font-weight:700}
-.rp .p-p{margin-top:7px}
+.rp .p-p{margin-top:5px}
 
 /* ── THE UNIT TABLE ───────────────────────────────────────────────────────
    The first cut ran its columns into one another; Rashid: "sab values aik
@@ -1238,10 +1238,10 @@ body.splash .fl::before{opacity:0}
    allowed to be the widest because a date is what the eye goes to. */
 .rp table{width:100%;border-collapse:collapse;font-size:12.5px;table-layout:fixed}
 .rp th{font-size:9.5px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;
-       color:var(--mut);text-align:right;padding:0 0 8px 10px;white-space:nowrap;
+       color:var(--mut);text-align:right;padding:0 0 6px 10px;white-space:nowrap;
        overflow:hidden;text-overflow:clip}
 .rp th:first-child{text-align:left;padding-left:0}
-.rp td{padding:9px 0 9px 10px;border-top:1px solid var(--hair);text-align:right;
+.rp td{padding:6px 0 6px 10px;border-top:1px solid var(--hair);text-align:right;
        font-variant-numeric:tabular-nums;vertical-align:middle;
        white-space:nowrap;overflow:hidden;text-overflow:clip}
 .rp td:first-child{text-align:left;padding-left:0}
@@ -1277,8 +1277,8 @@ body.splash .fl::before{opacity:0}
    Six numbers about one floor will not sit in six columns on a phone. Given
    its own block, each floor says all of them plainly: what it is worth at the
    top, the working underneath, and the two halves side by side. */
-.rp .wl{display:flex;flex-direction:column;gap:7px}
-.rp .wf{background:var(--card);border-radius:var(--r);padding:14px 15px}
+.rp .wl{display:flex;flex-direction:column;gap:5px}
+.rp .wf{background:var(--card);border-radius:var(--r);padding:11px 13px}
 .rp .wf-h{display:flex;align-items:baseline;gap:10px}
 .rp .wf-n{flex:1;min-width:0;font-size:14.5px;font-weight:650;letter-spacing:-.015em}
 .rp .wf-v{flex:none;font-size:16px;font-weight:700;letter-spacing:-.02em;
@@ -1311,7 +1311,7 @@ body.splash .fl::before{opacity:0}
 /* ── SAVE AS PDF ──────────────────────────────────────────────────────────
    The browser's own print, which is Save as PDF on every phone and every
    desktop, and is how the rest of this system makes its documents. */
-.rp-x{display:flex;align-items:center;gap:12px;margin-top:18px}
+.rp-x{display:flex;align-items:center;gap:12px;margin-top:13px}
 .rp-x-t{flex:1;min-width:0;font-size:11.5px;color:var(--mut)}
 .rp-pdf{flex:none;height:40px;padding:0 16px;border:1px solid var(--hair);border-radius:11px;
         background:var(--card);font-family:inherit;font-size:13px;font-weight:650;
@@ -1321,14 +1321,14 @@ body.splash .fl::before{opacity:0}
 /* ── THE DISCLAIMER ───────────────────────────────────────────────────────
    At the foot of every page in this room, on screen and on paper. It is meant
    to be read, so it is not grey six-point mouse type. */
-.dis{margin:22px 0 34px;padding:15px 15px 16px;border:1px solid var(--hair);
+.dis{margin:15px 0 26px;padding:11px 13px 12px;border:1px solid var(--hair);
      border-radius:var(--r);background:#FFFBFB}
 .dis-h{font-size:11px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;
-       color:#b3123c;margin-bottom:9px}
+       color:#b3123c;margin-bottom:7px}
 .dis ul{margin:0;padding-left:17px}
-.dis li{font-size:11.5px;color:var(--soft);line-height:1.65;margin-bottom:6px}
+.dis li{font-size:11.5px;color:var(--soft);line-height:1.45;margin-bottom:4px}
 .dis li b{font-weight:700;color:var(--ink)}
-.dis-f{margin-top:10px;padding-top:9px;border-top:1px solid var(--hair);
+.dis-f{margin-top:8px;padding-top:7px;border-top:1px solid var(--hair);
        font-size:10.5px;color:var(--mut)}
 
 /* the letterhead: nothing on screen, the head of the page on paper */
