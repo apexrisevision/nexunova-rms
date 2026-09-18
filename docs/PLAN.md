@@ -1484,4 +1484,37 @@ happens, not left to slide.
 Full suite re-run after every step in this section: `verify-nf-golden-ui.js` 28/28, `verify-nf-director-report.js`
 18/18, `verify-nf-general-journal.js` 11/11, `verify-nf-general-ledger.js` 12/12 — no regression from any of it.
 
-Trial Balance is next, then the Awami history import (owner's own checksum, §12.6's sequencing).
+### 12.9 Trial Balance — built, applied, verified (2026-09-18)
+
+The third and last of the three pre-import verification instruments (Journal and Ledger done, §12.8). Every
+account with a non-zero net balance, split into its natural debit/credit column, as of a date (a snapshot, not a
+range — one "as of" filter, not from/to). Because every voucher this schema accepts is itself balanced, summing
+every account's net and splitting by sign must always tie exactly — this report re-proves the double-entry
+invariant across the whole company at once, and is what the owner's own QuickBooks checksum
+(12610/22100/22200/21100/15300/16100/70100) gets checked against once the Awami history is imported.
+
+Backend `20260918s` (`nf_get_trial_balance`), frontend `js/nf/nf-trial-balance.js` — this one built with the
+generation-counter + `alive` guard from the start, rather than finding the same race by hand a third time.
+
+`scripts/nf/verify-nf-trial-balance.js`'s T-05 found a real bug in `20260918s`, not assumed correct from reading
+the SQL: the "as of" date filter had **no effect at all**, for any date, not just the default. `nf_voucher_legs`
+was joined to `nf_accounts` unconditionally, then `nf_vouchers` was left-joined to it carrying the date/status
+condition — but the aggregate summed the legs' own `debit`/`credit` columns directly, already populated from the
+first, unconditional join regardless of whether the voucher matched. Nulling out `nf_vouchers`' own columns when
+the date condition failed had no effect on the legs' columns at all. Fixed in `20260918t` with `FILTER (WHERE
+...)` on the aggregate itself — the same pattern `nf_position_row` already uses correctly elsewhere in this
+schema — instead of relying on a join's null-propagation to gate an aggregate that never referenced the joined
+table's own columns. **9/10 → 10/10.**
+
+Both `20260918s` and `t` applied directly under the conditional auto-apply rule. Full regression sweep after:
+`verify-nf-golden-ui.js` 28/28 (one transient flake on a run immediately after three other Puppeteer suites in
+the same shell chain — a clean immediate retry was clean; not a regression, noted rather than silently retried
+away), `verify-nf-director-report.js` 18/18, `verify-nf-general-journal.js` 11/11, `verify-nf-general-ledger.js`
+12/12.
+
+**All three pre-import instruments are now built, applied and verified.** Next: the Awami history import — 64
+vouchers / 154 real lines (confirmed by parsing `docs/reference/Awami_Closing_All_Entries.xlsx`'s `Entries`
+sheet directly; the 155th row is a blank "Total" footer row, not a transaction), one import (not the Excel-only
+15-Sep/16-Sep split — QuickBooks has never had that split and it would make the reconciliation permanently
+non-zero), each on its own real voucher date, checked against the owner's own combined QuickBooks checksum. Then
+the rest of the reports pass.
