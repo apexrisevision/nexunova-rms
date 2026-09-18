@@ -1626,3 +1626,118 @@ retired Nexunova-crm project's ref (`hondkhasedtauryltixt`):
 (now unblocked — the 2-active-project cap that stopped this earlier is lifted on Pro, proven directly by running
 3 active projects simultaneously during §13.2's restore proof). Confirmation is required before deletion per the
 owner's own instruction — asked, not assumed.
+
+## 14 · The Awami history import — real data, applied and verified (2026-09-18)
+
+Removed the plaintext CRM `SUPABASE_SERVICE_ROLE_KEY` from `.claude/settings.local.json` first, per the owner's
+own "right now, 30 seconds" instruction — a service-role key bypasses RLS entirely and shouldn't sit on disk
+regardless of gitignore. Confirmed gone; the one remaining `hondkhasedtauryltixt` reference in that file is a
+harmless reachability-check URL with no key attached.
+
+### 14.1 Attribution — a real decision, asked rather than assumed
+
+`nf_vouchers`/`nf_voucher_legs` require a real `created_by`/`posted_by` (`NOT NULL`, no FK to `auth.users`, but a
+real actor matters for audit integrity). Asked the owner who these 64 vouchers should be attributed to. Answer:
+**none of the real people** — these were posted in QuickBooks over months, not hand-keyed by a director in one
+sitting, and attributing them to a real person would put a false statement in the audit trail. Created a
+dedicated, clearly non-human system account instead: `import@awami.internal`, sign-in disabled (a 100-year ban
+via the admin API, no password anyone holds), added as the **minimum role needed to post** (`accountant`, not
+`director`), display name "Historical Import (system)" so it reads unambiguously in any report. **Deactivated**
+(`nf_members.active = false`) immediately after the import verified clean — not deleted, so the audit trail keeps
+its actor. Explicitly did **not** create real accounts for Syed Yousaf Shah, Naeem Hussain or an accountant as a
+side effect — those get created properly when the app goes live, as their own step. Every imported voucher's
+narration carries `"Imported from QuickBooks history, 2026-09-18"`, obvious on the face of the record without
+inspecting who posted it.
+
+### 14.2 The 155-vs-154 row — resolved, not assumed
+
+Row 156 of the `Entries` sheet is a blank `"Total"` footer with no voucher number and no account — excluded by
+that predicate (no voucher), not by row count, so a future real addition can never be silently swallowed by the
+same filter. Real content: exactly 64 vouchers, 154 lines, matching the owner's own count exactly.
+
+### 14.3 A real discrepancy, checked against the owner's own QuickBooks reconciliation before touching anything
+
+Three vouchers (JV-0007, JV-0009, JV-0011) didn't balance in the Entries sheet as written — each is a lump sum
+token receipt (500,000 / 600,000 / 800,000) allocated evenly across several units, with every unit's share
+rounded **up**, leaving a 4/3/2-rupee excess nothing absorbed. Stopped and reported rather than silently fixing
+it. The owner's own answer settled which side was wrong: **check the Entries sheet's own 21100 credit total
+first** — it summed to 3,530,009, not the 3,530,000 the owner had already reconciled exactly against the live
+QuickBooks General Journal. That 9-rupee gap (4+3+2, exact) confirmed the imbalance was real in the sheet, not a
+parsing artifact — and that QuickBooks itself holds each of the three as one exact lump sum against 21100, with
+the per-unit breakdown being a later allocation, not the accounting fact.
+
+**Fixed with largest-remainder allocation, deterministic, not hand-picked**: `base = floor(lump / n)`; the
+shortfall (`lump - base*n`) is distributed as +1 rupee each to the first that-many units in the Entries sheet's
+own row order. 500,000 across 9 units → 5 units at 55,556, 4 at 55,555 (matching the owner's own worked example
+exactly). No income/rounding leg was created — no income was earned; the company received the lump sum and owes
+the lump sum. Each adjusted leg's memo carries a visible note explaining the reallocation, pointing back here.
+
+Verified independently, twice: the corrected data's own 21100 total (3,530,000, matching exactly) before import,
+and the live posted figure after (`-3,280,000`, matching exactly) — both by direct query, not by trusting the
+import script's own silence.
+
+### 14.4 Mechanics — one all-or-nothing transaction
+
+`scripts/nf/import-awami-history.js`: parses the Entries sheet with two independently cross-checked date
+conversions (Excel serial arithmetic and the cell's own display text — SheetJS's `cellDates` option was found to
+introduce a real ~5-hour timezone-shift artifact during this work, checked and confirmed wrong before trusting
+either date source; zero mismatches across all 154 rows using the two methods that agree). Builds the whole
+import — 18 parties (FMH, KBH, Syed Yousaf Shah, Naeem Hussain, all fixed per the owner's instruction, plus 14
+distinct token customers, extracted by **person**, not per-unit — "Haji Ibrar:LG-01" and "Haji Ibrar:LG-02" are
+the same customer across two units, not two parties; the unit stays in that leg's own memo, already present in
+the source text) then all 64 vouchers then the owner's own 7-figure checksum — as **one PostgreSQL transaction**.
+A `RAISE EXCEPTION` on any checksum mismatch, still inside that same transaction, rolls back everything; no
+partial import was ever possible.
+
+Ran via the Management API's privileged channel with only `request.jwt.claims` set (not a role switch to
+`authenticated`) — found directly, on the first real attempt, that `nf_create_party` correctly has no grant for
+the `authenticated` role at all (per 20260918n's lockdown; nothing calls it directly except a channel exactly
+like this one). Running under the privileged role bypasses that ACL check the same way applying a migration
+does, while `auth.uid()` still resolves the system account correctly from the GUC regardless of role — so
+`nf_require_role`'s real internal membership check still gates the import on the system account's real
+`accountant` membership, not on a bypassed ACL. Every table trigger (the balance and position guards) fires
+unconditionally regardless of role either way — nothing about this channel weakens those invariants.
+
+Two other real bugs found and fixed on the way to a clean run, neither assumed away: `PERFORM public.nf_post_voucher(...)`
+at the top level of a plain SQL script is a syntax error — `PERFORM` is PL/pgSQL-only; fixed to a bare `SELECT`.
+And the party-balance/exactly-one-of-debit-credit validation described in §14.3 above, which the import script
+enforces itself before ever generating SQL, and refuses to guess at anything outside the one documented pattern
+(a single lump leg opposite several equal-valued legs) — anything else still hard-stops.
+
+### 14.5 Result — verified independently, not by trusting the import's own success message
+
+```
+64 vouchers, 154 legs, 18 parties posted. Date range 2026-02-06 to 2026-09-18.
+
+12610 Syed Yousaf Shah         7,660,900   MATCH
+22100 FMH                    -20,124,450   MATCH
+22200 KBH                     -6,549,500   MATCH
+21100 Token Money - Units     -3,280,000   MATCH
+15300 Computer & IT Equipment    130,000   MATCH
+16100 Software & Licences        488,000   MATCH
+70100 Salaries & Wages            50,000   MATCH
+
+Full trial balance (18 non-zero accounts, all of Awami's real history): total debit = total credit =
+29,953,950 — the whole double-entry ledger self-balances, not just the 7 checked accounts.
+```
+
+Full regression sweep after, since real data was now present for the first time: `verify-nf-rules.js` 51/51
+(including `AWAMI-UNTOUCHED`, correctly accounting for the import itself, not a stale zero-row baseline),
+`verify-nf-golden-ui.js` 28/28, `verify-nf-director-report.js` 18/18, `verify-nf-general-journal.js` 11/11,
+`verify-nf-general-ledger.js` 12/12, `verify-nf-trial-balance.js` 10/10 — all against the ZZTEST fixture
+convention as always, none of them touching Awami itself, all still clean.
+
+### 14.6 The auto-apply rule flips, as the owner said it would
+
+**Stated explicitly, per the owner's own instruction to say so when this happens:** Awami now holds real
+production data (110 accounts, 64 vouchers, 154 legs, 18 parties, a real ledger that balances to a real
+QuickBooks reconciliation). The conditional auto-apply rule's fifth condition — "the tables involved hold no
+real data yet" — **no longer holds for the ledger tables** (`nf_days`, `nf_vouchers`, `nf_voucher_legs`,
+`nf_parties`, `nf_party_aliases`). From this point on, any migration touching those tables reverts to the
+default: stop and ask, every time, regardless of how safe it looks. `nf_accounts`/`nf_floors`/
+`nf_report_categories` may still qualify under the rule depending on what's actually being changed — judged
+per-migration, not by blanket reference to this note, exactly as the rule always said.
+
+Next: Trial Balance is already built and verified (§12.9) — nothing further needed there. Then the CRM export +
+delete (confirm before the actual deletion). Then P&L, Balance Sheet, and the remaining reports, now checkable
+against Awami's own real, reconciled history instead of only the golden-day fixture.
