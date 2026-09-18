@@ -33,6 +33,9 @@ const APPLY = [
   'supabase/migrations/20260918c_nf_double_entry_rpcs.sql',
   'supabase/migrations/20260918d_nf_migrate_lines_to_vouchers.sql',
 ];
+// 20260918a-d are already applied (a-d are not idempotent — re-running
+// CREATE TABLE would fail outright) — 20260918e is a separate, standalone
+// follow-up fix, applied by scripts/nf/apply-phase-de-followup.js instead.
 
 const sha = buf => crypto.createHash('sha256').update(buf).digest('hex');
 

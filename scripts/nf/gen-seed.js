@@ -75,7 +75,16 @@ function buildSeed() {
 
   const children = new Set(accounts.filter(a => a.parent_code).map(a => a.parent_code));
   for (const a of accounts) {
-    a.is_head = headCodes.has(a.code);
+    // Double-entry (owner decision, 2026-09-18): a via-account (Cash/Petty/
+    // Bank) is now a normal postable head too — a voucher names both sides
+    // explicitly, so a transfer between two via-accounts (e.g. a bank
+    // withdrawal into the till) needs both legs to be headable. Single-entry
+    // never allowed this (via was always the implicit OTHER side of a
+    // line); see supabase/migrations/20260918a's drop of
+    // nf_accounts_head_not_via for the full reasoning. Any company seeded
+    // from here on gets this correctly from the start, not via a one-time
+    // UPDATE the way already-existing rows were migrated.
+    a.is_head = headCodes.has(a.code) || !!vias[a.code];
     a.via = vias[a.code] ? vias[a.code].via : null;
     a.via_label = vias[a.code] ? vias[a.code].via_label : null;
   }
@@ -92,14 +101,16 @@ function buildSeed() {
     const a = accounts.find(x => x.code === h.code);
     check(a && a.name === h.name, `head ${h.code}: reference "${h.name}" vs chart "${a && a.name}"`);
   }
-  // The leaves that are NOT heads are exactly the Vias and the QuickBooks-managed / unused ones.
+  // The leaves that are NOT heads are the QuickBooks-managed / unused ones
+  // — the Vias moved OUT of this list under double-entry (they are heads
+  // now too, see above).
   const leavesNotHeads = accounts.filter(a => !children.has(a.code) && !a.is_head).map(a => a.code).sort();
-  const expectLeavesNotHeads = ['10100', '10200', '10300', '11000', '24000', '30000', '32000', '80000'];
+  const expectLeavesNotHeads = ['11000', '24000', '30000', '32000', '80000'];
   check(JSON.stringify(leavesNotHeads) === JSON.stringify(expectLeavesNotHeads),
         `leaves that are not heads: ${leavesNotHeads.join(',')} (expected ${expectLeavesNotHeads.join(',')})`);
 
   check(accounts.length === 110, `seed should hold 110 accounts, holds ${accounts.length}`);
-  check(accounts.filter(a => a.is_head).length === 78, `seed should hold 78 heads, holds ${accounts.filter(a => a.is_head).length}`);
+  check(accounts.filter(a => a.is_head).length === 81, `seed should hold 81 heads (78 + the 3 via-accounts), holds ${accounts.filter(a => a.is_head).length}`);
   check(!accounts.some(a => a.code.startsWith('104')), 'a 104xx code survived');
   for (const c of ['12610', '12620']) {
     const a = accounts.find(x => x.code === c);
