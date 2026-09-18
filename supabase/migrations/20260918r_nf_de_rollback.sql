@@ -559,4 +559,44 @@ BEGIN
 END
 $function$;
 
+-- restore _nf_test_purge to its exact pre-double-entry body (nf_lines is a
+-- real table again by this point in the rollback)
+CREATE OR REPLACE FUNCTION public._nf_test_purge(p_company_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_name text;
+  n jsonb := '{}'::jsonb;
+  k integer;
+BEGIN
+  SELECT company_name INTO v_name FROM public.companies WHERE id = p_company_id;
+  IF v_name IS NULL OR v_name NOT LIKE 'ZZTEST-NF-%' THEN
+    RAISE EXCEPTION 'NF:PURGE_REFUSED' USING DETAIL = COALESCE(v_name, 'no such company');
+  END IF;
+  PERFORM set_config('nf.purge_company', p_company_id::text, true);
+
+  DELETE FROM public.nf_audit             WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_audit', k);
+  DELETE FROM public.nf_pdcs              WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_pdcs', k);
+  DELETE FROM public.nf_lines             WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_lines', k);
+  DELETE FROM public.nf_days              WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_days', k);
+  DELETE FROM public.nf_report_categories WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_report_categories', k);
+  DELETE FROM public.nf_floors            WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_floors', k);
+  k := 0;
+  LOOP
+    DELETE FROM public.nf_accounts a WHERE a.company_id = p_company_id
+       AND NOT EXISTS (SELECT 1 FROM public.nf_accounts c WHERE c.company_id = a.company_id AND c.parent_code = a.code);
+    EXIT WHEN NOT FOUND;
+  END LOOP;
+  n := n || jsonb_build_object('nf_accounts_left', (SELECT count(*) FROM public.nf_accounts WHERE company_id = p_company_id));
+  DELETE FROM public.nf_settings WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_settings', k);
+  DELETE FROM public.nf_members  WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_members', k);
+  DELETE FROM public.nf_audit    WHERE company_id = p_company_id;
+  DELETE FROM public.companies   WHERE id = p_company_id;         GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('companies', k);
+  RETURN n;
+END
+$function$;
+
 COMMIT;

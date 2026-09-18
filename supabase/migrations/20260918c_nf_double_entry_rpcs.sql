@@ -482,4 +482,54 @@ AS $function$
    WHERE p.company_id = p_company_id AND public.nf_is_member(p_company_id, false);
 $function$;
 
+-- ── _nf_test_purge: nf_lines is a view now, DELETE FROM it fails outright —
+--    found by checking every function that writes to nf_lines directly, not
+--    assumed safe. verify-nf-rules.js's whole cleanup step depends on this
+--    running clean post-apply, so it is fixed here, in the same migration
+--    that causes the break, not left for that script to discover. Deletes
+--    from the real tables (legs, then vouchers, then the new party tables)
+--    in place of the single nf_lines delete; everything else is unchanged.
+CREATE OR REPLACE FUNCTION public._nf_test_purge(p_company_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_name text;
+  n jsonb := '{}'::jsonb;
+  k integer;
+BEGIN
+  SELECT company_name INTO v_name FROM public.companies WHERE id = p_company_id;
+  IF v_name IS NULL OR v_name NOT LIKE 'ZZTEST-NF-%' THEN
+    RAISE EXCEPTION 'NF:PURGE_REFUSED' USING DETAIL = COALESCE(v_name, 'no such company');
+  END IF;
+  PERFORM set_config('nf.purge_company', p_company_id::text, true);
+
+  DELETE FROM public.nf_audit             WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_audit', k);
+  DELETE FROM public.nf_pdcs              WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_pdcs', k);
+  DELETE FROM public.nf_voucher_legs      WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_voucher_legs', k);
+  DELETE FROM public.nf_vouchers          WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_vouchers', k);
+  DELETE FROM public.nf_party_aliases     WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_party_aliases', k);
+  DELETE FROM public.nf_parties           WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_parties', k);
+  DELETE FROM public.nf_days              WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_days', k);
+  DELETE FROM public.nf_report_categories WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_report_categories', k);
+  DELETE FROM public.nf_floors            WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_floors', k);
+  -- children before parents
+  k := 0;
+  LOOP
+    DELETE FROM public.nf_accounts a WHERE a.company_id = p_company_id
+       AND NOT EXISTS (SELECT 1 FROM public.nf_accounts c WHERE c.company_id = a.company_id AND c.parent_code = a.code);
+    EXIT WHEN NOT FOUND;
+  END LOOP;
+  n := n || jsonb_build_object('nf_accounts_left', (SELECT count(*) FROM public.nf_accounts WHERE company_id = p_company_id));
+  DELETE FROM public.nf_settings WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_settings', k);
+  DELETE FROM public.nf_members  WHERE company_id = p_company_id; GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('nf_members', k);
+  -- the purge's own deletions are not audited; make sure nothing slipped in
+  DELETE FROM public.nf_audit    WHERE company_id = p_company_id;
+  DELETE FROM public.companies   WHERE id = p_company_id;         GET DIAGNOSTICS k = ROW_COUNT; n := n || jsonb_build_object('companies', k);
+  RETURN n;
+END
+$function$;
+
 COMMIT;
