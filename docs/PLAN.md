@@ -1916,3 +1916,13 @@ probably not" — not three equal-weight rewrites.
 **New reports (P&L, Balance Sheet) build on CSS Grid from the start**, not `<table>`, per the owner's own
 instruction — there's no reason to add to a debt that's already been identified, even though both are expected
 to stay single-page at this business's current size and wouldn't hit this specific bug today.
+
+### 16.6 Go-live rule: deploy timing, once the app is in real daily use
+
+Recorded per the owner's own instruction, on approving the push for this session's commit. A push to `main` is
+a live Vercel deploy (see `commit_directly_to_main` in memory) — today that's harmless, since nobody is actually
+using the app yet. It stops being harmless the moment real staff start entering daily closings through it: a
+deploy mid-entry changes the running app under someone's hands. **Once the app is in daily use, deploys happen
+outside working hours, or at a point where no day is open mid-entry — not simply whenever a commit is ready.**
+Flag it to the owner when that switch is close, the same way the auto-apply rule's own sunset (real data landing
+in Awami) was flagged explicitly when it flipped.
