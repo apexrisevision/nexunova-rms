@@ -1926,3 +1926,15 @@ deploy mid-entry changes the running app under someone's hands. **Once the app i
 outside working hours, or at a point where no day is open mid-entry — not simply whenever a commit is ready.**
 Flag it to the owner when that switch is close, the same way the auto-apply rule's own sunset (real data landing
 in Awami) was flagged explicitly when it flipped.
+
+### 16.7 Journal page count accepted at 8, not 4-5 — and a real TODO before daily use
+
+The owner's own call: 8 pages (not the 4-5 estimated) is fine as-is — a general journal is a reference document
+you filter, not something read end to end, and the narration length comes from the real QuickBooks memo; the
+right trade is never to shorten stored data just to make a report look tidier.
+
+**Real TODO flagged by the owner, not done yet:** the Journal's footer currently reads "All time". At 154 lines
+that's 8 pages; at several years of real daily entries it will be several hundred. Before this goes into daily
+use, the Journal should default to a sensible period (current month, or a range the user picks) instead of
+everything ever posted, and the export should carry the selected range in both its header and its filename —
+not left for whoever hits this first in production.
