@@ -211,6 +211,18 @@ async function waitRowError(page, side, timeout = 6000) {
       if (r.status !== 200) throw new Error(`sign-in ${who}: HTTP ${r.status}`);
       users[who].jwt = r.json.access_token;
     }
+    // 20260918i: the description fallback only MATCHES an already-
+    // registered party, it never mints one — this stands in for an
+    // accountant having registered the golden day's real Token Money
+    // buyer ahead of time, through whatever channel exists before the
+    // real party field ships. Name matches the reference sample's own
+    // description text exactly, since that is what nf_resolve_party
+    // matches against when the real screen (no party field) is driven.
+    const tokenLine = s.in.find(x => x.h === '21100');
+    if (tokenLine) {
+      await q(`insert into nf_parties (company_id, name, kind, created_by) values
+        ('${C}', '${tokenLine.d.replace(/'/g, "''")}', 'customer', '${users.A.id}'::uuid)`);
+    }
     console.log('  fixtures: company, seed, 2 users signed in with real passwords\n');
 
     srv = await serve();

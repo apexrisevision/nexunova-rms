@@ -159,6 +159,39 @@ if (require.main === module) (async () => {
   const awamiBefore = await nfCounts(AWAMI_COMPANY_ID);
   console.log(`  Awami nf_ rows before: ${JSON.stringify(awamiBefore)}`);
 
+  // ── SEC-VIEW-INVOKER: every view over an RLS-protected table must be
+  //    security_invoker, catalog-wide, not just nf_ (owner, 2026-09-18) ──
+  // Found the hard way once already (nf_lines let an outsider read every
+  // company's cash book — a Postgres view runs as its OWNER by default,
+  // not the querying role, so RLS on the underlying tables was silently
+  // never evaluated). This makes sure that specific class of bug cannot
+  // reappear by accident, on nf_lines or on any future view anywhere in
+  // this database — not scoped to nf_, on purpose.
+  {
+    const viewQuery = `
+      SELECT v.table_schema || '.' || v.table_name AS view_name, c.reloptions
+        FROM information_schema.views v
+        JOIN pg_class c ON c.relname = v.table_name AND c.relnamespace = v.table_schema::regnamespace
+        JOIN information_schema.view_table_usage vtu ON vtu.view_schema = v.table_schema AND vtu.view_name = v.table_name
+        JOIN pg_class t ON t.relname = vtu.table_name AND t.relnamespace = vtu.table_schema::regnamespace AND t.relkind = 'r'
+       WHERE t.relrowsecurity
+       GROUP BY v.table_schema, v.table_name, c.reloptions`;
+    const bad = r => r.filter(x => !(x.reloptions || []).some(o => o === 'security_invoker=true'));
+
+    // SR-2: prove the detector actually fires before trusting its silence —
+    // a real view, over a real RLS table, deliberately missing the option.
+    const mutantName = `_zztest_sec_view_${run}`;
+    await q(`CREATE VIEW public.${mutantName} AS SELECT id, company_id FROM public.nf_accounts LIMIT 0`);
+    const withMutant = bad(await q(viewQuery));
+    await q(`DROP VIEW public.${mutantName}`);
+    ok('SEC-VIEW-INVOKER self-test', withMutant.some(x => x.view_name === `public.${mutantName}`),
+      `planted mutant not caught: ${JSON.stringify(withMutant.map(x => x.view_name))}`);
+
+    const rows = bad(await q(viewQuery));
+    ok('SEC-VIEW-INVOKER', rows.length === 0,
+      rows.length ? `views over an RLS table without security_invoker=true: ${rows.map(x => x.view_name).join(', ')}` : '');
+  }
+
   const C = crypto.randomUUID();
   const companyName = `ZZTEST-NF-${run}`;
   if (C === AWAMI_COMPANY_ID) { process.exitCode = 2; return; }
