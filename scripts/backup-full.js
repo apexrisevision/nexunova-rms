@@ -180,7 +180,17 @@ const ident = n => '"' + String(n).replace(/"/g, '""') + '"';
   const cols = {};
   for (const r of colRows) (cols[r.tbl] = cols[r.tbl] || []).push(r);
 
-  const companies = await q('select id, company_name from companies order by company_name');
+  // Real gap, found backing up a non-RMS-shaped database for the first
+  // time (the retired CRM project, 2026-09-18): this only ever assumed a
+  // companies(id, company_name) table, which is an RMS convention, not a
+  // guarantee about every Postgres database this tool might ever point
+  // at. Used only for cosmetic per-tenant labeling in the Excel phase
+  // (line ~534) - falls back to an empty list rather than crashing the
+  // whole backup when it doesn't match, instead of assuming every target
+  // is RMS-shaped.
+  let companies = [];
+  try { companies = await q('select id, company_name from companies order by company_name'); }
+  catch (e) { log('  (no RMS-shaped companies(id, company_name) table - tenant labeling skipped: ' + e.message.split('\n')[0] + ')'); }
   log('Tables: ' + tables.length + ' | Tenants: ' + companies.length + '\n');
 
   // ---------- 2. schema DDL ----------
