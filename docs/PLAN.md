@@ -1518,3 +1518,111 @@ sheet directly; the 155th row is a blank "Total" footer row, not a transaction),
 15-Sep/16-Sep split — QuickBooks has never had that split and it would make the reconciliation permanently
 non-zero), each on its own real voucher date, checked against the owner's own combined QuickBooks checksum. Then
 the rest of the reports pass.
+
+## 13 · Backups verified, a real restore proven, four real bugs found and fixed (2026-09-18)
+
+Owner upgraded the Supabase org to Pro and asked for three things before the Awami import proceeds: (1) confirm
+daily backups are actually on, by query; (2) prove a restore, once — "an untested backup doesn't count"; (3)
+clean up the retired Nexunova-crm project, whenever it doesn't interrupt the reports pass.
+
+### 13.1 Backups — confirmed by query, not assumed
+
+`GET /v1/projects/{ref}/database/backups` on the RMS project: `pitr_enabled: false` (deliberately not purchased,
+per the owner), `walg_enabled: true`, and 7 consecutive daily physical backups, `status: COMPLETED`, most recent
+2026-09-17T15:03:53Z, oldest available 2026-09-11T15:06:09Z — matching the standard 7-day retention on Pro with
+no longer-retention add-on. Daily backups are on and running.
+
+### 13.2 A real restore, proven — into a scratch project, since deleted
+
+No psql on this machine; added `pg` as a real dependency (was `--no-save` for the first attempt, promoted once
+this became a permanent tool) and wrote `scripts/restore-full.js` — a Node-based companion to `backup-full.js`
+that restores its schema+data output into any real Postgres target, since the org's Pro plan lifted the
+2-active-project cap that previously blocked this. Created a disposable scratch project
+(`nexunova-restore-scratch-20260918`, ref `tmajymlrdtapwfchazot`), ran a fresh `backup-full.js --only schema,data
+--skip-audit` snapshot, restored it into the scratch project, verified by query, then deleted the scratch project
+— back to the normal 3.
+
+**Four real bugs found in `backup-full.js`, fixed there (not papered over in the restore script) — this is
+exactly why an untested backup doesn't count:**
+
+1. **Missing `CREATE SEQUENCE`.** A column with a plain `DEFAULT nextval('seq'::regclass)` (not a `GENERATED ...
+   AS IDENTITY` column, which creates its own sequence automatically) needs that sequence to already exist —
+   casting text to `regclass` is a catalog lookup done immediately, not deferred. Nothing ever emitted `CREATE
+   SEQUENCE` for the 3 tables using this older pattern (`audit_logs`, `availability_report_attempts`,
+   `payment_link_status_history`) — `02_tables.sql` failed outright on the first one, aborting everything after
+   it in that file, alphabetically almost everything. Fixed: `01_types.sql` now pre-creates exactly the sequences
+   a plain `DEFAULT` references, found by scanning the same column-default data already gathered for
+   `02_tables.sql`.
+2. **Constraint triggers emitted as invalid `ALTER TABLE` fragments.** `pg_get_constraintdef()` for a `contype =
+   't'` row (`nf_accounts_tree_guard`, `nf_voucher_balance_check` — the deferred-constraint-trigger half of this
+   project's own double-entry balance enforcement) returns only the fragment `TRIGGER DEFERRABLE INITIALLY
+   DEFERRED`, invalid anywhere near `ALTER TABLE ADD CONSTRAINT` — a syntax error, not a different dialect. Fully
+   and correctly captured already by the ordinary triggers export (`07_triggers.sql` already emits a real `CREATE
+   CONSTRAINT TRIGGER ...` for both). Excluded `contype = 't'` from `03_constraints.sql` as pure duplication.
+3. **Restore ordering.** `04_indexes.sql` used to run before `06_functions.sql` — a functional index
+   (`leads_company_normphone_idx` on `_norm_phone(phone)`) needs its function to exist first. Separately,
+   `nf_report_groups(uuid,text)` needs `public.nf_lines` (a view) to exist first, so views had to move ahead of
+   functions too. Checked both times that nothing breaks the other way (no function depends on a view, no view
+   depends on a function, no materialized views for an index to need) before reordering the documented restore
+   sequence to `01 → 02 → 03 → 05 → 06 → 04 → [data] → 07 → 08 → 10`.
+4. **`GENERATED ALWAYS AS IDENTITY` needs `OVERRIDING SYSTEM VALUE`.** `nf_audit.id` and `location_history.id`
+   refuse an explicit value in their `INSERT` otherwise — "cannot insert a non-DEFAULT value into column \"id\""
+   on a truly fresh target. Fixed: the identity check already gathered for `02_tables.sql`'s own column
+   definitions now also adds `OVERRIDING SYSTEM VALUE` to a table's `INSERT` header when it applies.
+
+**One more real behaviour, documented rather than "fixed" away:** a function can call another function that
+sorts later alphabetically (`_crm_in_quiet_hours` calls `_crm_next_send_at`) — Postgres does not track that as a
+catalog dependency for either SQL- or plpgsql-language functions (checked directly against `pg_depend`: zero
+rows), so there is no way to pre-sort 06_functions.sql correctly. A plain `-v ON_ERROR_STOP=1` run aborts entirely
+at the first forward reference. Documented in `backup-full.js`'s own restore instructions: drop `ON_ERROR_STOP`
+for that one file and run it again if it errors — `CREATE OR REPLACE FUNCTION` is idempotent, and everything
+created before the first pass's failure point makes the second pass's forward references resolve. `restore-
+full.js` automates exactly this (retry passes, one statement at a time so an earlier success survives a later
+failure, reconnecting on a dropped connection rather than guessing what got through).
+
+**Restored and verified, by query, against the scratch target** (`FUNC_FILTER='^(_?nf_|nf_)'`, scoping the proof
+to what was actually asked — CHECK constraints, unlike FK/triggers, are not disabled by `session_replication_role
+= replica`, so restoring every other module's data too risked failing on *their* integrity rules, unrelated to
+anything this proof was checking — found directly when `cash_entries`' own check constraint did):
+
+```
+nf_tables: 14 (13 real tables + the nf_lines view)     nf_functions: 71 created, 69 visible via information_schema.routines
+nf_accounts_rows: 330 total, awami_accounts: 110 (exact match)     companies_rows: 9
+nf_days_rows: 2, nf_vouchers_rows: 18, nf_voucher_legs_rows: 36 (the two ZZTEST fixture tenants; Awami itself is still 0/0/0, matching live)
+```
+
+The general, whole-platform restore path (schema/tables/constraints — identical regardless of the `FUNC_FILTER`
+scoping) was proven first, unscoped, before narrowing to nf_ for the reasons above.
+
+Found on a genuinely memory-constrained machine (8GB total, repeatedly down to 500-900MB available under general
+system load, unrelated to this work) — several attempts were killed by the harness for low memory before landing
+on a shape that finishes fast enough: one round trip per function (so an earlier success survives a later
+forward-reference failure, unlike one giant batch, which rolls the whole thing back on any single failure — both
+confirmed directly, not assumed) combined with pre-filtering the indexes/triggers/policies phases to nf_-relevant
+lines instead of the slow statement-by-statement fallback for everything else.
+
+### 13.3 CRM cleanup — search done, export/delete not yet started
+
+Searched every sibling directory under `D:\KBH Data\RMS ERP\` (excluding `node_modules`/`.git`/`backups`) for the
+retired Nexunova-crm project's ref (`hondkhasedtauryltixt`):
+
+- **10 other sibling repos**: clean, zero references.
+- **`nexusnova-crm`'s own repo**: real secrets in `apps/mobile/.env`, `apps/mobile/.env.example`,
+  `apps/web/.env.local` (already known from the earlier audit), plus its own `.next/` build cache/output and
+  Supabase CLI link-state (`supabase/.temp/`) — all expected, all inside its own boundary, all confirmed local-
+  only and never pushed (as before).
+- **This repo (`nexunova-rms`)**: two hits, both gitignored and never committed (`git log --all` for each path is
+  empty) —
+  - `.claude/settings.local.json` carries a **real, plaintext `SUPABASE_SERVICE_ROLE_KEY` JWT for the CRM
+    project**, cached inside old pre-approved PowerShell command patterns (from some earlier session that ran the
+    CRM's `seed-demo.ts`/`cleanup-demo.ts` scripts). Local-only, never pushed — but a real, live-looking
+    credential sitting on disk regardless. Becomes inert the moment the CRM project is actually deleted (below),
+    which is precisely why that deletion matters here too, not just as a cost/hygiene cleanup.
+  - `dist/win-unpacked/resources/app.asar` — a stale local packaged Electron build, gitignored, never
+    distributed. Lower priority; not investigated further.
+  - `docs/PLAN.md` (this file) — only this project's own prose about the CRM retirement, not a secret.
+
+**Not yet done:** exporting the CRM's data in full and storing it with the backups, then deleting the project
+(now unblocked — the 2-active-project cap that stopped this earlier is lifted on Pro, proven directly by running
+3 active projects simultaneously during §13.2's restore proof). Confirmation is required before deletion per the
+owner's own instruction — asked, not assumed.

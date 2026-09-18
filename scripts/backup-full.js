@@ -195,8 +195,48 @@ const ident = n => '"' + String(n).replace(/"/g, '""') + '"';
     'order by t.typname, e.enumsortorder');
   const byEnum = {};
   for (const e of enums) (byEnum[e.typname] = byEnum[e.typname] || []).push(e.enumlabel);
-  w(S('01_types.sql'), '-- enum types\n' + Object.entries(byEnum).map(([n, v]) =>
-    'CREATE TYPE public.' + ident(n) + ' AS ENUM (' + v.map(qstr).join(', ') + ');').join('\n') + '\n');
+  const typesSql = '-- enum types\n' + Object.entries(byEnum).map(([n, v]) =>
+    'CREATE TYPE public.' + ident(n) + ' AS ENUM (' + v.map(qstr).join(', ') + ');').join('\n') + '\n';
+
+  // Real bug, found 2026-09-18 restoring a backup for real (the org's
+  // first-ever restore test, Pro plan, into a scratch project — "an
+  // untested backup doesn't count"): a column whose DEFAULT is a plain
+  // nextval('some_seq'::regclass) — the older pattern, distinct from a
+  // GENERATED ... AS IDENTITY column, which creates its own sequence
+  // automatically as part of CREATE TABLE — needs that sequence to
+  // already exist, because casting text to regclass is a catalog lookup
+  // done immediately, not deferred. 02_tables.sql emitted the DEFAULT
+  // clause referencing the sequence but nothing anywhere ever emitted
+  // CREATE SEQUENCE for it (09_sequences.sql only ever emitted setval(),
+  // assuming the sequence already existed). On a truly empty target this
+  // made 02_tables.sql fail outright on the first such table — audit_logs,
+  // near the very start of the alphabetical table list — aborting the
+  // rest of that file entirely (every table after it, all of nf_
+  // included, was never created at all). Found immediately, at the first
+  // real restore attempt, not by inspection.
+  const seqDefaultTables = tables.filter(t => cols[t].some(c => c.def && /nextval\(/.test(c.def)));
+  const seqNames = new Set();
+  for (const t of seqDefaultTables) {
+    for (const c of cols[t]) {
+      const m = c.def && c.def.match(/nextval\('(?:[^'.]+\.)?"?([^'".]+)"?'::regclass\)/);
+      if (m) seqNames.add(m[1]);
+    }
+  }
+  let seqPrecreateSql = '';
+  if (seqNames.size) {
+    const seqDefs = await q(
+      "select sequencename, data_type, start_value, min_value, max_value, increment_by, cycle, cache_size " +
+      "from pg_sequences where schemaname = 'public' and sequencename = ANY(ARRAY[" +
+      [...seqNames].map(qstr).join(',') + "])");
+    seqPrecreateSql = '\n-- sequences a plain DEFAULT nextval(...) references directly (not one a\n' +
+      '-- GENERATED ... AS IDENTITY column would create for itself) — must exist\n' +
+      '-- before 02_tables.sql runs, since \'name\'::regclass is resolved immediately.\n' +
+      seqDefs.map(s => 'CREATE SEQUENCE IF NOT EXISTS public.' + ident(s.sequencename) +
+        ' AS ' + s.data_type + ' START WITH ' + s.start_value + ' INCREMENT BY ' + s.increment_by +
+        ' MINVALUE ' + s.min_value + ' MAXVALUE ' + s.max_value + ' CACHE ' + s.cache_size +
+        (s.cycle ? ' CYCLE' : ' NO CYCLE') + ';').join('\n') + '\n';
+  }
+  w(S('01_types.sql'), typesSql + seqPrecreateSql);
 
   const ddl = tables.map(t => {
     const body = cols[t].map(c => {
@@ -212,9 +252,23 @@ const ident = n => '"' + String(n).replace(/"/g, '""') + '"';
   }).join('\n\n');
   w(S('02_tables.sql'), '-- table definitions\n' + ddl + '\n');
 
+  // Real bug, found the same restore run as the sequence one above:
+  // contype = 't' (a constraint TRIGGER — nf_voucher_balance_check and
+  // nf_accounts_tree_guard, the deferred-constraint-trigger half of this
+  // project's double-entry balance enforcement) was included here.
+  // pg_get_constraintdef() for one returns only the fragment "TRIGGER
+  // DEFERRABLE INITIALLY DEFERRED" — valid nowhere near an ALTER TABLE
+  // ADD CONSTRAINT statement, which is a syntax error, not a different
+  // dialect. A constraint trigger is fully, correctly captured already,
+  // as a real CREATE CONSTRAINT TRIGGER statement, by the ordinary
+  // triggers export a few steps later (07_triggers.sql) — pg_trigger
+  // carries constraint triggers too. Excluded here as pure duplication
+  // of something the other export already gets right, not patched to
+  // "work" as an ALTER TABLE fragment it was never one to begin with.
   const cons = await q(
     "select c.conrelid::regclass::text as tbl, c.conname, c.contype, pg_get_constraintdef(c.oid) as def " +
     "from pg_constraint c join pg_namespace n on n.oid = c.connamespace where n.nspname = 'public' " +
+    "and c.contype <> 't' " +
     "order by case c.contype when 'p' then 1 when 'u' then 2 when 'c' then 3 else 4 end, c.conrelid::regclass::text");
   w(S('03_constraints.sql'), '-- primary keys, uniques, checks, then foreign keys\n' +
     cons.map(c => 'ALTER TABLE ' + c.tbl + ' ADD CONSTRAINT ' + ident(c.conname) + ' ' + c.def + ';').join('\n') + '\n');
@@ -318,7 +372,15 @@ const ident = n => '"' + String(n).replace(/"/g, '""') + '"';
     const hasCid = tcols.some(c => c.col === 'company_id');
     const typs = Object.fromEntries(tcols.map(c => [c.col, c.typ]));
     const insertCols = tcols.filter(c => c.gen !== 's').map(c => c.col);
-    const head = 'INSERT INTO public.' + ident(t) + ' (' + insertCols.map(ident).join(', ') + ') VALUES\n';
+    // Real bug, found the same restore run as the sequence/constraint-
+    // trigger/index-ordering ones: a GENERATED ALWAYS AS IDENTITY column
+    // (nf_audit.id, location_history.id) refuses an explicit value in its
+    // INSERT unless the statement says OVERRIDING SYSTEM VALUE - "cannot
+    // insert a non-DEFAULT value into column \"id\"" on a truly fresh
+    // target. GENERATED BY DEFAULT (ident === 'd') columns don't need
+    // this - only ALWAYS does.
+    const overriding = tcols.some(c => c.ident === 'a') ? ' OVERRIDING SYSTEM VALUE' : '';
+    const head = 'INSERT INTO public.' + ident(t) + ' (' + insertCols.map(ident).join(', ') + ')' + overriding + ' VALUES\n';
 
     const dataFile = path.join(ROOT, 'data', t + '.json');
     const sqlFile = path.join(ROOT, 'sql', t + '.sql');
@@ -594,15 +656,39 @@ const ident = n => '"' + String(n).replace(/"/g, '""') + '"';
     '| `data/` | one JSON file per table, exact values | scripted/partial recovery, diffing |\n' +
     '| `excel/` | one workbook per tenant, one sheet per table | reading it by eye, sharing, manual re-entry |\n' +
     '| `storage/` | the actual uploaded files (receipts, documents, logos) | file recovery |\n\n' +
+    // Real bugs, found 2026-09-18 on the org's first-ever restore test,
+    // into a real scratch project:
+    //  1. Some functional indexes (leads_company_normphone_idx, on
+    //     _norm_phone(phone)) need their function to already exist -
+    //     "function _norm_phone(text) does not exist" on a truly fresh
+    //     target, since 04_indexes.sql used to run before
+    //     06_functions.sql. Moved functions ahead of indexes below.
+    //  2. nf_report_groups(uuid,text) needs public.nf_lines (a view) to
+    //     already exist - moved views ahead of functions too. Checked
+    //     first, both times, that nothing breaks the other way: no
+    //     function here depends on a view, no view depends on a
+    //     function, and there are no materialized views for an index to
+    //     need.
+    //  3. A function can call another function that sorts LATER
+    //     alphabetically (06_functions.sql's own order) - Postgres does
+    //     not track that as a catalog dependency for either SQL- or
+    //     plpgsql-language functions (checked directly: zero pg_depend
+    //     rows), so there is no way to pre-sort them correctly. A plain
+    //     `-v ON_ERROR_STOP=1` run aborts entirely at the first forward
+    //     reference. If schema/06_functions.sql fails this way, drop
+    //     ON_ERROR_STOP and run it again - CREATE OR REPLACE FUNCTION is
+    //     idempotent, and everything created before the failure point on
+    //     the first pass makes the second pass's forward references
+    //     resolve. Two passes has been enough every time this was hit.
     '## Full restore into a fresh Postgres / new Supabase project\n\n' +
     '```bash\n' +
     'psql "<connection string>" -v ON_ERROR_STOP=1 -f schema/01_types.sql\n' +
     'psql "<connection string>" -v ON_ERROR_STOP=1 -f schema/02_tables.sql\n' +
     'psql "<connection string>" -v ON_ERROR_STOP=1 -f schema/03_constraints.sql\n' +
+    'psql "<connection string>" -v ON_ERROR_STOP=1 -f schema/05_views.sql\n' +
+    'psql "<connection string>" -f schema/06_functions.sql   # no ON_ERROR_STOP - see note 3 above; run twice if it errors\n' +
     'psql "<connection string>" -v ON_ERROR_STOP=1 -f schema/04_indexes.sql\n' +
     'cd sql && psql "<connection string>" -f restore_all.sql && cd ..\n' +
-    'psql "<connection string>" -v ON_ERROR_STOP=1 -f schema/05_views.sql\n' +
-    'psql "<connection string>" -v ON_ERROR_STOP=1 -f schema/06_functions.sql\n' +
     'psql "<connection string>" -v ON_ERROR_STOP=1 -f schema/07_triggers.sql\n' +
     'psql "<connection string>" -v ON_ERROR_STOP=1 -f schema/08_policies.sql\n' +
     'psql "<connection string>" -v ON_ERROR_STOP=1 -f schema/10_grants.sql\n' +
