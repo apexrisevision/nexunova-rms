@@ -73,8 +73,24 @@ function parseIif(text) {
   console.log(`[verify-nf-qb-accounts] file ${path.basename(file)} · company ${COMPANY}`);
   console.log(`  parsed ${qb.length} account(s) from the real export`);
 
-  const nf = await q(`select code, nf_account_path('${COMPANY}'::uuid, code) as full_path, qb_type, active
-                        from nf_accounts where company_id = '${COMPANY}' order by code`);
+  // nf_account_path() now requires an authenticated, company-member
+  // session (20260918o) — this script runs over the Management API's raw
+  // SQL endpoint (no JWT, auth.uid() is NULL there), so it computes the
+  // same colon-path inline instead of calling the now-guarded RPC.
+  const nf = await q(`
+    WITH RECURSIVE up AS (
+      SELECT code, code AS leaf_code, name, parent_code, 0 AS depth
+        FROM nf_accounts WHERE company_id = '${COMPANY}'
+      UNION ALL
+      SELECT a.code, up.leaf_code, a.name, a.parent_code, up.depth + 1
+        FROM nf_accounts a JOIN up ON a.code = up.parent_code
+       WHERE a.company_id = '${COMPANY}' AND up.depth < 20
+    ), paths AS (
+      SELECT leaf_code, string_agg(name, ':' ORDER BY depth DESC) AS full_path FROM up GROUP BY leaf_code
+    )
+    SELECT a.code, p.full_path, a.qb_type, a.active
+      FROM nf_accounts a JOIN paths p ON p.leaf_code = a.code
+     WHERE a.company_id = '${COMPANY}' ORDER BY a.code`);
   console.log(`  parsed ${nf.length} account(s) from nf_accounts\n`);
 
   const qbByCode = new Map(qb.filter(a => a.accnum).map(a => [a.accnum, a]));
