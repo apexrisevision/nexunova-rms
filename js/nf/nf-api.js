@@ -111,6 +111,10 @@
       getJournal: function (companyId, from, to) {
         return call('nf_get_journal', { p_company_id: companyId, p_from: from || null, p_to: to || null });
       },
+      listAllAccounts: function (companyId) { return call('nf_list_all_accounts', { p_company_id: companyId }); },
+      getLedger: function (companyId, accountCode, from, to) {
+        return call('nf_get_ledger', { p_company_id: companyId, p_account_code: accountCode, p_from: from || null, p_to: to || null });
+      },
 
       // membership
       setMember: function (companyId, userId, role, displayName, active) {

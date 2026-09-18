@@ -1,0 +1,29 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   NexuFinance v1 — print CSS for the General Ledger. No fixed page budget
+   (a real account's ledger can run to any length), same as the General
+   Journal's own print stylesheet — see its header for why @page still
+   repeats the same 8mm margin.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@page{size:A4 portrait;margin:8mm}
+@media print{
+  :root,:root[data-theme="dark"]{
+    --bg:#fff;--card:#fff;--ink:#111827;--ink2:#374151;--muted:#6B7280;--line:#E5E7EB;--line2:#CBD2DC;
+    --brand:#1B365D;--brand-2:#2C5282;--soft:#F3F5F8;--field:transparent;--field-b:transparent;
+    --pos:#18794E;--pos-soft:#EAF7F0;--neg:#B42318;--neg-soft:#FDF1F0;--shadow:none;color-scheme:light}
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff;font-size:10.5px}
+  .nf-topbar{display:none}
+  .lsheet{margin:0;max-width:none;border:0;border-radius:0;box-shadow:none}
+  .hdr{padding:6px 4px}
+  .actions,.lfilter{display:none!important}
+  .rsec{padding:8px 4px 0}
+  .rtiles{gap:8px}
+  .rtile{padding:7px 9px;border-radius:6px}
+  .rtile small{font-size:9px;margin-bottom:2px}
+  .rtile b{font-size:14px}
+  .ltab{font-size:9.5px}
+  .ltab th{padding:4px 7px;font-size:9px}
+  .ltab td{padding:3px 7px}
+  .docfoot{margin-top:8px;padding:6px 4px;font-size:9px}
+  :focus,:focus-visible{outline:none!important}
+}
