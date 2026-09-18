@@ -1215,3 +1215,45 @@ before it is ever taken live.
   first (real production systems — not done unilaterally) or upgrading the plan tier (owner's call, same pattern
   as the PITR blocker in §11.9). Options put to the owner; none actioned yet.
 - **(c) Deletion**: not started — correctly gated behind (b).
+
+### 11.11 QuickBooks reconciliation — CLOSED, clean, 2026-09-18
+
+The first comparison (`migration_work/qb_chart.iif`) was the **wrong company file entirely** — discarded, nothing
+from it stands. The real export is `D:\Claude Cowork\QB_COA_Awami.IIF` (QuickBooks Enterprise 34.0D, exported
+2026-09-18, 113 accounts, all 5-digit — there is no 4-digit numbering scheme in this file, unlike the wrong one).
+Proof it's the right file: `12610 Syed Yousaf Shah` carries a live 7,660,900 balance, matching the client's real
+General Journal.
+
+Parsed in full (not spot-checked) and compared against every `nf_accounts` row by its **full colon-path**, via
+`nf_account_path` — IIF's `ACCNT NAME` is the full colon path, not a leaf name, confirmed, and this file is now
+the authoritative reference for that function. Names containing a comma are double-quoted in the IIF
+(`"Cost of Sales:Land Cost:Registration, Stamp & Mutation"`) — handled by the parser, and worth remembering for
+the export writer later.
+
+**Result: 106/110 matched exactly on the first pass** — nf_account_path's materialized-path logic proven correct
+against its own authoritative source. Three real, narrow differences, fixed at the seed source
+(`scripts/nf/gen-seed.js`) and in live data (`20260918j_nf_de_qb_coa_reconcile.sql`):
+
+1. **12600/12610/12620**: "Receivable from Directors" → QuickBooks's own "Due from Directors". QuickBooks wins.
+2. **66000 "Payroll Expenses"** (Expense) — real and active in the client's file, never in the reference sheet at
+   all (a different account from 24000 "Payroll Liabilities", which the sheet does have and does match). Added
+   as a real, postable head.
+3. **80000 "Ask My Accountant"** — in the reference sheet as a "QuickBooks makes this itself" placeholder,
+   assumed present the way 24000/30000 genuinely are — this real file does not have it. Removed.
+
+**Not restored, on purpose**: 10400/10410/10420 ("Cash with Directors") still appear in the real file too, but
+`HIDDEN=Y` there, with 10410's own description reading "Replaces 10410... moved by JV" — QuickBooks's own record
+of exactly the correction 12600/12610/12620 already makes. Reintroducing them would resurrect the "director cash
+treated as company cash" bug this task's brief itself cites as already corrected once.
+
+**26200 "Directors & Related Party Loan"** (a liability) coexists with 12610/12620 (receivables) in the real
+chart, confirming both real-world directions are already modelled correctly — nothing missing, no accountant call
+needed, as the owner had already worked out from the file directly.
+
+**Re-verified after applying**: every `nf_accounts` code now matches the real export exactly —
+**110/110**. `verify-nf-rules.js` still 47/47. The demo tenant's position is unchanged (313,000 / 13,500 /
+2,108,960 — the codes touched have no transaction history against them). `scripts/verify-qb-accounts.js` was not
+touched — it still checks the unrelated, unused `qb_accounts` table; fixing it to check `nf_accounts` instead
+remains open, lower priority now that this reconciliation is done by hand.
+
+**No IIF export writing has started** — this was reconciliation only, per the owner's explicit instruction.
