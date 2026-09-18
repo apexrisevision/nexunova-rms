@@ -108,19 +108,20 @@ $function$;
 DO $grants$
 DECLARE f regprocedure;
 BEGIN
-  -- exact identity strings taken from a live
-  -- pg_get_function_identity_arguments() query against this project, not
-  -- guessed — nf_ledger_position in particular needs its OUT parameters
-  -- listed or the cast below resolves nothing.
+  -- bare type lists only — regprocedure's own parser rejects a signature
+  -- with parameter names in it (confirmed: 'foo(p_x uuid)'::regprocedure
+  -- is a syntax error, 'foo(uuid)'::regprocedure is not) and does not
+  -- want OUT-parameter types included either — confirmed directly with a
+  -- harmless SELECT '...'::regprocedure before trusting it in a DO block.
   FOREACH f IN ARRAY ARRAY[
-    'public.nf__upsert_transfer_voucher(p_company_id uuid, p_day_id uuid, p_voucher_date date, p_voucher_no text, p_to_code text, p_from_code text, p_floor_code text, p_amount numeric)',
-    'public.nf_account_path(p_company_id uuid, p_code text)',
-    'public.nf_add_party_alias(p_company_id uuid, p_party_id uuid, p_alias text)',
-    'public.nf_create_party(p_company_id uuid, p_name text, p_kind text)',
-    'public.nf_ledger_position(p_company_id uuid, p_before_date date, OUT cash numeric, OUT petty numeric, OUT bank numeric)',
-    'public.nf_list_parties(p_company_id uuid)',
-    'public.nf_other_balances(p_company_id uuid, p_as_of date)',
-    'public.nf_resolve_party(p_company_id uuid, p_text text)',
+    'public.nf__upsert_transfer_voucher(uuid, uuid, date, text, text, text, text, numeric)',
+    'public.nf_account_path(uuid, text)',
+    'public.nf_add_party_alias(uuid, uuid, text)',
+    'public.nf_create_party(uuid, text, text)',
+    'public.nf_ledger_position(uuid, date)',
+    'public.nf_list_parties(uuid)',
+    'public.nf_other_balances(uuid, date)',
+    'public.nf_resolve_party(uuid, text)',
     'public.nf_voucher_balance_check()',
     'public.nf_voucher_legs_guard()',
     'public.nf_voucher_legs_position_guard()'
@@ -132,8 +133,8 @@ BEGIN
   -- project's own verify/export scripts; a future "post a JV" UI) —
   -- keep authenticated, still shed PUBLIC and anon.
   FOREACH f IN ARRAY ARRAY[
-    'public.nf_post_voucher(p_company_id uuid, p_day_id uuid, p_voucher_no text, p_voucher_date date, p_narration text, p_sort integer, p_legs jsonb)',
-    'public.nf_save_line(p_day_id uuid, p_line_id uuid, p_side text, p_voucher_no text, p_description text, p_head text, p_floor text, p_via text, p_amount numeric, p_version integer, p_party_name text)'
+    'public.nf_post_voucher(uuid, uuid, text, date, text, integer, jsonb)',
+    'public.nf_save_line(uuid, uuid, text, text, text, text, text, text, numeric, integer, text)'
   ]::regprocedure[] LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', f);
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', f);
