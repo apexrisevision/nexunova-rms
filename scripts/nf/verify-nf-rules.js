@@ -192,6 +192,70 @@ if (require.main === module) (async () => {
       rows.length ? `views over an RLS table without security_invoker=true: ${rows.map(x => x.view_name).join(', ')}` : '');
   }
 
+  // ── SEC-RPC-PUBLIC / SEC-RPC-ROLE-CHECK: the RPC-grants sibling of
+  //    SEC-VIEW-INVOKER (owner, 2026-09-18, after the nf__upsert_transfer_
+  //    voucher / nf_ledger_position finding). 20260916c's grant sweep and
+  //    this session's own 20260918n/o fix ran ONCE each — every function
+  //    added afterward inherits Postgres's ordinary default (EXECUTE
+  //    granted to PUBLIC on CREATE FUNCTION) unless something revokes it
+  //    by hand. Standing rule from here: a discovered invariant becomes an
+  //    automated, catalog-wide, self-tested check in the same commit that
+  //    fixes it — never a one-time sweep again.
+  {
+    const publicQuery = `
+      SELECT p.proname
+        FROM pg_proc p
+       WHERE p.pronamespace = 'public'::regnamespace
+         AND (p.proname LIKE 'nf\\_%' OR p.proname LIKE '\\_nf\\_%')
+         AND (has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('public', p.oid, 'EXECUTE'))`;
+
+    // SR-2: a freshly created function is PUBLIC-executable by Postgres's
+    // own default — no explicit GRANT needed to plant this mutant, which
+    // is exactly what makes the underlying bug easy to introduce by
+    // accident and this check worth having.
+    const pubMutant = `nf_zztest_pub_${run}`;
+    await q(`CREATE FUNCTION public.${pubMutant}(p_company_id uuid) RETURNS uuid LANGUAGE sql AS $$ SELECT p_company_id $$`);
+    const withPubMutant = await q(publicQuery);
+    await q(`DROP FUNCTION public.${pubMutant}(uuid)`);
+    ok('SEC-RPC-PUBLIC self-test', withPubMutant.some(x => x.proname === pubMutant),
+      `planted mutant not caught: ${JSON.stringify(withPubMutant.map(x => x.proname))}`);
+
+    const pubRows = await q(publicQuery);
+    ok('SEC-RPC-PUBLIC', pubRows.length === 0,
+      pubRows.length ? `nf_ function(s) executable by PUBLIC/anon: ${pubRows.map(x => x.proname).join(', ')}` : '');
+
+    // Only functions actually reachable (anon or authenticated) are
+    // required to check — one with zero grants at all is already fully
+    // closed at the grant layer and isn't the same bug shape. nf_is_member
+    // and nf_require_role are the check primitives themselves, excluded
+    // for the same reason a lock can't require itself to already be open.
+    const roleCheckQuery = `
+      SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args
+        FROM pg_proc p
+       WHERE p.pronamespace = 'public'::regnamespace
+         AND p.proname LIKE 'nf\\_%' AND p.proname NOT LIKE '\\_nf\\_%'
+         AND p.proname NOT IN ('nf_require_role','nf_is_member')
+         AND p.prorettype::regtype::text <> 'trigger'
+         AND EXISTS (SELECT 1 FROM unnest(p.proargtypes) t WHERE t = 'uuid'::regtype)
+         AND (has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('authenticated', p.oid, 'EXECUTE'))
+         AND p.prosrc NOT LIKE '%nf_require_role%' AND p.prosrc NOT LIKE '%nf_is_member%'`;
+
+    // SR-2: a mutant that IS reachable (granted to authenticated) and
+    // takes a company_id but never checks it — the exact shape
+    // nf__upsert_transfer_voucher and nf_ledger_position were.
+    const roleMutant = `nf_zztest_role_${run}`;
+    await q(`CREATE FUNCTION public.${roleMutant}(p_company_id uuid) RETURNS uuid LANGUAGE sql AS $$ SELECT p_company_id $$;
+             GRANT EXECUTE ON FUNCTION public.${roleMutant}(uuid) TO authenticated`);
+    const withRoleMutant = await q(roleCheckQuery);
+    await q(`DROP FUNCTION public.${roleMutant}(uuid)`);
+    ok('SEC-RPC-ROLE-CHECK self-test', withRoleMutant.some(x => x.proname === roleMutant),
+      `planted mutant not caught: ${JSON.stringify(withRoleMutant.map(x => x.proname))}`);
+
+    const roleRows = await q(roleCheckQuery);
+    ok('SEC-RPC-ROLE-CHECK', roleRows.length === 0,
+      roleRows.length ? `reachable nf_ function(s) with no internal nf_require_role/nf_is_member check: ${roleRows.map(x => x.proname).join(', ')}` : '');
+  }
+
   const C = crypto.randomUUID();
   const companyName = `ZZTEST-NF-${run}`;
   if (C === AWAMI_COMPANY_ID) { process.exitCode = 2; return; }
