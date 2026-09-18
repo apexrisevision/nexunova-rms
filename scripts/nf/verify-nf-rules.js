@@ -181,7 +181,7 @@ if (require.main === module) (async () => {
     // SR-2: prove the detector actually fires before trusting its silence —
     // a real view, over a real RLS table, deliberately missing the option.
     const mutantName = `_zztest_sec_view_${run}`;
-    await q(`CREATE VIEW public.${mutantName} AS SELECT id, company_id FROM public.nf_accounts LIMIT 0`);
+    await q(`CREATE VIEW public.${mutantName} AS SELECT code, company_id FROM public.nf_accounts LIMIT 0`);
     const withMutant = bad(await q(viewQuery));
     await q(`DROP VIEW public.${mutantName}`);
     ok('SEC-VIEW-INVOKER self-test', withMutant.some(x => x.view_name === `public.${mutantName}`),
