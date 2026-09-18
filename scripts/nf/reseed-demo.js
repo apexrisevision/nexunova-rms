@@ -54,6 +54,12 @@ DELETE FROM public.nf_voucher_legs WHERE company_id = '${C}';
 DELETE FROM public.nf_vouchers WHERE company_id = '${C}';
 DELETE FROM public.nf_party_aliases WHERE company_id = '${C}';
 DELETE FROM public.nf_parties WHERE company_id = '${C}';
+-- nf_lines_legacy: the pre-migration historical rows for this same day,
+-- kept around by 20260918d as a migration artifact and still FK'd to
+-- nf_days — since this day is being wiped and re-entered with better data
+-- (a real party on the Token Money line) anyway, the legacy rows for it
+-- are superseded, not lost history worth preserving on their own.
+DELETE FROM public.nf_lines_legacy WHERE company_id = '${C}';
 DELETE FROM public.nf_days WHERE company_id = '${C}';
 COMMIT;`);
 
