@@ -3,9 +3,26 @@
    docs/reference/awami-daily-closing.html (§3.10 of docs/PLAN.md). One A4
    page on a normal day. The filename comes from document.title, set by
    nf-sheet.js just before window.print() and restored after (§4B item 14).
+
+   Margin 8mm, not the original 9mm — found 2026-09-18, building the
+   director report: verify-nf-golden-ui.js's UI-06 (the known 2-page bug,
+   §10.3) started passing the moment css/nf/nf-report-print.css's own
+   @page rule (margin 8mm) was ALSO loaded on this page, because @page is
+   a global at-rule with no per-screen scoping — whichever stylesheet
+   loads last wins for every printed page, this screen's own print
+   included, not just the report's. Confirmed by checking
+   getComputedStyle(.sheet).zoom during that same run: still "1", not the
+   .665 the OLD rule below it set — so the original "zoom is not landing"
+   diagnosis in §10.3 is still correct, and was never what actually closed
+   the gap. 1mm of extra margin per side was. Moved here, deliberately,
+   into the file that actually owns this screen's print behavior, instead
+   of leaving the fix as an accidental side effect of an unrelated
+   stylesheet happening to load afterward — that dependency would have
+   silently regressed this screen's print the moment nf-report-print.css
+   was ever changed or removed for unrelated reasons.
    ═══════════════════════════════════════════════════════════════════════ */
 
-@page{size:A4 portrait;margin:9mm}
+@page{size:A4 portrait;margin:8mm}
 @media print{
   :root,:root[data-theme="dark"]{
     --bg:#fff;--card:#fff;--ink:#111827;--ink2:#374151;--muted:#6B7280;--line:#E5E7EB;--line2:#CBD2DC;
