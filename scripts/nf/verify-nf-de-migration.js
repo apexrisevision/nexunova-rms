@@ -1,5 +1,25 @@
 #!/usr/bin/env node
 'use strict';
+// ═══════════════════════════════════════════════════════════════════════════
+// HISTORICAL — frozen, do not re-run. Kept only as the record of the
+// pre-apply rehearsal that 20260918a-d actually passed before being applied
+// to live on 2026-09-18. That migration is long since applied; this
+// script's job is done.
+//
+// It WILL fail if run today, for two independent reasons, neither worth
+// fixing on a script whose result already shipped:
+//   1. FILES below only rehearses a-d. Everything from 20260918e onward
+//      (the seven post-apply follow-ups, the QuickBooks reconciliation, the
+//      director report, the RPC grants lockdown) is invisible to it — a
+//      pass here would prove nothing about the schema as it exists now.
+//   2. It calls nf_account_path and nf_ledger_position over the Management
+//      API's raw-SQL endpoint (q(), no JWT — auth.uid() reads NULL there).
+//      Both now require an authenticated, company-member session
+//      (20260918o, 2026-09-18) — this script would hit NF:NOT_SIGNED_IN on
+//      its own BEGIN/ROLLBACK rehearsal before getting anywhere near what
+//      it was written to check.
+// ═══════════════════════════════════════════════════════════════════════════
+//
 // Rehearses the double-entry foundation migration (20260918a-d) against the
 // LIVE database inside one BEGIN ... ROLLBACK — nothing this script does
 // persists. No local Postgres and no Docker are available on this machine,

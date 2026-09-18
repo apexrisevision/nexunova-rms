@@ -1338,3 +1338,92 @@ through some other mechanism not fully diagnosed here — out of scope for "fix 
   sheet, party statements, token register) remain explicitly next, per the owner's own sequencing.
 - `docs/reference/QB_Account_Listing.xlsm` was copied in as the readable cross-check but not separately parsed —
   the IIF was the authoritative, byte-exact source for §11.11's reconciliation.
+
+### 12.6 A real PDF export, and a real security finding while building the next report (2026-09-18)
+
+Owner reviewed a real PDF export of the director report (golden day + a real inter-company voucher,
+`D:\Claude Cowork\Awami_Director_Daily_Closing_SAMPLE.pdf`, via the new `scripts/nf/export-director-report-sample.js`)
+and approved the layout, with four fixes (`20260918l`, applied): floor now shows its full name ("Project-wide"
+instead of "P-W"), "Prepared by" shows "Not yet submitted" instead of a blank box when a day hasn't been submitted,
+a plain-language line under Cash & Bank explains the Transfer/Adjust column, and the 5-digit COA code is dropped
+from the Head column on this report only (kept on the cashier's sheet). Re-exported and re-verified by driving the
+real screen and reading its rendered text — all four confirmed present, not assumed.
+
+Pushed to `origin/main` for the first time this phase (owner: "get it off one machine") — 19 commits, then further
+batches as work continued, each after explicit approval, each through the repo's push-gate (static checks + a real-
+browser smoke suite) with no failures.
+
+**Security finding, while wiring grants for the General Journal RPC:** `has_function_privilege('anon', ...)`
+checked directly against the live catalog (not assumed) showed the whole double-entry batch (20260918a-c) was
+never swept the way 20260916c's one-time lockdown swept the functions that existed on that date — same bug shape
+as the `nf_lines` view gap (§11.9), recurring in RPC grants instead of a view.
+
+- `nf__upsert_transfer_voucher` never called `nf_require_role` at all. Its UPDATE/DELETE path (an existing
+  transfer voucher) had zero auth check; combined with the open grant, any caller with just the anon key — no
+  sign-in — could retarget or delete a transfer voucher in any company.
+- Five more (`nf_ledger_position`, `nf_other_balances`, `nf_list_parties`, `nf_resolve_party`, `nf_account_path`)
+  had no internal check either, exposing ledger positions, inter-company/director balances, and full party lists
+  to the same unauthenticated reach. Four of the five were `LANGUAGE sql`, which cannot call `nf_require_role` at
+  all (no `PERFORM`) — that is *why* they had no check, not an isolated oversight.
+
+Fixed in two migrations, both applied:
+- `20260918n` — added the missing `nf_require_role` call to `nf__upsert_transfer_voucher` (the real fix), then
+  revoked `PUBLIC`/`anon` from all 13 functions this batch touched, keeping `authenticated` only on the two
+  (`nf_post_voucher`, `nf_save_line`) with a real direct caller. Hit a real `regprocedure` syntax error on first
+  attempt (it rejects parameter names and OUT-parameter types in the cast string) — verified each of the 13
+  signatures individually with a harmless `SELECT '...'::regprocedure` before trusting them, then applied clean.
+- `20260918o` — the fix the grant revoke was standing in for: converted the four `LANGUAGE sql` functions to
+  `plpgsql` and added `nf_require_role(company, ['accountant','director','viewer'])` to all five, so the grant is
+  now a second line of defence, not the only one (owner's own framing).
+
+Both broke two scripts that called the now-guarded functions over the Management API's raw-SQL endpoint (no JWT,
+`auth.uid()` reads NULL there): `verify-nf-qb-accounts.js` (fixed — inlines the identical recursive path CTE
+instead, verified byte-identical against live Awami accounts, 110/110, zero diffs, before swapping in) and
+`verify-nf-rules.js`'s `cashNow` helper (fixed — reads the same figure through `nf_get_report` via a real
+authenticated JWT instead). `scripts/nf/verify-nf-de-migration.js` has the same latent break and was **not**
+fixed — marked HISTORICAL/frozen at the top of the file instead: it is the pre-apply rehearsal for a migration
+already applied 2026-09-18, only ever covers `a-d` (invisible to everything from `e` onward including this very
+fix), and re-running it would prove nothing about the schema as it exists now.
+
+Two new standing, catalog-wide, self-tested checks added to `verify-nf-rules.js`, same discipline as
+`SEC-VIEW-INVOKER` (§11.10) — owner: "fix the root cause, not the instance... every security invariant we
+discover becomes an automated check in the same commit that fixes it":
+
+- **SEC-RPC-PUBLIC** — no `nf_`/`_nf_` function executable by `PUBLIC` or `anon`. Self-test plants a function with
+  zero explicit grants (Postgres's own default already makes it `PUBLIC`-executable — no `GRANT` needed to prove
+  the mutant, which is exactly what makes the real bug easy to introduce without noticing).
+- **SEC-RPC-ROLE-CHECK** — every `nf_` function that is actually *reachable* (`anon` or `authenticated`) and takes
+  a `uuid` argument must call `nf_require_role` or `nf_is_member` internally. Scoped to reachable functions only
+  after a trial run of the broader version flagged 14 pure internal helpers (`nf_day_json`, `nf_position_row`,
+  etc.) that have zero grants at all and aren't the same bug shape — narrowing to "reachable + unchecked" produced
+  zero false positives against the real catalog before committing it. Self-test plants a function granted to
+  `authenticated` with a `company_id` argument and no check — the exact shape the real bug was.
+
+Full suite after: `verify-nf-rules.js` **51/51** (up from 47), `verify-nf-golden-ui.js` **28/28**,
+`verify-nf-director-report.js` **18/18**.
+
+**Non-nf_ tenant data, checked by query, not assumed:** `nf_` tables hold Awami's 110-row COA (0 days/vouchers/
+legs/parties/members) and exactly two other companies with any `nf_` rows — `ZZTEST-NF-DEMO` and `ZZTEST-NF-SHOT`,
+both known, deliberate fixtures. Actual exposure is nil. Outside `nf_`: 195 other functions are anon-executable
+platform-wide, but every one checked uses one of two pre-existing, deliberate auth architectures — the RMS core's
+`_rms_caller()`/`_rms_is_admin()` (real Supabase JWT), or the Sales Portal's `sales_sessions` token lookup — not
+"no check at all." Spot-checked the single most suspicious-looking candidate (a duplicate `get_team_performance`
+overload with no token parameter) and confirmed it gates through `_rms_caller()`. **Not** a full audit of all 195
+function bodies — that's a materially larger job, explicitly deferred (below), not silently skipped.
+
+### 12.7 Deferred — platform-wide RPC-grant audit (owner, 2026-09-18, after this session's own finding)
+
+Owner, correctly: hand-auditing 195 functions "never finishes and rots the moment someone adds function 196."
+Instead, once the reports pass is done:
+
+- Generalise **SEC-RPC-PUBLIC** and **SEC-RPC-ROLE-CHECK** from `nf_`-scoped to platform-wide (drop the name-prefix
+  filter, keep the "reachable + no internal check" logic).
+- Allowlist the two legitimate auth architectures identified in §12.6: `_rms_caller()`/`_rms_is_admin()` and the
+  Sales Portal's `sales_sessions` token lookup, plus the small number of genuinely pre-auth entry points (login,
+  signup, magic links, password-protected availability links) that call neither by design.
+- Anything reachable that matches neither pattern gets flagged — turning 195 function bodies into a short,
+  permanently-true exception list instead of a one-time manual pass that goes stale.
+
+Not urgent enough to interrupt the reports pass (owner's own words), but real — RMS carries real tenant and
+customer data, so this matters more than NexuFinance's own instance of the same bug did. Tracked here so it is a
+named next step, not a dropped thread.
