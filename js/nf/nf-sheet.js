@@ -132,6 +132,7 @@
         (d ? '    <button class="btn" id="nf-toDir" type="button">Director report</button>' : '') +
         '    <button class="btn" id="nf-toJrn" type="button">General Journal</button>' +
         '    <button class="btn" id="nf-toLgr" type="button">General Ledger</button>' +
+        '    <button class="btn" id="nf-toTB" type="button">Trial Balance</button>' +
         (d && d.status === 'CLOSED' && d.is_latest ? '    <button class="btn" id="nf-startNext" type="button">Start new day</button>' : '') +
         '    <button class="btn primary" id="nf-print" type="button">' +
         '      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7"/></svg>Print</button>' +
@@ -644,6 +645,16 @@
         // same full-remount reasoning as #nf-toDir above — NfLedger.mount
         // also replaces root.innerHTML wholesale.
         global.NfLedger.mount(root, {
+          api: api, companyId: companyId, role: role,
+          displayName: ctx.displayName, companyName: ctx.companyName, settings: S.settings,
+          onBack: function () { global.NfSheet.mount(root, ctx); },
+        });
+      });
+      var toTB = root.querySelector('#nf-toTB');
+      if (toTB) toTB.addEventListener('click', function () {
+        // same full-remount reasoning as #nf-toDir above — NfTrialBalance.mount
+        // also replaces root.innerHTML wholesale.
+        global.NfTrialBalance.mount(root, {
           api: api, companyId: companyId, role: role,
           displayName: ctx.displayName, companyName: ctx.companyName, settings: S.settings,
           onBack: function () { global.NfSheet.mount(root, ctx); },
