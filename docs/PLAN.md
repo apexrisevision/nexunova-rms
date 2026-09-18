@@ -1427,3 +1427,61 @@ Instead, once the reports pass is done:
 Not urgent enough to interrupt the reports pass (owner's own words), but real — RMS carries real tenant and
 customer data, so this matters more than NexuFinance's own instance of the same bug did. Tracked here so it is a
 named next step, not a dropped thread.
+
+### 12.8 General Journal and General Ledger — built, applied, verified (2026-09-18)
+
+The other two of the three pre-import verification instruments (§12.6/12.7's sequencing: Journal, Ledger, Trial
+Balance, then the Awami import, then the rest of the reports pass).
+
+**General Journal** (`20260918m`, `nf_get_journal`) — every posted voucher, company-wide, in date order, full leg
+detail, including the transfer voucher and any no-via-leg voucher (like the FMH inter-company pattern) that the
+daily closing screen's own `nf_lines` view deliberately excludes — this is the one screen meant to show literally
+everything posted. `js/nf/nf-journal.js`, wired into `nexufinance.html`/`nf-sheet.js` with the same full-remount
+`onBack` pattern as the director report.
+
+`scripts/nf/verify-nf-general-journal.js`'s first run failed 5/10 — not a flaky test. `nf-journal.js`'s `load()`
+had no guard against an out-of-order response: this is the first screen in the codebase to re-fetch more than
+once while mounted (`nf-report.js` only ever fetches once on mount), so there was no existing guard pattern to
+lean on. Click Apply (a narrow, empty-result date range) then Clear (all time) quickly enough, and if Apply's
+response happened to arrive after Clear's, its stale result silently overwrote the correct one — and because
+`root` itself is never replaced, only its contents, a late response arriving after the user had already clicked
+Back would overwrite the closing sheet they'd navigated to. Fixed with a generation counter (only the latest
+triggered load's response renders) and an `alive` flag (nothing renders once `onBack` has fired). The
+verification script's own fixed `setTimeout` waits were replaced with a real `settled()` check, and a new check
+(J-08) fires Apply then Clear back to back with no wait, proving the guard holds under a real race rather than
+just looking clean. **11/11** after.
+
+**General Ledger** (`20260918p`, `nf_list_all_accounts` + `nf_get_ledger`) — per-account running balance.
+`nf_list_all_accounts` returns every account (all 110), not `nf_list_heads`' is_head-only "postable leaf" set,
+since a JV can post straight to a structural or via account and `nf_post_voucher` never restricted that.
+`js/nf/nf-ledger.js` reuses the same generation-guard/`alive` pattern from the Journal fix, applied from the
+start this time.
+
+`scripts/nf/verify-nf-general-ledger.js` found two real bugs, neither assumed away:
+- Its own `settled()` wait first matched the wrong element (`document.querySelector('.rsec')` found the filter
+  bar, not the results area, which never shows "Loading…") — tiles and rows were read before the fetch had
+  resolved. Fixed by giving the results area a stable `#nf-lgr-body` id and pointing the wait at it.
+- Once the wait was pointed correctly, a **real backend bug** surfaced: with no date filter ("all time", the
+  default view), `nf_get_ledger`'s opening-balance query used `(p_from IS NULL OR v.voucher_date < p_from)` —
+  Postgres's `OR` makes that `TRUE` for every row whenever `p_from IS NULL`, so every voucher was summed into
+  "opening" *and* into "entries", the same set twice. Account 22100's real net was -75000; the screen showed a
+  closing balance of -150000 — exactly double. Fixed in `20260918q`: with no filter there is no period start to
+  have an opening balance as of, so it is 0, not "everything". **12/12** after, including the running balance
+  checked arithmetically row by row (not just the final total) and a real double-click account-switch race.
+
+**The new conditional auto-apply rule** (owner, 2026-09-18, after `20260918l`–`o`'s stop-and-report discipline
+held): apply a NexuFinance migration without asking when it only creates new objects, is grant-locked from the
+start, dry-runs clean, the verification suite is green after (stop and report if not — never fix forward and
+re-apply silently), and the tables involved hold no real data. `20260918m` and `p` both qualified and were applied
+directly. `20260918q` (the ledger fix) was judged to qualify too, on the reasoning that `nf_get_ledger` was
+created minutes earlier in this same session and nothing else depends on it yet — flagged as a judgment call
+rather than assumed automatically covered, since the rule's literal wording ("an existing function other code
+already calls") wasn't written with same-session, same-feature fixes explicitly in mind. **The sunset condition,
+stated by the owner explicitly:** the moment real vouchers land in Awami, this stops applying to the ledger
+tables and the default reverts to asking for everything touching them — to be said explicitly when that switch
+happens, not left to slide.
+
+Full suite re-run after every step in this section: `verify-nf-golden-ui.js` 28/28, `verify-nf-director-report.js`
+18/18, `verify-nf-general-journal.js` 11/11, `verify-nf-general-ledger.js` 12/12 — no regression from any of it.
+
+Trial Balance is next, then the Awami history import (owner's own checksum, §12.6's sequencing).
