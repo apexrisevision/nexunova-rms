@@ -13,7 +13,12 @@
     --pos:#18794E;--pos-soft:#EAF7F0;--neg:#B42318;--neg-soft:#FDF1F0;--shadow:none;color-scheme:light}
   body{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff;font-size:10.5px}
   .nf-topbar{display:none}
-  .lsheet{margin:0;max-width:none;border:0;border-radius:0;box-shadow:none}
+  /* see css/nf/nf-journal-print.css's own comment on this same line shape:
+     .lsheet shares the base .sheet class with the closing sheet, whose
+     own print rule sets width:1100px/zoom:.665 — measured to actually
+     land in this browser, reset explicitly rather than relying on
+     "don't declare it and hope". */
+  .lsheet{margin:0;max-width:none;width:auto;zoom:1;border:0;border-radius:0;box-shadow:none}
   .hdr{padding:6px 4px}
   .actions,.lfilter{display:none!important}
   .rsec{padding:8px 4px 0}

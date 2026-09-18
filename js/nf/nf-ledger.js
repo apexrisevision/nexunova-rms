@@ -61,8 +61,13 @@
 
   function entryRows(entries) {
     return (entries || []).map(function (e) {
+      // Same fix as nf-journal.js: each leg's own memo (the real
+      // transaction description) takes priority over the voucher's
+      // narration — needs 20260918u applied first (nf_get_ledger never
+      // returned l.memo before that), harmlessly falls through to
+      // narration until then since e.memo is simply undefined.
       return '<tr><td>' + F.ddMonYyyy(e.voucher_date) + '</td><td>' + esc(e.voucher_no) + '</td>' +
-        '<td>' + esc(e.narration || '') + '</td><td>' + esc(e.floor_name || e.floor_code || '') + '</td>' +
+        '<td>' + esc(e.memo || e.narration || '') + '</td><td>' + esc(e.floor_name || e.floor_code || '') + '</td>' +
         '<td>' + esc(e.party || '') + '</td>' +
         '<td class="r">' + (F.n(e.debit) ? F.fmt(e.debit) : '') + '</td>' +
         '<td class="r">' + (F.n(e.credit) ? F.fmt(e.credit) : '') + '</td>' +

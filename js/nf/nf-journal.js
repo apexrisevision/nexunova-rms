@@ -59,7 +59,16 @@
       return '<tr class="' + (first ? 'jvfirst' : 'jvleg') + '">' +
         '<td>' + (first ? F.ddMonYyyy(v.voucher_date) : '') + '</td>' +
         '<td>' + (first ? esc(v.voucher_no) : '') + '</td>' +
-        '<td>' + (first ? esc(v.narration || '') : '') + '</td>' +
+        // Each leg's own memo (the real transaction description) takes
+        // priority over the voucher's narration — found reviewing the
+        // Awami import: every leg carries its own real memo already,
+        // but this column used to show the voucher's narration on the
+        // first leg only, which for an imported voucher is just the
+        // import marker, not a description. Falls back to the voucher's
+        // narration on the first leg when a leg has no memo of its own
+        // (an ordinary, non-imported voucher, where narration IS the
+        // real description and there is no separate per-leg memo).
+        '<td>' + esc(l.memo || (first ? v.narration : '') || '') + '</td>' +
         '<td>' + esc(l.account_code) + ' ' + esc(l.account_name) + '</td>' +
         '<td>' + esc(l.floor_name || l.floor_code || '') + '</td>' +
         '<td>' + esc(l.party || '') + '</td>' +

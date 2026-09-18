@@ -1,15 +1,24 @@
 /* ═══════════════════════════════════════════════════════════════════════
    NexuFinance v1 — print CSS for the director report. One A4 page.
 
-   Deliberately does NOT use `zoom` — that is the mechanism the closing
-   sheet's own print CSS (css/nf/nf-print.css) already uses, and the one
-   docs/PLAN.md §10.3 found silently not landing (measured
-   getComputedStyle(.sheet).zoom === "1", not the .665 the rule sets).
-   `zoom` is non-standard and this report does not depend on it: real,
-   compact print typography — smaller base size, tight padding — fits the
-   content instead of scaling an oversized layout down. Proven page count,
-   not assumed: scripts/nf/verify-nf-director-report.js measures the
-   actual rendered PDF.
+   Correction, 2026-09-18 — the §10.3 note below was wrong and left
+   uncorrected too long: re-measured directly (getComputedStyle on the
+   live element, not assumed from an old note) and `zoom` DOES land in
+   this browser now — 0.665, not "1". `.rsheet` shares the base `.sheet`
+   class with the closing sheet, whose own print rule (css/nf/nf-print.css)
+   sets width:1100px and zoom:.665 deliberately for ITSELF — every other
+   report sharing that base class was inheriting it too, unintentionally.
+   Found while chasing a blank first-printed-page on the General Journal
+   (css/nf/nf-journal-print.css carries the fuller story) and confirmed
+   this report was silently exposed to the exact same leak, just not
+   caught before because verify-nf-director-report.js only ever measured
+   page COUNT, never whether a page's content actually rendered.
+   `width`/`zoom` are reset explicitly below instead of relying on "don't
+   declare it and hope the other stylesheet's rule doesn't reach here" —
+   this report's own compact typography (smaller base size, tight
+   padding) still does the real work of fitting one page; the zoom reset
+   just stops an unrelated screen's scaling factor from applying here at
+   all, intentionally or not.
    ═══════════════════════════════════════════════════════════════════════ */
 
 @page{size:A4 portrait;margin:8mm}
@@ -20,7 +29,7 @@
     --pos:#18794E;--pos-soft:#EAF7F0;--neg:#B42318;--neg-soft:#FDF1F0;--warn:#9A6700;--warn-soft:#FBF3E4;--shadow:none;color-scheme:light}
   body{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff;font-size:10.5px}
   .nf-topbar{display:none}
-  .rsheet{margin:0;max-width:none;border:0;border-radius:0;box-shadow:none}
+  .rsheet{margin:0;max-width:none;width:auto;zoom:1;border:0;border-radius:0;box-shadow:none}
   .hdr{padding:6px 4px}
   .brand h1{font-size:15px}
   .mark{width:32px;height:32px;font-size:12px;border-radius:7px}

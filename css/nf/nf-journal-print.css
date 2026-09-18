@@ -16,7 +16,18 @@
     --pos:#18794E;--pos-soft:#EAF7F0;--neg:#B42318;--neg-soft:#FDF1F0;--shadow:none;color-scheme:light}
   body{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff;font-size:10.5px}
   .nf-topbar{display:none}
-  .jsheet{margin:0;max-width:none;border:0;border-radius:0;box-shadow:none}
+  /* .jsheet shares the base .sheet class with the closing sheet, whose own
+     print rule (css/nf/nf-print.css) sets width:1100px and zoom:.665 —
+     deliberate there, leaked here since @page/.sheet rules are global and
+     this file never used to override them. Measured directly, not
+     assumed: zoom DOES land in this browser (confirmed via
+     getComputedStyle, contrary to an earlier note recorded when it
+     didn't) — so the fixed 1100px width scaled by .665 was real, and on
+     a 64-voucher journal it was enough to blank the first printed page
+     entirely before content appeared on the second. Reset here instead
+     of relying on "don't declare it and hope the other stylesheet's
+     rule doesn't apply" a second time. */
+  .jsheet{margin:0;max-width:none;width:auto;zoom:1;border:0;border-radius:0;box-shadow:none}
   .hdr{padding:6px 4px}
   .actions,.jfilter{display:none!important}
   .rsec{padding:8px 4px 0}

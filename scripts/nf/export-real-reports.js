@@ -13,8 +13,10 @@
  */
 'use strict';
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const http = require('http');
+const { execFileSync } = require('child_process');
 const puppeteer = require('puppeteer-core');
 const { q, REF } = require('../_sbq');
 
@@ -59,9 +61,51 @@ function serve() {
     // for the actual button, not a generic gate/grid guess.
     await page.waitForSelector('#nf-toJrn', { timeout: 15000 });
 
+    // A real Chromium engine limitation, not a content bug (see
+    // docs/PLAN.md §16, found and A/B-tested 2026-09-19): a <table> that
+    // must span more than one printed page gets pushed ENTIRELY to page
+    // 2 in headless PDF generation. On the Journal (nothing before the
+    // table but the header) that leaves page 1 truly empty. On the
+    // Ledger, page 1 still holds the real opening/closing balance tiles
+    // — legitimate content, not waste — and only the table continues on
+    // page 2, which is normal pagination, not this bug. So the test is
+    // "does page 1 have ANY real figure on it at all" (any digit),
+    // not specifically the table's own header word — checking for
+    // "Debit" specifically first got this wrong for the Ledger, silently
+    // dropping its real balance tiles along with the (non-existent, for
+    // that page) blank space. Confirmed by bisection on the Journal — a
+    // table short enough to fit one page prints fine; the moment it
+    // needs a second, page 1 goes blank. The permanent fix (table → CSS
+    // grid markup for reports that can span multiple pages) is tracked
+    // separately, not done here.
+    function pdfPageCount(pdfBuf) {
+      // page.pdf() returns a plain Uint8Array in this Puppeteer version,
+      // not a Buffer — Uint8Array's own .toString() ignores an encoding
+      // argument and returns a decimal-byte-list instead, so this must
+      // go through Buffer.from() first or the regex never matches.
+      return (Buffer.from(pdfBuf).toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+    }
+    function page1HasRealContent(pdfBuf) {
+      const tmp = path.join(os.tmpdir(), `nf-pdf-check-${Date.now()}-${Math.random().toString(36).slice(2)}.pdf`);
+      fs.writeFileSync(tmp, Buffer.from(pdfBuf));
+      try {
+        const text = execFileSync('pdftotext', ['-f', '1', '-l', '1', tmp, '-'], { encoding: 'utf8' });
+        return /\d/.test(text);
+      } finally {
+        fs.unlinkSync(tmp);
+      }
+    }
+
     async function savePdf(name) {
       await page.emulateMediaType('print');
-      const pdf = await page.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true });
+      let pdf = await page.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true });
+      // Only ever drop page 1 when there's a page 2 to fall back to — a
+      // genuinely empty single-page report (no rows at all) must never
+      // be reduced to a zero-page file.
+      if (pdfPageCount(pdf) > 1 && !page1HasRealContent(pdf)) {
+        console.log('  page 1 is blank (Chromium table-pagination gap) — dropping it');
+        pdf = await page.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true, pageRanges: '2-' });
+      }
       await page.emulateMediaType('screen');
       fs.mkdirSync(OUT_DIR, { recursive: true });
       const out = path.join(OUT_DIR, name);

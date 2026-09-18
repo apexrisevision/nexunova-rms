@@ -1804,3 +1804,115 @@ instead of silently bypassed (`--no-verify`) or fixed outside scope. A retry a s
 `e03c8af` + `a9977e8` together) passed cleanly, 38/38, including the exact same "See their leads" check that had
 failed — confirming this was a transient flake (most likely a timing issue in the smoke suite itself, or a brief
 backend hiccup), not a persistent regression. Both commits pushed successfully once it cleared.
+
+## 16 · Ledger memo fix, CRM deletion, and the real print-pagination bug (2026-09-19)
+
+### 16.1 Ledger memo — applied on explicit go-ahead
+
+Reviewing the real Awami PDFs surfaced two claims from a relayed review: narration "destroyed", and the
+Journal's first printed page blank. Checked the first directly before acting on it, per the standing habit of
+verifying rather than deferring: every leg's real memo was intact in `nf_voucher_legs.memo` the whole time (e.g.
+"Token 102 - unit GF-129") — nothing was lost. The actual gap was narrower and different per screen. The Journal
+needed only a frontend fix (`nf_get_journal` already returned `memo`; `js/nf/nf-journal.js` just wasn't showing
+it). The Ledger's own RPC, `nf_get_ledger`, never selected `l.memo` at all, so no frontend fix alone could reach
+it. Wrote `supabase/migrations/20260918u_nf_de_ledger_memo.sql` (adds `l.memo` to the entries CTE and returned
+JSON, otherwise byte-identical to the live `20260918q` version), proposed it plainly, and applied it only after
+the owner's explicit "Yes, apply it" — per the auto-apply rule's own sunset (Awami holds real data) and its
+always-ask condition for changing an existing function's behavior. Verified live immediately after
+(`nf_get_ledger` present, `nf_voucher_legs.memo` confirmed intact for 22100), then ran the full nf_ verification
+sweep: `verify-nf-general-ledger.js` 12/12, `verify-nf-director-report.js` 18/18, `verify-nf-general-journal.js`
+11/11, `verify-nf-golden-ui.js` 28/28, `verify-nf-race-harness.js` PASS, `verify-nf-rules.js` 50/51 (the one
+failure traced directly to a race with this session's own concurrent diagnostic-account cleanup, confirmed by
+querying `nf_members` afterward — only the real system-import row remained, exactly as expected — not a
+regression). `verify-nf-de-migration.js` and `verify-nf-schema.js` both failed, but both are explicitly
+documented in their own file headers as frozen, Phase-1-only rehearsals that only replay migrations a-c/a-d and
+are expected to fail against the schema as it exists today — unrelated to this change, not chased further.
+
+### 16.2 CRM project — deleted
+
+Backup re-confirmed present at `backups/CRM_EXPORT/BACKUP_20260918_2306/` before doing anything irreversible.
+Deleted via the Management API (`DELETE /v1/projects/hondkhasedtauryltixt`) on the owner's explicit go-ahead,
+confirmed gone immediately after by listing projects: only `Nexuattend` and `Nexunova Project` (RMS) remain.
+Diagnostic leftovers from the print investigation cleaned up alongside it: the temporary diagnostic viewer
+account and its `nf_members` row, and three throwaway scripts under `scripts/nf/_diag*`.
+
+### 16.3 The print bug wasn't actually fixed — corrected after re-checking the real PDF, not the CSS
+
+Told the owner the blank-first-page bug was fixed (the `width:auto;zoom:1` reset from the prior session). It
+wasn't — re-exporting the real Journal PDF and reading it directly (`pdftotext`, then a Chrome-rendered
+screenshot of the actual PDF) showed page 1 still empty but for the masthead. The earlier "confirmed" measurement
+had only checked `getComputedStyle` under `emulateMediaType('print')`, which reflects live DOM layout, not how
+Chromium's `page.pdf()` pagination pass actually places content — the two are not the same, and only the second
+one is the real deliverable. Said so plainly rather than leaving the earlier claim standing.
+
+Root-caused properly via systematic A/B tests against the real generated PDF, each one isolating a single
+variable and reverted after:
+- Removing `.jtab tr.jvfirst{break-inside:avoid}` entirely — no change.
+- Adding `overflow:visible` to `.jsheet` (the base `.sheet` class sets `overflow:hidden`) — no change.
+- Removing the `zoom:.665` declaration from `nf-print.css` entirely, so no zoom value touches `.jsheet` even
+  indirectly — no change. (This also retroactively shows the previous session's zoom/width fix, while a
+  reasonable and correct cleanup in its own right, was never the actual fix for the blank-page symptom.)
+- Setting `preferCSSPageSize:false` with explicit `page.pdf()` margins instead of the `@page` CSS rule — no
+  change.
+- Forcing `.jtab thead{display:table-row-group}` to disable the browser's repeating-header treatment — no
+  change.
+- Overriding `border-collapse:separate` on `.jtab` (a table/print-pagination bug documented in Chromium for
+  `border-collapse:collapse`, which `nf.css`'s base `table{}` rule uses) — no change.
+- Waiting on `document.fonts.ready` plus a fixed delay before calling `page.pdf()`, in case of a font-swap
+  reflow racing the print snapshot — no change.
+- Bisecting the Journal's own date range to find the exact threshold: a filtered range short enough to fit
+  fully on one page renders correctly every time; the moment the same table needs a second page, page 1 goes
+  blank — reproduced cleanly at every row count tested above that line, regardless of which single CSS property
+  above was toggled.
+
+Conclusion: this is a genuine Chromium engine limitation, not anything fixable by adjusting this project's CSS —
+a `<table>` that must fragment across more than one printed page in headless `page.pdf()` gets pushed entirely
+to page 2, wasting page 1, independent of zoom, overflow, border-collapse, break-inside, thead repeat behavior,
+or font-load timing. The real, permanent fix is to stop laying these reports out with a native `<table>` and
+rebuild the row structure in CSS Grid instead, which Chromium paginates correctly — a real markup rewrite, not a
+CSS tweak, and not done in this pass (see 16.5 for scope).
+
+### 16.4 The cheap fix shipped instead: detect and drop a genuinely wasted page 1 in the export step
+
+Per the owner's own instruction — clean deliverables today without touching report markup, verified by page
+count and by reading the new page 1's text, never by assuming — `scripts/nf/export-real-reports.js`'s `savePdf()`
+now generates the PDF, checks whether page 1 has any real content on it at all (any digit, via `pdftotext -f 1
+-l 1`), and if there's a page 2 to fall back to and page 1 has none, regenerates with `pageRanges:'2-'` and ships
+that instead.
+
+Found and fixed two real bugs in this check while building and verifying it, neither invented in advance:
+- `page.pdf()` returns a plain `Uint8Array` in this Puppeteer version, not a `Buffer` — calling `.toString('latin1')`
+  directly on it silently ignores the encoding argument and returns a decimal-byte list instead of text, so the
+  page-count regex never matched anything (always read as 0, permanently disabling the fix). Fixed by wrapping
+  in `Buffer.from()` first. Caught by adding a debug print of `pdf.constructor.name` rather than assuming the
+  return type.
+- The first version of the check tested specifically for the word "Debit" (the table's own header), reasoning
+  that its absence meant page 1 was blank. That's true for the Journal (nothing on page 1 but the header) but
+  wrong for the Ledger: its page 1 legitimately holds the real opening/closing balance tiles — genuine content,
+  not waste — and only the table continues on page 2, which is ordinary, correct pagination, not this bug. The
+  first fix version silently deleted that real tile page. Caught by reading the original, undropped page 1's
+  actual text before shipping ("Opening Balance / Closing Balance / Rs 0 / Rs (20,124,450)") instead of trusting
+  the page-count delta alone, per the owner's own instruction to verify by reading the text. Fixed by testing for
+  any digit at all on page 1, not the specific word "Debit" — a much safer bar for "this page has real content"
+  regardless of which report it is.
+
+Final, verified result: Journal now 9 pages (was 10, wasted page 1 dropped, real content from page 1), Ledger
+still 3 pages unchanged (its real page 1 was never wasted), Trial Balance still 1 page unchanged. Grand totals
+re-checked after the fix, not assumed to still match: Journal 35,496,550 = 35,496,550, Trial Balance
+29,953,950 = 29,953,950. Re-exported to `D:\Claude Cowork\` under the same filenames.
+
+### 16.5 Scoping the eventual table-to-grid retrofit honestly, so it doesn't get over-built
+
+Of the three multi-row reports, only the **Journal** is genuinely, unavoidably multi-page at this business's
+current size (64 vouchers, 9 pages) — it is the only one that actually needs the CSS-grid rewrite, and needs it
+now-ish rather than eventually. The **Ledger** happened to need 3 pages for the 22100 account today, but its
+page 1 was never wasted (the tiles fill it), so the rewrite there is about a future account that grows large
+enough to blank its page 1 the same way the Journal's did — worth doing when that happens, not preemptively.
+The **Trial Balance** is a fixed-size, one-row-per-account report bounded by the chart of accounts (currently 18
+rows); it is extremely unlikely to ever need a second page for this business, so the honest scope for it is
+"probably never." Whoever picks this up next should treat it as "Journal now, Ledger later, Trial Balance
+probably not" — not three equal-weight rewrites.
+
+**New reports (P&L, Balance Sheet) build on CSS Grid from the start**, not `<table>`, per the owner's own
+instruction — there's no reason to add to a debt that's already been identified, even though both are expected
+to stay single-page at this business's current size and wouldn't hit this specific bug today.
