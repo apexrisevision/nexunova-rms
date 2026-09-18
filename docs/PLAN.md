@@ -1257,3 +1257,84 @@ touched — it still checks the unrelated, unused `qb_accounts` table; fixing it
 remains open, lower priority now that this reconciliation is done by hand.
 
 **No IIF export writing has started** — this was reconciliation only, per the owner's explicit instruction.
+
+Update, same day: the dedicated `scripts/nf/verify-nf-qb-accounts.js` now exists (§12 below covers why it's
+separate from `scripts/verify-qb-accounts.js`) — the "lower priority" item above is done.
+
+## 12 · Reports pass — director-facing daily closing (2026-09-18)
+
+Design reference: `docs/reference/Awami_Closing_All_Entries.xlsx`, the "17-Sep" tab — owner-approved, not invented
+here. What each part is doing (the reasons, per the owner's own instruction, matter more than the styling):
+
+- **Four tiles** (Opening / Money In / Money Out / Closing) are the day's headline numbers — the Cash & Bank
+  table's own Total row, just large enough to read from across a desk.
+- **Cash & Bank table**, plain columns (Opening, In, Out, Transfer/Adjust, Closing) — no Debit/Credit anywhere on
+  the face of the report. A director reads a cash position, not a ledger.
+- **Money Received / Money Paid**, the day's actual entries (Voucher/Description/Head/Floor/Cash-Bank/Amount) — a
+  director cross-checks a voucher number against a physical receipt, not a database row.
+- **"Other Balances (Not Awami's Own Cash)"**, kept visually separate on purpose, in plain sentences — this
+  section exists because directors kept reading inter-company and director money as if it were the company's own
+  cash.
+- **One plain-language pass/fail banner** — "Everything Matches" or "Please Review", not a checks table.
+- **Signature line**: Prepared by (Accountant) / Checked by / Reviewed by Director.
+- **One A4 page** — including fixing the known print-pagination bug as part of this, not deferring it again.
+
+### 12.1 Backend — `20260918k`
+
+`nf_get_report` extended: per-via `received`/`paid`/`transfers` (previously only opening/closing), the day's
+`lines`, and a new `nf_other_balances(company, as_of_date)` — inter-company payables (children of 22000, e.g. FMH/
+KBH), director receivables (children of 12600), and customer token money held (21100), each a signed balance as
+of a date, in the sign a plain sentence reads (owed/due/held are always positive when real). Dynamic, not
+hardcoded to exactly FMH+KBH+two directors: any account under those two parent umbrellas with a real, non-zero
+balance appears — a third sister company or a second token-style account won't be silently hidden the day it
+first carries one.
+
+### 12.2 Frontend — `js/nf/nf-report.js`, `css/nf/nf-report.css`, `css/nf/nf-report-print.css`
+
+Read-only, one RPC call (`nf_get_report`) on mount. Reuses `.sheet`/`.hdr`/`.brand`/`.mark`/`.docmeta`/`.docfoot`
+from `nf.css` for visual consistency with the closing sheet; everything else (tiles, banner, tables, other-balances
+box, signatures) is new, matching the reference tab's structure, not its exact pixel styling.
+
+Wired to the existing "Director report" button in `nf-sheet.js` (previously disabled, "arrives in Phase 3").
+**Found and fixed before it shipped**: `nf-sheet.js`'s `render()`/`wire()` write into a fixed `#nf-sheet` wrapper
+node — `NfReport.mount`'s `root.innerHTML` replacement destroys that node, so "back" cannot be a call into the old
+closure's own `render()` (it would write into a now-detached node the DOM no longer shows). "Back" is a full
+`NfSheet.mount()` re-mount instead — reasoned through the actual DOM structure before shipping it, not assumed
+safe and found broken later.
+
+### 12.3 The print bug (§10.3) — fixed, and how, honestly
+
+`css/nf/nf-report-print.css` got its own `@page{size:A4 portrait;margin:8mm}` rule. The moment it was loaded
+alongside the closing sheet's own print CSS, `verify-nf-golden-ui.js`'s UI-06 — the known 2-page bug, open since
+Phase 2 — started passing. Investigated rather than just accepted: `@page` is a **global** at-rule with no
+per-screen scoping, so whichever stylesheet loads last wins for *every* printed page on the document, the closing
+sheet's own print included, not just the report's. Checked `getComputedStyle(.sheet).zoom` during that same run:
+still `"1"`, not the `.665` the closing sheet's original rule sets — so §10.3's original diagnosis ("the zoom rule
+is not landing") is confirmed still correct, and was never what actually closed the gap. One millimetre of extra
+margin per side was.
+
+Left as an accidental cross-file dependency, this would have silently regressed the closing sheet's own print the
+next time `nf-report-print.css` changed for an unrelated reason. Fixed properly instead: `css/nf/nf-print.css`'s
+own `@page` margin moved from 9mm to 8mm directly, in the file that actually owns that screen's print behavior —
+verified passing on its own basis, not as a side effect of another screen's stylesheet. `zoom:.665` is left in
+place (confirmed non-functional, but removing it risks the width dimension, which currently renders correctly
+through some other mechanism not fully diagnosed here — out of scope for "fix the known pagination bug").
+
+### 12.4 Verification
+
+- `scripts/nf/verify-nf-director-report.js` (new): real HTTP, real Supabase session, the real button click, a real
+  inter-company voucher with **no via leg at all** (`nf_post_voucher` directly — proving the "FMH pays an Awami
+  cost directly, no Awami cash moves" pattern from 20260918a stays correctly invisible on the cash-book tiles/
+  tables while still showing up in Other Balances), and a **measured** PDF page count, not assumed. **18/18**, run
+  twice.
+- `verify-nf-golden-ui.js`: **28/28**, run twice after the print-margin change — UI-06 now passing on its own
+  deliberate basis, everything else unaffected.
+- `verify-nf-rules.js`: **47/47**, unaffected (this pass touched no RPC it exercises beyond `nf_get_report`, which
+  it doesn't call).
+
+### 12.5 Not done, on purpose
+
+- Only the director-facing daily closing report — the other reports (journal, ledger, trial balance, P&L, balance
+  sheet, party statements, token register) remain explicitly next, per the owner's own sequencing.
+- `docs/reference/QB_Account_Listing.xlsm` was copied in as the readable cross-check but not separately parsed —
+  the IIF was the authoritative, byte-exact source for §11.11's reconciliation.
