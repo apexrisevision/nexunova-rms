@@ -13,7 +13,13 @@
  * Classic journal layout: one row per leg. The date/voucher/narration only
  * print on a voucher's FIRST leg row — the rows under it are visually its
  * legs, not separate entries. Read-only: one RPC call on mount, and again
- * whenever the date filter changes.
+ * whenever the date filter changes — which means, unlike nf-report.js's
+ * single fetch-on-mount, a stale response CAN arrive after a newer one, or
+ * after the user has already clicked Back. Guarded below with a generation
+ * counter (an older response's render is dropped) and an `alive` flag
+ * (nothing renders once onBack has fired) — found by verify-nf-general-
+ * journal.js's own J-07/J-08 failing on a real race, not invented in
+ * advance.
  */
 (function (global) {
   'use strict';
@@ -21,21 +27,29 @@
   function esc(s) { return F.esc(s); }
 
   function mount(root, ctx) {
-    render(root, ctx, null, { from: '', to: '' });
-    load(root, ctx, { from: '', to: '' });
-  }
+    var gen = 0;
+    var alive = true;
+    var trueOnBack = ctx.onBack;
+    ctx = Object.assign({}, ctx, { onBack: function () { alive = false; trueOnBack(); } });
 
-  function load(root, ctx, range) {
-    var body = root.querySelector('#nf-jrn-body');
-    if (body) body.innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center;padding:16px">Loading…</td></tr>';
-    return ctx.api.getJournal(ctx.companyId, range.from || null, range.to || null).then(function (r) {
-      render(root, ctx, r, range);
-    }).catch(function (e) {
-      root.innerHTML = '<div class="nf-gate"><h2>Could not open the journal</h2><p>' + esc(e.message || String(e)) + '</p>' +
-        '<button class="btn" id="nf-jrn-back" type="button">← Back to closing sheet</button></div>';
-      var back = root.querySelector('#nf-jrn-back');
-      if (back) back.addEventListener('click', function () { ctx.onBack(); });
-    });
+    function load(range) {
+      var myGen = ++gen;
+      var body = root.querySelector('#nf-jrn-body');
+      if (body) body.innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center;padding:16px">Loading…</td></tr>';
+      return ctx.api.getJournal(ctx.companyId, range.from || null, range.to || null).then(function (r) {
+        if (!alive || myGen !== gen) return; // a newer request, or a navigate-away, already won
+        render(root, ctx, r, range, load);
+      }).catch(function (e) {
+        if (!alive || myGen !== gen) return;
+        root.innerHTML = '<div class="nf-gate"><h2>Could not open the journal</h2><p>' + esc(e.message || String(e)) + '</p>' +
+          '<button class="btn" id="nf-jrn-back" type="button">← Back to closing sheet</button></div>';
+        var back = root.querySelector('#nf-jrn-back');
+        if (back) back.addEventListener('click', function () { ctx.onBack(); });
+      });
+    }
+
+    render(root, ctx, null, { from: '', to: '' }, load);
+    load({ from: '', to: '' });
   }
 
   function legRows(v) {
@@ -55,7 +69,7 @@
     }).join('');
   }
 
-  function render(root, ctx, r, range) {
+  function render(root, ctx, r, range, load) {
     var mark = esc(ctx.settings.mark || 'NF');
     var companyLine = esc((r && r.company_line) || ctx.settings.company_line || ctx.companyName || '');
     var vouchers = r ? (r.vouchers || []) : [];
@@ -96,10 +110,10 @@
     root.querySelector('#nf-jrn-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-jrn-print').addEventListener('click', function () { global.print(); });
     root.querySelector('#nf-jrn-apply').addEventListener('click', function () {
-      load(root, ctx, { from: root.querySelector('#nf-jrn-from').value, to: root.querySelector('#nf-jrn-to').value });
+      load({ from: root.querySelector('#nf-jrn-from').value, to: root.querySelector('#nf-jrn-to').value });
     });
     root.querySelector('#nf-jrn-clear').addEventListener('click', function () {
-      load(root, ctx, { from: '', to: '' });
+      load({ from: '', to: '' });
     });
   }
 

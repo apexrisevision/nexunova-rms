@@ -127,8 +127,12 @@ async function http_(method, urlPath, { key, jwt, body } = {}) {
     browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox', '--font-render-hinting=none'] });
     const page = await browser.newPage();
     const consoleErrors = [];
+    // "Failed to load resource" (the test harness's tiny static server has
+    // no /favicon.ico) is excluded the same way verify-nf-director-report.js
+    // already does — a real app error still surfaces as pageerror or any
+    // other console.error text.
     page.on('pageerror', e => consoleErrors.push('pageerror: ' + e.message));
-    page.on('console', m => { if (m.type() === 'error') consoleErrors.push('console: ' + m.text()); });
+    page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) consoleErrors.push('console: ' + m.text()); });
     await page.evaluateOnNewDocument((ref, jwt, uid, email) => {
       localStorage.setItem('sb-' + ref + '-auth-token', JSON.stringify({
         access_token: jwt, token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: 'r',
@@ -140,16 +144,22 @@ async function http_(method, urlPath, { key, jwt, body } = {}) {
     await page.goto(`http://127.0.0.1:${PORT}/nexufinance.html?company=${C}`, { waitUntil: 'networkidle2' });
     await page.waitForSelector('.pos-grid', { timeout: 15000 });
     ok('J-01 nav button present', await page.$('#nf-toJrn') !== null, 'no #nf-toJrn button on the closing sheet');
+    const settled = () => page.waitForFunction(
+      () => { var b = document.querySelector('#nf-jrn-body'); return b && !/Loading…/.test(b.textContent); },
+      { timeout: 10000 });
+
     await page.click('#nf-toJrn');
     await page.waitForSelector('.jsheet', { timeout: 10000 });
-    await new Promise(res => setTimeout(res, 300));
+    await settled();
 
     const rowCount = await page.$$eval('#nf-jrn-body tr.jvfirst', els => els.length);
     ok('J-02 voucher count matches ground truth', rowCount === Number(truth.voucher_count),
       `journal shows ${rowCount} vouchers, table has ${truth.voucher_count}`);
 
     const footText = await page.$eval('.jtab tfoot', el => el.innerText);
-    const expDebit = Number(truth.total_debit).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // matches nf-format.js's own fmt(): en-US grouping, two decimals only
+    // when the value carries paisa (this figure doesn't).
+    const expDebit = Number(truth.total_debit).toLocaleString('en-US');
     ok('J-03 total debit = total credit, matches ground truth', footText.includes(expDebit) && !/DOES NOT BALANCE/.test(footText),
       `footer: ${footText.replace(/\s+/g, ' ')} · expected ${expDebit}`);
 
@@ -166,22 +176,36 @@ async function http_(method, urlPath, { key, jwt, body } = {}) {
     // date filter: a range that excludes everything (a day with no vouchers) must show zero
     await page.evaluate(() => { document.querySelector('#nf-jrn-from').value = '2000-01-01'; document.querySelector('#nf-jrn-to').value = '2000-01-02'; });
     await page.click('#nf-jrn-apply');
-    await new Promise(res => setTimeout(res, 400));
+    await settled();
     const filteredCount = await page.$$eval('#nf-jrn-body tr.jvfirst', els => els.length);
     ok('J-06 date filter narrows the result', filteredCount === 0, `expected 0 rows for an out-of-range filter, got ${filteredCount}`);
 
     await page.click('#nf-jrn-clear');
-    await new Promise(res => setTimeout(res, 400));
+    await settled();
     const restoredCount = await page.$$eval('#nf-jrn-body tr.jvfirst', els => els.length);
     ok('J-07 "All time" restores the full list', restoredCount === Number(truth.voucher_count),
       `expected ${truth.voucher_count} after clearing the filter, got ${restoredCount}`);
 
+    // J-08: fire the narrow-range Apply and the All-time Clear back to back,
+    // no wait in between — exactly the shape that raced before the
+    // generation-guard fix (nf-journal.js). Whichever click was LAST must
+    // win, regardless of which network response happens to land first.
+    await page.evaluate(() => { document.querySelector('#nf-jrn-from').value = '2000-01-01'; document.querySelector('#nf-jrn-to').value = '2000-01-02'; });
+    await page.click('#nf-jrn-apply');
+    await page.click('#nf-jrn-clear');
+    await settled();
+    await new Promise(res => setTimeout(res, 500)); // let a stale in-flight response, if any, arrive and prove it's ignored
+    const raceCount = await page.$$eval('#nf-jrn-body tr.jvfirst', els => els.length);
+    ok('J-08 last click wins under a real race (no stale overwrite)', raceCount === Number(truth.voucher_count),
+      `expected ${truth.voucher_count} (the later, All-time click) got ${raceCount}`);
+
     await page.click('#nf-jrn-back');
-    await new Promise(res => setTimeout(res, 300));
-    ok('J-08 back to closing sheet, cleanly', await page.$('#nf-sheet') !== null && await page.$('.jsheet') === null,
+    await page.waitForSelector('#nf-sheet', { timeout: 10000 });
+    await new Promise(res => setTimeout(res, 500)); // give any stale journal response a chance to wrongly repaint over it
+    ok('J-09 back to closing sheet, cleanly', await page.$('#nf-sheet') !== null && await page.$('.jsheet') === null,
       '#nf-sheet missing or .jsheet still present after Back');
 
-    ok('J-09 no console/page errors', consoleErrors.length === 0, consoleErrors.join(' | '));
+    ok('J-10 no console/page errors', consoleErrors.length === 0, consoleErrors.join(' | '));
   } finally {
     console.log('\n── cleanup');
     try { console.log('  purge:', JSON.stringify((await q(`select public._nf_test_purge('${C}') j`))[0].j)); }
