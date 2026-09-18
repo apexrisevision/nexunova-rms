@@ -1160,3 +1160,58 @@ its own small migration, applied standalone since 20260918a–d are no longer id
 - The party-from-description fallback (item g above) is disclosed as imperfect — free text, not a curated name.
   The party-entry screen (next pass) is where real name hygiene belongs; this keeps today's screen working in the
   meantime, nothing more.
+
+### 11.10 Owner follow-ups, 2026-09-18 — cross-platform view audit, party fallback tightened
+
+**Party fallback (20260918i): matches existing parties only, never mints one.** Asked directly whether the
+description fallback (20260918g) creates a party per distinct description string — confirmed by tracing the code:
+yes. `nf_resolve_party` is an exact match only; missing it fed straight into `nf_create_party`, so two different
+receipts for the same buyer, worded differently, became two unrelated parties — the Rashid/Rashid Mansoor
+alias-splitting problem, automated. Split into two paths: an **explicit** `p_party_name` (the future party field,
+once it ships) still resolves-or-creates, since that is a deliberate choice; the **description** fallback (today's
+screen, no field) now matches an already-registered party/alias only — no match still raises
+`NF:PARTY_REQUIRED`, exactly as before the fallback existed. Verified end to end:
+`verify-nf-golden-ui.js` now pre-registers the golden day's Token Money buyer (matching the reference sample's own
+description text) before driving the real screen, standing in for an accountant having registered that customer
+ahead of time. 27/28 (print bug only, unrelated). Disclosed consequence, unchanged from before: an unregistered
+customer's receipt is refused through today's screen until someone registers them (no UI for that yet either) or
+the real party field ships.
+
+**Cross-platform view/RLS audit.** Checked every Supabase project this access token can reach:
+
+| Project | Hosts | Views | RLS-dependent | Missing `security_invoker` |
+|---|---|---|---|---|
+| Nexunova Project (`itqxljtfbrppntgyfush`) | RMS, the platform/SaaS layer, CRM's sync tables | 9 | 6 | 1 — `nf_lines`, already fixed. The 5 `platform_*` views already had it set. |
+| Nexuattend (`ctoymryoktywgcayzkce`) | NexuAttend | 3 (system only) | 0 | none — no app-defined views exist |
+| Nexunova-crm (`hondkhasedtauryltixt`) | retired standalone CRM | — | — | not checked — retired, see below; owner: auditing it is pointless |
+
+`nf_lines` was the only real finding — the platform's other pre-existing views already had this set correctly.
+Added `SEC-VIEW-INVOKER` to `verify-nf-rules.js`: a standing, catalog-wide check (every view over an RLS table,
+not scoped to `nf_`), with a planted-mutant self-test proving it actually fires (SR-2). 47/47.
+**Owner: the platform security audit is CLOSED for live systems** on this basis.
+
+**School ERP**: stopped, no live Supabase project exists for it (confirmed — not in the list of projects this
+token can reach, and its own `CLAUDE_FINAL.md` still lists "create a NEW Supabase project" as an outstanding setup
+step, so it was never actually deployed). Added a Go-Live Checklist section to
+`D:\KBH Data\RMS ERP\School system\CLAUDE_FINAL.md` requiring `SEC-VIEW-INVOKER` (or the equivalent check) to pass
+before it is ever taken live.
+
+**Nexunova-crm retirement — in progress, per the owner's explicit order (search → export → only then delete):**
+- **(a) Searched** the whole codebase and every sibling repo (`nexunova-rms`, `Nexu-attend`, `nexuattend-desktop`,
+  `nexunova-desktop`, `School system`, `Apna Peshawar`, `Daily closing`, `Main Website`, `_artifacts`) for the
+  retired project's ref/URL/keys. Clean everywhere except its own dedicated repo, `nexusnova-crm`
+  (`D:\KBH Data\RMS ERP\nexusnova-crm`) — a full, separate Next.js (`apps/web`) + Expo (`apps/mobile`) application
+  built specifically against this project, with 3 Supabase Edge Functions (`send-push`, `daily-digest`,
+  `meeting-reminders`) deployed to it. Two **real, live, untracked** (correctly gitignored, never pushed) secret
+  files found: `apps/mobile/.env` (real anon key) and `apps/web/.env.local` (real anon key **and real
+  `SUPABASE_SERVICE_ROLE_KEY`** — the RLS-bypassing key — plus an unrelated live Resend API key and an
+  `ADMIN_SECRET`). Documentation-only references (no secrets) in `CLAUDE.md` and
+  `RASHID - NexusCRM Complete Detail.txt`. Could not verify whether a Vercel deployment of the web app is still
+  live and serving traffic — no local `.vercel`/`vercel.json` found, which doesn't rule out a dashboard-linked one.
+- **(b) Export — BLOCKED, reported before doing anything further.** This Supabase org is capped at **2 active
+  free projects**; RMS and NexuAttend already fill both slots. Resuming `hondkhasedtauryltixt` to export it was
+  refused outright by Supabase's own API (403, plan limit) — and there is no stored backup to fall back on either
+  (`backups: []`, same as RMS's own status). Reaching the data at all requires either pausing RMS or NexuAttend
+  first (real production systems — not done unilaterally) or upgrading the plan tier (owner's call, same pattern
+  as the PITR blocker in §11.9). Options put to the owner; none actioned yet.
+- **(c) Deletion**: not started — correctly gated behind (b).
