@@ -19,14 +19,48 @@ const AWAMI_COMPANY_ID = '96d210e7-e63b-4ef0-b1d0-74e622eac7ce';
 const OUT = path.join(ROOT, 'supabase', 'migrations', '20260916d_nf_seed_awami.sql');
 
 // Owner, 2026-09-16 (Q9): 10400/10410/10420 are receivables, not cash.
-// Descriptions are carried over from the rows they replace.
+// Descriptions are carried over from the rows they replace. Name corrected
+// 2026-09-18 against the real Awami QuickBooks export (QB_COA_Awami.IIF,
+// QuickBooks Enterprise 34.0D, 113 accounts) — QuickBooks calls this
+// "Due from Directors", not "Receivable from Directors"; QuickBooks wins.
 const RECEIVABLE_OVERRIDE = {
   remove: ['10400', '10410', '10420'],
   insertAfter: '12500',
   add: [
-    { code: '12600', name: 'Receivable from Directors', qb_type: 'Other Current Asset', parent: '12000', from: '10400' },
+    { code: '12600', name: 'Due from Directors',        qb_type: 'Other Current Asset', parent: '12000', from: '10400' },
     { code: '12610', name: 'Syed Yousaf Shah',          qb_type: 'Other Current Asset', parent: '12600', from: '10410' },
     { code: '12620', name: 'Naeem Hussain',             qb_type: 'Other Current Asset', parent: '12600', from: '10420' },
+  ],
+};
+
+// Owner, 2026-09-18: reconciled the whole chart against the real Awami
+// QuickBooks export for the first time (an earlier comparison used the
+// wrong company file entirely — discarded). 106 of 110 accounts matched
+// exactly, by full colon-path, proving nf_account_path's materialized-path
+// logic correct against its own authoritative reference. Two real,
+// isolated gaps found, both one-off — not evidence either reference
+// account family (the "QuickBooks makes this itself" placeholders, or the
+// COA sheet generally) is systematically wrong:
+//   · 66000 "Payroll Expenses" (EXP) is real and active in the client's
+//     file but was never in the reference sheet at all — a different
+//     account from 24000 "Payroll Liabilities", which the sheet does have
+//     and which does match. Added as a real, postable head.
+//   · 80000 "Ask My Accountant" is in the reference sheet (marked
+//     "QuickBooks makes this itself"), assumed present the way 24000/30000
+//     genuinely are in every QB company file — but this real file simply
+//     does not have it. Removed; nothing here ever posted to it (is_head
+//     was already false).
+// 10400/10410/10420 ("Cash with Directors") are deliberately NOT restored
+// even though the real file still lists them: they are HIDDEN=Y there —
+// QuickBooks's own record of the same correction RECEIVABLE_OVERRIDE
+// already makes, retired in favour of 12600/12610/12620. Reintroducing
+// them would resurrect the exact bug ("director cash treated as company
+// cash") this override exists to avoid.
+const QB_RECONCILE_OVERRIDE = {
+  remove: ['80000'],
+  insertAfter: '60500',
+  add: [
+    { code: '66000', name: 'Payroll Expenses', qb_type: 'Expense', parent: null, description: 'Payroll expenses' },
   ],
 };
 
@@ -64,13 +98,21 @@ function buildSeed() {
     description: removed[x.from] ? removed[x.from].description : null,
   })));
 
+  check(accounts.some(a => a.code === QB_RECONCILE_OVERRIDE.remove[0]), '80000 not found before removing it');
+  accounts = accounts.filter(a => !QB_RECONCILE_OVERRIDE.remove.includes(a.code));
+  const at2 = accounts.findIndex(a => a.code === QB_RECONCILE_OVERRIDE.insertAfter) + 1;
+  check(at2 > 0, `anchor ${QB_RECONCILE_OVERRIDE.insertAfter} not found`);
+  accounts.splice(at2, 0, ...QB_RECONCILE_OVERRIDE.add.map(x => ({
+    code: x.code, name: x.name, qb_type: x.qb_type, parent_code: x.parent, description: x.description,
+  })));
+
   // ── Vias: the reference's ACCTS, one per money position ───────────────────
   const vias = {};
   for (const [via, label, code] of ref.ACCTS) vias[code] = { via, via_label: label };
   check(Object.keys(vias).join() === '10100,10200,10300', `ACCTS changed: ${Object.keys(vias)}`);
 
   // ── heads: the reference's list, plus the two receivables (owner Q4) ─────
-  const headCodes = new Set([...ref.heads.map(h => h.code), '12610', '12620']);
+  const headCodes = new Set([...ref.heads.map(h => h.code), '12610', '12620', '66000']);
   check(ref.heads.length === 76, `reference HEADS should hold 76, holds ${ref.heads.length}`);
 
   const children = new Set(accounts.filter(a => a.parent_code).map(a => a.parent_code));
@@ -105,12 +147,12 @@ function buildSeed() {
   // — the Vias moved OUT of this list under double-entry (they are heads
   // now too, see above).
   const leavesNotHeads = accounts.filter(a => !children.has(a.code) && !a.is_head).map(a => a.code).sort();
-  const expectLeavesNotHeads = ['11000', '24000', '30000', '32000', '80000'];
+  const expectLeavesNotHeads = ['11000', '24000', '30000', '32000'];
   check(JSON.stringify(leavesNotHeads) === JSON.stringify(expectLeavesNotHeads),
         `leaves that are not heads: ${leavesNotHeads.join(',')} (expected ${expectLeavesNotHeads.join(',')})`);
 
   check(accounts.length === 110, `seed should hold 110 accounts, holds ${accounts.length}`);
-  check(accounts.filter(a => a.is_head).length === 81, `seed should hold 81 heads (78 + the 3 via-accounts), holds ${accounts.filter(a => a.is_head).length}`);
+  check(accounts.filter(a => a.is_head).length === 82, `seed should hold 82 heads (78 + the 3 via-accounts + 66000 Payroll Expenses), holds ${accounts.filter(a => a.is_head).length}`);
   check(!accounts.some(a => a.code.startsWith('104')), 'a 104xx code survived');
   for (const c of ['12610', '12620']) {
     const a = accounts.find(x => x.code === c);
@@ -241,7 +283,7 @@ if (require.main === module) {
     failures.forEach(f => console.error('  ✗ ' + f));
     process.exit(1);
   }
-  console.log('PASS — every assertion held (chart, override, heads = reference 76 + 2, floors = sheet classes, categories = reference catIn/catOut over all 78 heads).');
+  console.log('PASS — every assertion held (chart, override, heads = reference 76 + 2 + 66000, floors = sheet classes, categories = reference catIn/catOut over every head).');
   if (process.argv.includes('--check')) process.exit(0);
 
   const sql = `-- ═══════════════════════════════════════════════════════════════════════════
