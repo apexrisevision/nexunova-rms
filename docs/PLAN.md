@@ -1741,3 +1741,66 @@ per-migration, not by blanket reference to this note, exactly as the rule always
 Next: Trial Balance is already built and verified (§12.9) — nothing further needed there. Then the CRM export +
 delete (confirm before the actual deletion). Then P&L, Balance Sheet, and the remaining reports, now checkable
 against Awami's own real, reconciled history instead of only the golden-day fixture.
+
+## 15 · Real report PDFs, and the CRM export (2026-09-18)
+
+### 15.1 Real report PDFs — the owner's first look at his own numbers
+
+`scripts/nf/export-real-reports.js` (new): drives the real General Journal, General Ledger (account 22100 FMH —
+46 real entries, picked over 12610 Syed Yousaf Shah's 12 — the owner's own suggestion, checked by query, not
+guessed) and Trial Balance screens against Awami's actual imported history via a temporary, viewer-role-only
+session, created and fully deleted around the export regardless of outcome. Found and fixed a real timing race:
+waiting on a generic `#nf-sheet`/`.nf-gate` selector after each "back" click occasionally lost to the real
+re-render on this machine — Awami has zero `nf_days` (only imported vouchers, no day was ever opened through the
+app), so the closing sheet always shows its own "no day open" gate, but the header's report-nav buttons render
+in the very same pass. Fixed by waiting on the specific next button needed, not a generic container.
+
+Saved to `D:\Claude Cowork\`: `Awami_General_Journal_2026-09-18.pdf` (64 vouchers, 4 pages),
+`Awami_General_Ledger_22100_FMH_2026-09-18.pdf` (46 entries, 1 page), `Awami_Trial_Balance_2026-09-18.pdf` (18
+accounts, 1 page, footer reads 29,953,950 = 29,953,950). All three page counts measured directly from the PDF
+bytes, matching §14.5's independent verification exactly — not a second, differently-sourced number.
+
+### 15.2 CRM export — done; deletion awaiting the owner's confirmation
+
+Resumed the paused Nexunova-crm project (`hondkhasedtauryltixt`) — the 2-active-project cap that blocked this
+earlier is confirmed lifted on Pro (already proven once, §13.2's restore proof ran 3 projects at once). Checked
+its real size before choosing a backup scope: 15 tables, 301 total rows (295 in `users`, 6 in `audit_log`,
+everything else empty) — small enough that a full `backup-full.js` run (schema + data + Excel + storage) was
+easily feasible, not just a partial export.
+
+`scripts/_sbq.js` was given a temporary, explicit-only override (`NF_ONE_TIME_TARGET_REF` env var) so
+`backup-full.js` could run against the CRM project without touching `.mcp.json` — reverted immediately after
+the one run; confirmed clean via `git diff` before doing anything else. Every other script's normal behavior
+(the `.mcp.json`-configured RMS project) was never affected, since the override only activates when that exact
+env var is set.
+
+Found and fixed a real gap in `backup-full.js` itself along the way: it assumed every target has an RMS-shaped
+`companies(id, company_name)` table (used only for cosmetic per-tenant Excel labeling) and crashed the whole
+backup outright when the CRM's schema didn't match. Fixed to fall back to an empty tenant list instead of
+assuming every future target is RMS-shaped — no change in behavior for RMS itself.
+
+Backup completed and verified with the tool's own `--verify`: **PASS — DONE marker present, manifest complete,
+every table file matches its manifest count.** Stored at `backups/CRM_EXPORT/BACKUP_20260918_2306/` (438 KB),
+alongside RMS's own backups as asked, gitignored the same way (`backups/` was already excluded — nothing new to
+exclude). Storage phase: 0/0 files (confirmed empty, not skipped).
+
+Attempted to re-pause the CRM project afterward (no functional need for it to stay reachable while awaiting the
+deletion decision) — refused by the API: `"Project is not free-tier. Please downgrade it to free-tier first and
+try again."` Left active rather than force a plan/billing change that wasn't asked for; flagged to the owner
+instead.
+
+**Not done: the actual deletion.** Export is complete and verified; confirmation is required before deleting,
+per the owner's own instruction — asked, not assumed.
+
+### 15.3 A transient push-gate failure, unrelated to this work — flagged, then confirmed to clear on its own
+
+A push attempt (commit `e03c8af`, a single new, isolated Node script) was blocked by the repo's push-gate: 7
+failures, all cascading from one root cause — "Director board: member cards rendered (0), project tabs rendered
+(0)" — in the Sales Portal's director-board feature. Confirmed this was not caused by anything in this session's
+own work before doing anything else: the blocked commit touches only `scripts/nf/export-real-reports.js`, with
+zero relationship to that frontend feature, and `git log origin/main..HEAD` showed no other pending changes at
+the time. Per the standing "two workstreams on main" convention, not touched or investigated further — flagged
+instead of silently bypassed (`--no-verify`) or fixed outside scope. A retry a short time later (commits
+`e03c8af` + `a9977e8` together) passed cleanly, 38/38, including the exact same "See their leads" check that had
+failed — confirming this was a transient flake (most likely a timing issue in the smoke suite itself, or a brief
+backend hiccup), not a persistent regression. Both commits pushed successfully once it cleared.
