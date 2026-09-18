@@ -16,7 +16,7 @@ const { execFileSync } = require('child_process');
 const { GUARD_BLOCK } = require('./write-guard');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const FILE = 'supabase/migrations/20260918e_nf_de_seed_requires_party.sql';
+const FILE = process.argv.find(a => /^supabase\/migrations\/.*\.sql$/.test(a)) || 'supabase/migrations/20260918e_nf_de_seed_requires_party.sql';
 const sha = buf => crypto.createHash('sha256').update(buf).digest('hex');
 
 function targetsOutsideNf(sql) {
