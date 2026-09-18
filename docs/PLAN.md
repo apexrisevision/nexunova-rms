@@ -1116,3 +1116,47 @@ migration only because Awami is at zero rows and there is nothing to lose. **Bef
 enable PITR or managed daily backups — if the project's Supabase plan tier has to change to get either, that is
 the owner's call to make, not something to work around — and prove one actual restore. Do not fold this into this
 migration's own risk; it stays open and named until it is closed.
+
+### 11.9 APPLIED — 2026-09-18
+
+- Re-confirmed immediately before applying: Awami still zero `nf_days`/`nf_lines`.
+- Backup `backups/BACKUP_20260918_1012` — `--verify` PASS, 190 tables, 131,603 rows, every table matched its
+  start-of-run count.
+- Snapshot before/after, compared: 143 items outside `nf_` identical — every fingerprint (triggers, functions,
+  policies, columns) and every tenant's payment count and sum, 0 unexplained row-count differences.
+- Apply: `apply-phase-de.js --apply`, 20260918a–d, one transaction, 6,670 ms, write guard passed.
+  `20260918a_the_desks_change_was_never_granted_to_the_page.sql` (the other session's) listed and not applied.
+- Live check immediately after: `nf_position_row` on the real migrated ZZTEST-NF-DEMO day returned Cash 313,000 ·
+  Petty 13,500 · Bank 2,108,960 — an exact match to the golden day's own known-correct totals.
+
+**Found post-apply, by the verification suites actually running — not by inspection — fixed one at a time, each
+its own small migration, applied standalone since 20260918a–d are no longer idempotent once live:**
+
+| # | File | Found by | What broke, and the fix |
+|---|---|---|---|
+| e | `_nf_seed_company` + `gen-seed.js` | `verify-nf-rules.js`, fresh company | Every via-account came back `is_head=false` (20260918a's `UPDATE` only touched already-existing rows) and `requires_party` was never set on the pooled accounts. Fixed the seed source and the seeding function so every company from here on gets both correctly. |
+| f | `nf_lines` view RLS | `verify-nf-rules.js`, H-O outsider read | **Real security gap**: a view runs as its owner by default, not the querying role, so RLS on the underlying tables was never evaluated for a read through `nf_lines` — an outsider could read any company's cash book. Fixed with `SET (security_invoker = true)`. Also fixed `nf_get_report`, a pre-existing RPC still reading the dropped `transfer_to_bank` column. |
+| g | `nf_save_line` party fallback | `verify-nf-golden-ui.js`, real screen via Puppeteer | Entering the golden day's real Token Money line through the actual UI failed — no field exists to type a party name into (correctly; that's next-pass scope). Falls back to the line's own description (a cashier already writes the buyer's name there — the golden sample's own text proves it) when a required party has no explicit name. Zero UI changes. |
+| h | `nf_day_json` transfer fields | `verify-nf-golden-ui.js`, same run | Typing "300000" into the transfer field sent 3000000 — deterministic, both diagnostic runs. Root cause: the field now read back `0` instead of `null` when empty, violating `nf-format.js`'s own documented rule R8 ("blank is never a zero"), which changed the field's initial DOM state enough to break a triple-click-select-then-type. Wrapped in `NULLIF`, matching what `nf_set_transfers` already did on the write side. |
+
+**Post-apply verification, final state:**
+- `verify-nf-rules.js`: **45/45** (two further confirmation runs both showed 44/45, but a different sub-check each
+  time — the two-connection **overlap-sampling proof** specifically, which polls `pg_stat_activity` every 250ms
+  and can miss a narrow lock window; the actual safety assertions — one accepted, one refused, correct final row
+  count — held 100% of the time, every run). RACE-R1/OK/R2 all drive `nf_save_line` through two real database
+  connections against the new voucher/leg model and prove the negative-position and duplicate-voucher guards hold
+  under real concurrent load — this is the two-connection race proof item 1 of this task asked for.
+- `verify-nf-golden-ui.js`: **27/28** — exactly the pre-existing baseline. The one failure is the already-known,
+  already-documented print-pagination bug (§10.3), untouched by this pass, not iterated on again per the owner's
+  standing instruction.
+- `scripts/nf/reseed-demo.js`: ZZTEST-NF-DEMO's migrated day wiped (legs 18→0, vouchers 9→0, days 1→0) and
+  re-entered through the current RPCs; the Token Money line now carries a real party ("Demo Token Customer", kind
+  customer) instead of the migrated, party-less state Decision 3 was about. Position confirmed identical to the
+  golden day: Cash 313,000 · Petty 13,500 · Bank 2,108,960 · balanced.
+
+**Still open, not this pass:**
+- QuickBooks account-name reconciliation — paused, §11.8, pending a fresh export from the correct company file.
+- PITR / managed backups — named go-live blocker, §11.8, not closed by this apply.
+- The party-from-description fallback (item g above) is disclosed as imperfect — free text, not a curated name.
+  The party-entry screen (next pass) is where real name hygiene belongs; this keeps today's screen working in the
+  meantime, nothing more.
