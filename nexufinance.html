@@ -31,6 +31,8 @@
 <link rel="stylesheet" href="css/nf/nf-print.css?v=20260917a" media="print">
 <link rel="stylesheet" href="css/nf/nf-report.css?v=20260918a">
 <link rel="stylesheet" href="css/nf/nf-report-print.css?v=20260918a" media="print">
+<link rel="stylesheet" href="css/nf/nf-journal.css?v=20260918a">
+<link rel="stylesheet" href="css/nf/nf-journal-print.css?v=20260918a" media="print">
 <script>
 try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
 </script>
@@ -72,6 +74,7 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
 <script src="js/nf/nf-messages.js?v=20260917a"></script>
 <script src="js/nf/nf-sheet.js?v=20260917a"></script>
 <script src="js/nf/nf-report.js?v=20260918a"></script>
+<script src="js/nf/nf-journal.js?v=20260918a"></script>
 <script>
 (function () {
   'use strict';
@@ -95,7 +98,7 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
   catch (e) { SB = null; }
 
   if (!SB) return fail('Could not reach the database', new Error('The Supabase client did not load. Reload the page.'));
-  if (!window.NfFmt || !window.NfApi || !window.NfMsg || !window.NfSheet || !window.NfReport) {
+  if (!window.NfFmt || !window.NfApi || !window.NfMsg || !window.NfSheet || !window.NfReport || !window.NfJournal) {
     return fail('Could not load the cash book', new Error('A module file did not load. Reload the page.'));
   }
 

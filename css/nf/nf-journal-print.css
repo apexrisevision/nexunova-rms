@@ -1,0 +1,30 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   NexuFinance v1 — print CSS for the General Journal. Unlike the daily
+   closing / director report, this has no fixed page budget — a real
+   journal can run to any number of vouchers, so this does NOT force a
+   single page. @page margin still set for consistency with the other nf_
+   print stylesheets (see css/nf/nf-print.css's own header on why @page has
+   no per-screen scoping — this repeats the same 8mm so switching between
+   screens doesn't change an already-open print preview's margin).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@page{size:A4 portrait;margin:8mm}
+@media print{
+  :root,:root[data-theme="dark"]{
+    --bg:#fff;--card:#fff;--ink:#111827;--ink2:#374151;--muted:#6B7280;--line:#E5E7EB;--line2:#CBD2DC;
+    --brand:#1B365D;--brand-2:#2C5282;--soft:#F3F5F8;--field:transparent;--field-b:transparent;
+    --pos:#18794E;--pos-soft:#EAF7F0;--neg:#B42318;--neg-soft:#FDF1F0;--shadow:none;color-scheme:light}
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff;font-size:10.5px}
+  .nf-topbar{display:none}
+  .jsheet{margin:0;max-width:none;border:0;border-radius:0;box-shadow:none}
+  .hdr{padding:6px 4px}
+  .actions,.jfilter{display:none!important}
+  .rsec{padding:8px 4px 0}
+  .jtab{font-size:9.5px}
+  .jtab th{padding:4px 7px;font-size:9px}
+  .jtab td{padding:3px 7px}
+  .jtab tr.jvfirst{break-inside:avoid}
+  .rtab tfoot td{padding:5px 7px}
+  .docfoot{margin-top:8px;padding:6px 4px;font-size:9px}
+  :focus,:focus-visible{outline:none!important}
+}

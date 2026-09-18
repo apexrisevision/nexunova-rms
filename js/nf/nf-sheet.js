@@ -130,6 +130,7 @@
         '      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>' +
         '    </button>' +
         (d ? '    <button class="btn" id="nf-toDir" type="button">Director report</button>' : '') +
+        '    <button class="btn" id="nf-toJrn" type="button">General Journal</button>' +
         (d && d.status === 'CLOSED' && d.is_latest ? '    <button class="btn" id="nf-startNext" type="button">Start new day</button>' : '') +
         '    <button class="btn primary" id="nf-print" type="button">' +
         '      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7"/></svg>Print</button>' +
@@ -623,6 +624,16 @@
         // after — reasoned through the DOM structure, not assumed safe.
         global.NfReport.mount(root, {
           api: api, companyId: companyId, dayId: S.day.id, role: role,
+          displayName: ctx.displayName, companyName: ctx.companyName, settings: S.settings,
+          onBack: function () { global.NfSheet.mount(root, ctx); },
+        });
+      });
+      var toJrn = root.querySelector('#nf-toJrn');
+      if (toJrn) toJrn.addEventListener('click', function () {
+        // same full-remount reasoning as #nf-toDir above — NfJournal.mount
+        // also replaces root.innerHTML wholesale.
+        global.NfJournal.mount(root, {
+          api: api, companyId: companyId, role: role,
           displayName: ctx.displayName, companyName: ctx.companyName, settings: S.settings,
           onBack: function () { global.NfSheet.mount(root, ctx); },
         });

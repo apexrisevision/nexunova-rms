@@ -108,6 +108,9 @@
 
       // report (Phase 3 — exposed here so it isn't re-plumbed later)
       getReport: function (dayId) { return call('nf_get_report', { p_day_id: dayId }); },
+      getJournal: function (companyId, from, to) {
+        return call('nf_get_journal', { p_company_id: companyId, p_from: from || null, p_to: to || null });
+      },
 
       // membership
       setMember: function (companyId, userId, role, displayName, active) {

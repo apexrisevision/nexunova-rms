@@ -1,0 +1,17 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   NexuFinance v1 — the General Journal. Reuses .sheet/.hdr/.brand/.mark/
+   .co/.docfoot/.rsec/.rtab/.neg from nf.css and nf-report.css for visual
+   consistency with the other report screens; everything below is new.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.jsheet{padding-bottom:6px}
+
+.jfilter{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-top:14px}
+.jfilter label{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2)}
+.jfilter input[type=date]{border:1px solid var(--line2);border-radius:6px;padding:5px 8px;font-size:12.5px;background:var(--card)}
+.jcount{margin-left:auto}
+
+.jtab td,.jtab th{vertical-align:top}
+.jtab tr.jvfirst td{border-top:1px solid var(--line2);padding-top:9px}
+.jtab tr.jvleg td{color:var(--ink2)}
+.jtab tr.jvfirst td:nth-child(1),.jtab tr.jvfirst td:nth-child(2){font-weight:600}
