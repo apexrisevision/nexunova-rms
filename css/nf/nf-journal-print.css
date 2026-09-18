@@ -31,7 +31,24 @@
   .hdr{padding:6px 4px}
   .actions,.jfilter{display:none!important}
   .rsec{padding:8px 4px 0}
-  .jtab{font-size:9.5px}
+  /* table-layout:fixed so these widths actually hold instead of the
+     browser's content-based auto-sizing re-deciding them per row — that
+     auto-sizing is what wrapped Date to three stacked lines ("06-" /
+     "Feb-" / "2026") and Voucher/Floor to two, nearly doubling the page
+     count. Date/Voucher/Floor/Debit/Credit are fixed-format values that
+     should never break; Account gets the width it actually needs for a
+     long group-company name (e.g. "22100 FMH - Fourteen Manzil
+     Heights"), taken from Narration, which is free text and is the one
+     column that should still wrap. */
+  .jtab{font-size:9.5px;table-layout:fixed;width:100%}
+  .jtab th:nth-child(1),.jtab td:nth-child(1){width:10%;white-space:nowrap}
+  .jtab th:nth-child(2),.jtab td:nth-child(2){width:7.5%;white-space:nowrap}
+  .jtab th:nth-child(3),.jtab td:nth-child(3){width:22%}
+  .jtab th:nth-child(4),.jtab td:nth-child(4){width:20%}
+  .jtab th:nth-child(5),.jtab td:nth-child(5){width:9.5%;white-space:nowrap}
+  .jtab th:nth-child(6),.jtab td:nth-child(6){width:10%}
+  .jtab th:nth-child(7),.jtab td:nth-child(7){width:10.5%;white-space:nowrap}
+  .jtab th:nth-child(8),.jtab td:nth-child(8){width:10.5%;white-space:nowrap}
   .jtab th{padding:4px 7px;font-size:9px}
   .jtab td{padding:3px 7px}
   .jtab tr.jvfirst{break-inside:avoid}
