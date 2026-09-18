@@ -1,0 +1,116 @@
+!HDR	PROD	VER	REL	IIFVER	DATE	TIME	ACCNTNT	ACCNTNTSPLITTIME
+HDR	QuickBooks Enterprise Solutions	Version 34.0D	Release R21P	1	2026-09-18	1789715282	N	0
+!ACCNT	NAME	REFNUM	TIMESTAMP	ACCNTTYPE	OBAMOUNT	DESC	ACCNUM	SCD	BANKNUM	EXTRA	HIDDEN	DELCOUNT	USEID
+ACCNT	Cash & Bank	7	1789494330	BANK	0.00	All cash and bank accounts	10000	0			N	0	N
+ACCNT	Cash & Bank:Cash in Hand	8	1789494330	BANK	0.00	Main project cash	10100	0			N	0	N
+ACCNT	Cash & Bank:Petty Cash	9	1789494330	BANK	0.00	Small day to day office cash	10200	0			N	0	N
+ACCNT	Cash & Bank:Bank Al-Habib - Awami Market	10	1789494331	BANK	0.00	Project bank account	10300	0			N	0	N
+ACCNT	Cash & Bank:Cash with Directors	11	1789494331	BANK	0.00	Company cash physically held by a director	10400	0			N	0	N
+ACCNT	Cash & Bank:Cash with Directors:Syed Yousaf Shah	12	1789494331	BANK	0.00	Cash held on the project's behalf	10410	0			Y	0	N
+ACCNT	Cash & Bank:Cash with Directors:Naeem Hussain	13	1789494331	BANK	0.00	Cash held on the project's behalf	10420	0			Y	0	N
+ACCNT	Accounts Receivable	14	1789494331	AR	0.00	Not used day to day - the system runs on cash basis	11000	0			N	0	N
+ACCNT	Current Assets	15	1789494332	OCASSET	0.00	Short term assets other than cash	12000	0			N	0	N
+ACCNT	Current Assets:Supplier & Contractor Advances	16	1789494332	OCASSET	0.00	Advance paid against material or work	12100	0			N	0	N
+ACCNT	Current Assets:Staff Advances	17	1789494332	OCASSET	0.00	Advance salary or money given to staff	12200	0			N	0	N
+ACCNT	Current Assets:PDC Receivable	18	1789494332	OCASSET	0.00	Post dated cheques received not yet cleared	12300	0			N	0	N
+ACCNT	Current Assets:Prepaid Expenses	19	1789494333	OCASSET	0.00	Expenses paid in advance	12400	0			N	0	N
+ACCNT	Current Assets:Security Deposits	20	1789494333	OCASSET	0.00	Deposits with utilities and authorities	12500	0			N	0	N
+ACCNT	Current Assets:Due from Directors	113	1789661403	OCASSET	0.00	"Money paid out to a director for the project - a receivable, not company cash"	12600	0			N	0	N
+ACCNT	Current Assets:Due from Directors:Syed Yousaf Shah	114	1789661403	OCASSET	"7,660,900.00"	Replaces 10410. Balance moved here by JV on 17-Sep-2026	12610	0			N	0	N
+ACCNT	Current Assets:Due from Directors:Naeem Hussain	115	1789661403	OCASSET	0.00	Replaces 10420. Balance moved here by JV on 17-Sep-2026	12620	0			N	0	N
+ACCNT	Project Inventory	21	1789494333	OCASSET	0.00	Units held for sale	13000	0			N	0	N
+ACCNT	Project Inventory:Unsold Units - Shops	22	1789494333	OCASSET	0.00	Units not yet sold	13100	0			N	0	N
+ACCNT	Fixed Assets	23	1789494333	FIXASSET	0.00	Assets for the company's own use	15000	0			N	0	N
+ACCNT	Fixed Assets:Furniture & Fixtures	24	1789494334	FIXASSET	0.00	Office furniture and fittings	15100	0			N	0	N
+ACCNT	Fixed Assets:Office Equipment	25	1789494334	FIXASSET	0.00	Office machines and equipment	15200	0			N	0	N
+ACCNT	Fixed Assets:Computer & IT Equipment	26	1789494334	FIXASSET	"130,000.00"	Computers laptops and IT hardware	15300	0			N	0	N
+ACCNT	Fixed Assets:Vehicles	27	1789494334	FIXASSET	0.00	Project owned vehicles	15400	0			N	0	N
+ACCNT	Fixed Assets:Accumulated Depreciation	28	1789494335	FIXASSET	0.00	Total depreciation charged to date	15900	0			N	0	N
+ACCNT	Other Assets	29	1789494335	OASSET	0.00	Long term assets other than fixed assets	16000	0			N	0	N
+ACCNT	Other Assets:Software & Licences	30	1789494335	OASSET	"488,000.00"	Accounting and other software	16100	0			N	0	N
+ACCNT	Accounts Payable	31	1789494335	AP	0.00	Money owed to suppliers	20000	0			N	0	N
+ACCNT	Customer Advances	32	1789494335	OCLIAB	0.00	Money taken from buyers before it becomes a sale	21000	0			N	0	N
+ACCNT	Customer Advances:Token Money - Units	33	1789494336	OCLIAB	"-3,280,000.00"	Token taken against a unit - moves to sales by JV once the deal is final	21100	0			N	0	N
+ACCNT	Customer Advances:Advance - Advertising Units	34	1789494336	OCLIAB	0.00	Advance taken against ad units	21200	0			N	0	N
+ACCNT	Customer Advances:Refunds Payable to Customers	35	1789494336	OCLIAB	0.00	Cancelled tokens due back to the buyer	21300	0			N	0	N
+ACCNT	Due to / from Group Companies	36	1789494336	OCLIAB	0.00	One running account per group company - swings either way	22000	0			N	0	N
+ACCNT	Due to / from Group Companies:FMH - Fourteen Manzil Heights	37	1789494337	OCLIAB	"-20,124,450.00"	What FMH spends for Awami increases this - what FMH receives for Awami reduces it	22100	0			N	0	N
+ACCNT	Due to / from Group Companies:KBH - Khushal Bagh Heights	38	1789494337	OCLIAB	"-6,549,500.00"	Running account with KBH	22200	0			N	0	N
+ACCNT	Due to / from Group Companies:14 Development - BAHL	39	1789494337	OCLIAB	0.00	Running account with the 14 Development account	22300	0			N	0	N
+ACCNT	Due to / from Group Companies:Fourteen Group - Head Office	40	1789494337	OCLIAB	0.00	Running account with head office	22400	0			N	0	N
+ACCNT	Accrued & Other Payables	41	1789494338	OCLIAB	0.00	Amounts owed but not yet paid	23000	0			N	0	N
+ACCNT	Accrued & Other Payables:Salaries Payable	42	1789494338	OCLIAB	0.00	Salaries earned but not yet paid	23100	0			N	0	N
+ACCNT	Accrued & Other Payables:Dealer Commission Payable	43	1789494338	OCLIAB	0.00	Commission owed to dealers and sub dealers	23200	0			N	0	N
+ACCNT	Accrued & Other Payables:Accrued Expenses	44	1789494338	OCLIAB	0.00	Expenses incurred but not yet paid	23300	0			N	0	N
+ACCNT	Accrued & Other Payables:PDC Payable	45	1789494339	OCLIAB	0.00	Post dated cheques issued not yet cleared	23400	0			N	0	N
+ACCNT	Payroll Liabilities	6	1789493828	OCLIAB	0.00	"Unpaid payroll liabilities. Amounts withheld or accrued, but not yet paid"	24000	0			N	0	N
+ACCNT	Taxes Payable	46	1789494339	OCLIAB	0.00	Taxes collected or due to government	24500	0			N	0	N
+ACCNT	Taxes Payable:KPRA Sales Tax on Services	47	1789494339	OCLIAB	0.00	KPRA sales tax collected and payable	24510	0			N	0	N
+ACCNT	Taxes Payable:Withholding Tax Payable	48	1789494339	OCLIAB	0.00	Tax deducted at source from payments	24520	0			N	0	N
+ACCNT	Taxes Payable:Income Tax Payable	49	1789494339	OCLIAB	0.00	Income tax due	24530	0			N	0	N
+ACCNT	Short Term Loans	50	1789494340	OCLIAB	0.00	Loans due within one year	25000	0			N	0	N
+ACCNT	Short Term Loans:Loan Payable - Short Term	51	1789494340	OCLIAB	0.00	Short term borrowing	25100	0			N	0	N
+ACCNT	Long Term Liabilities	52	1789494340	LTLIAB	0.00	Loans due after one year	26000	0			N	0	N
+ACCNT	Long Term Liabilities:Loan Payable - Long Term	53	1789494340	LTLIAB	0.00	Long term borrowing	26100	0			N	0	N
+ACCNT	Long Term Liabilities:Directors & Related Party Loan	54	1789494341	LTLIAB	0.00	Money lent by directors or related parties	26200	0			N	0	N
+ACCNT	Opening Balance Equity	4	1789493786	EQUITY	0.00	Opening balances during setup post to this account. The balance of this account should be zero after completing your setup	30000	0		OPENBAL	N	0	N
+ACCNT	Owners Equity	55	1789494341	EQUITY	0.00	Capital and accumulated results	31000	0			N	0	N
+ACCNT	Owners Equity:Capital - Fourteen Group	56	1789494341	EQUITY	0.00	Investment into the project	31100	0			N	0	N
+ACCNT	Owners Equity:Drawings	57	1789494341	EQUITY	0.00	Money taken out	31200	0			N	0	N
+ACCNT	Retained Earnings	3	1789493786	EQUITY	0.00	Undistributed earnings of the business	32000	0		RETEARNINGS	N	0	N
+ACCNT	Revenue	58	1789494341	INC	0.00	All project income	40000	0			N	0	N
+ACCNT	Revenue:Unit & Shop Sales	59	1789494342	INC	0.00	Sale of units and shops - recognised as the cash comes in	40100	0			N	0	N
+ACCNT	Revenue:Advertising Unit Income	60	1789494342	INC	0.00	Income from advertising units	40200	0			N	0	N
+ACCNT	Revenue:Transfer & Processing Fee	61	1789494342	INC	0.00	Fees on transfers and file processing	40300	0			N	0	N
+ACCNT	Revenue:Forfeited Token Income	62	1789494342	INC	0.00	Token kept when a buyer walks away	40400	0			N	0	N
+ACCNT	Revenue:Other Income	63	1789494343	INC	0.00	Income not fitting the heads above	40900	0			N	0	N
+ACCNT	Cost of Sales	64	1789494343	COGS	0.00	Everything spent to build and sell the project	50000	0			N	0	N
+ACCNT	Cost of Sales:Land Cost	65	1789494343	COGS	0.00	Land and everything to acquire it	51000	0			N	0	N
+ACCNT	Cost of Sales:Land Cost:Land Purchase Cost	66	1789494343	COGS	"18,000,000.00"	Payments to the landlord	51100	0			N	0	N
+ACCNT	"Cost of Sales:Land Cost:Registration, Stamp & Mutation"	67	1789494344	COGS	0.00	Registry stamp duty and mutation charges	51200	0			N	0	N
+ACCNT	Cost of Sales:Construction Cost	68	1789494344	COGS	0.00	Material labour and everything built on site	52000	0			N	0	N
+ACCNT	Cost of Sales:Construction Cost:Steel	69	1789494344	COGS	0.00	Steel and reinforcement	52100	0			N	0	N
+ACCNT	Cost of Sales:Construction Cost:Cement	70	1789494344	COGS	0.00	Cement	52200	0			N	0	N
+ACCNT	Cost of Sales:Construction Cost:Crush & Sand	71	1789494345	COGS	0.00	Crush sand and aggregate	52300	0			N	0	N
+ACCNT	Cost of Sales:Construction Cost:Bricks & Blocks	72	1789494345	COGS	0.00	Bricks and blocks	52400	0			N	0	N
+ACCNT	Cost of Sales:Construction Cost:Other Construction Material	73	1789494345	COGS	0.00	Material not covered above	52500	0			N	0	N
+ACCNT	Cost of Sales:Construction Cost:Labour	74	1789494345	COGS	0.00	Site labour	52600	0			N	0	N
+ACCNT	Cost of Sales:Construction Cost:Contractor Payments	75	1789494346	COGS	0.00	Payments to contractors	52700	0			N	0	N
+ACCNT	Cost of Sales:Construction Cost:Machinery Rent & Fuel	76	1789494346	COGS	0.00	Machinery hire and fuel	52800	0			N	0	N
+ACCNT	Cost of Sales:Construction Cost:Site Utilities & Temp Works	77	1789494346	COGS	0.00	Site electricity water and temporary structures	52900	0			N	0	N
+ACCNT	Cost of Sales:Project Development Cost	78	1789494346	COGS	0.00	Project costs that are not construction material	53000	0			N	0	N
+ACCNT	"Cost of Sales:Project Development Cost:Architecture, Design & Drawings"	79	1789494347	COGS	"1,000,000.00"	Architect structure design and drawings	53100	0			N	0	N
+ACCNT	Cost of Sales:Project Development Cost:Soil Testing & Survey	80	1789494347	COGS	"300,000.00"	Soil testing and site survey	53200	0			N	0	N
+ACCNT	Cost of Sales:Project Development Cost:NOC & Approvals	81	1789494347	COGS	"50,000.00"	PDA TMA and other approvals	53300	0			N	0	N
+ACCNT	Cost of Sales:Project Development Cost:Government & Regulatory Fees	82	1789494347	COGS	"1,200,000.00"	KPRA PDA and other statutory project payments	53400	0			N	0	N
+ACCNT	Cost of Sales:Project Development Cost:Regulatory & Facilitation	83	1789494348	COGS	"595,000.00"	Facilitation payments made to move approvals along	53500	0			N	0	N
+ACCNT	Cost of Sales:Project Development Cost:Consultancy & Professional Fees	84	1789494348	COGS	0.00	Consultants engaged for the project	53600	0			N	0	N
+ACCNT	Cost of Sales:Selling Cost	85	1789494348	COGS	0.00	Cost of making the sale	54000	0			N	0	N
+ACCNT	Cost of Sales:Selling Cost:Dealer & Sub-dealer Commission	86	1789494348	COGS	0.00	Commission paid on sales	54100	0			N	0	N
+ACCNT	Marketing & Sales Expenses	87	1789494349	EXP	0.00	Cost of the marketing side of the business	60000	0			N	0	N
+ACCNT	Marketing & Sales Expenses:Advertising & Promotion	88	1789494349	EXP	"200,000.00"	Banners hoardings print and outdoor	60100	0			N	0	N
+ACCNT	Marketing & Sales Expenses:Digital & Social Media Ads	89	1789494349	EXP	0.00	Facebook Google and other online ads	60200	0			N	0	N
+ACCNT	Marketing & Sales Expenses:Marketing Printing & Material	90	1789494349	EXP	"82,200.00"	Brochures maps flyers and giveaways	60300	0			N	0	N
+ACCNT	Marketing & Sales Expenses:Events & Client Entertainment	91	1789494350	EXP	"43,600.00"	Events stalls and hosting clients	60400	0			N	0	N
+ACCNT	Marketing & Sales Expenses:Sales Office Expense	92	1789494350	EXP	0.00	Running the sales office	60500	0			N	0	N
+ACCNT	Payroll Expenses	5	1789493828	EXP	0.00	Payroll expenses	66000	0			N	0	N
+ACCNT	Administrative Expenses	93	1789494350	EXP	0.00	Cost of running the office	70000	0			N	0	N
+ACCNT	Administrative Expenses:Salaries & Wages	94	1789494350	EXP	"50,000.00"	Staff salaries and wages	70100	0			N	0	N
+ACCNT	Administrative Expenses:Security & Guards	95	1789494351	EXP	0.00	Guards pay and related cost	70200	0			N	0	N
+ACCNT	Administrative Expenses:Office Rent	96	1789494351	EXP	0.00	Rent of office premises	70300	0			N	0	N
+ACCNT	Administrative Expenses:Utilities	97	1789494351	EXP	0.00	Office utility bills	70400	0			N	0	N
+ACCNT	Administrative Expenses:Utilities:Electricity	98	1789494351	EXP	0.00	Electricity bills	70410	0			N	0	N
+ACCNT	Administrative Expenses:Utilities:Sui Gas	99	1789494352	EXP	0.00	SNGPL gas bills	70420	0			N	0	N
+ACCNT	Administrative Expenses:Utilities:Water	100	1789494352	EXP	0.00	Water charges	70430	0			N	0	N
+ACCNT	Administrative Expenses:Printing & Stationery	101	1789494352	EXP	"98,250.00"	Voucher books receipts and office stationery	70500	0			N	0	N
+ACCNT	Administrative Expenses:Communication & Internet	102	1789494352	EXP	0.00	Phone internet and business numbers	70600	0			N	0	N
+ACCNT	Administrative Expenses:Travelling & Conveyance	103	1789494353	EXP	0.00	Travel fuel and conveyance	70700	0			N	0	N
+ACCNT	Administrative Expenses:Repair & Maintenance	104	1789494353	EXP	0.00	Repairs and upkeep	70800	0			N	0	N
+ACCNT	Administrative Expenses:Legal & Professional Fees	105	1789494353	EXP	0.00	Lawyers auditors and consultants for the company	70900	0			N	0	N
+ACCNT	Other Operating Expenses	106	1789494353	EXP	0.00	Operating costs not covered above	81000	0			N	0	N
+ACCNT	"Other Operating Expenses:Donations, Sadqa & Khairat"	107	1789494354	EXP	"56,000.00"	Charity khatam and sadqa	81100	0			N	0	N
+ACCNT	Other Operating Expenses:Depreciation Expense	108	1789494354	EXP	0.00	Yearly depreciation on fixed assets	81200	0			N	0	N
+ACCNT	Other Operating Expenses:Miscellaneous Expense	109	1789494354	EXP	0.00	Small items not worth their own head	81300	0			N	0	N
+ACCNT	Financial Charges	110	1789494354	EXP	0.00	Cost of banking and borrowing	85000	0			N	0	N
+ACCNT	Financial Charges:Bank Charges	111	1789494354	EXP	0.00	Bank fees and charges	85100	0			N	0	N
+ACCNT	Financial Charges:Markup & Interest	112	1789494355	EXP	0.00	Markup and interest on loans	85200	0			N	0	N
