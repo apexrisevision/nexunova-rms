@@ -799,3 +799,291 @@ instruction (2026-09-16): **if the same test fails three times running, stop and
 ### 10.4 Not done
 
 Days list/navigation beyond the latest day, the director report screen (Phase 3), WhatsApp share (Phase 3).
+
+---
+
+## 11 · Double-entry foundation — built and rehearsed, NOT applied (2026-09-18)
+
+**Owner decision, settled, not re-litigated here:** NexuFinance moves to a real double-entry ledger. QuickBooks
+Desktop Enterprise stays the book of record; NexuFinance is entry-capture/control, management reporting, batched
+IIF export, and QB-vs-NexuFinance reconciliation. Not a QuickBooks rebuild: no payroll, inventory, accrual,
+depreciation or multi-currency — cash-basis project accounting only. This pass is foundation only: the voucher/leg
+model, the party master, ledger-derived opening, the COA colon-path. Reports, the party-entry screen, IIF export
+and reconciliation are explicitly the next pass.
+
+### 11.1 Files
+
+| File | What it is |
+|---|---|
+| `supabase/migrations/20260918a_nf_double_entry_tables.sql` | `nf_parties`, `nf_party_aliases`, `nf_vouchers`, `nf_voucher_legs`; `nf_accounts.requires_party`; drops `nf_accounts_head_not_via` (§11.3) |
+| `supabase/migrations/20260918b_nf_double_entry_guards.sql` | leg guard + position guard + deferred balance-check trigger; `nf_ledger_position`; the fixed `nf_position_row`; `nf_account_path`; extends `nf_audit_row` |
+| `supabase/migrations/20260918c_nf_double_entry_rpcs.sql` | `nf_post_voucher`; `nf_save_line`/`nf_delete_line` rewritten (same signature, same returned JSON); party RPCs |
+| `supabase/migrations/20260918d_nf_migrate_lines_to_vouchers.sql` | renames `nf_lines`→`nf_lines_legacy`, migrates every row to a 2-leg voucher, **verifies to the rupee**, creates `nf_lines` as a view |
+| `supabase/migrations/20260918r_nf_de_rollback.sql` | tool, never applied; undoes only 20260918a–d, restores the exact pre-change function bodies |
+| `scripts/nf/verify-nf-de-migration.js` | the rehearsal this section reports on |
+
+### 11.2 The four items, and the call made on each
+
+**1 · Voucher/leg model.** `nf_vouchers` (header) + `nf_voucher_legs` (legs): a per-leg CHECK enforces exactly one
+of debit/credit; `floor_code` is `NOT NULL` on every leg, cash/bank legs included; a voucher may have any number of
+legs ≥ 2. **Enforcement is both mechanisms, not a choice between them** — they cover different moments:
+`nf_post_voucher` validates leg completeness and balance *before* writing anything, holding the day row `FOR UPDATE`
+first (the atomic, race-safe half); a `DEFERRABLE INITIALLY DEFERRED` constraint trigger on `nf_voucher_legs`
+re-checks balance for any already-POSTED voucher at the end of the enclosing transaction — for this platform, the
+end of one RPC call — catching a later edit that touches one leg without re-touching its sibling in the same
+statement, which the atomic RPC's own upfront check cannot see. Rehearsed: an unbalanced post is rejected
+(`NF:VOUCHER_UNBALANCED`), a real 3-leg voucher posts and balances. The two-connection race proof is post-apply
+(§11.6) — it needs two real, independent connections against persisted schema, which a rolled-back rehearsal
+transaction cannot provide.
+
+Modeled correctly, as asked: side='IN' credits the head, side='OUT' debits it, which makes the director-receivable
+case fall out correctly for free (a director's petty-cash draw debits 12610/12620, not cash-in-hand — matching the
+real QuickBooks bug already corrected once). The "FMH/KBH/a director pays an Awami cost directly" pattern (credit an
+inter-company payable or a director receivable, debit Cost of Sales — **no Awami cash leg at all**) is a genuinely
+different shape than anything the current cash-book screen can enter (there is no via column to fill in when no
+cash moved), so it is not wired into `nf_save_line` this pass — it is proven directly at the schema level instead
+(§11.2 rehearsal check 5, a real 2-leg voucher with a party-required leg and no via account), ready for the entry
+screen that pass 2 builds.
+
+`nf_lines` is a **VIEW**, not a UI migration: `nf_save_line`/`nf_delete_line` keep their exact signatures and
+returned `nf_day_json` shape, now writing a 2-leg voucher underneath (head leg at `line_no=1`, via leg at
+`line_no=2` — the convention that lets both the view and the UPDATE path find "the other leg" without extra
+lookups). `js/nf/nf-sheet.js` and `js/nf/nf-api.js` are unchanged. The view only shows vouchers with **exactly**
+two legs — found by the rehearsal itself (a 3-leg test voucher leaked into the view with a wrong amount before this
+filter was added; fixed, see §11.4).
+
+**GUARD CHANGE, flagged not silent:** `nf_accounts_head_not_via` (`CHECK (NOT (is_head AND via IS NOT NULL))`) is
+dropped. It was a deliberate single-entry guard — a via-account could never be the "head" a cashier picks, because
+via was always the *implicit* other side. Under double-entry that is backwards: a real bank-to-till transfer
+(debit Bank, credit Cash, no other head at all) needs both legs to be via-accounts acting as normal postable heads.
+This is a direct, foreseeable consequence of the double-entry decision itself, not a convenience shortcut — but it
+is still a real guard being removed, so it is named here rather than discovered later. Restored by the rollback
+(after resetting `is_head` back to false on the three via-accounts, or the restore would itself fail the check).
+
+**2 · Party master.** `nf_parties` + `nf_party_aliases`, seeded per-company; `nf_accounts.requires_party` is data
+(currently `12610`, `12620`, `22100–22400`, `21100–21300`), enforced by the leg guard trigger, not a hardcoded list
+in code. `nf_resolve_party()` matches a typed name against a party's own name first, then any alias — the
+"Rashid"/"Rashid Mansoor" case is exactly what the alias table exists to stop from splitting a balance again.
+**Seeding from `docs/reference/Awami_Market_COA.xlsx` is not done in this pass** — Awami has no real cash-book
+data yet to attach parties to (§11.4), and the party-entry screen that would actually use a seeded list is next
+pass's work; building the seed now would be seeding a table nothing reads yet. Rehearsed: an unparted leg on
+`12610` is rejected (`NF:PARTY_REQUIRED`), a real director party then satisfies it.
+
+**3 · Ledger-derived opening.** Only `nf_position_row`'s opening branch changes: the chained read of *yesterday's
+stored `close_cash`* is replaced with `nf_ledger_position()`, which sums every POSTED leg on a via-account dated
+before the target date, plus the first day's `typed_open_*` as a fixed genesis constant. That genesis is **not**
+the bug being fixed — it is read once, as a base, never chained day-to-day — so it stays exactly as it is rather
+than being converted into an opening voucher against Opening Balance Equity (a cleaner textbook model, noted as a
+§11.7 idea for later, not required to fix the actual bug). `nf_day_json` already calls `nf_position()` fresh on
+every view of every day, open or closed, so this fix reaches every screen with no further change. Rehearsed: a
+later day's ledger-derived opening moved by exactly the amount an earlier day's already-migrated voucher was
+perturbed by (§11.2 rehearsal check 7).
+
+**Open policy question, NOT decided here:** `nf_days_guard`'s `NF:LATER_DAY_EXISTS` still refuses to reopen any day
+except the latest. That restriction existed *because of* the chain bug (an earlier edit could not reach a later
+day's frozen opening). With the chain removed, the technical reason for it is gone, and the DoD's own reopen test
+("reopen a historical day, change an amount, assert every later day's opening/closing moves correctly") cannot be
+driven through the real reopen RPC while this guard stands — only the underlying ledger math could be rehearsed
+directly (§11.2 check 7). Whether a director should actually be allowed to reopen a day that isn't the latest is a
+real product decision (it changes what "the books are closed through date X" means operationally), so it is
+raised here for a yes/no rather than changed unilaterally.
+
+**4 · COA colon-path.** `nf_account_path()` is a `STABLE` recursive-CTE **function**, not a generated column (a
+native `GENERATED` column cannot do a cross-row parent lookup) and not an AFTER-trigger-maintained cached column
+either — the path is only needed for IIF export and future reports (both out of scope this pass), the hierarchy is
+shallow (≤4 levels) and changes rarely, so computing it on demand costs nothing that matters yet. Column widths:
+every `nf_accounts.code` is `text` already (not the retired `qb_accounts.number character(4)` that this task's own
+brief cited as the cautionary precedent), so a 5-digit code was never at risk here. Rehearsed: `nf_account_path(...,
+'12610')` returns `Current Assets:Receivable from Directors:Syed Yousaf Shah` exactly.
+
+### 11.3 Data migration — reversible, rehearsed, verified to the rupee
+
+**Live scope, checked directly against the database before writing a line of SQL: Awami has zero `nf_days` and
+zero `nf_lines` rows.** The only tenant with real rows is the persistent `ZZTEST-NF-DEMO` company (1 day, 8 lines).
+The migration is written generically (any company) and rehearsed against those real 8 lines specifically, because
+proving it against real, non-trivial data is stronger than proving it against nothing — and because it is the only
+real proof available; there is nothing of Awami's own to lose either way.
+
+`20260918d` renames `nf_lines`→`nf_lines_legacy`, converts each row to a 2-leg voucher (head leg keeps the
+line's own side/account/floor; via leg gets the matching Cash/Petty/Bank account, same floor — the single-entry
+model only ever recorded one floor per movement, so there is no better answer), then runs a `DO` block that sums
+IN/OUT per day under the *old* table and the *new* view and raises `NF:MIGRATION_MISMATCH` (aborting the whole
+file) if any day differs by even one rupee. This assertion ran for real in the rehearsal below and passed.
+
+**No local Postgres and no Docker are on this machine, and the Supabase org has no branching plan — a literal
+"restore into a scratch database" is not possible here.** The substitute, already established in this project
+(`scripts/nf/verify-nf-schema.js`), is running the full combined SQL inside one `BEGIN … ROLLBACK` against the live
+database itself: every check below ran for real, against real data, and then every row it touched was thrown away
+by the `ROLLBACK` — nothing persisted. This is named explicitly rather than quietly substituted for what was asked.
+
+**Rehearsal result, 2026-09-18** (`scripts/nf/verify-nf-de-migration.js`):
+
+| step | result |
+|---|---|
+| combined SQL (a+b+c+d), in order | ran clean, zero errors, inside one rolled-back transaction |
+| rupee-exact reconciliation (file d's own `DO` block) | passed for every existing day — did not raise `NF:MIGRATION_MISMATCH` |
+| unbalanced voucher rejected | `NF:VOUCHER_UNBALANCED` raised and caught |
+| real 3-leg voucher | posted, 3 legs, balanced |
+| party requiredness | `NF:PARTY_REQUIRED` raised on an unparted `12610` leg, then satisfied with a real party |
+| COA colon-path | `Current Assets:Receivable from Directors:Syed Yousaf Shah` |
+| ledger-derived opening recompute | a later day's Bank opening moved from 1,808,960.00 to 1,809,071.50 after an earlier day's already-migrated voucher was perturbed by exactly 111.50 |
+
+### 11.4 Found along the way
+
+1. **Awami has zero active `nf_members`.** Not new — consistent with the already-known go-live blocker (director
+   and accountant name/email still the literal `[name, email]` template) — but it meant the rehearsal's
+   role-gated checks had to impersonate `ZZTEST-NF-DEMO`'s real director instead (by setting the same
+   `request.jwt.claims` GUC PostgREST sets from a verified JWT, inside the same rolled-back transaction — never a
+   real session, never persisted).
+2. **`nf_accounts_head_not_via` blocked the migration outright** on the first rehearsal attempt — see §11.2's
+   guard-change callout. Not silently dropped; named here and in the migration file itself.
+3. **The `nf_lines` view leaked a 3-leg test voucher with a wrong amount** before it was restricted to exactly
+   2-leg vouchers (§11.2). Found by the rehearsal itself, not assumed correct.
+4. **A bulk data migration cannot run as an authenticated app user** — `auth.uid()` is `NULL` outside PostgREST, so
+   every per-row guard trigger would reject the whole migration. `20260918d` disables **user** triggers only
+   (`DISABLE TRIGGER USER`, never `ALL` — the Management API's SQL role is not a superuser and cannot touch
+   Postgres's own internal FK triggers, nor should it need to) for the duration of the bulk load, and logs one
+   summary audit row for the migration event instead of one synthetic row per migrated line.
+5. **Migrated legs on now-party-required accounts (e.g. `21100` Token Money) have no `party_id`** — the
+   single-entry model never captured one. Any future edit to one of those specific legs will now hit
+   `NF:PARTY_REQUIRED` until a party is assigned. Not a defect in this pass (assigning a party for existing
+   customer-advance history is real data entry, not something this migration can invent), but the owner should
+   know it before an accountant hits it unexpectedly on an old line. Not an issue for Awami today — it has no
+   lines to migrate at all.
+6. **Postgres resolves a bare `NULL` literal to `text` inside a `SELECT DISTINCT` feeding an `INSERT`**, ahead of
+   the target column's own type — an explicit `NULL::uuid` was needed in the migration's own audit insert. Noted
+   only because it is exactly the kind of silent-default trap this project's own rules (SR-9, "assert the request
+   not just the response") warn about — caught here by the rehearsal actually running, not by inspection.
+
+### 11.5 Definition of done — where it stands
+
+- Voucher/leg model, enforced both atomically and by a deferred backstop: **done, rehearsed.**
+- Party master + requiredness: **done, rehearsed.** Seeding from the COA workbook: **deferred** (§11.2 item 2 — no
+  screen consumes it yet, and no real party data exists to seed against).
+- Ledger-derived opening, chain removed: **done, rehearsed** for the math. The reopen-a-historical-day scenario
+  through the real RPC needs the §11.2 policy answer first.
+- COA colon-path: **done, rehearsed.**
+- Existing verification suites (`verify-nf-rules.js` 45/45, `verify-nf-golden-ui.js` 27/28,
+  `verify-nf-schema.js`): **not yet re-run** — they run against the live, applied schema, which this pass has not
+  touched. Re-running them is step 4 of §11.6, after apply.
+- Closing-sheet-unchanged, and the two-connection race proof: **cannot be proven pre-apply** — both need real,
+  persisted state across independent connections/requests, which a rolled-back rehearsal cannot provide by
+  definition. They are the first two things run immediately after apply (§11.6), exactly like the existing
+  RACE-R1/OK/R2 tests already work today.
+
+### 11.6 What will run, on the owner's OK — and nothing before it
+
+```
+1  node scripts/backup-full.js --verify                                     full verified backup (MANIFEST)
+2  node scripts/nf/snapshot-tenants.js --out backups/nf_de_before.jsonl      every tenant, read-only
+3  node scripts/nf/verify-nf-de-migration.js                                this rehearsal, one more time
+4  node scripts/nf/apply-phase-de.js                                        dry run of the apply itself (new,
+                                                                              same shape as apply-phase1.js —
+                                                                              names 20260918a-d, refuses anything
+                                                                              touching a non-nf_ object)
+5  node scripts/nf/apply-phase-de.js --apply --owner-ok                     ← the only step that writes
+6  node scripts/nf/snapshot-tenants.js --out backups/nf_de_after.jsonl --compare backups/nf_de_before.jsonl
+7  node scripts/nf/verify-nf-de-race.js                                    two-connection race, ZZTEST-NF-DEMO
+                                                                              (new — same RACE-R1/OK/R2 pattern)
+8  node scripts/nf/verify-nf-rules.js                                       existing suite, must still be 45/45
+9  node scripts/nf/verify-nf-golden-ui.js                                  existing suite, must still be 27/28
+                                                                              (print bug untouched, unrelated)
+10 manual: open the closing sheet as the ZZTEST-NF-DEMO login, confirm the golden day still renders/edits/closes
+```
+
+Rollback is `20260918r_nf_de_rollback.sql` — reversible cleanly as long as no >2-leg or no-via voucher has been
+created yet through the new `nf_post_voucher` path (flagged in the rollback file's own header).
+
+### 11.7 Ideas for later, not this pass
+
+- Converting the first day's `typed_open_cash/petty/bank` into a real opening voucher against `30000 Opening
+  Balance Equity` (already seeded, already named correctly for exactly this) — the textbook-clean version of
+  ledger-derived opening, once a multi-leg entry screen exists to make the tradeoff worth it.
+- A party-entry screen and the COA-workbook seed, once party data actually needs capturing somewhere.
+- Reports, journal, ledger, trial balance, P&L, balance sheet, party statements, token register, IIF export,
+  QB-vs-NexuFinance reconciliation — explicitly next pass, per the owner's own scope for this one.
+
+### 11.8 Owner decisions, 2026-09-18, and what changed because of them
+
+**1 · `nf_accounts_head_not_via` — approved, replaced not just removed.**
+- The negative-position guard was checked specifically, per the owner's instruction. Finding: `nf_days_position_guard`
+  (`AFTER INSERT OR UPDATE OF typed_open_cash, typed_open_petty, typed_open_bank, transfer_to_bank, transfer_to_petty`)
+  had a real catalog dependency on the two transfer columns — the column drop was refused outright until this was
+  found. The trigger is recreated watching only `typed_open_*`; the equivalent check for a transfer is
+  `nf_voucher_legs_position_guard` (20260918b), which already re-asserts non-negative position on every insert/update/
+  delete to a transfer voucher's legs — the same real-world event, covered the same way every other posting already is.
+  Rehearsal check 9 proves this holds.
+- Test added (rehearsal check 8): a Cash→Bank transfer (through `nf_set_transfers`, the real screen's RPC) and the
+  reverse Bank→Cash (through `nf_post_voucher` directly — the screen has no input for this direction, the model must
+  still support it) both move both positions correctly in one operation, and neither appears in the `nf_lines`
+  cash-book view.
+- Transfers collapsed into the normal path, as instructed: `nf_days.transfer_to_bank`/`transfer_to_petty` are gone.
+  `nf_set_transfers` keeps its exact external signature and its `nf_days.version` optimistic-lock semantics (a
+  `remarks = remarks` touch-update bumps it, since there is no longer a transfer column of its own to change) but now
+  creates/edits an ordinary 2-leg voucher between two via-accounts. `nf_lines` excludes any voucher where every leg is
+  a via-account, and `nf_position_row`'s `trf_*` figures are summed from exactly those vouchers instead. The one real
+  live transfer (`ZZTEST-NF-DEMO`, 2026-09-16, `transfer_to_bank = 300000`, day still OPEN) is migrated into the same
+  shape and reconciles to the rupee — 20260918d's own verification now checks the transfer effect, not just in/out.
+
+**2 · Reopening tied to the accounting period, not "latest day" — done as specified.**
+`NF:LATER_DAY_EXISTS` is removed from `nf_days_guard`. In its place: a director may reopen any day with a reason,
+audited, exactly as before; a day may not be reopened once its period is locked or exported to QuickBooks — that gate
+does not exist yet and is a named, hard dependency on the IIF export pass building it. Until then the enforceable
+rule is "any day", which is safe only because nothing downstream reads a locked/exported state yet.
+
+**3 · Migrated legs with no party — resolved by not carrying them, plus a deeper fix.**
+Re-seeding `ZZTEST-NF-DEMO` after apply (rather than migrating 8 test rows into a half-valid state) is queued as a
+post-apply step. Separately, while wiring this up, `requires_party` itself was found to be wrong in the first draft:
+`12610`/`12620` (director receivables) and `22100`-`22400` (inter-company) are each already a dedicated, per-entity
+account — the code IS the party, a further `party_id` is pure redundancy, and it would have blocked the real, current
+use of `12610` as an `nf_save_line` head (a director's cash draw, side=OUT — the exact corrected-QuickBooks-bug
+scenario this task's own brief cites). Checked against the real Awami chart, not assumed. `requires_party` now
+applies only to `21100`/`21200`/`21300` (Token Money, Advertising-unit advances, Refunds Payable), which genuinely
+pool many different customers under one code. `nf_save_line` gains one optional parameter, `p_party_name` (default
+NULL — every existing call is unaffected), that resolves an existing party by name/alias or creates a new customer
+on the spot, so entering a Token Money receipt still works without a UI change this pass; `js/nf/nf-sheet.js` does
+not collect the name yet — that one additive input, shown only when the chosen head is party-required, is the actual
+follow-up needed before this matters for a real cashier.
+
+**QuickBooks account-name check — real findings, not yet resolved.**
+`scripts/verify-qb-accounts.js migration_work/qb_chart.iif` (a real 84-account QuickBooks IIF export already in the
+repo) passes — but it compares `qb_accounts`, a separate, older 53-row transcription used by the RMS financials
+module, not `nf_accounts`, which is what this migration and the future IIF export actually use. A direct,
+manual comparison of `nf_accounts` against the same real export found:
+- **Byte-mismatches on accounts that clearly correspond** (IIF matches by NAME, confirmed by the script's own
+  finding — a wrong byte creates a duplicate account, silently, on export): `10300` is `"Bank Al-Habib - Awami
+  Market"` in nf_accounts vs `"Bank Al-Habib - Awami"` in QuickBooks; `40100` is `"Unit & Shop Sales"` vs
+  QuickBooks' `"Unit - Shop Sales"`.
+- **Likely the same account, named differently — needs confirmation, not a blind rename**: `21100` `"Token
+  Money - Units"` vs QuickBooks' `"Advance from Customers"` (2020, OCLIAB, "Booking money from buyers before
+  handover"); `40300` `"Transfer & Processing Fee"` vs QuickBooks' `"Processing Fee Income"` (4030).
+- **A numbering-scheme mismatch, not just one account**: QuickBooks' real, active accounts use 4-digit numbers
+  (1010, 1020, 2020, 4010…); its 5-digit numbers (`12600`, `13400`, `15000`, `24000`…) are all inactive contractor-
+  template defaults nobody uses. `nf_accounts` uses 5-digit numbers for everything, including its live, active COA —
+  so `12600 "Receivable from Directors"` in nf_accounts numerically collides with the real, inactive QuickBooks
+  `12600 "Construction in Progress"`. IIF matches by name, not number, so this specific collision will not itself
+  break an export, but the numbers mean two different things in the two systems, and that is exactly the kind of
+  mismatch a person cross-referencing them by eye would trust wrongly.
+- **A real scenario question, not just a naming one**: the ONLY director-related account QuickBooks has today is
+  `2210 "Directors - Related Party Loan"` (LTLIAB — a liability: money the directors lent the company). nf_accounts'
+  `12610`/`12620` model the opposite real-world event (a director draws company cash, the company is owed money —
+  an asset). Both can be real and can coexist, but this is genuinely new to the QuickBooks chart, not a rename of
+  something that already exists there, and an accountant should confirm that before it is ever exported.
+- `21200`, `21300`, `22100`-`22400` have no QuickBooks counterpart at all — also genuinely new, also fine if
+  intentional, also worth the owner's/accountant's eyes before the first export creates them for real.
+
+None of this blocks applying the double-entry foundation itself — these are pre-existing seed names from Phase 1
+(20260916d), untouched by 20260918a-d, which only change postability/party-requiredness flags, never a name or
+number. It is a hard prerequisite for the IIF export pass, and cheapest to fix now, before any real transaction
+exists against these accounts — recommended before Awami's real go-live, not deferred indefinitely.
+
+**Re-confirmed immediately before this report**: Awami still has zero `nf_days` and zero `nf_lines` — checked live,
+2026-09-18, right before writing this up, not carried over from the earlier check.
+
+**Supabase backup/restore status** (checked via the Management API, 2026-09-18): `pitr_enabled: false`, no managed
+snapshot backups on record (`backups: []`) — point-in-time recovery is not on for this project. The manual
+`scripts/backup-full.js --verify` path is proven for export completeness (180 tables, 129,470 rows, 0 mismatches,
+2026-09-16) but `--verify` checks the backup directory's own integrity, not a live restore — `restore_all.sql` has
+never actually been run against a target database, for the same no-local-Postgres/no-Docker/no-branching reason
+already on record. This does not block applying 20260918a-d (Awami has nothing to lose), but it is a real gap before
+Awami's first real business day, flagged here as its own blocker, not folded into this migration's own risk.
