@@ -155,7 +155,7 @@ CREATE OR REPLACE FUNCTION public.nf_position_row(p_day_id uuid, OUT open_cash n
  RETURNS record
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE
   d public.nf_days;
@@ -201,7 +201,7 @@ CREATE OR REPLACE FUNCTION public.nf_save_line(p_day_id uuid, p_line_id uuid, p_
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE
   v_company uuid := public.nf_day_company(p_day_id);
@@ -255,7 +255,7 @@ CREATE OR REPLACE FUNCTION public.nf_delete_line(p_line_id uuid, p_version integ
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE l public.nf_lines;
 BEGIN
@@ -272,7 +272,7 @@ CREATE OR REPLACE FUNCTION public.nf_audit_row()
  RETURNS trigger
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE
   v_old     jsonb := CASE WHEN TG_OP <> 'INSERT' THEN to_jsonb(OLD) END;
@@ -332,7 +332,7 @@ CREATE OR REPLACE FUNCTION public.nf_set_transfers(p_day_id uuid, p_to_bank nume
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE d public.nf_days;
 BEGIN
@@ -354,7 +354,7 @@ CREATE OR REPLACE FUNCTION public.nf_day_json(p_day_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE
   d public.nf_days;
@@ -403,7 +403,7 @@ CREATE OR REPLACE FUNCTION public.nf_days_guard()
  RETURNS trigger
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE
   v_role   text;
@@ -565,7 +565,7 @@ CREATE OR REPLACE FUNCTION public._nf_test_purge(p_company_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE
   v_name text;

@@ -38,7 +38,7 @@ CREATE OR REPLACE FUNCTION public.nf_voucher_legs_guard()
  RETURNS trigger
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE
   v_company uuid := COALESCE(NEW.company_id, OLD.company_id);
@@ -102,7 +102,7 @@ CREATE OR REPLACE FUNCTION public.nf_voucher_legs_position_guard()
  RETURNS trigger
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE
   v_company uuid := COALESCE(NEW.company_id, OLD.company_id);
@@ -126,7 +126,7 @@ CREATE OR REPLACE FUNCTION public.nf_voucher_balance_check()
  RETURNS trigger
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE
   v_voucher_id uuid := COALESCE(NEW.voucher_id, OLD.voucher_id);
@@ -161,7 +161,7 @@ CREATE OR REPLACE FUNCTION public.nf_audit_row()
  RETURNS trigger
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE
   v_old     jsonb := CASE WHEN TG_OP <> 'INSERT' THEN to_jsonb(OLD) END;
@@ -247,7 +247,7 @@ CREATE OR REPLACE FUNCTION public.nf_ledger_position(p_company_id uuid, p_before
   OUT cash numeric, OUT petty numeric, OUT bank numeric)
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE g public.nf_days;
 BEGIN
@@ -275,7 +275,7 @@ CREATE OR REPLACE FUNCTION public.nf_position_row(p_day_id uuid, OUT open_cash n
  RETURNS record
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE
   d public.nf_days;
@@ -344,7 +344,7 @@ CREATE OR REPLACE FUNCTION public.nf_account_path(p_company_id uuid, p_code text
  RETURNS text
  LANGUAGE sql
  STABLE SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
   WITH RECURSIVE up AS (
     SELECT code, name, parent_code, 0 AS depth FROM public.nf_accounts

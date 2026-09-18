@@ -31,7 +31,7 @@ CREATE OR REPLACE FUNCTION public.nf_post_voucher(
 ) RETURNS uuid
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE
   v_role   text := public.nf_require_role(p_company_id, ARRAY['accountant','director']);
@@ -141,7 +141,7 @@ CREATE FUNCTION public.nf_save_line(p_day_id uuid, p_line_id uuid, p_side text, 
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE
   v_company uuid := public.nf_day_company(p_day_id);
@@ -248,7 +248,7 @@ CREATE OR REPLACE FUNCTION public.nf_delete_line(p_line_id uuid, p_version integ
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE
   v_head public.nf_voucher_legs;
@@ -289,7 +289,7 @@ CREATE OR REPLACE FUNCTION public.nf__upsert_transfer_voucher(
 ) RETURNS void
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE v_existing public.nf_vouchers;
 BEGIN
@@ -322,7 +322,7 @@ CREATE OR REPLACE FUNCTION public.nf_set_transfers(p_day_id uuid, p_to_bank nume
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE
   v_company uuid := public.nf_day_company(p_day_id);
@@ -364,7 +364,7 @@ CREATE OR REPLACE FUNCTION public.nf_day_json(p_day_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE
   d public.nf_days;
@@ -413,7 +413,7 @@ CREATE OR REPLACE FUNCTION public.nf_create_party(p_company_id uuid, p_name text
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE v_id uuid;
 BEGIN
@@ -437,7 +437,7 @@ CREATE OR REPLACE FUNCTION public.nf_add_party_alias(p_company_id uuid, p_party_
  RETURNS void
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 BEGIN
   PERFORM public.nf_require_role(p_company_id, ARRAY['accountant','director']);
@@ -458,7 +458,7 @@ CREATE OR REPLACE FUNCTION public.nf_resolve_party(p_company_id uuid, p_text tex
  RETURNS uuid
  LANGUAGE sql
  STABLE SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
   SELECT COALESCE(
     (SELECT id FROM public.nf_parties WHERE company_id = p_company_id
@@ -471,7 +471,7 @@ CREATE OR REPLACE FUNCTION public.nf_list_parties(p_company_id uuid)
  RETURNS jsonb
  LANGUAGE sql
  STABLE SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
   SELECT COALESCE(jsonb_agg(jsonb_build_object(
            'id', p.id, 'name', p.name, 'kind', p.kind, 'is_active', p.is_active,
@@ -493,7 +493,7 @@ CREATE OR REPLACE FUNCTION public._nf_test_purge(p_company_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+ SET search_path TO public, pg_temp
 AS $function$
 DECLARE
   v_name text;

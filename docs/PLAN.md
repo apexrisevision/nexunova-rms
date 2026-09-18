@@ -977,19 +977,31 @@ by the `ROLLBACK` — nothing persisted. This is named explicitly rather than qu
 1  node scripts/backup-full.js --verify                                     full verified backup (MANIFEST)
 2  node scripts/nf/snapshot-tenants.js --out backups/nf_de_before.jsonl      every tenant, read-only
 3  node scripts/nf/verify-nf-de-migration.js                                this rehearsal, one more time
-4  node scripts/nf/apply-phase-de.js                                        dry run of the apply itself (new,
-                                                                              same shape as apply-phase1.js —
-                                                                              names 20260918a-d, refuses anything
+4  node scripts/nf/apply-phase-de.js                                        dry run (same shape as apply-phase1.js
+                                                                              — names 20260918a-d, refuses anything
                                                                               touching a non-nf_ object)
-5  node scripts/nf/apply-phase-de.js --apply --owner-ok                     ← the only step that writes
+5  node scripts/nf/apply-phase-de.js --apply --owner-ok --rehearsal-log …    ← the only step that writes
 6  node scripts/nf/snapshot-tenants.js --out backups/nf_de_after.jsonl --compare backups/nf_de_before.jsonl
-7  node scripts/nf/verify-nf-de-race.js                                    two-connection race, ZZTEST-NF-DEMO
-                                                                              (new — same RACE-R1/OK/R2 pattern)
-8  node scripts/nf/verify-nf-rules.js                                       existing suite, must still be 45/45
-9  node scripts/nf/verify-nf-golden-ui.js                                  existing suite, must still be 27/28
+7  node scripts/nf/verify-nf-rules.js                                       existing suite, must still be 45/45 —
+                                                                              its own RACE-R1/OK/R2 already drives
+                                                                              nf_save_line through two real
+                                                                              connections and proves the negative-
+                                                                              position guard under load; no separate
+                                                                              race script is needed, since
+                                                                              nf_save_line's signature is backward
+                                                                              compatible and the same code path now
+                                                                              runs on vouchers underneath
+8  node scripts/nf/verify-nf-golden-ui.js                                   existing suite, must still be 27/28
                                                                               (print bug untouched, unrelated)
-10 manual: open the closing sheet as the ZZTEST-NF-DEMO login, confirm the golden day still renders/edits/closes
+9  manual: open the closing sheet as the ZZTEST-NF-DEMO login, confirm the golden day still renders/edits/closes
+10 node scripts/nf/reseed-demo.js                                           Decision 3: wipe ZZTEST-NF-DEMO's
+                                                                              migrated day and re-enter the same
+                                                                              golden day through the current RPCs,
+                                                                              with a party name on the one line
+                                                                              that needs it (21100)
 ```
+
+Found while preparing this sequence: `_nf_test_purge` (used by `verify-nf-rules.js`'s own cleanup) still had `DELETE FROM public.nf_lines` — a plain `DELETE` against what is now a view fails outright. Fixed in the same commit as the migration it's caused by (20260918c), not left for that script to discover; deletes from `nf_voucher_legs`/`nf_vouchers`/the party tables instead. Rollback restores the original body.
 
 Rollback is `20260918r_nf_de_rollback.sql` — reversible cleanly as long as no >2-leg or no-via voucher has been
 created yet through the new `nf_post_voucher` path (flagged in the rollback file's own header).
@@ -1045,7 +1057,21 @@ on the spot, so entering a Token Money receipt still works without a UI change t
 not collect the name yet — that one additive input, shown only when the chosen head is party-required, is the actual
 follow-up needed before this matters for a real cashier.
 
-**QuickBooks account-name check — real findings, not yet resolved.**
+**QuickBooks account-name check — ON HOLD, 2026-09-18: `migration_work/qb_chart.iif` is very likely the wrong
+company file.** The owner's own direct observation of the real, live Awami Market QuickBooks General Journal export
+shows `12610 · Syed Yousaf Shah` with a live debit balance of 7,660,900 (twelve historical journal entries, moved
+there by hand in QuickBooks on 2026-09-17), `12620 · Naeem Hussain`, `21100 · Token Money - Units` at -3,280,000,
+`22100 · FMH` at -20,124,450, `22200 · KBH` at -6,549,500, `40100 · Unit & Shop Sales`, and 5-digit codes throughout
+(`51100`, `53100`-`53600`, `60100`-`60500`, `70100`-`70900`, `81100`) all live and matching `nf_accounts` — the exact
+opposite of what the findings below describe. `qb_chart.iif` is most likely a different company file entirely (an
+older contractor template, or a different group entity) — reconciling `nf_accounts` against it would rename correct
+accounts into wrong ones. **No renaming has been done or will be, pending:** (1) establishing where `qb_chart.iif`
+actually came from; (2) a fresh Chart-of-Accounts export from the SAME QuickBooks company file that shows 12610 at
+7,660,900; (3) re-running the comparison against that file and reporting only the differences that survive;
+(4) fixing `scripts/verify-qb-accounts.js` to check `nf_accounts`, not the unused `qb_accounts` table. The findings
+below are kept for the record but must be treated as provisional against the wrong source until superseded.
+
+**QuickBooks account-name check — real findings against `qb_chart.iif`, now believed to be the wrong file.**
 `scripts/verify-qb-accounts.js migration_work/qb_chart.iif` (a real 84-account QuickBooks IIF export already in the
 repo) passes — but it compares `qb_accounts`, a separate, older 53-row transcription used by the RMS financials
 module, not `nf_accounts`, which is what this migration and the future IIF export actually use. A direct,
@@ -1080,10 +1106,13 @@ exists against these accounts — recommended before Awami's real go-live, not d
 **Re-confirmed immediately before this report**: Awami still has zero `nf_days` and zero `nf_lines` — checked live,
 2026-09-18, right before writing this up, not carried over from the earlier check.
 
-**Supabase backup/restore status** (checked via the Management API, 2026-09-18): `pitr_enabled: false`, no managed
-snapshot backups on record (`backups: []`) — point-in-time recovery is not on for this project. The manual
-`scripts/backup-full.js --verify` path is proven for export completeness (180 tables, 129,470 rows, 0 mismatches,
-2026-09-16) but `--verify` checks the backup directory's own integrity, not a live restore — `restore_all.sql` has
-never actually been run against a target database, for the same no-local-Postgres/no-Docker/no-branching reason
-already on record. This does not block applying 20260918a-d (Awami has nothing to lose), but it is a real gap before
-Awami's first real business day, flagged here as its own blocker, not folded into this migration's own risk.
+**GO-LIVE BLOCKER (named, owner-confirmed 2026-09-18, not to quietly age into a to-do): Supabase backup/restore.**
+Checked via the Management API: `pitr_enabled: false`, no managed snapshot backups on record (`backups: []`) —
+point-in-time recovery is not on for this project. The manual `scripts/backup-full.js --verify` path is proven for
+export completeness (180 tables, 129,470 rows, 0 mismatches, 2026-09-16) but `--verify` checks the backup
+directory's own integrity, not a live restore — `restore_all.sql` has never actually been run against a target
+database, for the same no-local-Postgres/no-Docker/no-branching reason already on record. Accepted as-is for THIS
+migration only because Awami is at zero rows and there is nothing to lose. **Before the first real Awami entry:**
+enable PITR or managed daily backups — if the project's Supabase plan tier has to change to get either, that is
+the owner's call to make, not something to work around — and prove one actual restore. Do not fold this into this
+migration's own risk; it stays open and named until it is closed.
