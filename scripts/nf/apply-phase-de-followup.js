@@ -51,7 +51,12 @@ function targetsOutsideNf(sql) {
   const outside = targetsOutsideNf(sql);
   console.log(`${FILE}: ${disk.length} bytes · ${same ? 'identical to HEAD' : '✗ DIFFERS FROM HEAD'}`);
   console.log(`statements on objects outside nf_: ${outside.length ? '✗ ' + outside.join('; ') : 'none'}`);
-  const spOk = /SET\s+search_path\s+TO\s+public/i.test(sql);
+  // only meaningful if the file actually defines a function — a plain
+  // data-fix file (UPDATE/DELETE/INSERT, no CREATE FUNCTION) has nothing
+  // to pin and was being refused for it, a false positive found running
+  // this for real, not assumed
+  const hasFunction = /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION/i.test(sql);
+  const spOk = !hasFunction || /SET\s+search_path\s+TO\s+public/i.test(sql);
   console.log(`search_path pinned: ${spOk ? 'yes' : '✗ NO'}`);
 
   if (!same || outside.length || !spOk) { console.log('\nREFUSED — see ✗ above.'); process.exitCode = 1; return; }
