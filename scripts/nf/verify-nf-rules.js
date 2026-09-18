@@ -320,9 +320,15 @@ if (require.main === module) (async () => {
 
     // ── RACES: two connections at once (day 2 is open again) ───────────────────
     console.log('\n── races (two database connections, overlap proven from pg_stat_activity)');
+    // nf_position_row -> nf_ledger_position now requires an authenticated,
+    // company-member session (20260918o) — reading it over the raw-SQL
+    // Management API (no JWT, auth.uid() is NULL there) would now be
+    // rejected, same as it should be for anyone else. Goes through the
+    // real, already-authenticated RPC surface instead.
     const cashNow = async () => {
-      const [row] = await q(`select close_cash from public.nf_position_row('${day2}')`);
-      return Number(row.close_cash);
+      const r = await rpc(K, D, 'nf_get_report', { p_day_id: day2 });
+      if (r.status !== 200) throw new Error('cashNow: nf_get_report failed: ' + JSON.stringify(r.json));
+      return Number(r.json.accounts.find(a => a.via === 'Cash').closing);
     };
     const vouchersOnDay2 = async list => (await q(`select coalesce(json_agg(voucher_key order by voucher_key), '[]') j
         from public.nf_lines where day_id = '${day2}' and voucher_key in (${list.map(v => `'${v}'`).join(',')})`))[0].j;
