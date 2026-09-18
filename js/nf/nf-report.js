@@ -74,14 +74,41 @@
       '<section class="rsec"><h2>Cash &amp; Bank</h2>' +
       '<table class="rtab"><thead><tr><th>Account</th><th class="r">Opening Balance</th><th class="r">Money In</th>' +
       '<th class="r">Money Out</th><th class="r">Transfer/Adjust</th><th class="r">Closing Balance</th></tr></thead>' +
-      '<tbody>' + rows + '</tbody></table></section>';
+      '<tbody>' + rows + '</tbody></table>' + transferNote(accounts) + '</section>';
+  }
+
+  // A plain-language line explaining the Transfer/Adjust column — a
+  // director otherwise sees cash drop with no matching payment. Every
+  // transfer voucher in this app moves money OUT of exactly one via
+  // account and INTO one or more others (Cash -> Bank / Cash -> Petty,
+  // in either direction) — never sourced from more than one account at
+  // once — so pairing the lone negative row against every positive row
+  // is exact, not a guess, for every shape this app can actually produce.
+  function transferNote(accounts) {
+    var moves = (accounts || []).map(function (a) { return { label: a.label, t: F.n(a.transfers) }; })
+      .filter(function (m) { return m.t !== 0; });
+    if (!moves.length) return '';
+    var sources = moves.filter(function (m) { return m.t < 0; });
+    var dests = moves.filter(function (m) { return m.t > 0; });
+    var sentence;
+    if (sources.length === 1) {
+      var src = sources[0];
+      sentence = dests.map(function (d) {
+        return 'Rs ' + F.fmt(d.t) + ' moved from ' + esc(src.label) + ' to ' + esc(d.label);
+      }).join('; ') + '.';
+    } else {
+      sentence = moves.map(function (m) {
+        return esc(m.label) + ' ' + (m.t < 0 ? '−' : '+') + 'Rs ' + F.fmt(Math.abs(m.t));
+      }).join(', ') + '.';
+    }
+    return '<p class="rnote">' + sentence + '</p>';
   }
 
   function entriesTable(title, sub, side, lines) {
     var rows = lines.filter(function (l) { return l.side === side; });
     var body = rows.map(function (l) {
       return '<tr><td>' + esc(l.voucher_no) + '</td><td>' + esc(l.description || '') + '</td>' +
-        '<td>' + esc(l.head_code) + ' ' + esc(l.head_name) + '</td><td>' + esc(l.floor_code || '') + '</td>' +
+        '<td>' + esc(l.head_name) + '</td><td>' + esc(l.floor_name || l.floor_code || '') + '</td>' +
         '<td>' + esc(l.via) + '</td><td class="r">' + F.fmt(l.amount) + '</td></tr>';
     }).join('');
     var total = rows.reduce(function (s, l) { return s + F.n(l.amount); }, 0);
@@ -130,7 +157,7 @@
       '  <div><label>Closing date</label><span class="v">' + F.longDate(r.business_date) + '</span></div>' +
       '  <div><label>Day</label><span class="v">' + F.weekday(r.business_date) + '</span></div>' +
       '  <div><label>Closing no.</label><span class="v">' + esc(r.closing_no || '') + '</span></div>' +
-      '  <div><label>Prepared by</label><span class="v">' + esc(r.prepared_by_name || '') + '</span></div>' +
+      '  <div><label>Prepared by</label><span class="v">' + esc(r.prepared_by_name || (r.status === 'OPEN' ? 'Not yet submitted' : '—')) + '</span></div>' +
       '  <div></div>' +
       '</div>' +
       '<section class="rsec rtiles-wrap">' +
