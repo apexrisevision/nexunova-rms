@@ -197,8 +197,13 @@ if (require.main === module) (async () => {
     let last;
     for (const [side, rows] of [['IN', s.in], ['OUT', s.out]]) {
       for (const x of rows.filter(x => Number(x.a))) {
-        last = await rpc(K, A, 'nf_save_line', { p_day_id: day1, p_line_id: null, p_side: side, p_voucher_no: x.v, p_description: x.d,
-          p_head: x.h, p_floor: x.f, p_via: x.m, p_amount: Number(x.a), p_version: null });
+        const args = { p_day_id: day1, p_line_id: null, p_side: side, p_voucher_no: x.v, p_description: x.d,
+          p_head: x.h, p_floor: x.f, p_via: x.m, p_amount: Number(x.a), p_version: null };
+        // 21100 (Token Money) pools many customers — requires a party since
+        // 20260918a/c; a real name, not a placeholder, so H-G02 stays an
+        // honest test of the actual resolve-or-create path
+        if (x.h === '21100') args.p_party_name = 'Golden Day Test Customer';
+        last = await rpc(K, A, 'nf_save_line', args);
         ok(`H-G02 ${x.v}`, last.status === 200, JSON.stringify(last.json));
       }
     }
@@ -250,7 +255,15 @@ if (require.main === module) (async () => {
     r = await http('POST', '/rest/v1/rpc/nf_get_day', { key: K.anon, body: { p_company_id: C, p_date: null } });
     ok('H-AN anon RPC', r.status === 401 || r.status === 403 || /permission denied/.test(JSON.stringify(r.json)), `${r.status} ${JSON.stringify(r.json)}`);
     r = await http('PATCH', `/rest/v1/nf_lines?day_id=eq.${day2}`, { key: K.anon, jwt: A, body: { amount: 1 } });
-    ok('H-T accountant PATCHes the table directly', r.status === 401 || r.status === 403 || /permission denied/.test(JSON.stringify(r.json)), `${r.status} ${JSON.stringify(r.json)}`);
+    // nf_lines is a view now (double-entry, 20260918d) — a direct write is
+    // still refused, just by a different, equally final mechanism: Postgres
+    // itself refuses to update a view with no INSTEAD OF trigger, before
+    // RLS even gets a say. Both are "the table cannot be written to
+    // directly" — this accepts either shape.
+    ok('H-T accountant PATCHes the table directly',
+       r.status === 401 || r.status === 403 || /permission denied/.test(JSON.stringify(r.json)) ||
+       (r.status === 500 && /cannot update view/.test(JSON.stringify(r.json))),
+       `${r.status} ${JSON.stringify(r.json)}`);
 
     // ── R6 / R7 ───────────────────────────────────────────────────────────────
     let d2 = (await rpc(K, A, 'nf_get_day', { p_company_id: C, p_date: null })).json;
