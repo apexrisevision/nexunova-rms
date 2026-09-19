@@ -2675,11 +2675,10 @@ voucher only) — a candidate `(company_id, party_id)` index if the measurement 
 −6,549,500 · 21100 −3,280,000 · 15300 130,000 · 16100 488,000 · 70100 50,000. ✔ General Journal 35,496,550 =
 35,496,550 over 64 vouchers / 154 lines, 06-Feb-2026 to 18-Sep-2026. ✔ Trial Balance 29,953,950 = 29,953,950.
 ✔ JV-0019/JV-0020 both still posted at 4,000,000 on 30-Mar (open item, owner's call); JV-0017 still dated
-18-Sep-2026 (open item). **One anchor could not be reproduced: "Total paid on Awami's behalf 22,293,050."** It
-is not any account balance, and none of the natural derivations land on it (debits funded by 22100/22200/12610
-= 22,543,050; all expense/asset debits = 22,237,050; 22100+22200 credits = 30,627,450). Per Part J the rule is
-to stop and report, not to adjust — reported here; nothing was changed. Most likely it is a subtotal from a
-specific block of the Excel that this write-up doesn't have the definition of.
+18-Sep-2026 (open item). **"Total paid on Awami's behalf 22,293,050" — RESOLVED, 2026-09-19 (see §31.2).** It was a definition gap,
+not a data gap: the figure is a composition, not an account balance, which is why none of the guessed
+derivations landed on it. Verified against the ledger once the owner supplied the definition; the anchor now
+ties exactly and Part J's anchors are **fully reconciled**.
 
 **Part K — scope.** ✔ Nothing built from the excluded list.
 
@@ -2913,3 +2912,75 @@ security, the scale. What remains is not building:
 Deliberately not built, each recorded with its reason: party-statement click-through, an in-app QuickBooks
 reconciliation screen, a guard on the Journal's "All time" button, the one-year-ledger planner shape (§31.1),
 and an edit path for journal vouchers (§33).
+
+### 31.2 The definition of "paid on Awami's behalf" — written down so nobody re-opens it
+
+The owner supplied the definition, and the ledger confirms it exactly:
+
+| component | qb_type in the chart | figure |
+|---|---|---|
+| Cost of Sales | Cost of Goods Sold | 21,145,000 |
+| Expenses | Expense | 530,050 |
+| 15300 Computer & IT Equipment | Fixed Asset | 130,000 |
+| 16100 Software & Licences | Other Asset | 488,000 |
+| **Total paid on Awami's behalf** | | **22,293,050** |
+
+**It deliberately EXCLUDES 12610's 7,660,900** — money handed to a director is a *receivable*, not a project
+cost. That is the same correction already made inside QuickBooks (Part D: 10410 → 12610, Other Current Asset),
+carried through to this figure. Anyone re-deriving this by summing "everything funded by 22100/22200/12610"
+will get 22,543,050 and think it is broken; it is not, it is a different question.
+
+The composition is not just arithmetic — it closes a complete identity over the whole imported book:
+
+```
+    22,293,050   paid on Awami's behalf (project costs + the two capitalised asset accounts)
+  +  7,660,900   12610, still sitting with a director as a receivable
+  = 29,953,950   = the Trial Balance total, and exactly what FMH + KBH + Token Money funded
+                   (Other Current Liability = −29,953,950)
+```
+
+And `Cost of Sales + Expenses = 21,675,050` is precisely the accumulated deficit the Balance Sheet reports, the
+figure Part L's policy question is about. Every Part J anchor now reconciles, and the two "open review items"
+that remain in the historical data (the twice-appearing Ch# 10323992 across JV-0019/JV-0020, and JV-0017's
+18-Sep date) are unchanged and still the owner's call — they were never anchor problems.
+
+## 34 · Handover, 2026-09-19 (final) — building is done; status is on call
+
+This supersedes §30, which was written before the blueprint conformance pass and the journal-voucher work.
+Read this one.
+
+**Every blueprint requirement that is the software's to meet is built and verified live**, not recalled:
+
+| Part | what | evidence |
+|---|---|---|
+| C | double-entry ledger, balance enforced in the DB, closed days immutable | `verify-nf-rules.js` 58/58 |
+| D | chart byte-matches the real QuickBooks export | `verify-nf-qb-accounts.js` — 110 exact, the 3 absent are the HIDDEN=Y 104xx the CHECK forbids |
+| E | party master, aliases, search-first entry | `verify-nf-party-field.js` 15/15 |
+| F | director-facing daily closing, plain language, one A4 page | `verify-nf-director-report.js` 18/18 |
+| G | eleven reports, all printable | per-report suites; Journal 14/14 |
+| H | IIF export — state tracking, validation gate, per-account reconciliation | §25–26; **never run for real, zero vouchers exported** |
+| I | controls, RLS, audit, no public-key reach, scale | §31; 104k-leg measurement in §31 |
+| J | every reconciliation anchor | §31, §31.2 — **fully reconciled** |
+| — | journal vouchers: the entry path for non-cash and multi-leg | `verify-nf-journal-voucher.js` 18/18 |
+| — | the real daily workflow, driven end to end | `dry-run-daily-workflow.js` 26/26 |
+
+**Not the software's to close — no code needed for any of them:**
+- **Syed Yousaf Shah's viewer account** — blocked on his email. Role already settled: `viewer`, not director,
+  deliberately (§27.2 — his own receivable is tracked in these books). Do not create, guess or placeholder it.
+- **Part L, capitalise or expense** — the owner's and his auditor's decision. The software takes no side and
+  labels the accumulated deficit honestly on the face of the statement.
+- **The parallel run** — real daily entry, ~2 weeks alongside the Excel closing, then Excel retires.
+
+**Deliberately not built, each with its reason recorded** — none of these is a defect and none should be picked
+up unprompted: party-statement click-through and an in-app QuickBooks reconciliation screen (§31.1), a guard on
+the Journal's "All time" button and the one-year-ledger planner shape (§31), **an edit path for journal
+vouchers** (§33 — delete-and-re-post keeps the audit trail honest; the owner confirmed leaving it that way),
+and the 34 free-text payee legs (§27.6).
+
+**Two live-state facts worth knowing cold:** the real open day `DC-001` (2026-09-19) still has zero lines —
+real daily entry has not begun. When it does, two standing rules change at once: deploys move to off-hours, and
+the migration auto-apply carve-out narrows because real daily users then exist. The only `ZZTEST-NF-` companies
+on the project are `ZZTEST-NF-DEMO` and `ZZTEST-NF-SHOT`, both deliberate and days older than this work.
+
+**Status from here: on call.** No more readiness passes, no pre-emptive fixes, nothing designed "while we're
+here". Act when the owner reports something actually broken.
