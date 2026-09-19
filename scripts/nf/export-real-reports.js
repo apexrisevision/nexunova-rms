@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * One-time export of real report PDFs (General Journal, General Ledger,
- * Trial Balance) against Awami's REAL imported history — for the owner's
- * first look at his own numbers in the system, not a fixture.
+ * Trial Balance, Profit & Loss, Balance Sheet) against Awami's REAL
+ * imported history — for the owner's first look at his own numbers in
+ * the system, not a fixture.
  *
  *   node scripts/nf/export-real-reports.js
  *
@@ -149,8 +150,36 @@ function serve() {
     const tbFoot = await page.$eval('.ttab tfoot', el => el.innerText.replace(/\s+/g, ' '));
     console.log(`Trial Balance: ${tbRows} accounts | ${tbFoot}`);
     await savePdf('Awami_Trial_Balance_2026-09-18.pdf');
+    await page.click('#nf-tb-back');
+    await page.waitForSelector('#nf-toPL', { timeout: 10000 });
 
-    console.log('\nAll three PDFs saved to', OUT_DIR);
+    // ── Profit & Loss ────────────────────────────────────────────────────
+    await page.click('#nf-toPL');
+    await page.waitForSelector('.plsheet', { timeout: 10000 });
+    await page.waitForFunction(() => {
+      const b = document.querySelector('#nf-pl-body'); return b && !/Loading…/.test(b.textContent);
+    }, { timeout: 10000 });
+    const plNet = await page.$eval('.plnet .orow.net b', el => el.textContent.trim());
+    console.log(`Profit & Loss: net income ${plNet}`);
+    await savePdf('Awami_Profit_and_Loss_2026-09-19.pdf');
+    await page.click('#nf-pl-back');
+    await page.waitForSelector('#nf-toBS', { timeout: 10000 });
+
+    // ── Balance Sheet ────────────────────────────────────────────────────
+    await page.click('#nf-toBS');
+    await page.waitForSelector('.bssheet', { timeout: 10000 });
+    await page.waitForFunction(() => {
+      const b = document.querySelector('#nf-bs-body'); return b && !/Loading…/.test(b.textContent);
+    }, { timeout: 10000 });
+    const bsCheck = await page.evaluate(() => {
+      const tiles = Array.from(document.querySelectorAll('.rtile b')).map(el => el.textContent.trim());
+      const bannerBad = !!document.querySelector('.rbanner.bad');
+      return { tiles, bannerBad };
+    });
+    console.log(`Balance Sheet: Assets ${bsCheck.tiles[0]} | Liabilities ${bsCheck.tiles[1]} | Equity ${bsCheck.tiles[2]} | balanced: ${!bsCheck.bannerBad}`);
+    await savePdf('Awami_Balance_Sheet_2026-09-19.pdf');
+
+    console.log('\nAll five PDFs saved to', OUT_DIR);
   } finally {
     if (browser) await browser.close();
     if (srv) srv.close();

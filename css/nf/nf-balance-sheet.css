@@ -1,0 +1,19 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   NexuFinance v1 — Balance Sheet. Reuses .sheet/.hdr/.brand/.mark/.co/
+   .docfoot/.rsec/.rtiles-wrap/.rtile/.rbanner from nf.css and
+   nf-report.css, and .oblist/.orow/.pos from nf-pl.css (loaded first —
+   both reports share the same grid-row pattern, no reason to redefine it
+   twice).
+
+   Row markup is CSS Grid divs (.oblist/.orow), not a <table> — see
+   nf-pl.js's own header comment for why (a real Chromium print-
+   pagination bug, docs/PLAN.md §16.3).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.bssheet{padding-bottom:6px}
+
+.bsfilter{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-top:14px}
+.bsfilter label{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2)}
+.bsfilter input[type=date]{border:1px solid var(--line2);border-radius:6px;padding:5px 8px;font-size:12.5px;background:var(--card)}
+
+.bssec{margin-bottom:14px}

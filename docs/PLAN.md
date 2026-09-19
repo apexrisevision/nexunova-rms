@@ -1938,3 +1938,62 @@ that's 8 pages; at several years of real daily entries it will be several hundre
 use, the Journal should default to a sensible period (current month, or a range the user picks) instead of
 everything ever posted, and the export should carry the selected range in both its header and its filename —
 not left for whoever hits this first in production.
+
+## 17 · Profit & Loss and Balance Sheet (2026-09-19)
+
+### 17.1 Built on the known-good pattern from the start
+
+`nf_get_pl(company, from, to)` and `nf_get_balance_sheet(company, as_of)` — two new, purely additive RPCs, same
+security pattern as `nf_get_trial_balance`. Income/COGS/Expense classification and Asset/Liability/Equity
+classification both come straight from `nf_accounts.qb_type`, already the real QuickBooks-reconciled chart (see
+§11). Row markup on both new screens (`js/nf/nf-pl.js`, `js/nf/nf-balance-sheet.js`) is CSS Grid divs
+(`.oblist`/`.orow`), not a `<table>` — the known Chromium print-pagination bug from §16.3 only affects tables, so
+these were built the safe way from the start instead of adding to that debt, per the owner's own instruction.
+
+Migration `20260919a_nf_pl_and_balance_sheet.sql` proposed and applied only after explicit go-ahead, per the
+same flipped-auto-apply-rule reasoning as §16.1 (touches the ledger tables, even though purely additive).
+
+**Real security gap found applying it, not caught by the rehearsal:** both new functions came up grantable to
+`anon` by default — unlike every existing `nf_` report RPC (`nf_get_trial_balance` etc.), which are all correctly
+`anon:false`. A `BEGIN...ROLLBACK` rehearsal never queries `pg_proc`'s real grants against a real session, so
+this wasn't visible until after applying — checked directly with `has_function_privilege()` against `anon`/
+`authenticated`/`public` immediately after applying, per the standing SEC-RPC-PUBLIC check, and found wide open.
+Fixed immediately with explicit `REVOKE ALL ... FROM PUBLIC/anon` + `GRANT EXECUTE ... TO authenticated`, then
+re-verified `anon:false` on both. The migration file itself was updated to include these REVOKE/GRANT statements
+explicitly, so re-applying it (a restore, a rehearsal) can't silently reopen the same hole — whatever
+`ALTER DEFAULT PRIVILEGES` locked down the earlier functions evidently didn't carry forward to a brand-new
+function name created through this session's connection, and should not be trusted to going forward either.
+
+### 17.2 Balance Sheet self-check and the accumulated-deficit label
+
+Verified the Balance Sheet actually balances against real Awami data, not assumed from the formula: Assets
+8,278,900 = Liabilities 29,953,950 + Equity -21,675,050, exactly. The large negative equity is arithmetically
+correct for a pre-revenue project — every real land/development cost posted so far has gone to Cost of Goods
+Sold accounts, nothing has been sold yet — but a generic "Retained Earnings" label on a number that size reads
+as if something went wrong. Per the owner's own instruction: when the computed current-earnings figure is
+negative, the screen labels it **"Accumulated deficit — project costs expensed, no sales recognised yet"**
+instead, so the statement explains itself on its own face rather than needing a caller to decode a term.
+
+**Open accounting-policy question, explicitly NOT decided here:** whether some of these project costs should
+eventually be capitalised to `13000 Project Inventory` instead of expensed to Cost of Goods Sold — which would
+change both the P&L and the Balance Sheet's shape substantially. Per the owner's own instruction, the reporting
+layer does not make this call; it belongs to the owner and his auditor. Flagged here so it isn't silently decided
+by omission later by whoever next touches this area.
+
+### 17.3 Exported and verified; no dedicated verify script yet — a real gap, not silently skipped
+
+Both PDFs exported to `D:\Claude Cowork\` (`Awami_Profit_and_Loss_2026-09-19.pdf`,
+`Awami_Balance_Sheet_2026-09-19.pdf`) via the same `export-real-reports.js` used for the other three, extended
+with the same page-1-blank check (neither needed it — both are one page). Checked visually with a real
+screenshot of the actual PDF, not just `pdftotext`, after `pdftotext -layout`'s own column-guessing garbled the
+CSS-Grid row order into nonsense on both — a text-extraction artifact of grid/flex layouts, not a real rendering
+defect (confirmed by the screenshot: both look correct, labels next to their own figures). Full regression sweep
+run after the migration: `verify-nf-trial-balance.js` 10/10, `verify-nf-general-ledger.js` 12/12,
+`verify-nf-general-journal.js` 11/11, `verify-nf-golden-ui.js` 28/28, `verify-nf-director-report.js` 18/18,
+`verify-nf-rules.js` 51/51 (no race this time — nothing else running concurrently).
+
+**Not done: `verify-nf-pl.js` / `verify-nf-balance-sheet.js`.** Every other nf_ report has its own dedicated
+Puppeteer-driven verify script (ground-truth fixture, real UI checks, cleanup) — these two don't yet. Correctness
+was checked by hand this pass (the self-balance identity, real screenshots, the grant-lockdown check), which is
+real verification, but it isn't a repeatable automated one the next change to these screens will re-run for
+free. Worth building before this goes into daily use, on the same pattern as `verify-nf-trial-balance.js`.

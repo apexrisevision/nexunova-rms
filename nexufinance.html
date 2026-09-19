@@ -37,6 +37,10 @@
 <link rel="stylesheet" href="css/nf/nf-ledger-print.css?v=20260918a" media="print">
 <link rel="stylesheet" href="css/nf/nf-trial-balance.css?v=20260918a">
 <link rel="stylesheet" href="css/nf/nf-trial-balance-print.css?v=20260918a" media="print">
+<link rel="stylesheet" href="css/nf/nf-pl.css?v=20260919a">
+<link rel="stylesheet" href="css/nf/nf-pl-print.css?v=20260919a" media="print">
+<link rel="stylesheet" href="css/nf/nf-balance-sheet.css?v=20260919a">
+<link rel="stylesheet" href="css/nf/nf-balance-sheet-print.css?v=20260919a" media="print">
 <script>
 try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
 </script>
@@ -81,6 +85,8 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
 <script src="js/nf/nf-journal.js?v=20260918a"></script>
 <script src="js/nf/nf-ledger.js?v=20260918a"></script>
 <script src="js/nf/nf-trial-balance.js?v=20260918a"></script>
+<script src="js/nf/nf-pl.js?v=20260919a"></script>
+<script src="js/nf/nf-balance-sheet.js?v=20260919a"></script>
 <script>
 (function () {
   'use strict';
@@ -104,7 +110,7 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
   catch (e) { SB = null; }
 
   if (!SB) return fail('Could not reach the database', new Error('The Supabase client did not load. Reload the page.'));
-  if (!window.NfFmt || !window.NfApi || !window.NfMsg || !window.NfSheet || !window.NfReport || !window.NfJournal || !window.NfLedger || !window.NfTrialBalance) {
+  if (!window.NfFmt || !window.NfApi || !window.NfMsg || !window.NfSheet || !window.NfReport || !window.NfJournal || !window.NfLedger || !window.NfTrialBalance || !window.NfPL || !window.NfBalanceSheet) {
     return fail('Could not load the cash book', new Error('A module file did not load. Reload the page.'));
   }
 

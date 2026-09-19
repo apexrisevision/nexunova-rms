@@ -116,6 +116,12 @@
         return call('nf_get_ledger', { p_company_id: companyId, p_account_code: accountCode, p_from: from || null, p_to: to || null });
       },
       getTrialBalance: function (companyId, asOf) { return call('nf_get_trial_balance', { p_company_id: companyId, p_as_of: asOf || null }); },
+      getPL: function (companyId, from, to) {
+        return call('nf_get_pl', { p_company_id: companyId, p_from: from || null, p_to: to || null });
+      },
+      getBalanceSheet: function (companyId, asOf) {
+        return call('nf_get_balance_sheet', { p_company_id: companyId, p_as_of: asOf || null });
+      },
 
       // membership
       setMember: function (companyId, userId, role, displayName, active) {
