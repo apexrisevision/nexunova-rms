@@ -58,9 +58,9 @@ function serve() {
     await page.goto(`http://127.0.0.1:${PORT}/nexufinance.html?company=${AWAMI}`, { waitUntil: 'networkidle2' });
     // Awami has zero nf_days (only imported vouchers) — the closing
     // sheet itself shows "No day has been opened yet", but the header's
-    // own report nav buttons render unconditionally alongside it. Wait
+    // own Reports menu toggle renders unconditionally alongside it. Wait
     // for the actual button, not a generic gate/grid guess.
-    await page.waitForSelector('#nf-toJrn', { timeout: 15000 });
+    await page.waitForSelector('#nf-rpm-toggle', { timeout: 15000 });
 
     // A real Chromium engine limitation, not a content bug (see
     // docs/PLAN.md §16, found and A/B-tested 2026-09-19): a <table> that
@@ -114,8 +114,19 @@ function serve() {
       console.log(`  wrote ${out} (${(pdf.length / 1024).toFixed(0)} KB)`);
     }
 
+    // Navigation now goes through the shared Reports dropdown
+    // (js/nf/nf-reports-menu.js, docs/PLAN.md §23) instead of the old
+    // one-button-per-report header — cross-navigates directly between
+    // any two reports, no detour back through the closing sheet needed
+    // between each export.
+    async function gotoReport(key) {
+      await page.click('#nf-rpm-toggle');
+      await page.waitForSelector('#nf-rpm-panel:not([hidden])', { timeout: 5000 });
+      await page.click(`[data-goto="${key}"]`);
+    }
+
     // ── General Journal ──────────────────────────────────────────────────
-    await page.click('#nf-toJrn');
+    await gotoReport('journal');
     await page.waitForSelector('.jsheet', { timeout: 10000 });
     await page.waitForFunction(() => {
       const b = document.querySelector('#nf-jrn-body'); return b && !/Loading…/.test(b.textContent);
@@ -123,11 +134,9 @@ function serve() {
     const jrnRows = await page.$$eval('#nf-jrn-body tr.jvfirst', els => els.length);
     console.log(`General Journal: ${jrnRows} vouchers`);
     await savePdf('Awami_General_Journal_2026-09-18.pdf');
-    await page.click('#nf-jrn-back');
-    await page.waitForSelector('#nf-toLgr', { timeout: 10000 });
 
     // ── General Ledger — 22100 FMH (46 real entries, the richer account) ──
-    await page.click('#nf-toLgr');
+    await gotoReport('ledger');
     await page.waitForSelector('.lsheet', { timeout: 10000 });
     await page.waitForFunction(() => document.querySelectorAll('#nf-lgr-acct option').length > 1, { timeout: 10000 });
     await page.select('#nf-lgr-acct', '22100');
@@ -137,11 +146,9 @@ function serve() {
     const lgrRows = await page.$$eval('.ltab tbody tr', els => els.length);
     console.log(`General Ledger (22100 FMH): ${lgrRows} entries`);
     await savePdf('Awami_General_Ledger_22100_FMH_2026-09-18.pdf');
-    await page.click('#nf-lgr-back');
-    await page.waitForSelector('#nf-toTB', { timeout: 10000 });
 
     // ── Trial Balance ─────────────────────────────────────────────────────
-    await page.click('#nf-toTB');
+    await gotoReport('tb');
     await page.waitForSelector('.tsheet', { timeout: 10000 });
     await page.waitForFunction(() => {
       const b = document.querySelector('#nf-tb-body'); return b && !/Loading…/.test(b.textContent);
@@ -150,11 +157,9 @@ function serve() {
     const tbFoot = await page.$eval('.ttab tfoot', el => el.innerText.replace(/\s+/g, ' '));
     console.log(`Trial Balance: ${tbRows} accounts | ${tbFoot}`);
     await savePdf('Awami_Trial_Balance_2026-09-18.pdf');
-    await page.click('#nf-tb-back');
-    await page.waitForSelector('#nf-toPL', { timeout: 10000 });
 
     // ── Profit & Loss ────────────────────────────────────────────────────
-    await page.click('#nf-toPL');
+    await gotoReport('pl');
     await page.waitForSelector('.plsheet', { timeout: 10000 });
     await page.waitForFunction(() => {
       const b = document.querySelector('#nf-pl-body'); return b && !/Loading…/.test(b.textContent);
@@ -162,11 +167,9 @@ function serve() {
     const plNet = await page.$eval('.plnet .orow.net b', el => el.textContent.trim());
     console.log(`Profit & Loss: net income ${plNet}`);
     await savePdf('Awami_Profit_and_Loss_2026-09-19.pdf');
-    await page.click('#nf-pl-back');
-    await page.waitForSelector('#nf-toBS', { timeout: 10000 });
 
     // ── Balance Sheet ────────────────────────────────────────────────────
-    await page.click('#nf-toBS');
+    await gotoReport('bs');
     await page.waitForSelector('.bssheet', { timeout: 10000 });
     await page.waitForFunction(() => {
       const b = document.querySelector('#nf-bs-body'); return b && !/Loading…/.test(b.textContent);
@@ -178,11 +181,9 @@ function serve() {
     });
     console.log(`Balance Sheet: Assets ${bsCheck.tiles[0]} | Liabilities ${bsCheck.tiles[1]} | Equity ${bsCheck.tiles[2]} | balanced: ${!bsCheck.bannerBad}`);
     await savePdf('Awami_Balance_Sheet_2026-09-19.pdf');
-    await page.click('#nf-bs-back');
-    await page.waitForSelector('#nf-toPty', { timeout: 10000 });
 
     // ── Party Statement — FMH (richest party, matches 22100's own figures) ─
-    await page.click('#nf-toPty');
+    await gotoReport('party');
     await page.waitForSelector('.pgsheet', { timeout: 10000 });
     await page.waitForFunction(() => document.querySelectorAll('#nf-pty-sel option').length > 1, { timeout: 10000 });
     await page.select('#nf-pty-sel', await page.$$eval('#nf-pty-sel option', (opts) => {
@@ -196,11 +197,9 @@ function serve() {
     const ptyTiles = await page.$$eval('.rtile b', els => els.map(el => el.textContent.trim()));
     console.log(`Party Statement (FMH): ${ptyRows} entries | Opening ${ptyTiles[0]} | Closing ${ptyTiles[1]}`);
     await savePdf('Awami_Party_Statement_FMH_2026-09-19.pdf');
-    await page.click('#nf-pty-back');
-    await page.waitForSelector('#nf-toTkr', { timeout: 10000 });
 
     // ── Token Money Register ────────────────────────────────────────────
-    await page.click('#nf-toTkr');
+    await gotoReport('token');
     await page.waitForSelector('.tkrsheet', { timeout: 10000 });
     await page.waitForFunction(() => {
       const b = document.querySelector('#nf-tkr-body'); return b && !/Loading…/.test(b.textContent);
@@ -208,11 +207,9 @@ function serve() {
     const tkrTiles = await page.$$eval('.rtile b', els => els.map(el => el.textContent.trim()));
     console.log(`Token Register: ${tkrTiles[0]} units | Received ${tkrTiles[1]} | Returned ${tkrTiles[2]} | Net ${tkrTiles[3]}`);
     await savePdf('Awami_Token_Register_2026-09-19.pdf');
-    await page.click('#nf-tkr-back');
-    await page.waitForSelector('#nf-toCB', { timeout: 10000 });
 
     // ── Cash & Bank Movement ────────────────────────────────────────────
-    await page.click('#nf-toCB');
+    await gotoReport('cashbank');
     await page.waitForSelector('.cbsheet', { timeout: 10000 });
     await page.waitForFunction(() => {
       const b = document.querySelector('#nf-cb-body'); return b && !/Loading…/.test(b.textContent);
@@ -220,11 +217,9 @@ function serve() {
     const cbTiles = await page.$$eval('.rtile b', els => els.map(el => el.textContent.trim()));
     console.log(`Cash & Bank Movement: Opening ${cbTiles[0]} | In ${cbTiles[1]} | Out ${cbTiles[2]} | Closing ${cbTiles[3]}`);
     await savePdf('Awami_Cash_and_Bank_Movement_2026-09-19.pdf');
-    await page.click('#nf-cb-back');
-    await page.waitForSelector('#nf-toFlr', { timeout: 10000 });
 
     // ── Floor/Class Cost & Collection ───────────────────────────────────
-    await page.click('#nf-toFlr');
+    await gotoReport('floor');
     await page.waitForSelector('.flrsheet', { timeout: 10000 });
     await page.waitForFunction(() => {
       const b = document.querySelector('#nf-flr-body'); return b && !/Loading…/.test(b.textContent);
@@ -232,11 +227,9 @@ function serve() {
     const flrTiles = await page.$$eval('.rtile b', els => els.map(el => el.textContent.trim()));
     console.log(`Floor Summary: Cost ${flrTiles[0]} | Income ${flrTiles[1]} | Token Collected ${flrTiles[2]}`);
     await savePdf('Awami_Floor_Summary_2026-09-19.pdf');
-    await page.click('#nf-flr-back');
-    await page.waitForSelector('#nf-toPC', { timeout: 10000 });
 
     // ── Project Cost Summary ────────────────────────────────────────────
-    await page.click('#nf-toPC');
+    await gotoReport('projectcost');
     await page.waitForSelector('.pcsheet', { timeout: 10000 });
     await page.waitForFunction(() => {
       const b = document.querySelector('#nf-pc-body'); return b && !/Loading…/.test(b.textContent);
