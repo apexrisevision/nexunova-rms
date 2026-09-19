@@ -2751,3 +2751,70 @@ header, so the measurement can be repeated after a year of real entries rather t
 - **Journal "All time" at scale** — 30–50 s / 26 MB at 5 years. Needs a guard or a cap eventually. Not built.
 - **One-year ledger slower than all-time** — planner-shape issue, ~3 s worst case. Not optimised.
 - **Part L** remains the owner's and his auditor's decision; nothing in the software presumes an answer.
+
+## 32 · Part 3 of the readiness pass — the daily workflow, actually driven (2026-09-19)
+
+The last outstanding item from the owner's original three-part request, never run until now:
+"open a day, enter a few receipts and payments including one token receipt and one inter-company payment,
+close the day, print the director report, and confirm tomorrow's opening equals today's closing. Report
+anything that felt awkward, not just anything that errored."
+
+`scripts/nf/dry-run-daily-workflow.js` — a disposable `ZZTEST-NF-` company, real HTTP, real sessions, a real
+browser, a director and an accountant as two separate people. Awami is never touched (the real open day
+`DC-001` is left exactly as §27.1 instructed). **25 checks, 24 passed.** The single failure is not a bug in
+something built — it is the genuine gap this dry run existed to find, below.
+
+**The whole workflow holds, end to end.** Director opens the day with its three openings → accountant enters a
+token receipt on 21100 creating a brand-new customer through the search-first party field (which correctly
+offered "add new" only after finding nothing), a cash expense, and an inter-company bank payment to FMH →
+cash-to-bank transfer → drawer counted to the rupee → **Submit** (accountant) → **Close day** (director, and
+the database agrees: status CLOSED, `prepared_by_name` the accountant, closed by the director — two different
+people, which is what the signature block prints) → director report shows the pass banner, the "Other Balances
+(Not Awami's Own Cash)" section listing the token money and the FMH payable, three signature blocks, no
+Debit/Credit wording anywhere on its face, **one A4 page** → PDF written to `D:\Claude Cowork\` → **Start new
+day** → **day 2's opening equals day 1's closing exactly**, cash, petty and bank, computed from the ledger with
+nothing typed in → and day 1 is locked. No console or page errors in the whole run.
+
+### 32.1 THE GAP — the entry screen only covers a minority of the real business
+
+**A line on the daily-closing screen must always move Cash, Petty or Bank.** The "via" dropdown offers exactly
+those three and nothing else, and `nf_save_line` always builds exactly two legs: the head, and one cash/bank
+leg. Measured against the real book, that means two shapes of real transaction have **no entry path at all**:
+
+1. **A cost paid on Awami's behalf** — FMH, KBH or a director pays a contractor, and no Awami cash or bank
+   moves. Checked against the live ledger: **all 64 real imported vouchers are this shape — not one of them
+   has a Cash, Petty or Bank leg.** JV-0001, for instance, is Dr 22100 FMH / Cr 21100 Token Money: both legs
+   are non-cash. Part B of the blueprint names this as the dominant pattern and as the very reason a
+   single-entry cash book cannot serve this business.
+2. **A voucher with more than two legs** — one token receipt split across several units. **7 of the 64 real
+   vouchers** are multi-leg (three with 3 legs, JV-0011 with 8, JV-0007 and JV-0009 with 10). Part C says
+   plainly: "Multi-leg vouchers are normal."
+
+Neither is a regression and neither is new: the 64 historical vouchers went in through
+`scripts/nf/import-awami-history.js` calling `nf_post_voucher` directly, and `nf_post_voucher` is **not exposed
+to the frontend at all** (`js/nf/nf-api.js` reaches 37 RPCs; that is not one of them). So the *ledger* is fully
+double-entry and holds these shapes correctly — it is the *human entry surface* that is cash-book-shaped.
+
+The practical consequence, stated plainly: **from tomorrow, the owner can enter a cash day perfectly, and
+cannot enter the kind of transaction that makes up 100% of his existing book.** Those would have to keep going
+through QuickBooks, or through a script, until a journal-voucher screen exists.
+
+**Not built.** This is a real feature (a screen that posts an arbitrary balanced voucher: N legs, any heads, no
+required cash leg), not a fix, and Part M's rule is not to keep adding "one more necessary thing" unilaterally.
+Brought to the owner as a decision with the evidence attached rather than started.
+
+### 32.2 Friction, as asked — the things that worked but are worth knowing
+
+- **29 field interactions** took an empty screen to a closed, printed, carried-forward day with 3 entries;
+  about 7 per line (voucher, description, head, floor, via, amount, plus a party where the head needs one).
+  Every head/floor/via is a dropdown; no keyboard-only path was tested.
+- **The transfer field saves on a debounce.** For a few hundred milliseconds after typing it, the position
+  table still shows the pre-transfer closing. A human would not notice; this test did, read the stale figure,
+  counted it into the drawer and produced a phantom 100,000 variance. Harmless in practice, real in principle.
+- **Two pills, two different questions.** One says whether the day BALANCES ("Balanced" / "1 item to check"),
+  the other where it is in the workflow (OPEN / SUBMITTED / CLOSED). Both are needed and both are there — but
+  "Balanced" on its own does not mean the day is closed, and it is the more eye-catching of the two.
+- **The drawer count is entered denomination by denomination** and the sheet shows the expected figure
+  alongside, so a miscount is visible before submitting rather than after. That is the right way round.
+- **The first-day opening screen is seen exactly once, ever** — every later day inherits its opening from the
+  ledger. Worth knowing before someone goes looking for it again.
