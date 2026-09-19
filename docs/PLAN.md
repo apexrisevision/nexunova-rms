@@ -2520,3 +2520,40 @@ range, and check `document.title` reads the right stamp each time. 14/14 passed.
 Noticed in passing, not touched: `js/nf/nf-pl.js` (Profit & Loss) has the identical `{ from: '', to: '' }`
 all-time default on mount — same shape of problem, just not the one the owner flagged. Recorded here so it
 isn't lost, not actioned; out of scope for this fix.
+
+## 29 · Period locking tied to export — designed, rehearsed, awaiting the owner's go-ahead
+
+Go-live blocker #2 from §27.3: `nf_reopen_day` has no check at all against export status — a director can
+reopen a day and edit or delete a voucher already exported to QuickBooks, and nothing prevents or flags it.
+Owner's own deadline: before the first real IIF export, not before go-live — not urgent, but next in the
+agreed fix order after the Journal default (§28).
+
+**Design, deliberately voucher-level, not day-level** (`supabase/migrations/20260919k_nf_period_lock_export.sql`,
+NOT YET APPLIED). `nf_reopen_day` itself is left completely untouched — reopening a day to post one more
+receipt that never made it in is normal and should stay easy. The risk the owner actually named is editing or
+deleting a voucher QuickBooks already has, not reopening the day around it. So the lock sits on
+`nf_save_line`'s EDIT branch (an existing voucher's legs) and on `nf_delete_line`: both now refuse outright —
+new error `NF:VOUCHER_ALREADY_EXPORTED`, `DETAIL` carrying the voucher number and when it was exported — if the
+voucher has any row in `nf_iif_batch_vouchers`, regardless of the day's own OPEN/CLOSED status. Posting a
+brand-new voucher (`nf_save_line` with no line id) is completely unaffected, on a reopened day or otherwise —
+confirmed directly, not assumed.
+
+A hard refusal, not an override-with-reason, on purpose: the IIF export system already has a real
+re-export/reason mechanism (`nf_iif_record_batch`'s `is_reexport`/`reason`, §25) for the case where Awami's own
+books need to correct something QuickBooks already has — that's the owner's existing channel for a deliberate
+correction. This migration doesn't duplicate it with a second, weaker one on the entry screen. If an in-screen
+override is wanted later, that's a separate design conversation, not assumed here.
+
+**Rehearsed inside one `BEGIN…ROLLBACK` transaction** (the same technique `verify-nf-de-migration.js` proved
+out for the original double-entry migration) — the new function bodies, a scratch `ZZTEST-NF-` fixture, and
+every assertion all inside one HTTP request, so nothing persists and the live functions are never actually
+swapped outside the test window. Confirmed: editing the exported voucher is refused; deleting it is refused,
+and the `DETAIL` payload genuinely names the voucher; editing a *different*, not-yet-exported voucher on the
+same day still works completely normally; posting a brand-new voucher on that same day still works too. Post-run
+query confirmed zero rows left behind and confirmed the LIVE `nf_save_line` still carries no guard — the
+rehearsal never touched production. `nf_reopen_day` itself wasn't runtime-tested (nothing to regress — the diff
+proves it's byte-for-byte unchanged).
+
+**Not applied.** This changes the behaviour of two existing write paths — one of the standing always-ask
+conditions on its own, and the highest-stakes kind: a refusal added where none existed. Waiting for the
+owner's explicit go before it touches Awami, same as every other write-path migration this session.
