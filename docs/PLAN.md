@@ -2887,3 +2887,29 @@ The daily closing sheet is untouched and stays cash-only — a line there still 
 which is correct for a cash closing, not a limitation to be fixed. The dry run's own check was rewritten to
 assert exactly that, plus that the other shapes now have a path. The one thing a new accountant has to be told
 is **which** screen to open; both are one click apart in the same Reports menu.
+
+**Full regression after the journal-voucher work, all green:** `verify-nf-journal-voucher.js` 18/18 ·
+`dry-run-daily-workflow.js` 26/26 (was 24/25 — the one red check was §32.1's gap, now closed) ·
+`verify-nf-golden-ui.js` 28/28 · `verify-nf-rules.js` 58/58 · `verify-nf-party-field.js` 15/15 ·
+`verify-nf-director-report.js` 18/18. Awami re-checked by query afterwards and unchanged throughout: 64
+vouchers, 154 legs, 35,496,550 = 35,496,550, every Part J anchor exact, nothing exported. The only
+`ZZTEST-NF-` companies left on the project are `ZZTEST-NF-DEMO` and `ZZTEST-NF-SHOT`, both days older than
+this session and deliberately named — left alone, not leftovers.
+
+### 33.3 Where the whole thing now stands
+
+Every blueprint requirement that is the software's to meet is met and verified live. The daily cash closing,
+the journal vouchers, the eleven reports, the party master, the IIF export pipeline, the controls, the
+security, the scale. What remains is not building:
+
+- **Syed Yousaf Shah's viewer account** — still blocked on his email; nothing gets created until it arrives.
+- **The "22,293,050 paid on Awami's behalf" anchor** — could not be reproduced from the ledger (§31). Reported,
+  never adjusted. Needs the owner to say which Excel block that subtotal comes from.
+- **Part L** — the capitalise-or-expense policy is the owner's and his auditor's decision; the software does
+  not presume an answer and labels the balancing figure honestly.
+- **Part N** — real daily entry, then two weeks running the Excel closing in parallel, then Excel retires. Only
+  what real use exposes gets fixed after that.
+
+Deliberately not built, each recorded with its reason: party-statement click-through, an in-app QuickBooks
+reconciliation screen, a guard on the Journal's "All time" button, the one-year-ledger planner shape (§31.1),
+and an edit path for journal vouchers (§33).
