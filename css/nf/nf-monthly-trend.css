@@ -1,0 +1,21 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   NexuFinance v1 — Month-wise Expense Trend. Reuses .sheet/.hdr/.brand/
+   .mark/.co/.docfoot/.rsec/.rtiles-wrap/.rtile/.muted from nf.css and
+   nf-report.css. .mttab/.mtrow is a CSS Grid table look-alike, not a
+   <table> — see nf-monthly-trend.js's own header (docs/PLAN.md §16.3).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.mtsheet{padding-bottom:6px}
+
+.mtfilter{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-top:14px}
+.mtfilter label{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2)}
+.mtfilter input[type=date]{border:1px solid var(--line2);border-radius:6px;padding:5px 8px;font-size:12.5px;background:var(--card)}
+
+.mttab{width:100%;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:12.5px}
+.mtrow{display:grid;grid-template-columns:70px 1fr 130px 130px;gap:12px;padding:7px 12px;border-bottom:1px solid var(--line);align-items:center}
+.mtrow:last-child{border-bottom:0}
+.mthead{background:var(--soft);font-weight:600;font-size:11.5px;color:var(--ink2)}
+.mtym{font-weight:500}
+.mtbarwrap{background:var(--soft);border-radius:4px;height:14px;overflow:hidden}
+.mtbar{display:block;height:100%;background:var(--brand-2);border-radius:4px}
+.mtrow span.r{text-align:right;font-variant-numeric:tabular-nums}

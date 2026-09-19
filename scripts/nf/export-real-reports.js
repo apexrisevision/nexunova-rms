@@ -238,7 +238,18 @@ function serve() {
     console.log(`Project Cost Summary: Total ${pcTiles[0]}`);
     await savePdf('Awami_Project_Cost_Summary_2026-09-19.pdf');
 
-    console.log('\nAll ten PDFs saved to', OUT_DIR);
+    // ── Month-wise Expense Trend ─────────────────────────────────────────
+    await gotoReport('trend');
+    await page.waitForSelector('.mtsheet', { timeout: 10000 });
+    await page.waitForFunction(() => {
+      const b = document.querySelector('#nf-mt-body'); return b && !/Loading…/.test(b.textContent);
+    }, { timeout: 10000 });
+    const mtTiles = await page.$$eval('.rtile b', els => els.map(el => el.textContent.trim()));
+    const mtMonths = await page.$$eval('.mttab .mtrow:not(.mthead)', els => els.length);
+    console.log(`Month-wise Trend: ${mtMonths} months | Total Cost ${mtTiles[0]}`);
+    await savePdf('Awami_Monthly_Trend_2026-09-19.pdf');
+
+    console.log('\nAll eleven PDFs saved to', OUT_DIR);
   } finally {
     if (browser) await browser.close();
     if (srv) srv.close();

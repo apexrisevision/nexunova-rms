@@ -52,6 +52,8 @@
 <link rel="stylesheet" href="css/nf/nf-floor-summary-print.css?v=20260919e" media="print">
 <link rel="stylesheet" href="css/nf/nf-project-cost.css?v=20260919f">
 <link rel="stylesheet" href="css/nf/nf-project-cost-print.css?v=20260919f" media="print">
+<link rel="stylesheet" href="css/nf/nf-monthly-trend.css?v=20260919g">
+<link rel="stylesheet" href="css/nf/nf-monthly-trend-print.css?v=20260919g" media="print">
 <script>
 try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
 </script>
@@ -104,6 +106,7 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
 <script src="js/nf/nf-cash-bank.js?v=20260919d"></script>
 <script src="js/nf/nf-floor-summary.js?v=20260919e"></script>
 <script src="js/nf/nf-project-cost.js?v=20260919f"></script>
+<script src="js/nf/nf-monthly-trend.js?v=20260919g"></script>
 <script>
 (function () {
   'use strict';
@@ -127,7 +130,7 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
   catch (e) { SB = null; }
 
   if (!SB) return fail('Could not reach the database', new Error('The Supabase client did not load. Reload the page.'));
-  if (!window.NfFmt || !window.NfApi || !window.NfMsg || !window.NfSheet || !window.NfReport || !window.NfJournal || !window.NfLedger || !window.NfTrialBalance || !window.NfPL || !window.NfBalanceSheet || !window.NfPartyStatement || !window.NfTokenRegister || !window.NfCashBank || !window.NfFloorSummary || !window.NfProjectCost || !window.NfReportsMenu) {
+  if (!window.NfFmt || !window.NfApi || !window.NfMsg || !window.NfSheet || !window.NfReport || !window.NfJournal || !window.NfLedger || !window.NfTrialBalance || !window.NfPL || !window.NfBalanceSheet || !window.NfPartyStatement || !window.NfTokenRegister || !window.NfCashBank || !window.NfFloorSummary || !window.NfProjectCost || !window.NfMonthlyTrend || !window.NfReportsMenu) {
     return fail('Could not load the cash book', new Error('A module file did not load. Reload the page.'));
   }
 

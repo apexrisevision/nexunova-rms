@@ -2165,3 +2165,31 @@ listed in the specified order).
 
 Director Report, Start New Day and Print were left as their own direct buttons — three items in an unwrapped
 row was never the problem, eleven was.
+
+## 24 · Month-wise Expense Trend (2026-09-19) — the last of the six reports
+
+`nf_get_monthly_trend(company, from, to)` — cost, income and token money collected per calendar month
+(`to_char(voucher_date,'YYYY-MM')`), the same three figures as the Floor Summary (§22) but bucketed by month
+instead of floor — deliberately the same shape, since both answer "where/when did cost happen" on a different
+axis. Applied under the §18 auto-apply rule; cross-checked exactly against two already-verified totals (cost
+21,675,050 matches the P&L/Floor Summary/Project Cost Summary; token collected 3,280,000 matches the Token
+Register/Floor Summary). Real spread confirmed before writing this: 8 real months, February through September
+2026, 1 to 19 vouchers per month.
+
+Frontend (`js/nf/nf-monthly-trend.js`) adds a plain CSS-width bar per month (proportional to the highest-cost
+month) alongside the numeric columns — no charting library, consistent with every other report in this pass.
+Added to the shared Reports menu (`trend` key, end of the Detail Reports group). Exported
+`Awami_Monthly_Trend_2026-09-19.pdf` (1 page, 8 months), confirmed correct by screenshot — bars scale correctly
+against February's real peak (the initial land purchase).
+
+This closes out all six reports the owner asked for in this pass (party-wise statement, token register, cash &
+bank movement, floor/class cost & collection, project cost summary, month-wise trend). Full regression clean
+(28/28, 51/51) — no golden-ui flake on this migration either, consistent with §23.2's conclusion that the fix
+was real.
+
+Remaining: `verify-nf-pl.js`/`verify-nf-balance-sheet.js` and equivalent dedicated verify scripts for the other
+five new reports don't exist yet (§17.3's own gap, never closed) — correctness was checked by hand every time
+(rehearsal + cross-check against a known-correct figure + visual screenshot), which is real verification, but
+not yet a repeatable automated one. Worth building before daily use. The IIF export work is next, and per the
+owner's own instruction, that gets flagged before it starts — it is the first thing in this whole pass that
+writes back into the owner's own book of record, not another read-only report.

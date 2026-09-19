@@ -42,6 +42,7 @@
       { key: 'cashbank', label: 'Cash & Bank Movement' },
       { key: 'floor', label: 'Floor/Class Summary' },
       { key: 'projectcost', label: 'Project Cost Summary' },
+      { key: 'trend', label: 'Month-wise Trend' },
     ] },
   ];
 
@@ -50,7 +51,7 @@
       pl: global.NfPL, bs: global.NfBalanceSheet, tb: global.NfTrialBalance,
       journal: global.NfJournal, ledger: global.NfLedger, party: global.NfPartyStatement,
       token: global.NfTokenRegister, cashbank: global.NfCashBank, floor: global.NfFloorSummary,
-      projectcost: global.NfProjectCost,
+      projectcost: global.NfProjectCost, trend: global.NfMonthlyTrend,
     }[key];
   }
 
