@@ -137,6 +137,7 @@
         '    <button class="btn" id="nf-toBS" type="button">Balance Sheet</button>' +
         '    <button class="btn" id="nf-toPty" type="button">Party Statement</button>' +
         '    <button class="btn" id="nf-toTkr" type="button">Token Register</button>' +
+        '    <button class="btn" id="nf-toCB" type="button">Cash &amp; Bank</button>' +
         (d && d.status === 'CLOSED' && d.is_latest ? '    <button class="btn" id="nf-startNext" type="button">Start new day</button>' : '') +
         '    <button class="btn primary" id="nf-print" type="button">' +
         '      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7"/></svg>Print</button>' +
@@ -699,6 +700,16 @@
         // same full-remount reasoning as #nf-toDir above — NfTokenRegister.mount
         // also replaces root.innerHTML wholesale.
         global.NfTokenRegister.mount(root, {
+          api: api, companyId: companyId, role: role,
+          displayName: ctx.displayName, companyName: ctx.companyName, settings: S.settings,
+          onBack: function () { global.NfSheet.mount(root, ctx); },
+        });
+      });
+      var toCB = root.querySelector('#nf-toCB');
+      if (toCB) toCB.addEventListener('click', function () {
+        // same full-remount reasoning as #nf-toDir above — NfCashBank.mount
+        // also replaces root.innerHTML wholesale.
+        global.NfCashBank.mount(root, {
           api: api, companyId: companyId, role: role,
           displayName: ctx.displayName, companyName: ctx.companyName, settings: S.settings,
           onBack: function () { global.NfSheet.mount(root, ctx); },

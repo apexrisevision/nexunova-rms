@@ -208,8 +208,20 @@ function serve() {
     const tkrTiles = await page.$$eval('.rtile b', els => els.map(el => el.textContent.trim()));
     console.log(`Token Register: ${tkrTiles[0]} units | Received ${tkrTiles[1]} | Returned ${tkrTiles[2]} | Net ${tkrTiles[3]}`);
     await savePdf('Awami_Token_Register_2026-09-19.pdf');
+    await page.click('#nf-tkr-back');
+    await page.waitForSelector('#nf-toCB', { timeout: 10000 });
 
-    console.log('\nAll seven PDFs saved to', OUT_DIR);
+    // ── Cash & Bank Movement ────────────────────────────────────────────
+    await page.click('#nf-toCB');
+    await page.waitForSelector('.cbsheet', { timeout: 10000 });
+    await page.waitForFunction(() => {
+      const b = document.querySelector('#nf-cb-body'); return b && !/Loading…/.test(b.textContent);
+    }, { timeout: 10000 });
+    const cbTiles = await page.$$eval('.rtile b', els => els.map(el => el.textContent.trim()));
+    console.log(`Cash & Bank Movement: Opening ${cbTiles[0]} | In ${cbTiles[1]} | Out ${cbTiles[2]} | Closing ${cbTiles[3]}`);
+    await savePdf('Awami_Cash_and_Bank_Movement_2026-09-19.pdf');
+
+    console.log('\nAll eight PDFs saved to', OUT_DIR);
   } finally {
     if (browser) await browser.close();
     if (srv) srv.close();

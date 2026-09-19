@@ -129,6 +129,9 @@
       getTokenRegister: function (companyId, from, to) {
         return call('nf_get_token_register', { p_company_id: companyId, p_from: from || null, p_to: to || null });
       },
+      getCashBankMovement: function (companyId, from, to) {
+        return call('nf_get_cash_bank_movement', { p_company_id: companyId, p_from: from || null, p_to: to || null });
+      },
 
       // membership
       setMember: function (companyId, userId, role, displayName, active) {

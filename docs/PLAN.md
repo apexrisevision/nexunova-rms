@@ -2068,3 +2068,25 @@ re-measured at 2x device-scale-factor and the true page render was fine at every
 first. Final widths: Unit 8%, Floor 6%, Party 14%, Token# 8%, First/Last 9.5% each, Received 11%, Returned 9%,
 Net 10%, Status 15%. Exported `Awami_Token_Register_2026-09-19.pdf` (36 units, 1 page), confirmed clean by
 screenshot at 2x scale after the low-resolution false alarm. Full regression clean after (28/28, 51/51).
+
+## 21 · Cash & Bank Movement (2026-09-19) — correctly empty, not broken
+
+`nf_get_cash_bank_movement(company, from, to)` — opening/inflow/outflow/closing for every real, postable
+`qb_type='Bank'` account (`is_head = true`). The group header row `10000 Cash & Bank` (`is_head = false`, never
+itself posted to) is deliberately excluded — checked directly against `is_head`/`parent_code` before writing the
+query, not assumed from the account name. Applied under the §18 auto-apply rule.
+
+**Checked before writing this, and it changed the report's design:** as of today, none of Awami's three real
+cash/bank accounts (10100 Cash in Hand, 10200 Petty Cash, 10300 Bank Al-Habib) have ever been posted to — every
+real imported voucher flows through intercompany (22100/22200) or token-money (21100) accounts instead. So this
+report correctly returns all zeros for Awami right now. Rather than ship a report that looks silently broken,
+the frontend (`js/nf/nf-cash-bank.js`) detects the all-zero case and shows an explicit banner: "No cash or bank
+activity recorded for this company yet — every real transaction to date has flowed through intercompany (FMH/
+KBH) or token-money accounts instead of cash/bank directly. This is the true state of the books, not a gap in
+the report." Confirmed by screenshot — banner renders correctly, table still shows the three real accounts each
+at zero, not hidden or skipped.
+
+Cross-check here is necessarily "confirms the known-empty state," not a nonzero figure to match — rehearsed
+output matched the direct query's own zero result across all four fields (opening/in/out/closing) before
+applying. Exported `Awami_Cash_and_Bank_Movement_2026-09-19.pdf` (1 page). Full regression clean after (28/28,
+51/51).
