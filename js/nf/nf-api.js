@@ -122,6 +122,10 @@
       getBalanceSheet: function (companyId, asOf) {
         return call('nf_get_balance_sheet', { p_company_id: companyId, p_as_of: asOf || null });
       },
+      listAllParties: function (companyId) { return call('nf_list_all_parties', { p_company_id: companyId }); },
+      getPartyStatement: function (companyId, partyId, from, to) {
+        return call('nf_get_party_statement', { p_company_id: companyId, p_party_id: partyId, p_from: from || null, p_to: to || null });
+      },
 
       // membership
       setMember: function (companyId, userId, role, displayName, active) {

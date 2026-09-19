@@ -178,8 +178,26 @@ function serve() {
     });
     console.log(`Balance Sheet: Assets ${bsCheck.tiles[0]} | Liabilities ${bsCheck.tiles[1]} | Equity ${bsCheck.tiles[2]} | balanced: ${!bsCheck.bannerBad}`);
     await savePdf('Awami_Balance_Sheet_2026-09-19.pdf');
+    await page.click('#nf-bs-back');
+    await page.waitForSelector('#nf-toPty', { timeout: 10000 });
 
-    console.log('\nAll five PDFs saved to', OUT_DIR);
+    // ── Party Statement — FMH (richest party, matches 22100's own figures) ─
+    await page.click('#nf-toPty');
+    await page.waitForSelector('.pgsheet', { timeout: 10000 });
+    await page.waitForFunction(() => document.querySelectorAll('#nf-pty-sel option').length > 1, { timeout: 10000 });
+    await page.select('#nf-pty-sel', await page.$$eval('#nf-pty-sel option', (opts) => {
+      const fmh = opts.find(o => /^FMH/.test(o.textContent.trim()));
+      return fmh ? fmh.value : opts[1].value;
+    }));
+    await page.waitForFunction(() => {
+      const b = document.querySelector('#nf-pty-body'); return b && !/Loading…/.test(b.textContent);
+    }, { timeout: 10000 });
+    const ptyRows = await page.$$eval('.pgtab .pgrow:not(.pghead)', els => els.length);
+    const ptyTiles = await page.$$eval('.rtile b', els => els.map(el => el.textContent.trim()));
+    console.log(`Party Statement (FMH): ${ptyRows} entries | Opening ${ptyTiles[0]} | Closing ${ptyTiles[1]}`);
+    await savePdf('Awami_Party_Statement_FMH_2026-09-19.pdf');
+
+    console.log('\nAll six PDFs saved to', OUT_DIR);
   } finally {
     if (browser) await browser.close();
     if (srv) srv.close();

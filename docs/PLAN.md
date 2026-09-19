@@ -1997,3 +1997,40 @@ Puppeteer-driven verify script (ground-truth fixture, real UI checks, cleanup) �
 was checked by hand this pass (the self-balance identity, real screenshots, the grant-lockdown check), which is
 real verification, but it isn't a repeatable automated one the next change to these screens will re-run for
 free. Worth building before this goes into daily use, on the same pattern as `verify-nf-trial-balance.js`.
+
+## 18 · The auto-apply rule refined again — read-only + grant-locked + cross-checked skips the ask
+
+After `20260919a` and `20260919b` were each proposed, rehearsed, cross-checked against a known-correct figure
+(the new party-statement RPC's FMH closing balance matched the existing 22100 Ledger's closing balance exactly —
+not a coincidence, the same real legs), and applied only on explicit go, the owner gave a narrower standing
+carve-out for the rest of this reports pass (see the `nexufinance_migration_autoapply_rule` memory for the exact
+wording): a migration may apply without asking, even with real ledger data present, when it ONLY creates new
+read-only functions/views (no write path, no change to anything existing), is grant-locked to `authenticated`
+from the first version, carries the membership check, dry-runs clean, is cross-checked against a real known-
+correct figure, and the verification suite is green after. Anything that writes, alters, drops or re-grants — or
+anything genuinely unsure which side of the line it's on — still stops and asks, no exception. The IIF export
+work is explicitly carved OUT of this rule by the owner's own instruction, flagged before it starts, same
+treatment as the original history import (dry run, checksum, nothing applied without explicit go).
+
+## 19 · Party-wise Statement (2026-09-19)
+
+`nf_list_all_parties` + `nf_get_party_statement(company, party_id, from, to)` — same running-balance shape as
+`nf_get_ledger`, but scoped to a PARTY across all accounts rather than one account. Applied under the new §18
+rule (no separate ask): rehearsed clean, cross-checked FMH's closing balance against the already-verified 22100
+Ledger — both -20,124,450, exactly, confirming the same real legs are being read correctly from the party side.
+Grants correct from the first version (`authenticated` only) this time, not caught-and-fixed after like
+`20260919a`.
+
+Frontend (`js/nf/nf-party-statement.js`) uses CSS Grid rows (`.pgrow`), not a `<table>` — and carries the
+Journal's own column-width lesson (docs/PLAN.md §16, 2026-09-19) forward from the start: Date/Voucher/Floor/
+Debit/Credit/Balance are explicit-width and `nowrap`; Narration/Account are the two free-text columns allowed to
+wrap. No overflow bug this time, confirmed by screenshot.
+
+Exported `Awami_Party_Statement_FMH_2026-09-19.pdf` (46 entries, 3 pages) — page 1 legitimately holds the real
+opening/closing tiles (like the Ledger's own page 1), and the table continues on page 2, which is normal
+pagination, not the blank-page bug; confirmed by screenshot, not assumed from the page-drop check's own silence.
+
+Full regression run after applying: two transient flakes on the first back-to-back pass (`verify-nf-golden-ui.js`
+12/13, `verify-nf-rules.js` 50/51) — both cleared to fully green (28/28, 51/51) on an isolated re-run each,
+consistent with this machine's known memory-constrained flakiness (§13.2) rather than a real regression from this
+migration; not fixed forward, just re-verified clean before moving on, per the standing rule.

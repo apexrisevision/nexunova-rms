@@ -1,0 +1,31 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   NexuFinance v1 — Party-wise Statement. Reuses .sheet/.hdr/.brand/.mark/
+   .co/.docfoot/.rsec/.rtiles-wrap/.rtile from nf.css and nf-report.css.
+
+   .pgtab/.pgrow is a CSS Grid table look-alike, not a <table> — see
+   nf-party-statement.js's own header comment for why (the Chromium
+   print-pagination bug, docs/PLAN.md §16.3). Every row (including the
+   header) repeats the same grid-template-columns so they all line up
+   exactly like table columns would, without being one.
+
+   Column widths and which columns are nowrap are carried over directly
+   from the Journal's own fix (docs/PLAN.md §16, 2026-09-19) instead of
+   re-discovering the same overflow bug: Date/Voucher/Floor/Debit/Credit/
+   Balance are fixed-format values that must never wrap; Narration and
+   Account are free text and are the two columns allowed to.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.pgsheet{padding-bottom:6px}
+
+.pgfilter{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-top:14px}
+.pgfilter label{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2)}
+.pgfilter select,.pgfilter input[type=date]{border:1px solid var(--line2);border-radius:6px;padding:5px 8px;font-size:12.5px;background:var(--card)}
+.pgfilter select{min-width:220px}
+
+.pgtab{width:100%;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:12.5px}
+.pgrow{display:grid;grid-template-columns:9% 7.5% 22% 20% 9.5% 10.5% 10.5% 11%;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line);align-items:start}
+.pgrow:last-child{border-bottom:0}
+.pghead{background:var(--soft);font-weight:600;font-size:11.5px;color:var(--ink2)}
+.pgrow span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pgrow span.wrap{white-space:normal;overflow:visible;text-overflow:clip}
+.pgrow span.r{text-align:right;font-variant-numeric:tabular-nums}
