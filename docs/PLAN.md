@@ -2606,8 +2606,13 @@ sections below are the state to pick up cold from, not a queue to keep working t
 - The 34 free-text payee legs (§27.5) and the `nf-pl.js` all-time-default (§28) are both recorded, deliberate
   non-fixes — not bugs waiting to be picked up, don't "fix" either without being asked again.
 
-**How to pick this up cold:** start at §27 for the full readiness-pass context, §29 for the most recent applied
-change, and this section for what's actually outstanding. Everything in §27.3's original three blockers is
+**Superseded in part, same evening — read §31 after this.** The owner then supplied the full project blueprint
+(Parts A–N) and asked for everything built to be checked against it and the genuine remainder completed. That
+pass found and closed a real public-key write hole on the IIF export-state tables, took the first real scale
+measurement, and added a party index. §31.1 lists what it deliberately left unbuilt.
+
+**How to pick this up cold:** start at §27 for the full readiness-pass context, §31 for the blueprint audit and
+the most recent applied changes, and this section for what's actually outstanding. Everything in §27.3's original three blockers is
 closed. The only two open items are Syed Yousaf Shah's email and the never-started Part 3 dry run — both are
 waiting on someone else's action (the owner's own), not on more building.
 
