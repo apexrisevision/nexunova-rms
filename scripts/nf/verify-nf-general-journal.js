@@ -157,6 +157,21 @@ async function http_(method, urlPath, { key, jwt, body } = {}) {
     await page.waitForSelector('.jsheet', { timeout: 10000 });
     await settled();
 
+    // §16.7's own TODO, closed 2026-09-19: the journal used to default to
+    // "All time" on mount — now it defaults to the current month. Checked
+    // directly (not inferred from the row count, which would pass either
+    // way here since this fixture's date happens to fall in the same real
+    // month the test runs in).
+    const today = new Date();
+    const pad = x => String(x).padStart(2, '0');
+    const expectFrom = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-01`;
+    const expectTo = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    const defaultRange = await page.evaluate(() => ({
+      from: document.querySelector('#nf-jrn-from').value, to: document.querySelector('#nf-jrn-to').value,
+    }));
+    ok('J-00b default range is the current month, not All time', defaultRange.from === expectFrom && defaultRange.to === expectTo,
+      `got ${JSON.stringify(defaultRange)}, expected {from:"${expectFrom}", to:"${expectTo}"}`);
+
     const rowCount = await page.$$eval('#nf-jrn-body tr.jvfirst', els => els.length);
     ok('J-02 voucher count matches ground truth', rowCount === Number(truth.voucher_count),
       `journal shows ${rowCount} vouchers, table has ${truth.voucher_count}`);
@@ -203,6 +218,21 @@ async function http_(method, urlPath, { key, jwt, body } = {}) {
     const raceCount = await page.$$eval('#nf-jrn-body tr.jvfirst', els => els.length);
     ok('J-08 last click wins under a real race (no stale overwrite)', raceCount === Number(truth.voucher_count),
       `expected ${truth.voucher_count} (the later, All-time click) got ${raceCount}`);
+
+    // §16.7: the exported PDF's filename should carry the selected range too.
+    // Currently "All time" after J-08's clear.
+    await page.click('#nf-jrn-print');
+    const printTitleAllTime = await page.evaluate(() => document.title);
+    ok('J-08b print filename carries "All time"', printTitleAllTime === 'Awami_General_Journal_All_Time', printTitleAllTime);
+
+    await page.evaluate(() => { document.querySelector('#nf-jrn-from').value = '2026-09-01'; document.querySelector('#nf-jrn-to').value = '2026-09-16'; });
+    await page.click('#nf-jrn-apply');
+    await settled();
+    await page.click('#nf-jrn-print');
+    const printTitleRanged = await page.evaluate(() => document.title);
+    ok('J-08c print filename carries the selected range', printTitleRanged === 'Awami_General_Journal_01-Sep-2026_to_16-Sep-2026', printTitleRanged);
+    await page.click('#nf-jrn-clear');
+    await settled();
 
     await page.click('#nf-jrn-back');
     await page.waitForSelector('#nf-sheet', { timeout: 10000 });

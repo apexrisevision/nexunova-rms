@@ -48,8 +48,20 @@
       });
     }
 
-    render(root, ctx, null, { from: '', to: '' }, load);
-    load({ from: '', to: '' });
+    // §16.7's own TODO, closed here: "All time" on a journal a few years
+    // deep into real daily entries means hundreds of pages loaded (and
+    // printed) by default. Current month is the sensible default; "All
+    // time" stays one click away via the existing button below.
+    function currentMonthRange() {
+      var d = new Date();
+      var pad = function (x) { return String(x).padStart(2, '0'); };
+      var from = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-01';
+      var to = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+      return { from: from, to: to };
+    }
+    var initialRange = currentMonthRange();
+    render(root, ctx, null, initialRange, load);
+    load(initialRange);
   }
 
   function legRows(v) {
@@ -118,7 +130,20 @@
       '</div>';
 
     root.querySelector('#nf-jrn-back').addEventListener('click', function () { ctx.onBack(); });
-    root.querySelector('#nf-jrn-print').addEventListener('click', function () { global.print(); });
+    root.querySelector('#nf-jrn-print').addEventListener('click', function () {
+      // §16.7: the exported PDF's own filename should carry the range too,
+      // not just the on-page footer — same technique nf-sheet.js already
+      // uses for the daily closing print (document.title, restored after).
+      var oldTitle = document.title;
+      var stamp = (range.from || range.to)
+        ? (range.from ? F.ddMonYyyy(range.from) : 'Start') + '_to_' + (range.to ? F.ddMonYyyy(range.to) : 'Today')
+        : 'All_Time';
+      document.title = 'Awami_General_Journal_' + stamp;
+      function restore() { document.title = oldTitle; window.removeEventListener('afterprint', restore); }
+      window.addEventListener('afterprint', restore);
+      setTimeout(restore, 4000); // afterprint doesn't fire in some headless contexts
+      global.print();
+    });
     global.NfReportsMenu.wire(root, ctx);
     root.querySelector('#nf-jrn-apply').addEventListener('click', function () {
       load({ from: root.querySelector('#nf-jrn-from').value, to: root.querySelector('#nf-jrn-to').value });

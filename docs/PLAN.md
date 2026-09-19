@@ -2495,3 +2495,28 @@ stated. Recorded here as a closed decision so it reads as intentional, not as so
 
 **Syed Yousaf Shah — still blocked.** Owner asked again for the email; nothing gets created (viewer role,
 per §27.2) until it arrives. Not chased further than that.
+
+## 28 · Journal default period — closed, 2026-09-19 (§16.7's own TODO)
+
+`js/nf/nf-journal.js` loaded `{ from: '', to: '' }` on mount — "All time" — every time. Fine at 154 lines; not
+fine a few years into real daily use, when that becomes hundreds of vouchers loaded and printed by default
+every time the screen opens. Fixed both halves of the owner's own TODO:
+
+- **Default range is now the current month** (`YYYY-MM-01` through today), computed on mount. "All time" stays
+  one click away via the existing button — nothing removed, just no longer the default.
+- **The print filename now carries the selected range** — `Awami_General_Journal_<from>_to_<to>` (or
+  `..._All_Time` when the range really is cleared), same `document.title`-swap-then-restore technique
+  `nf-sheet.js`'s own daily-closing print already uses, including the `afterprint` restore and the 4-second
+  fallback for headless/test contexts where `afterprint` never fires.
+
+Verified against `scripts/nf/verify-nf-general-journal.js` (extended, not replaced — the existing J-01 through
+J-10 checks all still pass unchanged, since this fixture's own reference date happens to fall in the same real
+month the test runs in, which is exactly why a new check was added rather than trusting the row-count checks to
+prove anything about the default): **J-00b** reads the date inputs right after mount and asserts they equal
+today's month, not blank — proving the default actually changed, not just that old behaviour still happens to
+produce the same count. **J-08b/J-08c** click Print with "All time" active, then again after applying a real
+range, and check `document.title` reads the right stamp each time. 14/14 passed.
+
+Noticed in passing, not touched: `js/nf/nf-pl.js` (Profit & Loss) has the identical `{ from: '', to: '' }`
+all-time default on mount — same shape of problem, just not the one the owner flagged. Recorded here so it
+isn't lost, not actioned; out of scope for this fix.
