@@ -220,8 +220,20 @@ function serve() {
     const cbTiles = await page.$$eval('.rtile b', els => els.map(el => el.textContent.trim()));
     console.log(`Cash & Bank Movement: Opening ${cbTiles[0]} | In ${cbTiles[1]} | Out ${cbTiles[2]} | Closing ${cbTiles[3]}`);
     await savePdf('Awami_Cash_and_Bank_Movement_2026-09-19.pdf');
+    await page.click('#nf-cb-back');
+    await page.waitForSelector('#nf-toFlr', { timeout: 10000 });
 
-    console.log('\nAll eight PDFs saved to', OUT_DIR);
+    // ── Floor/Class Cost & Collection ───────────────────────────────────
+    await page.click('#nf-toFlr');
+    await page.waitForSelector('.flrsheet', { timeout: 10000 });
+    await page.waitForFunction(() => {
+      const b = document.querySelector('#nf-flr-body'); return b && !/Loading…/.test(b.textContent);
+    }, { timeout: 10000 });
+    const flrTiles = await page.$$eval('.rtile b', els => els.map(el => el.textContent.trim()));
+    console.log(`Floor Summary: Cost ${flrTiles[0]} | Income ${flrTiles[1]} | Token Collected ${flrTiles[2]}`);
+    await savePdf('Awami_Floor_Summary_2026-09-19.pdf');
+
+    console.log('\nAll nine PDFs saved to', OUT_DIR);
   } finally {
     if (browser) await browser.close();
     if (srv) srv.close();

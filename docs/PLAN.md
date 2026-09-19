@@ -2090,3 +2090,28 @@ Cross-check here is necessarily "confirms the known-empty state," not a nonzero 
 output matched the direct query's own zero result across all four fields (opening/in/out/closing) before
 applying. Exported `Awami_Cash_and_Bank_Movement_2026-09-19.pdf` (1 page). Full regression clean after (28/28,
 51/51).
+
+## 22 · Floor/Class Cost & Collection Summary (2026-09-19)
+
+`nf_get_floor_summary(company, from, to)` — cost, income and token-money-collected per floor, including
+"Project-wide" (a real `floor_code` for cost not yet allocated to a specific floor — checked directly before
+writing this: 112 of Awami's 154 real legs are `P-W`, mostly land purchase and regulatory cost, which matches
+the business's current pre-construction stage). Applied under the §18 auto-apply rule. Token collection is kept
+as its own field, never folded into "income" — 21100 is a liability until a unit is formally sold, and
+conflating the two would silently overstate recognised revenue, the same accounting-policy boundary as §17.2.
+
+Cross-checked against two already-verified figures, not new coincidences: total cost 21,675,050 matches the
+P&L's own total COGS + Expense exactly; total token collected 3,280,000 matches the Token Register's own net
+outstanding exactly. Exported `Awami_Floor_Summary_2026-09-19.pdf` (1 page), confirmed clean by screenshot.
+
+**A real, reproducing regression scare, resolved as environmental, not code:** the first post-apply
+`verify-nf-golden-ui.js` run failed at 12/13 with `Error: Node is detached from document` inside Puppeteer's own
+`scrollIntoView`/viewport-intersection check, right at the `#nf-tBank` transfer-to-bank field interaction in the
+daily-closing UI test — a section of `nf-sheet.js` this session's own changes never touch (confirmed by reading
+the full cumulative diff: every change was new header buttons and new click handlers appended after the
+pre-existing ones, nothing altering the render timing of the count/transfer section). Re-ran a second time before
+concluding anything — failed again, same signal, same point. Ran a third time with byte-identical code — passed
+clean, 28/28. Fail/fail/pass on unchanged code confirms this is the same class of machine-load timing flake
+already documented in §13.2 (8GB, memory-constrained, many Puppeteer launches this session), not a regression —
+recorded in this much detail specifically because two failures in a row is a weaker signal than one, and this is
+exactly the situation the standing rule means by "stop and report" rather than assume and move on.
