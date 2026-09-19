@@ -2334,3 +2334,50 @@ This tooling is ready and proven correct against real ground truth; it has nothi
 has live, non-imported activity to export. When that day comes: run `iif-export.js` with a **fresh** QuickBooks
 chart export, review the file and the four-gate validation output, then — and only then, on the owner's explicit
 go — run `iif-record-batch.js`.
+
+## 27 · Go-live readiness pass (2026-09-19)
+
+### 27.1 A real open day already exists
+
+Found during the readiness check, not created by this pass: `nf_days` for Awami has one real row — `DC-001`,
+business date 2026-09-19, status `OPEN`, `created_by` the owner's own real login (confirmed directly, not the
+system-import account or a diagnostic session) — created 2026-09-18 19:48, shortly after real director access
+was granted this session. Zero lines/vouchers on it yet, so nothing financial has happened. Left untouched, per
+the owner's own instruction — the Part 3 workflow dry run runs on a disposable fixture company instead, not
+Awami, specifically so this real day is never touched by a rehearsal.
+
+### 27.2 Real accounts — Syed Yousaf Shah gets `viewer`, deliberately, not `director`
+
+The owner's own explicit decision, recorded here so it doesn't get "corrected" later: Syed Yousaf Shah (a real
+director of the business) is added to `nf_members` with role `viewer`, not `director`. In this system `director`
+can enter lines, close days, and reopen closed ones — real write access. Syed Yousaf Shah's own personal
+receivable (`12610 Syed Yousaf Shah`, 7,660,900 as of the historical import) is itself recorded in these books.
+Someone whose own personal balance the ledger tracks should not also be able to edit that ledger — standard
+separation of duties, not a statement about trust. `viewer` gives him every report this pass built, with no write
+path at all. **Blocked on the owner supplying his real email — not created, not guessed, no placeholder.** The
+accountant slot stays empty for now; the owner will enter daily himself during the parallel-run period, using
+his own existing login.
+
+### 27.3 The three flagged go-live blockers — checked by test, not memory
+
+**Party field — confirmed genuinely missing**, exactly as described: a token receipt from an unregistered
+customer really is refused (`NF:PARTY_REQUIRED`, raised by the `nf_voucher_legs_guard` trigger — confirmed by
+reading the real trigger, not assumed from the symptom) with no field on the daily-closing screen to fix it
+from. The backend already had everything needed (`nf_save_line`'s own `p_party_name` resolve-or-create path) —
+the gap was purely that neither `nf_day_json` nor `nf_list_heads` ever told the screen a party existed or was
+needed. Confirmed `nf_lines` (what `nf_day_json` reads from) is a VIEW directly over `nf_voucher_legs`/
+`nf_vouchers`, not a separate table — checked with `pg_get_viewdef` before touching anything, since a wrong
+assumption here would have meant chasing the wrong bug entirely. Fix designed, written, and rehearsed
+(`supabase/migrations/20260919i_nf_party_field_golive.sql`); proposed to the owner before applying, per standing
+rule (changes the output shape of two existing functions other code already calls).
+
+**Period locking tied to export — confirmed NOT built.** Read `nf_reopen_day` directly: no check at all against
+export status. A director can currently reopen a day and edit vouchers already exported to QuickBooks, with
+nothing to prevent or flag it. Real, open gap. Owner's own timeline: due before the first real IIF export, not
+before go-live — not urgent today, tracked here so it isn't lost.
+
+**Journal defaulting to "All time" — confirmed still unfixed**, exactly as recorded in §16.7.
+
+Fix order, the owner's own instruction: party field first (blocking day-one use, ready to apply now), Journal
+default period next (small), period locking after that (on its own later deadline) — one migration at a time,
+not bundled, easier to verify and roll back if something surprises us.
