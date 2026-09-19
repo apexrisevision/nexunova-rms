@@ -2386,3 +2386,88 @@ before go-live — not urgent today, tracked here so it isn't lost.
 Fix order, the owner's own instruction: party field first (blocking day-one use, ready to apply now), Journal
 default period next (small), period locking after that (on its own later deadline) — one migration at a time,
 not bundled, easier to verify and roll back if something surprises us.
+
+### 27.4 Party field, frontend — search-first, built and tested on a disposable fixture, not Awami
+
+Both migrations (`20260919i` day/heads shape, `20260919j` parties+aliases shape) applied on explicit go-ahead in
+this window. The screen work that followed them, per the owner's own design requirement: **search first, create
+second** — as the accountant types, matching existing parties (name and aliases) are shown and picked from; "add
+new party" only ever appears once that search has visibly returned nothing, never as the easy first action. The
+alternative — letting "add new" be as easy as typing — is exactly how "Abdullah", "Abdullah LG-03" and "abdullah"
+become three unrelated parties within a week and every party-wise report silently fractures one customer's
+balance three ways.
+
+**`js/nf/nf-sheet.js`** — a `data-party-wrap` field (input + a `.party-dd` dropdown) added to every line row,
+draft and saved, on any account flagged `requires_party` (via `headRequiresParty()`, reading the flag
+`20260919i` added to `nf_list_heads`'s own output). `wirePartyFields()` filters `S.parties` (name + aliases,
+client-side — 18 real Awami parties today, small enough that no dedicated search RPC is needed) as the user
+types; picking an item uses `mousedown` with `preventDefault()`, not `click`, specifically so the pick registers
+**before** the input's own `blur` fires and hides the dropdown out from under it. A pick calls straight into the
+same save path the row already had — `trySaveDraft()` for a draft row, `saveSavedLine()` for an already-saved
+one — so a picked party is saved exactly the way every other field on the row already is. Backend resolution
+(`nf_resolve_party`, exact match after whitespace/case normalising, confirmed by reading `20260918i`'s live body)
+means picking an *existing* party from the dropdown can never create a duplicate; typing something genuinely new
+and confirming "+ Add new party" goes through `nf_create_party` — the same party-master table and alias support
+every seeded party already has, not a free-text string bolted on beside it.
+
+One real bug caught and fixed on the way: the saved-row field-change handler maps `data-k` letters to RPC
+argument names (`v`→`voucher_no`, `h`→`head_code`, …) — the party field's own `p` was missing from that map,
+so editing an already-saved line's party would have silently written to `patch[undefined]` and done nothing.
+Added `p: 'party_name'` before any of this was tested.
+
+**Tested end to end on a disposable `ZZTEST-NF-` fixture, never Awami**, per the owner's own instruction —
+`scripts/nf/verify-nf-party-field.js` (new), covering both paths explicitly named: an empty field shows a browse
+list and never "add new" (PF-06); typing a partial match of an existing party shows only that match, no add-new
+option, and picking it (via the real `mousedown` path, not a shortcut) saves the line against that party's real
+`id` — confirmed by query, with confirmation that no duplicate party row was created (PF-01/02); a genuinely
+unmatched name offers *only* "+ Add new party", never a stale/partial match (PF-03); confirming it creates a
+real `nf_parties` row and the saved line's `party_id` points at it, not a placeholder (PF-04); and editing an
+already-saved line's party through the same dropdown, proving the `p:'party_name'` mapping fix actually works
+(PF-05) — 15/15 passed. Cleanup verified by query, Awami confirmed untouched, same as every other fixture test
+this session.
+
+One real test-script bug found and fixed while building this, worth recording since it will recur: re-resolving
+"the last draft row" *after* a row has already been partly filled in finds the **wrong** row — filling in a
+draft's voucher/head/floor/via makes `ensureTrailingBlank()` append a fresh blank row behind it, so "last draft
+row" now names that new blank one, not the row just filled. The tmpId captured once, before any field is
+touched, is the only thing guaranteed to still name the right row after a redraw; the "row helpers" comment
+already in `verify-nf-golden-ui.js` said exactly this, and this session re-learned it the hard way before
+re-reading it.
+
+**A real, correct behaviour change this surfaced**, not a bug: the party field's own client-side completeness
+gate (`trySaveDraft`'s `partyOk`) now refuses to save *any* line on a party-required account until a party is
+actually picked or typed — it no longer relies on the backend's description-text fallback match silently doing
+the work unattended. That's the whole point of building this field, but it broke the pre-existing
+`verify-nf-golden-ui.js` regression fixture, which types the golden day's Token Money receipt (`CRV-001`, head
+`21100`) without ever touching the new party field — the row was silently refused client-side, which cascaded
+into the day closing 500,000 short and the downstream duplicate-voucher test failing too (it reused the same
+never-saved voucher number). Fixed by teaching `fillDraftRow()` to fill the party field (picking the same
+pre-registered party the test already relies on for the description-match path) whenever the head is
+`21100`/`21200`/`21300`. Both suites are green again — `verify-nf-golden-ui.js` 28/28, `verify-nf-party-field.js`
+15/15, `verify-nf-rules.js` 52/52, no flake this run.
+
+Not yet built: the accountant/director role's read-only party display (`.party-field.ro`) exists in markup and
+CSS but hasn't been exercised by a viewer-role test — low risk (plain text, no JS path), not blocking, flagged
+here rather than silently assumed correct.
+
+### 27.5 The Rashid/Rashid Mansoor investigation — a different, real gap found, not the one hypothesised
+
+Checked directly against real Awami data before assuming an answer, per the owner's own question: did the
+import collapse "Rashid" and "Rashid Mansoor" into one party, or leave two? **Neither — no such duplicate
+exists.** `nf_parties` for Awami has no two rows that look like the same person split by name variant; the
+aliases table is empty (0 aliases today) because nothing has needed one yet, not because a split was silently
+merged.
+
+What the query actually found is a related but different gap: **34 expense-side legs across the real 64-voucher
+import name a real payee — Jawad, Rashid, Rashid Mansoor, Asif Akhtar, RX Printings, and others — only in
+free-text memo, with `party_id = NULL`.** Not because the import mishandled them, but because the accounts those
+legs post to (`15300`, `70100`, `16100`, and others) are not flagged `requires_party` — so the guard trigger
+never asked for one, and the import correctly did not invent one. This means those 34 legs carry a real payee
+name that exists nowhere in `nf_parties`, and no party-wise report will ever surface them under that name — a
+real, quiet gap, but not the Rashid-specific split that was hypothesised, and not conflated with it in this
+write-up.
+
+**Not fixed.** Retroactively backfilling real ledger data — deciding which of those 34 legs' free-text names
+should become real party records, and whether any of them are the *same* underlying person under different
+spellings — is the owner's own call, not a unilateral one to make while investigating a different question.
+Flagged here so it isn't lost, not actioned.

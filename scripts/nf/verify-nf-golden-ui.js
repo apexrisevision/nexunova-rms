@@ -142,7 +142,13 @@ async function setValue(page, selector, text) {
   }, selector);
   await page.type(selector, text);
 }
-async function fillDraftRow(page, side, v, d, h, f, m, a) {
+async function fillDraftRow(page, side, v, d, h, f, m, a, party) {
+  // tmpId is captured ONCE, before anything is typed — filling this row's
+  // first field makes ensureTrailingBlank() append a fresh blank row behind
+  // it, so "last draft row" drifts to that new one; the tmpId itself
+  // survives every redraw and still names this exact row throughout
+  // (20260919i/j party-field verify: re-resolving "last" mid-fill picks up
+  // the wrong row and silently no-ops the save).
   const tmpId = await lastDraftTmpId(page, side);
   const sel = k => `.row.draft[data-draft="${tmpId}"] [data-k="${k}"]`;
   await setValue(page, sel('v'), v);
@@ -151,8 +157,20 @@ async function fillDraftRow(page, side, v, d, h, f, m, a) {
   await page.select(sel('f'), f);
   await page.select(sel('m'), m);
   await setValue(page, sel('a'), String(a));
-  await page.focus(sel('a'));
-  await page.keyboard.press('Enter');
+  if (party) {
+    // 20260919i/j: the account this golden day posts its token receipt to
+    // (21100) now requires an explicit party on the SCREEN, not just a
+    // description the backend can pattern-match — search-first, pick the
+    // pre-registered match (never "+ Add new", since it already exists).
+    const partySel = sel('p');
+    await page.focus(partySel);
+    await page.type(partySel, party);
+    await page.waitForSelector(`.row.draft[data-draft="${tmpId}"] .party-dd:not([hidden])`, { timeout: 4000 });
+    await page.click(`.row.draft[data-draft="${tmpId}"] [data-party-pick="${party}"]`);
+  } else {
+    await page.focus(sel('a'));
+    await page.keyboard.press('Enter');
+  }
 }
 async function waitSaved(page, voucher, timeout = 8000) {
   await page.waitForFunction(v => [...document.querySelectorAll('.row[data-saved] .vno')].some(el => el.value === v),
@@ -285,7 +303,11 @@ async function waitRowError(page, side, timeout = 6000) {
     await accPage.waitForSelector('.books', { timeout: 10000 });
 
     for (const r of s.in.filter(r => Number(r.a))) {
-      await fillDraftRow(accPage, 'IN', r.v, r.d, r.h, r.f, r.m, Number(r.a));
+      // 21100/21200/21300 require an explicit party on the screen now
+      // (20260919i/j) — the pre-registered party below matches the token
+      // line's own description exactly, so this is the "pick existing" path.
+      const party = ['21100', '21200', '21300'].includes(r.h) ? r.d : undefined;
+      await fillDraftRow(accPage, 'IN', r.v, r.d, r.h, r.f, r.m, Number(r.a), party);
       try { await waitSaved(accPage, r.v); ok(`UI-02 saved ${r.v}`, true, ''); }
       catch (e) { ok(`UI-02 saved ${r.v}`, false, await accPage.evaluate(() => document.body.innerText.slice(0, 200))); }
     }
@@ -446,7 +468,10 @@ async function waitRowError(page, side, timeout = 6000) {
 
     // ── refused: a voucher already used earlier today ───────────────────────
     const reusedVoucher = s.in.filter(r => Number(r.a))[0].v;   // e.g. CRV-001
-    await fillDraftRow(accPage, 'IN', reusedVoucher, 'same voucher again', '21100', 'GF', 'Cash', 1);
+    // 21100 requires a party on the screen now too — reuse the same
+    // pre-registered party so this stays the "pick existing" path and the
+    // duplicate-voucher refusal (not a party error) is what's under test.
+    await fillDraftRow(accPage, 'IN', reusedVoucher, 'same voucher again', '21100', 'GF', 'Cash', 1, tokenLine ? tokenLine.d : undefined);
     let dupMsg;
     try { dupMsg = await waitRowError(accPage, 'IN'); ok('UI-10 duplicate voucher refused', /already on the books/.test(dupMsg || ''), dupMsg); }
     catch (e) { ok('UI-10 duplicate voucher refused', false, 'no row-err appeared: ' + e.message); }

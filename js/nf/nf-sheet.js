@@ -54,7 +54,7 @@
     var transferDraft = null;   // {tBank, tPetty} | null
     var busy = false;
 
-    function blankDraft() { return { tmpId: uid(), v: '', d: '', h: '', f: '', m: '', a: '', saving: false, error: null }; }
+    function blankDraft() { return { tmpId: uid(), v: '', d: '', h: '', f: '', m: '', a: '', p: '', saving: false, error: null }; }
     function ensureTrailingBlank(side) {
       var arr = drafts[side];
       var last = arr[arr.length - 1];
@@ -102,8 +102,15 @@
     }
 
     function loadLookups() {
-      return Promise.all([api.listHeads(companyId), api.listFloors(companyId), api.listVias(companyId)])
-        .then(function (r) { S.heads = r[0] || []; S.floors = r[1] || []; S.vias = r[2] || []; });
+      return Promise.all([api.listHeads(companyId), api.listFloors(companyId), api.listVias(companyId), api.listAllParties(companyId)])
+        .then(function (r) { S.heads = r[0] || []; S.floors = r[1] || []; S.vias = r[2] || []; S.parties = r[3] || []; });
+    }
+    // requires_party comes back per head from nf_list_heads (20260919i) —
+    // look it up by code rather than re-deriving it, the same way headName()
+    // already does.
+    function headRequiresParty(code) {
+      var h = S.heads.filter(function (x) { return x.code === code; })[0];
+      return !!(h && h.requires_party);
     }
 
     // ── header / docmeta ──────────────────────────────────────────────────
@@ -199,11 +206,27 @@
 
     var canWrite = (role === 'accountant' || role === 'director') && S.day && S.day.status === 'OPEN';
 
+    // Search-first party field, owner's own design requirement (2026-09-19):
+    // an existing match is always shown and picked from; "add new" only
+    // ever appears once a search has visibly returned nothing, never as
+    // the easy first action — otherwise the party master fractures into
+    // "Abdullah"/"Abdullah LG-03"/"abdullah" within a week and every
+    // party-wise report silently splits one customer's balance three ways.
+    // The dropdown itself is populated/filtered by wirePartyField() below,
+    // not re-rendered from render() — same reasoning as every other text
+    // field in this file: rebuilding the row mid-keystroke drops focus.
+    function partyFieldHTML(value, missing) {
+      return '<div class="party-field' + (missing ? ' miss' : '') + '" data-party-wrap>' +
+        '<input data-k="p" value="' + esc(value || '') + '" placeholder="Party" autocomplete="off" aria-label="Party">' +
+        '<div class="party-dd" hidden></div>' +
+        '</div>';
+    }
     function savedRowHTML(side, l) {
       return '<div class="grid row" data-saved="1" data-id="' + l.id + '" data-version="' + l.version + '" data-side="' + side + '">' +
         '<input class="vno" data-k="v" value="' + esc(l.voucher_no) + '" ' + (canWrite ? '' : 'disabled') + ' aria-label="Voucher number">' +
         '<div class="desc"><input data-k="d" value="' + esc(l.description || '') + '" placeholder="Description" ' + (canWrite ? '' : 'disabled') + ' aria-label="Description">' +
         '<select data-k="h" ' + (canWrite ? '' : 'disabled') + ' aria-label="Account head">' + headOpts(l.head_code) + '</select></div>' +
+        (canWrite ? partyFieldHTML(l.party_name, false) : '<div class="party-field ro">' + esc(l.party_name || '') + '</div>') +
         '<select class="sel" data-k="f" ' + (canWrite ? '' : 'disabled') + ' aria-label="Floor">' + floorOpts(l.floor_code) + '</select>' +
         '<select class="sel" data-k="m" ' + (canWrite ? '' : 'disabled') + ' aria-label="Cash, petty or bank">' + viaOpts(l.via) + '</select>' +
         '<input class="amt" data-k="a" inputmode="decimal" value="' + F.grp(l.amount) + '" ' + (canWrite ? '' : 'disabled') + ' aria-label="Amount">' +
@@ -216,6 +239,7 @@
         '<input class="vno" data-k="v" value="' + esc(r.v) + '" placeholder="' + (side === 'IN' ? 'CRV-' : 'CPV-') + '" aria-label="Voucher number">' +
         '<div class="desc"><input data-k="d" value="' + esc(r.d) + '" placeholder="Description" aria-label="Description">' +
         '<select data-k="h" aria-label="Account head" class="' + (errField === 'head' ? 'miss' : '') + '">' + headOpts(r.h) + '</select></div>' +
+        partyFieldHTML(r.p, errField === 'party') +
         '<select class="sel" data-k="f" aria-label="Floor">' + floorOpts(r.f) + '</select>' +
         '<select class="sel" data-k="m" aria-label="Cash, petty or bank">' + viaOpts(r.m) + '</select>' +
         '<input class="amt" data-k="a" inputmode="decimal" value="' + esc(r.a) + '" placeholder="0" aria-label="Amount">' +
@@ -243,12 +267,12 @@
       return '' +
         '<section class="sec"><div class="books">' +
         '  <div class="book in"><div class="bh"><h3><i></i>Receipts <small>CRV / BRV</small></h3><span class="cnt">' + savedIn.length + ' ' + (savedIn.length === 1 ? 'entry' : 'entries') + '</span></div>' +
-        '    <div class="grid cols"><span>Voucher</span><span>Description and head</span><span class="c">Floor</span><span class="c">Via</span><span class="r">Amount</span><span></span></div>' +
+        '    <div class="grid cols"><span>Voucher</span><span>Description and head</span><span>Party</span><span class="c">Floor</span><span class="c">Via</span><span class="r">Amount</span><span></span></div>' +
         '    <div id="nf-rowsIn">' + rowsIn + '</div>' +
         (canWrite ? '    <button class="add" type="button" data-side="IN">+ Add receipt</button>' : '') +
         '    <div class="bf">' + footer('IN', savedIn) + '</div></div>' +
         '  <div class="book out"><div class="bh"><h3><i></i>Payments <small>CPV / BPV</small></h3><span class="cnt">' + savedOut.length + ' ' + (savedOut.length === 1 ? 'entry' : 'entries') + '</span></div>' +
-        '    <div class="grid cols"><span>Voucher</span><span>Description and head</span><span class="c">Floor</span><span class="c">Via</span><span class="r">Amount</span><span></span></div>' +
+        '    <div class="grid cols"><span>Voucher</span><span>Description and head</span><span>Party</span><span class="c">Floor</span><span class="c">Via</span><span class="r">Amount</span><span></span></div>' +
         '    <div id="nf-rowsOut">' + rowsOut + '</div>' +
         (canWrite ? '    <button class="add" type="button" data-side="OUT">+ Add payment</button>' : '') +
         '    <div class="bf">' + footer('OUT', savedOut) + '</div></div>' +
@@ -350,6 +374,7 @@
           var any = r.d || r.a;
           if (!any) return;
           if (!r.h) issues.push('has no head selected');
+          if (r.h && headRequiresParty(r.h) && !(r.p || '').trim()) issues.push('needs a party — this account always tracks who it is with');
           if (!r.m) issues.push('is not marked Cash, Petty or Bank, so it is left out of the balances');
           if (!r.v) issues.push('has no voucher number');
           if (!r.f) issues.push('has no floor');
@@ -522,10 +547,11 @@
       var arr = drafts[side];
       var r = arr.filter(function (x) { return x.tmpId === tmpId; })[0];
       if (!r || r.saving) return;
-      var complete = r.v.trim() && r.h && r.f && r.m && F.n(r.a) > 0;
+      var partyOk = !headRequiresParty(r.h) || (r.p || '').trim();
+      var complete = r.v.trim() && r.h && r.f && r.m && F.n(r.a) > 0 && partyOk;
       if (!complete) return;
       r.saving = true;
-      api.saveLine(S.day.id, null, side, r.v.trim(), r.d, r.h, r.f, r.m, F.n(r.a), null)
+      api.saveLine(S.day.id, null, side, r.v.trim(), r.d, r.h, r.f, r.m, F.n(r.a), null, r.p)
         .then(function (res) {
           // remove THIS draft explicitly — applyDay only clears fully-blank
           // ones, and this one still has everything typed into it
@@ -544,12 +570,67 @@
       var l = S.lines.filter(function (x) { return String(x.id) === String(id); })[0];
       if (!l) return;
       var merged = Object.assign({}, l, patch);
-      api.saveLine(S.day.id, id, side, merged.voucher_no, merged.description, merged.head_code, merged.floor_code, merged.via, F.n(merged.amount), version)
+      api.saveLine(S.day.id, id, side, merged.voucher_no, merged.description, merged.head_code, merged.floor_code, merged.via, F.n(merged.amount), version, merged.party_name)
         .then(applyDay)
         .catch(function (err) {
           toast(Msg.forLine(err), true);
           refresh();
         });
+    }
+
+    // Search-first party field: filters S.parties (name + aliases) as the
+    // user types, and only ever offers "add new" once that search has
+    // visibly returned nothing — never as the first or easiest action, per
+    // the owner's own requirement (see partyFieldHTML above). Selection
+    // uses mousedown with preventDefault, not click, so the dropdown item
+    // registers BEFORE the input's blur fires and hides it out from under
+    // the click.
+    function partyMatches(query) {
+      var q = (query || '').trim().toLowerCase();
+      var list = S.parties || [];
+      if (!q) return list.slice(0, 8);
+      return list.filter(function (p) {
+        if ((p.name || '').toLowerCase().indexOf(q) !== -1) return true;
+        return (p.aliases || []).some(function (a) { return (a || '').toLowerCase().indexOf(q) !== -1; });
+      }).slice(0, 8);
+    }
+    function renderPartyDropdown(dd, query) {
+      var q = (query || '').trim();
+      var items = partyMatches(q);
+      var html;
+      if (items.length) {
+        html = items.map(function (p) {
+          return '<div class="party-opt" data-party-pick="' + esc(p.name) + '">' + esc(p.name) +
+            (p.aliases && p.aliases.length ? ' <span class="party-alias">(' + esc(p.aliases.join(', ')) + ')</span>' : '') +
+            '</div>';
+        }).join('');
+      } else if (q) {
+        html = '<div class="party-opt party-add" data-party-add="' + esc(q) + '">+ Add new party “' + esc(q) + '”</div>';
+      } else {
+        html = '';
+      }
+      dd.innerHTML = html;
+      dd.hidden = !html;
+    }
+    function wirePartyFields(onPick) {
+      root.querySelectorAll('[data-party-wrap]').forEach(function (wrap) {
+        var input = wrap.querySelector('input[data-k="p"]');
+        var dd = wrap.querySelector('.party-dd');
+        if (!input || !dd) return;
+        input.addEventListener('focus', function () { renderPartyDropdown(dd, input.value); });
+        input.addEventListener('input', function () { renderPartyDropdown(dd, input.value); });
+        input.addEventListener('blur', function () { setTimeout(function () { dd.hidden = true; }, 150); });
+        input.addEventListener('keydown', function (e) { if (e.key === 'Escape') dd.hidden = true; });
+        dd.addEventListener('mousedown', function (e) {
+          var opt = e.target.closest('[data-party-pick],[data-party-add]');
+          if (!opt) return;
+          e.preventDefault();
+          var name = opt.getAttribute('data-party-pick') || opt.getAttribute('data-party-add');
+          input.value = name;
+          dd.hidden = true;
+          onPick(wrap, name);
+        });
+      });
     }
 
     // A plain debounce let two edits typed more than `ms` apart (a normal
@@ -702,7 +783,7 @@
         rowEl.querySelectorAll('[data-k]').forEach(function (inp) {
           inp.addEventListener('change', function () {
             var k = inp.getAttribute('data-k');
-            var patch = {}; patch[{ v: 'voucher_no', d: 'description', h: 'head_code', f: 'floor_code', m: 'via', a: 'amount' }[k]] = k === 'a' ? F.n(inp.value) : inp.value;
+            var patch = {}; patch[{ v: 'voucher_no', d: 'description', h: 'head_code', f: 'floor_code', m: 'via', a: 'amount', p: 'party_name' }[k]] = k === 'a' ? F.n(inp.value) : inp.value;
             saveSavedLine(side, id, version, patch);
           });
         });
@@ -713,6 +794,24 @@
             .then(applyDay)
             .catch(function (err) { toast(Msg.forLine(err), true); refresh(); });
         });
+      });
+
+      // party field — search-first dropdown, shared between draft and saved
+      // rows; picking an item saves through the same path blur/change
+      // already use for that row type (trySaveDraft / saveSavedLine).
+      wirePartyFields(function (wrap, name) {
+        var draftRow = wrap.closest('.row.draft');
+        if (draftRow) {
+          var side = draftRow.getAttribute('data-side'), tmpId = draftRow.getAttribute('data-draft');
+          var r = drafts[side].filter(function (x) { return x.tmpId === tmpId; })[0];
+          if (r) { r.p = name; r.error = null; ensureTrailingBlank(side); trySaveDraft(side, tmpId); }
+          return;
+        }
+        var savedRow = wrap.closest('.row[data-saved]');
+        if (savedRow && canWrite) {
+          var id = savedRow.getAttribute('data-id'), version = Number(savedRow.getAttribute('data-version')), sside = savedRow.getAttribute('data-side');
+          saveSavedLine(sside, id, version, { party_name: name });
+        }
       });
 
       // add-row buttons

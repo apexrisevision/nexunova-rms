@@ -69,11 +69,12 @@
       },
 
       // lines
-      saveLine: function (dayId, lineId, side, voucherNo, description, head, floor, via, amount, version) {
+      saveLine: function (dayId, lineId, side, voucherNo, description, head, floor, via, amount, version, partyName) {
         return call('nf_save_line', {
           p_day_id: dayId, p_line_id: lineId || null, p_side: side, p_voucher_no: voucherNo,
           p_description: description || null, p_head: head, p_floor: floor, p_via: via,
           p_amount: amount, p_version: version === undefined ? null : version,
+          p_party_name: partyName || null,
         });
       },
       deleteLine: function (lineId, version) { return call('nf_delete_line', { p_line_id: lineId, p_version: version }); },
