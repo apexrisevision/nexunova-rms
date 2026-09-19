@@ -2471,3 +2471,27 @@ write-up.
 should become real party records, and whether any of them are the *same* underlying person under different
 spellings — is the owner's own call, not a unilateral one to make while investigating a different question.
 Flagged here so it isn't lost, not actioned.
+
+### 27.6 The owner's decisions on the two open questions — closed, 2026-09-19
+
+**The 34 free-text payee legs: left alone, by decision, not oversight.** They're closed expense transactions
+with no outstanding balance, and every party that actually carries one — FMH, KBH, the directors, the token
+customers — already has a real party record. Backfilling 34 historical legs from free text means writing to the
+ledger to guess at identities for analytical convenience; the risk of mixing inferred parties in with real ones
+outweighs the value, and a clean cutoff is better than a partially-guessed one. **Recorded here explicitly so a
+future pass doesn't read the gap as a bug and "fix" it**: supplier history before this cutoff (2026-09-19) is
+text-only by decision. The payee names remain exactly where they always were, readable in the line's own memo.
+
+**Party stays OPTIONAL-BUT-OFFERED on expense lines, going forward — and this needed no new code.** Checked the
+frontend directly before writing this up: the search-first party field (§27.4) is already rendered on *every*
+line, draft or saved, regardless of account — only the client-side save gate (`trySaveDraft`'s `partyOk`,
+`nf-sheet.js:550`) and the corresponding backend trigger are conditioned on `requires_party`. `requires_party`
+itself is already limited to exactly the three pooled customer-advance codes the owner named — `21100` (Token
+Money), `21200` (Advance – Advertising Units), `21300` (Refunds Payable to Customers) — confirmed by querying
+the live chart, not assumed. So an expense line already saves fine with the party field left blank, and an
+accountant who wants to attach one (a recurring contractor, printer, consultant) already can, through the exact
+same dropdown — no migration, no frontend change needed; the build already matched the policy the owner just
+stated. Recorded here as a closed decision so it reads as intentional, not as something nobody got round to.
+
+**Syed Yousaf Shah — still blocked.** Owner asked again for the email; nothing gets created (viewer role,
+per §27.2) until it arrives. Not chased further than that.
