@@ -2252,3 +2252,85 @@ already-exported check, date-range/filename consistency) and Part 3 (per-account
 one row per COA code with both systems' figures and the difference — not the retired two-number
 `reconciliations` table shape). Nothing gets imported into QuickBooks on this session's own judgment; the owner
 reviews the generated file and the validation output first.
+
+## 26 · IIF export, Parts 2 and 3 — the validation gate, the writer, and reconciliation (2026-09-19)
+
+### 26.1 Format confirmed against real ground truth, not assumed
+
+Before writing a line of the IIF generator, matched `docs/reference/Awami_Entries_import.iif`'s own JV-0001 row
+("Token 102 received by FMH office - Cash" / "Token 102 - unit GF-129", 2026-07-10) directly against this
+project's own live `nf_voucher_legs` for that exact voucher — figure for figure, voucher number and date
+included. That gave the real field mapping, not a guess: `AMOUNT` = debit − credit (positive = debit, negative =
+credit); `ACCNT` = the account's full colon-path; `NAME` = the leg's party name, with `:unit-code` appended only
+for `21100` Token Money legs where a unit is identifiable (reusing the exact `unit ([A-Za-z0-9-]+)` extraction
+from the Token Register, §20); `CLASS` = the floor's `qb_class`; `DOCNUM` = voucher_no; `MEMO` = the leg's own
+memo. First leg → `TRNS`, remaining legs → `SPL`, then `ENDTRNS`. Also caught a real bug in a first draft: the
+test fixture's own fake chart file used an invented field order rather than the real one — cross-checked against
+`docs/reference/QB_COA_Awami.IIF`'s actual header (`!ACCNT NAME REFNUM TIMESTAMP ACCNTTYPE OBAMOUNT DESC ACCNUM
+SCD BANKNUM EXTRA HIDDEN`, ACCNUM at index 7) before fixing it, not re-guessed.
+
+### 26.2 `scripts/nf/iif-export.js` (Part 2 — the gate + writer) and `scripts/nf/iif-record-batch.js` (the only write step)
+
+Deliberately two separate scripts, per the owner's own instruction that nothing gets marked exported on this
+session's own judgment. `iif-export.js` only reads and writes a `.iif` file to disk; it never calls
+`nf_iif_record_batch`. Four gates, all must pass before a file is written: (1) every candidate voucher balances,
+checked directly against `nf_voucher_legs`, not assumed from `nf_post_voucher`'s own enforcement at posting time;
+(2) every account code used byte-matches a **fresh** QuickBooks chart file supplied on the command line — never
+a cached copy, reusing the exact parsing/matching logic already proven in `verify-nf-qb-accounts.js`; (3) no
+candidate has a prior export record, re-checked directly even though `nf_iif_list_candidates` already excludes
+these; (4) every voucher's date is really inside the requested range. `iif-record-batch.js` re-derives the exact
+same candidate list rather than trusting anything cached from an earlier run, and leans on `nf_iif_record_batch`'s
+own re-validation rather than duplicating it.
+
+Both scripts run over the Management API's privileged connection (same channel `import-awami-history.js` uses),
+which meant a real bug had to be fixed before either could work at all: `nf_iif_list_candidates`/
+`nf_iif_record_batch` both call `nf_require_role`, which needs `auth.uid()` to resolve — but the privileged
+connection has no session, and `set_config(..., true)` is transaction-local while `q()` is one HTTP request per
+call (no state persists between calls). A first draft called `set_config` in its own earlier `q()` call, which
+would have silently lost the claim before the RPC that needed it ever ran. Fixed by requiring `--as
+<user_id>` and folding the `set_config` into the *same* statement batch as whatever RPC needs it, every time —
+caught before it shipped, by tracing through `scripts/_sbq.js`'s own request-per-call shape rather than assuming
+the earlier pattern would just work here too.
+
+### 26.3 Tested end to end against a real temporary fixture, not Awami
+
+Built a throwaway `ZZTEST-NF-IIF` company (seeded with the real Awami chart via `gen-seed.js`, same pattern every
+`verify-nf-*.js` script already uses), posted one real token-money-style voucher matching the JV-0001 ground
+truth exactly, then ran the full pipeline against it: `iif-export.js` found 1 candidate, all four gates passed,
+and the generated file's `TRNS`/`SPL` rows matched the reference file's own layout and sign convention exactly.
+`iif-record-batch.js` recorded the batch; re-running `iif-export.js` immediately after correctly showed 0
+candidates (already exported). Two real bugs caught and fixed during this test, not before it: `nf_create_party`
+returns a JSONB object, not a bare UUID — a first draft read `.id` off the wrong level and passed the whole
+object where a UUID was expected; and the test's own cleanup called `_nf_test_purge` before deleting the new
+`nf_iif_batch_vouchers` rows, which hit a real foreign-key violation (fixed by reordering, not by weakening the
+constraint). Company, auth user, and every row confirmed fully purged after — checked directly, not assumed.
+
+### 26.4 `scripts/nf/iif-reconcile.js` (Part 3) — validated against real data, with a real finding
+
+Reads the same `TRNS`/`SPL` format the writer produces, sums every transaction line per account colon-path, and
+compares against NexuFinance's own live per-account balances — one row per COA code, both figures and the
+difference, explicitly not the retired `reconciliations` table's two-number shape. An account in only one system
+still gets a row with the other side blank, never silently dropped.
+
+Run against `docs/reference/Awami_Entries_import.iif` itself as a real test (not synthetic data): 8 accounts
+matched exactly (21100 Token Money −3,280,000, 22100 FMH −20,124,450, 51100 Land 18,000,000, and five others, all
+to the rupee). Three accounts showed a nonzero difference (16100, 53500, 60300) — checked by hand before
+concluding anything, not assumed to be a reconciliation bug: grepped the reference file's own `TRNS` rows for
+each account directly and summed them manually, and the manual sum matched the script's own `qb_balance` output
+exactly (180,000 / 475,000 / 60,700) — proving the script's arithmetic is correct and the gap is real
+incompleteness in this reference file (128 of our real 154 imported lines), not an error in either system. The
+script also correctly surfaced a genuine stale-chart issue on its own: the file's "Cash & Bank:Cash with
+Directors:Syed Yousaf Shah" (an account retired and replaced by "Due from Directors" per the owner's own Q9
+decision, §11 — recorded in `gen-seed.js`'s own `RECEIVABLE_OVERRIDE`) shows up as a real gap against nf_accounts,
+exactly the kind of drift a **fresh** chart export exists to catch, and exactly why the owner's own instruction
+insisted on a fresh file rather than the cached one.
+
+### 26.5 Where this stands
+
+All three parts are built, tested, and pushed. **Nothing has actually been exported for Awami** — all 64 real
+vouchers are correctly `iif_exportable = false`, and Awami has posted zero live vouchers through the app since
+(zero `nf_days` ever opened), so `nf_iif_list_candidates` correctly returns empty for any real date range today.
+This tooling is ready and proven correct against real ground truth; it has nothing real to do yet until Awami
+has live, non-imported activity to export. When that day comes: run `iif-export.js` with a **fresh** QuickBooks
+chart export, review the file and the four-gate validation output, then — and only then, on the owner's explicit
+go — run `iif-record-batch.js`.
