@@ -2126,20 +2126,25 @@ problem the owner caught before it shipped further: a director on a normal scree
 horizontal overflow this session's own automated tests were starting to hit. Flagged directly rather than
 silently adding a 12th and 13th button for the two reports still to come.
 
-### 23.2 The flake question — resolved as REAL, not purely environmental
+### 23.2 The flake question — softened, 2026-09-19: the later evidence doesn't hold up the earlier conclusion
 
-Per the owner's own instruction: don't leave this as "probably environmental," find out which. Before the nav
-fix, `verify-nf-golden-ui.js` failed twice in a run of four attempts across two consecutive migrations, always at
-the same point (the `#nf-tBank` transfer field, just after the last voucher save) with the same class of
-Puppeteer DOM-timing error (`Node is detached from document` / `Node is either not clickable or not an
-Element`). After building the Reports dropdown (§23.3) and shrinking the header back down to four top-level
-items, the same test was run **five times in a row, byte-identical code, 28/28 clean every time** — a sharp
-reversal from 2 failures in the prior 4 attempts. Five clean runs after a fix is a real, meaningful signal where
-a single clean run wouldn't have been. **Conclusion: the crowded header was a genuine contributing cause of the
-flake, not purely environmental machine-load noise** — most likely the extra unwrapped DOM width/layout
-computation on every render made an already-tight timing window (a debounced save racing the next click) fail
-more often, not a coincidence. Recorded here precisely so it doesn't get remembered as "probably fine, never
-figured out."
+**Correction, same day, after more data came in.** This section originally concluded the crowded header was "a
+genuine contributing cause... not purely environmental," based on: 2 failures in 4 attempts before the nav fix,
+then 5 clean runs in a row after it. That looked like a real signal at the time. It wasn't — the same class of
+failure (the exact `RACE-OK`/`RACE-R2` overlap-timing family, and the same `#nf-tBank`-area DOM-timing error)
+recurred twice more on the party-field and party-aliases migrations, both landing on an **uncrowded** header,
+both clearing on a single re-run. A cause that was supposedly fixed doesn't get to keep causing the same failure
+afterward. Five clean runs in a row was a real result, but reading it as proof the header was the cause was
+over-fitting a plausible story onto a small sample — the honest sample size (2 fails in 4, then multiple clean
+runs, then 2 more fails on unrelated later commits, each clearing on retry) is exactly what pre-existing
+machine-load flakiness looks like, no better explained by header width than by chance. **Corrected conclusion:
+this remains an open, unexplained, intermittent flake in this environment (§13.2's own memory-constrained-machine
+finding is still the best available explanation), not resolved by the nav consolidation** — which was still the
+right UX fix on its own terms, just not a fix for this. Recorded here, overwriting the earlier confident claim
+rather than leaving it standing, per the owner's own instruction: a wrong-but-confident note is worse than an
+open question. Going forward, treat any single-migration re-run-clears-it result as inconclusive on its own —
+it takes a much larger sample than this project has patience to gather to actually attribute this to a specific
+code change, and no future finding should claim to without that sample.
 
 ### 23.3 The Reports dropdown (`js/nf/nf-reports-menu.js`)
 
