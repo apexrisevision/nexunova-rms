@@ -2610,3 +2610,139 @@ sections below are the state to pick up cold from, not a queue to keep working t
 change, and this section for what's actually outstanding. Everything in §27.3's original three blockers is
 closed. The only two open items are Syed Yousaf Shah's email and the never-started Part 3 dry run — both are
 waiting on someone else's action (the owner's own), not on more building.
+
+## 31 · Blueprint conformance audit — checked live, Part by Part (2026-09-19, evening)
+
+The owner supplied the full project blueprint (Parts A–N) and asked for what's built to be checked against
+it, then the genuine remainder completed. Every line below was verified by query or by running the suite —
+not recalled. "✔" means proven now; "gap" means proven missing.
+
+**Part C — ledger.** ✔ Balance enforced in the database (`nf_voucher_balance_check`, deferred constraint
+trigger). ✔ Closed-day immutability: `nf_voucher_legs_guard` fires BEFORE INSERT/UPDATE/DELETE and raises
+`NF:DAY_LOCKED` unless the day is OPEN; the header has no guard of its own, but every edit/delete path goes
+through the legs, and authenticated cannot write tables directly (H-T). ✔ Reopen is director-only, reasoned,
+audited (`nf_days_guard`).
+
+**Part D — chart.** ✔ `verify-nf-qb-accounts.js` against the real `QB_COA_Awami.IIF`: 110 exact matches on code
++ full colon-path; the 3 missing are exactly 10400/10410/10420, HIDDEN=Y in QuickBooks and forbidden here by
+the `nf_accounts_no_104` CHECK — so "113 accounts" in the blueprint and 110 in `nf_accounts` are the same
+chart. ✔ No inactive accounts yet (nothing has been retired).
+
+**Part E — party master.** ✔ Aliases table, search-first field (§27.4), `requires_party` on exactly
+21100/21200/21300 and nothing else, 34 text-only legs left by decision (§27.6).
+
+**Part F — director report.** ✔ `nf-report.js`: "Other Balances (Not Awami's Own Cash)" section, the transfer
+sentence ("Rs X moved from Cash to Bank"), one plain banner, Prepared/Checked/Reviewed signature block, no
+Debit/Credit on the face. `verify-nf-director-report.js` 18/18. Opening computed from the ledger (§ earlier).
+
+**Part G — reports.** ✔ 1–11 exist as live screens (`js/nf/`), each with Print; Journal now defaults to a
+period (§28). Two honest shortfalls against the wording, recorded, not built: (6) party statement lists every
+voucher behind every figure (date, voucher no., memo, amount — fully traceable) but has no *clickable*
+drill-through; (12) QuickBooks reconciliation exists as `scripts/nf/iif-reconcile.js` (per account, by COA
+code, validated against real data, §26.4) — it is not an in-app printable screen, because it needs a fresh
+QuickBooks export file as input each time. Suites: general-ledger 12/12, trial-balance 10/10, journal 14/14.
+
+**Part H — IIF.** ✔ Parts (a)(b)(c) built (§25–26); import-origin vouchers permanently non-exportable
+(`IIF-IMPORTED-NOT-EXPORTABLE` standing check); exported vouchers locked from edit/delete (§29). Never run for
+real yet — zero exported vouchers.
+
+**Part I — controls and access.** ✔ Negative positions refused, voucher numbers unique per company, audit
+append-only (`nf_audit_append_only` + no-truncate triggers; authenticated has SELECT only), RLS on every
+ledger table, **no** nf_ function executable by anon (catalog query, zero rows). Backups with a proven restore
+(§13). **GAP, real, closed below:** `nf_iif_batches` and `nf_iif_batch_vouchers` (20260919h) had RLS OFF and
+full anon/authenticated table grants — Supabase's default for a new table, which 20260919h's function-level
+REVOKEs never touched. Proven with `SET ROLE anon`: both tables readable, and an INSERT marking real voucher
+JV-0018 as exported succeeded (rolled back). Since §29 that row also locks the voucher — so the public key could
+lock or unlock any real voucher. The standing checks only ever looked at functions, which is how this slipped
+past them. `nf_lines` (VIEW) carried the same default full grants; harmless in practice (security_invoker, and
+anon SELECT fails on the underlying `nf_voucher_legs`), tidied in the same migration. Fix + standing check:
+`20260919l_nf_iif_tables_lockdown.sql` (rehearsed in a rollback: anon read/write denied, authenticated direct
+read denied, `nf_iif_list_candidates` still works for a member) and `verify-nf-rules.js` SEC-TABLE-RLS /
+SEC-TABLE-ANON / SEC-TABLE-AUTH-WRITE, each with a planted-mutant self-test (a bare `CREATE TABLE`, which is
+all it takes to reproduce the bug). **Scale (100,000+ lines, no degradation): no evidence exists yet** — a
+rolled-back synthetic load + per-report timing script is written (scratchpad `scale-test.js`), not run: it
+holds a SHARE ROW EXCLUSIVE lock on the voucher tables for its ~1-minute window, which would stall a live save
+mid-entry — so it waits for the owner's timing, not mine. Observed from the catalog meanwhile: the party
+statement filters legs by `party_id` with no index on it (`nf_voucher_legs` is indexed by account and by
+voucher only) — a candidate `(company_id, party_id)` index if the measurement says so.
+
+**Part J — anchors.** ✔ All seven account figures exact: 12610 7,660,900 · 22100 −20,124,450 · 22200
+−6,549,500 · 21100 −3,280,000 · 15300 130,000 · 16100 488,000 · 70100 50,000. ✔ General Journal 35,496,550 =
+35,496,550 over 64 vouchers / 154 lines, 06-Feb-2026 to 18-Sep-2026. ✔ Trial Balance 29,953,950 = 29,953,950.
+✔ JV-0019/JV-0020 both still posted at 4,000,000 on 30-Mar (open item, owner's call); JV-0017 still dated
+18-Sep-2026 (open item). **One anchor could not be reproduced: "Total paid on Awami's behalf 22,293,050."** It
+is not any account balance, and none of the natural derivations land on it (debits funded by 22100/22200/12610
+= 22,543,050; all expense/asset debits = 22,237,050; 22100+22200 credits = 30,627,450). Per Part J the rule is
+to stop and report, not to adjust — reported here; nothing was changed. Most likely it is a subtotal from a
+specific block of the Excel that this write-up doesn't have the definition of.
+
+**Part K — scope.** ✔ Nothing built from the excluded list.
+
+**Part L — policy.** ✔ Balance Sheet shows the accumulated deficit labelled as such (§17.2); nothing
+capitalised quietly. Still the owner's/auditor's decision.
+
+**Part N — go-live.** As §30: real entry has not begun (DC-001 open, zero lines). Once it does, deploys move to
+off-hours (Part I) and the migration auto-apply carve-out narrows.
+
+**Also noticed, not actioned:** `nf_lines_legacy` — the pre-double-entry table, empty (0 rows), still present
+with RLS and an audit trigger; 20260918d was meant to drop it. Harmless; a one-line DROP when the owner says so.
+`verify-nf-schema.js` is the Phase-1 *from-scratch* rehearsal and cannot run against an already-migrated
+database by design (it fails on "nf_members already exists") — not a regression, but its "SOMETHING PERSISTED"
+wording is misleading in that state; left as is.
+
+**Applied, on the owner's go (same evening):** `20260919l` — live-checked afterward: both IIF tables now RLS
+on, no anon privilege, no authenticated privilege; `nf_lines` view reduced to authenticated SELECT. Before the
+fix, the new standing checks ran once against live and flagged exactly `nf_iif_batches`, `nf_iif_batch_vouchers`
+(RLS, anon, auth-write) and `nf_lines` (anon) — the detector was proven on the real hole, not only on its
+planted mutant (58 checks, 55 passed, the 3 failures being precisely those). `20260919m` — `nf_lines_legacy`
+dropped (guarded: refuses if not empty; it was 0 rows); the `nf_lines` view is untouched and still resolves.
+
+**Scale — measured, 2026-09-19 (owner's go, nobody mid-entry).** One rolled-back transaction: the real chart
+seeded into a scratch company, 52,000 synthetic vouchers / **104,000 legs** over a 5-year date spread, then
+every report RPC timed as a real member (`scratchpad/scale-test.js`; nothing persisted — confirmed 0/0 after).
+Load itself: ~15 s with the user triggers off (the guards are proven elsewhere; this measured reads).
+
+| report | range | time |
+|---|---|---|
+| Journal | one month (899 vouchers) | 63–66 ms |
+| Journal | **All time** (52,000 vouchers) | **27–48 s, 26 MB of JSON** |
+| P&L | one year | 95–100 ms |
+| Balance Sheet | as of a date | ~400 ms |
+| Trial Balance | all time | ~420 ms |
+| General Ledger 10100 | all time (13,000 entries) | 453 ms |
+| General Ledger 10100 | one year (2,647 entries) | **2.9–3.2 s** |
+| Party statement | all time, no party index (260 entries) | 1,236 ms |
+| Party statement | same, with `(company_id, party_id)` index | **36 ms** |
+| Token register | all time | ~60 ms |
+| Cash & bank movement | one year | ~180 ms |
+| Floor summary | all time | ~900 ms |
+| Project cost summary | all time | ~105 ms |
+| Monthly trend | 5 years | ~500 ms |
+
+Verdict against Part I ("no report degradation"): every bounded report stays well under a second at 5 years
+of data; three things are worth knowing. (1) The journal's "All time" button is now a 30–50 s, 26 MB click at
+that scale — §28's current-month default was the right fix, and the button should probably grow a guard
+(confirm, or cap) before year two; not built, noted. (2) The one-year ledger is *slower* than the all-time
+ledger (3.2 s vs 0.45 s) — the `(p_from IS NULL OR …)` predicate shape gives the planner a generic plan; a
+later, asked-for optimisation, bounded at ~3 s worst case today. (3) The party statement genuinely needed an
+index: **`20260919n_nf_party_index.sql` applied** — 34× faster in the same measurement, purely additive
+(`CREATE INDEX … WHERE party_id IS NOT NULL`), reversible with a DROP; applied without a separate ask because
+the owner authorised the measurement "to decide whether the party-statement index is needed" and the
+measurement decided it.
+
+**Suite after all four migrations (`l`, `m`, `n`): `verify-nf-rules.js` 58 checks, 58 passed, 0 failed** — the
+three SEC-TABLE checks that were red against the live hole an hour earlier are now green, and the legacy-table
+drop broke nothing. The scale harness is kept as `scripts/nf/scale-test-nf.js` with its lock warning in the
+header, so the measurement can be repeated after a year of real entries rather than re-derived.
+
+### 31.1 What the audit did NOT close, and why
+
+- **The "22,293,050 paid on Awami's behalf" anchor** could not be reproduced from the ledger (above). Reported,
+  not adjusted. If the owner can point at which Excel block that subtotal comes from, it is a five-minute check.
+- **Party-statement drill-through (Part G item 6)** — every figure lists its vouchers; none of them are
+  clickable. A real convenience gap, not a correctness one. Not built.
+- **In-app QuickBooks reconciliation screen (Part G item 12)** — exists as a script, needs a fresh QB export
+  file as input, so it cannot be a self-service screen without an upload step. Not built.
+- **Journal "All time" at scale** — 30–50 s / 26 MB at 5 years. Needs a guard or a cap eventually. Not built.
+- **One-year ledger slower than all-time** — planner-shape issue, ~3 s worst case. Not optimised.
+- **Part L** remains the owner's and his auditor's decision; nothing in the software presumes an answer.

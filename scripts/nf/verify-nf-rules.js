@@ -254,6 +254,52 @@ if (require.main === module) (async () => {
     const roleRows = await q(roleCheckQuery);
     ok('SEC-RPC-ROLE-CHECK', roleRows.length === 0,
       roleRows.length ? `reachable nf_ function(s) with no internal nf_require_role/nf_is_member check: ${roleRows.map(x => x.proname).join(', ')}` : '');
+
+    // SEC-TABLE-RLS / SEC-TABLE-ANON (2026-09-19, blueprint conformance
+    // pass). The two checks above only ever looked at FUNCTIONS. A table
+    // created by a migration gets Supabase's own default: RLS OFF and full
+    // SELECT/INSERT/UPDATE/DELETE granted to anon and authenticated, which
+    // PostgREST exposes directly — exactly how nf_iif_batches and
+    // nf_iif_batch_vouchers (20260919h) shipped: the public anon key could
+    // read every export batch and INSERT a row marking any real voucher as
+    // exported, which after 20260919k also LOCKS it. Proven with a real
+    // rolled-back insert against JV-0018 before 20260919l closed it.
+    // Standing rule, same as above: catalog-wide, self-tested, never a
+    // one-time sweep.
+    const tblMutant = `nf_zztest_tbl_${run}`;
+    const rlsQuery = `
+      SELECT c.relname
+        FROM pg_class c
+       WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'r'
+         AND (c.relname LIKE 'nf\\_%' OR c.relname LIKE '\\_nf\\_%')
+         AND NOT c.relrowsecurity`;
+    const anonQuery = `
+      SELECT c.relname
+        FROM pg_class c
+       WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r','v')
+         AND (c.relname LIKE 'nf\\_%' OR c.relname LIKE '\\_nf\\_%')
+         AND (has_table_privilege('anon', c.oid, 'SELECT') OR has_table_privilege('anon', c.oid, 'INSERT')
+           OR has_table_privilege('anon', c.oid, 'UPDATE') OR has_table_privilege('anon', c.oid, 'DELETE'))`;
+    const authWriteQuery = `
+      SELECT c.relname
+        FROM pg_class c
+       WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'r'
+         AND (c.relname LIKE 'nf\\_%' OR c.relname LIKE '\\_nf\\_%')
+         AND (has_table_privilege('authenticated', c.oid, 'INSERT') OR has_table_privilege('authenticated', c.oid, 'UPDATE')
+           OR has_table_privilege('authenticated', c.oid, 'DELETE') OR has_table_privilege('authenticated', c.oid, 'TRUNCATE'))`;
+    // SR-2: the mutant is a plain CREATE TABLE with nothing else — the
+    // default grants and RLS-off state are what Postgres/Supabase hand
+    // out unasked, which is the whole reason the check exists.
+    await q(`CREATE TABLE public.${tblMutant} (id int)`);
+    const [mRls, mAnon, mAuth] = await Promise.all([q(rlsQuery), q(anonQuery), q(authWriteQuery)]);
+    await q(`DROP TABLE public.${tblMutant}`);
+    ok('SEC-TABLE-RLS self-test', mRls.some(x => x.relname === tblMutant), 'planted RLS-off table not caught');
+    ok('SEC-TABLE-ANON self-test', mAnon.some(x => x.relname === tblMutant), 'planted anon-readable table not caught');
+    ok('SEC-TABLE-AUTH-WRITE self-test', mAuth.some(x => x.relname === tblMutant), 'planted authenticated-writable table not caught');
+    const [rlsRows, anonRows, authRows] = await Promise.all([q(rlsQuery), q(anonQuery), q(authWriteQuery)]);
+    ok('SEC-TABLE-RLS', rlsRows.length === 0, rlsRows.length ? `nf_ table(s) without row security: ${rlsRows.map(x => x.relname).join(', ')}` : '');
+    ok('SEC-TABLE-ANON', anonRows.length === 0, anonRows.length ? `nf_ table/view(s) reachable by the public anon role: ${anonRows.map(x => x.relname).join(', ')}` : '');
+    ok('SEC-TABLE-AUTH-WRITE', authRows.length === 0, authRows.length ? `nf_ table(s) directly writable by authenticated (bypasses the RPCs): ${authRows.map(x => x.relname).join(', ')}` : '');
   }
 
   const C = crypto.randomUUID();
