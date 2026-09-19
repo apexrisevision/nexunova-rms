@@ -124,6 +124,23 @@
         return call('nf_get_balance_sheet', { p_company_id: companyId, p_as_of: asOf || null });
       },
       listAllParties: function (companyId) { return call('nf_list_all_parties', { p_company_id: companyId }); },
+
+      // journal vouchers — the entry path for anything that is NOT a cash or
+      // bank movement (docs/PLAN.md §32.1). p_legs is an array of
+      // { account_code, floor_code, debit | credit, memo?, party_name? };
+      // nf_jv_save resolves party_name the same way nf_save_line does and
+      // always posts with day_id NULL, so a JV can never land inside a daily
+      // closing.
+      jvList: function (companyId, from, to) {
+        return call('nf_jv_list', { p_company_id: companyId, p_from: from || null, p_to: to || null });
+      },
+      jvSave: function (companyId, voucherNo, date, narration, legs) {
+        return call('nf_jv_save', {
+          p_company_id: companyId, p_voucher_no: voucherNo, p_voucher_date: date,
+          p_narration: narration || null, p_legs: legs,
+        });
+      },
+      jvDelete: function (voucherId) { return call('nf_jv_delete', { p_voucher_id: voucherId }); },
       getPartyStatement: function (companyId, partyId, from, to) {
         return call('nf_get_party_statement', { p_company_id: companyId, p_party_id: partyId, p_from: from || null, p_to: to || null });
       },

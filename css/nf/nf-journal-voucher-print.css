@@ -1,0 +1,22 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   NexuFinance v1 — Journal Vouchers, print. The entry form is a working
+   control, not a document: printing a voucher list should produce the
+   POSTED vouchers and nothing else, so the new-voucher editor, the issues
+   panel and every button are dropped. Same forced-light, same margins as
+   every other report's print sheet.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@page{size:A4;margin:9mm}
+
+.jvsheet .actions,
+.jvsheet .jvnew,
+.jvsheet .jvintro,
+.jvsheet .lockpill,
+.jvsheet .btn{display:none!important}
+
+.jvsheet .jvh small{color:#555}
+.jvsheet .jvcard{border-color:#bbb;break-inside:avoid;page-break-inside:avoid;margin-bottom:6px}
+.jvsheet .jvcard.exported{background:transparent}
+.jvsheet .jvhead{background:#f2f2f2;border-color:#bbb}
+.jvsheet .jvlegrow{border-color:#ddd}
+.jvsheet .jvlegrow .wrap{color:#555}

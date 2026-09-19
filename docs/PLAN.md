@@ -2818,3 +2818,72 @@ Brought to the owner as a decision with the evidence attached rather than starte
   alongside, so a miscount is visible before submitting rather than after. That is the right way round.
 - **The first-day opening screen is seen exactly once, ever** — every later day inherits its opening from the
   ledger. Worth knowing before someone goes looking for it again.
+
+## 33 · Journal Vouchers — the entry path for everything that is not cash (2026-09-19)
+
+§32.1's gap, closed on the owner's explicit go-ahead. His decision when it was put to him with the evidence:
+build the proper screen, not the smaller "let a via be another head" patch — the ledger already holds these
+shapes correctly, so the honest fix is to give them their own entry surface rather than bend the cash sheet
+into something it is not.
+
+**Backend — `20260919o_nf_journal_vouchers.sql`.** The engine already existed and was already right:
+`nf_post_voucher` takes N legs, requires at least two, refuses an unbalanced voucher *before* writing anything,
+checks the caller's role, and accepts `p_day_id` as NULL. It simply had no caller but the history import. Three
+thin, named functions give a screen a safe way in:
+
+- `nf_jv_save` — forces `p_day_id` NULL, so a journal voucher can never attach itself to a daily closing and
+  disturb the cash position or the director report; that was true before only because nothing called it that
+  way, and is now true by construction. Refuses the four cash-book prefixes (CRV/BRV/CPV/BPV) so a journal
+  voucher cannot masquerade as a cash voucher in the Journal. Resolves a leg's `party_name` exactly the way
+  `nf_save_line` does — exact match after normalising, else create — so the search-first field's "add new" path
+  produces a real party-master record here too rather than a second way of spelling one.
+- `nf_jv_list` — reads them back with their legs, newest first, and works out the next free `JV-####` so the
+  screen can suggest a number. The unique index still decides; a race just gets `NF:DUPLICATE_VOUCHER`.
+- `nf_jv_delete` — carries the same export lock as `nf_delete_line` (§29): once a voucher is in QuickBooks it
+  cannot be removed here, because IIF can only create. **There is deliberately no edit** — Part C's rule is that
+  corrections are new entries or explicitly logged ones, and re-shaping a multi-leg voucher in place is the
+  easiest way to lose an audit trail. Delete (which the audit trigger records in full) and re-post is honest.
+
+Grant-locked to `authenticated` from the first version; no new tables, so nothing for the SEC-TABLE-* checks to
+find. **Rehearsed in one `BEGIN…ROLLBACK`, 13 assertions, all green** — including the two real shapes
+reproduced from Awami's own book (JV-0001's Dr 22100 / Cr 21100 with no cash leg, and a 10-leg token split),
+plus: refuses unbalanced, refuses a single leg, refuses a cash-book prefix, still enforces `requires_party`,
+`nf_lines` stays empty so the daily sheet never sees them, the Trial Balance does, the export lock holds on
+delete, and a differently-cased party name matches the existing party instead of duplicating it.
+
+**Frontend — `js/nf/nf-journal-voucher.js`, `css/nf/nf-journal-voucher.css` (+ print).** Reached from the same
+Reports menu as everything else, directly under Daily Closing. A voucher header (number pre-filled with the
+next free one, date, narration), a leg editor with Account / Floor / Party / Debit / Credit / Memo and "+ Add
+line", a live Debit–Credit total with a Balanced / Out-by indicator, and a plain-language list of every reason
+the database would refuse it — shown while typing rather than after a failed round trip. Post is disabled until
+there is nothing left to say. The party field is the same search-first control as the daily sheet, sharing its
+CSS so the two cannot drift apart. Below the form, the posted vouchers with their legs; the ones already in
+QuickBooks are marked and have no Delete button.
+
+**Verified in a real browser — `scripts/nf/verify-nf-journal-voucher.js`, 18/18.** The checks are the real
+shapes, not generic form checks: a no-cash inter-company voucher posts and is attached to no day; the daily
+closing sheet does not see it and its cash position is unmoved; the Trial Balance *does* see it; a third line
+can be added and still balances; a new party is created exactly once from a leg, with "add new" offered only
+after a search found nothing; an unbalanced voucher cannot be posted and says why; a CRV- number is refused
+before sending; a voucher can be deleted; and no console or page errors.
+
+### 33.1 Two real bugs this screen's own verify caught, both fixed
+
+- **`nf_list_floors` returns a flat array of codes, not objects** — unlike `nf_list_heads` and
+  `nf_list_all_parties`, which return objects. Reading `f.code` built an option list of `undefined` values, so
+  every floor dropdown looked populated and selected nothing, and the form refused to post with "pick a floor".
+  Worth remembering: the three lookup RPCs do not share a return shape.
+- **Redrawing the form on `blur` destroyed the field the person had just moved to.** Rebuilding `innerHTML`
+  from inside a blur handler throws outright in Chrome ("The node to be removed is no longer a child of this
+  node"), and even deferred it replaced the input being typed into — tab from Memo to Party and the keystrokes
+  land in a node that is about to be thrown away. Fixed properly rather than papered over: `refreshLive()`
+  patches only the three things that actually change while typing — the totals row, the issues list and the
+  Post button — leaving every input node, its focus and its caret exactly where they are. A full rebuild is now
+  reserved for a real change of shape: a line added or removed, a voucher posted or deleted.
+
+### 33.2 What this does and does not change
+
+The daily closing sheet is untouched and stays cash-only — a line there still must move Cash, Petty or Bank,
+which is correct for a cash closing, not a limitation to be fixed. The dry run's own check was rewritten to
+assert exactly that, plus that the other shapes now have a path. The one thing a new accountant has to be told
+is **which** screen to open; both are one click apart in the same Reports menu.

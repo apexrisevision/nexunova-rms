@@ -247,13 +247,25 @@ async function enterLine(page, side, v, d, head, floor, via, amount, party) {
       const row = document.querySelector('.row.draft [data-k="m"]');
       return row ? [...row.options].map(o => o.value).filter(Boolean) : [];
     });
-    const canExpressNoCash = viaChoices.some(v => !['Cash', 'Petty', 'Bank'].includes(v));
-    ok('S2 the screen can express "FMH paid this, no Awami cash moved"', canExpressNoCash,
-      `the only "via" choices are ${JSON.stringify(viaChoices)} — every line must move Cash, Petty or Bank`);
-    if (!canExpressNoCash) {
-      note('Step 2 · THE BIG ONE', 'A line must always move Cash, Petty or Bank. A cost that FMH or a director paid on Awami\'s behalf — which is 100% of the 64 real imported vouchers, and which Part B calls the reason a cash book cannot serve this business — cannot be entered on this screen at all.');
-      note('Step 2 · THE BIG ONE', 'Same limit: the screen builds exactly two legs, so one token receipt split across several units (7 of the 64 real vouchers, up to 10 legs) has no entry path either.');
-    }
+    // This SHOULD stay false: a cash-closing sheet whose lines did not move
+    // cash would be a contradiction. What matters is that the shape has an
+    // entry path SOMEWHERE — which is what the Journal Voucher screen
+    // (20260919o, docs/PLAN.md §32.1) was built for, and what is checked next.
+    const onlyCashVias = viaChoices.length > 0 && viaChoices.every(v => ['Cash', 'Petty', 'Bank'].includes(v));
+    ok('S2 the daily sheet stays cash-only, by design', onlyCashVias, JSON.stringify(viaChoices));
+    const jvReachable = await acc.evaluate(async () => {
+      const t = document.querySelector('#nf-rpm-toggle');
+      if (!t) return { menu: false };
+      t.click();
+      await new Promise(r => setTimeout(r, 150));
+      const item = document.querySelector('[data-goto="jv"]');
+      const label = item ? item.textContent.trim() : null;
+      if (t.getAttribute('aria-expanded') === 'true') t.click();
+      return { menu: true, item: !!item, label };
+    });
+    ok('S2 the no-cash / multi-leg shapes have an entry path (Journal Vouchers)',
+      jvReachable.item === true, JSON.stringify(jvReachable));
+    note('Step 2', 'A daily-closing line must always move Cash, Petty or Bank, and always builds exactly two legs — correct for a cash sheet, but it means a cost FMH or a director paid on Awami\'s behalf (100% of the 64 real imported vouchers) and a token split across several units (7 of them) belong on the separate Journal Vouchers screen, not here. Both screens are one click apart in the same Reports menu; knowing WHICH to open is the one thing a new accountant has to be told.');
 
     const clicksForDay = clicks - clicksBefore;
     note('Step 2', `three lines took ${clicksForDay} field interactions (~${Math.round(clicksForDay / 3)} per line): voucher, description, head, floor, via, amount, and a party where the head needs one. No keyboard-only path was tested; every head/floor/via is a dropdown.`);
