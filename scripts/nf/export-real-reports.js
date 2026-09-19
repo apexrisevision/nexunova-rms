@@ -196,8 +196,20 @@ function serve() {
     const ptyTiles = await page.$$eval('.rtile b', els => els.map(el => el.textContent.trim()));
     console.log(`Party Statement (FMH): ${ptyRows} entries | Opening ${ptyTiles[0]} | Closing ${ptyTiles[1]}`);
     await savePdf('Awami_Party_Statement_FMH_2026-09-19.pdf');
+    await page.click('#nf-pty-back');
+    await page.waitForSelector('#nf-toTkr', { timeout: 10000 });
 
-    console.log('\nAll six PDFs saved to', OUT_DIR);
+    // ── Token Money Register ────────────────────────────────────────────
+    await page.click('#nf-toTkr');
+    await page.waitForSelector('.tkrsheet', { timeout: 10000 });
+    await page.waitForFunction(() => {
+      const b = document.querySelector('#nf-tkr-body'); return b && !/Loading…/.test(b.textContent);
+    }, { timeout: 10000 });
+    const tkrTiles = await page.$$eval('.rtile b', els => els.map(el => el.textContent.trim()));
+    console.log(`Token Register: ${tkrTiles[0]} units | Received ${tkrTiles[1]} | Returned ${tkrTiles[2]} | Net ${tkrTiles[3]}`);
+    await savePdf('Awami_Token_Register_2026-09-19.pdf');
+
+    console.log('\nAll seven PDFs saved to', OUT_DIR);
   } finally {
     if (browser) await browser.close();
     if (srv) srv.close();

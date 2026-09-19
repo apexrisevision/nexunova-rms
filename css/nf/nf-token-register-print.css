@@ -1,0 +1,31 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   NexuFinance v1 — print CSS for the Token Money Register. CSS Grid
+   rows, not a <table> — see nf-token-register.js's own header comment.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@page{size:A4 portrait;margin:8mm}
+@media print{
+  :root,:root[data-theme="dark"]{
+    --bg:#fff;--card:#fff;--ink:#111827;--ink2:#374151;--muted:#6B7280;--line:#E5E7EB;--line2:#CBD2DC;
+    --brand:#1B365D;--brand-2:#2C5282;--soft:#F3F5F8;--field:transparent;--field-b:transparent;
+    --pos:#18794E;--pos-soft:#EAF7F0;--neg:#B42318;--neg-soft:#FDF1F0;--shadow:none;color-scheme:light}
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff;font-size:10.5px}
+  .nf-topbar{display:none}
+  .tkrsheet{margin:0;max-width:none;width:auto;zoom:1;border:0;border-radius:0;box-shadow:none}
+  .hdr{padding:6px 4px}
+  .brand h1{font-size:15px}
+  .mark{width:32px;height:32px;font-size:12px;border-radius:7px}
+  .actions,.tkrfilter{display:none!important}
+  .rsec{padding:8px 4px 0}
+  .rtiles{gap:8px}
+  .rtile{padding:7px 9px;border-radius:6px}
+  .rtile small{font-size:9px;margin-bottom:2px}
+  .rtile b{font-size:14px}
+  .tkrtab{font-size:9px;border-radius:6px}
+  .tkrow{padding:3px 7px;gap:5px}
+  .tkrhead{font-size:8.5px}
+  .tkrow{break-inside:avoid}
+  .tkrow .status{padding:1px 6px;font-size:8.5px}
+  .docfoot{margin-top:8px;padding:6px 4px;font-size:9px}
+  :focus,:focus-visible{outline:none!important}
+}

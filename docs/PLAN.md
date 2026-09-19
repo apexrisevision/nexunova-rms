@@ -2034,3 +2034,37 @@ Full regression run after applying: two transient flakes on the first back-to-ba
 12/13, `verify-nf-rules.js` 50/51) — both cleared to fully green (28/28, 51/51) on an isolated re-run each,
 consistent with this machine's known memory-constrained flakiness (§13.2) rather than a real regression from this
 migration; not fixed forward, just re-verified clean before moving on, per the standing rule.
+
+## 20 · Token Money Register (2026-09-19)
+
+`nf_get_token_register(company, from, to)` — one row per unit that has ever had token money moved against it
+(account 21100 is the only such account in the chart, confirmed before writing this by checking every other
+account's `qb_type`). Applied under the §18 auto-apply rule.
+
+**No structured "unit" column exists anywhere in this schema** — units only exist as free text inside each leg's
+own memo (e.g. "Token 114 - unit LG-10"). Checked directly before relying on regex extraction, not assumed: all
+42 real 21100 legs match `unit ([A-Za-z0-9-]+)` / `Token ([0-9]+)` cleanly, 0 misses. Real bug caught while
+writing the extraction, not after: Postgres's `substring(... from 'pattern')` does NOT accept `\s`/`\d` shortcuts
+inside a plain `'...'` string literal — a first draft using them returned `NULL` for every single row (confirmed
+directly, would have shipped a silently-empty register). Fixed by using a literal space and `[0-9]` instead. The
+floor itself is NOT re-derived from memo text — `l.floor_code` is already correct, structured per-leg data
+(every 21100 leg's `floor_code` already matches its own unit's prefix), so the report joins `nf_floors` normally.
+
+**Cross-checked against the owner's own already-verified 21100 figures**, not a new coincidence: total received
+3,530,000, total returned 250,000, net outstanding 3,280,000 — exactly the debit/credit/net the owner reconciled
+against the real QuickBooks export back in §14. 36 distinct units found; `LG-03` correctly shows the more complex
+real case (Abdullah's original token, returned, then re-tokened to Haji Ibrar as part of a 9-unit split) with
+both the gross received/returned and the correct net.
+
+A register, not a transaction log — one row per unit (token number(s), party name(s), first/last activity date,
+received, returned, net, status), not full per-voucher detail; that already exists via the Party Statement or
+the General Ledger for 21100, so this report's job is the unit-wise index, not a third copy of either.
+
+Frontend (`js/nf/nf-token-register.js`) uses CSS Grid rows again, with the Journal's column-discipline carried
+forward. Column widths went through two real rebalancing passes, not guessed once and left: a first version
+clipped the Status pill to "Ac"/"Activ" at low screen-capture resolution, a second fix over-corrected and clipped
+the First/Last dates instead, and the width taken from Status to fix the dates turned out to be a false alarm —
+re-measured at 2x device-scale-factor and the true page render was fine at every width tried above the very
+first. Final widths: Unit 8%, Floor 6%, Party 14%, Token# 8%, First/Last 9.5% each, Received 11%, Returned 9%,
+Net 10%, Status 15%. Exported `Awami_Token_Register_2026-09-19.pdf` (36 units, 1 page), confirmed clean by
+screenshot at 2x scale after the low-resolution false alarm. Full regression clean after (28/28, 51/51).
