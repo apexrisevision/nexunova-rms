@@ -2984,3 +2984,48 @@ on the project are `ZZTEST-NF-DEMO` and `ZZTEST-NF-SHOT`, both deliberate and da
 
 **Status from here: on call.** No more readiness passes, no pre-emptive fixes, nothing designed "while we're
 here". Act when the owner reports something actually broken.
+
+### 34.1 Two of the three "owner's own" items are now closed (2026-09-19)
+
+- **Syed Yousaf Shah's account — closed as NOT NEEDED, not as blocked.** The owner's own call: he is never
+  going to log in, so there is nothing to create. The `viewer`-not-`director` reasoning in §27.2 stands and
+  should be reused if the question ever comes back, but **nobody should chase the email again** — this is a
+  decision, not an outstanding task.
+- **Part L — DECIDED: land and development cost stays EXPENSED to Cost of Sales.** The owner's instruction.
+  Nothing to build: that is already exactly what the system does, verified live at the moment of the decision —
+  Cost of Goods Sold 21,145,000 + Expense 530,050 = 21,675,050, which is precisely the equity figure the
+  Balance Sheet reports (assets 8,278,900 = liabilities 29,953,950 + equity −21,675,050, self-check green).
+  The Project Inventory accounts that would carry the alternative treatment, 13000 and 13100, exist in the
+  chart, are active and carry **zero** — they stay unused under this policy, and are left in place rather than
+  retired in case the auditor ever revisits it. The Balance Sheet already labels the figure honestly, in the
+  screen's own words: *"Accumulated deficit — project costs expensed, no sales recognised yet"* — so the
+  statement says plainly what policy produced it rather than presenting a bare negative equity.
+
+That leaves **one** item on the owner's side: the parallel run itself.
+
+## 35 · First on-call fix — the Reports menu rendered permanently open (2026-09-19)
+
+Reported by the owner in the exact terms that matter: open NexuFinance, and on the daily closing the Reports
+list is already showing, and will not hide or close.
+
+**Cause, found in the CSS rather than guessed:** `.rpmpanel` sets `display:flex`. The `hidden` attribute works
+only through the browser's own `[hidden]{display:none}` rule, which a class selector outranks — so the panel
+was painted open on every screen, and `close()`, which does nothing but set `panel.hidden = true`, had no
+visible effect whatsoever. The toggle "worked" in the sense that the attribute flipped; nothing moved.
+One line, after the rule it has to beat: `.rpmpanel[hidden]{display:none}`. Stylesheet cache-bust bumped to
+`v=20260919p` so browsers actually pick it up.
+
+**Why every suite missed it, and what changed.** The menu is used by `verify-nf-general-journal.js`,
+`verify-nf-journal-voucher.js` and the dry run — all three wait for `#nf-rpm-panel:not([hidden])` after
+clicking the toggle. That is an **attribute** assertion, and the attribute was correct the entire time. Not one
+check ever asked whether a person could see the thing. `verify-nf-golden-ui.js` now carries **UI-12**, which
+reads `getComputedStyle().display` and `getClientRects()` instead: the menu must be invisible on arrival, visible
+after a click, and invisible again after a second click.
+
+**Proven both ways before shipping**, same discipline as the SEC-TABLE checks: with the fix removed, UI-12 goes
+red with exactly the owner's symptom — `{"attrHidden":true,"display":"flex","visible":true}` — 29/31; with the
+fix restored, 31/31. A check that has never been seen to fail is not evidence.
+
+**The general lesson, worth carrying:** an assertion about an attribute, a class or a flag is not an assertion
+about what the user sees. When the symptom is visual, measure the rendered state. This is the same class of bug
+as the NexuAttend hidden-attribute override already on file.

@@ -7,6 +7,14 @@
 .rpmcaret{margin-left:2px}
 .rpmpanel{position:absolute;top:calc(100% + 6px);right:0;min-width:220px;background:var(--card);border:1px solid var(--line2);
   border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:6px;z-index:40;display:flex;flex-direction:column;gap:1px}
+/* MUST come after the rule above. `display:flex` on a class selector beats the
+   browser's own [hidden]{display:none}, so the panel rendered permanently open
+   on every screen and close() — which only sets panel.hidden = true — did
+   nothing visible. Reported by the owner, 2026-09-19. The suites missed it
+   because they asserted the ATTRIBUTE (:not([hidden])) and never what the user
+   actually sees; that gap is closed in verify-nf-golden-ui.js in the same
+   commit. Same class of bug as the NexuAttend hidden-attribute override. */
+.rpmpanel[hidden]{display:none}
 .rpmgrouplabel{font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;
   padding:8px 10px 4px}
 .rpmitem{display:block;width:100%;text-align:left;background:none;border:0;border-radius:7px;padding:8px 10px;

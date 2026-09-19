@@ -478,6 +478,27 @@ async function waitRowError(page, side, timeout = 6000) {
     const dupCount = (await q(`select count(*) n from nf_lines where company_id='${C}' and voucher_key='${reusedVoucher.toUpperCase()}'`))[0].n;
     ok('UI-10 still exactly one row for that voucher', Number(dupCount) === 1, `rows: ${dupCount}`);
 
+    // UI-12: the Reports dropdown must be genuinely INVISIBLE until asked for.
+    // The owner found it rendering permanently open (2026-09-19): .rpmpanel's
+    // `display:flex` outranks the browser's own [hidden]{display:none}, so the
+    // attribute close() sets had no visual effect. Every earlier check here
+    // asked whether the ATTRIBUTE was present, which stayed true the whole
+    // time — so this one measures what a person actually sees instead.
+    const menuVis = async () => accPage.evaluate(() => {
+      const p = document.querySelector('#nf-rpm-panel');
+      if (!p) return null;
+      const cs = getComputedStyle(p);
+      return { attrHidden: p.hidden, display: cs.display, visible: cs.display !== 'none' && p.getClientRects().length > 0 };
+    });
+    const atRest = await menuVis();
+    ok('UI-12 Reports menu is closed on arrival', atRest && atRest.visible === false, JSON.stringify(atRest));
+    await accPage.click('#nf-rpm-toggle');
+    const opened = await menuVis();
+    ok('UI-12 it opens when clicked', opened && opened.visible === true, JSON.stringify(opened));
+    await accPage.click('#nf-rpm-toggle');
+    const reclosed = await menuVis();
+    ok('UI-12 and closes again when clicked a second time', reclosed && reclosed.visible === false, JSON.stringify(reclosed));
+
     ok('UI-11 no console/page errors', dirPage.__errors.length === 0 && accPage.__errors.length === 0,
       JSON.stringify(dirPage.__errors.concat(accPage.__errors)));
 
