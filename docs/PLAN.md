@@ -2521,15 +2521,15 @@ Noticed in passing, not touched: `js/nf/nf-pl.js` (Profit & Loss) has the identi
 all-time default on mount — same shape of problem, just not the one the owner flagged. Recorded here so it
 isn't lost, not actioned; out of scope for this fix.
 
-## 29 · Period locking tied to export — designed, rehearsed, awaiting the owner's go-ahead
+## 29 · Period locking tied to export — designed, rehearsed, applied, 2026-09-19
 
 Go-live blocker #2 from §27.3: `nf_reopen_day` has no check at all against export status — a director can
 reopen a day and edit or delete a voucher already exported to QuickBooks, and nothing prevents or flags it.
 Owner's own deadline: before the first real IIF export, not before go-live — not urgent, but next in the
 agreed fix order after the Journal default (§28).
 
-**Design, deliberately voucher-level, not day-level** (`supabase/migrations/20260919k_nf_period_lock_export.sql`,
-NOT YET APPLIED). `nf_reopen_day` itself is left completely untouched — reopening a day to post one more
+**Design, deliberately voucher-level, not day-level** (`supabase/migrations/20260919k_nf_period_lock_export.sql`).
+`nf_reopen_day` itself is left completely untouched — reopening a day to post one more
 receipt that never made it in is normal and should stay easy. The risk the owner actually named is editing or
 deleting a voucher QuickBooks already has, not reopening the day around it. So the lock sits on
 `nf_save_line`'s EDIT branch (an existing voucher's legs) and on `nf_delete_line`: both now refuse outright —
@@ -2538,11 +2538,13 @@ voucher has any row in `nf_iif_batch_vouchers`, regardless of the day's own OPEN
 brand-new voucher (`nf_save_line` with no line id) is completely unaffected, on a reopened day or otherwise —
 confirmed directly, not assumed.
 
-A hard refusal, not an override-with-reason, on purpose: the IIF export system already has a real
-re-export/reason mechanism (`nf_iif_record_batch`'s `is_reexport`/`reason`, §25) for the case where Awami's own
-books need to correct something QuickBooks already has — that's the owner's existing channel for a deliberate
-correction. This migration doesn't duplicate it with a second, weaker one on the entry screen. If an in-screen
-override is wanted later, that's a separate design conversation, not assumed here.
+A hard refusal, not an override-with-reason — put to the owner directly as a choice, and this is his own
+reasoning for it, not just mine: once a voucher is in QuickBooks, editing it here makes the two books disagree,
+and IIF can't push the correction because it can only create. The right action is a new correcting voucher, so
+the block enforces correct behaviour rather than logging incorrect behaviour. The IIF export system already has
+a real re-export/reason mechanism (`nf_iif_record_batch`'s `is_reexport`/`reason`, §25) for the different case
+where Awami's own books need to correct something QuickBooks already has via a fresh export — that channel
+still exists; this migration doesn't duplicate it with a second, weaker one on the entry screen.
 
 **Rehearsed inside one `BEGIN…ROLLBACK` transaction** (the same technique `verify-nf-de-migration.js` proved
 out for the original double-entry migration) — the new function bodies, a scratch `ZZTEST-NF-` fixture, and
@@ -2554,6 +2556,57 @@ query confirmed zero rows left behind and confirmed the LIVE `nf_save_line` stil
 rehearsal never touched production. `nf_reopen_day` itself wasn't runtime-tested (nothing to regress — the diff
 proves it's byte-for-byte unchanged).
 
-**Not applied.** This changes the behaviour of two existing write paths — one of the standing always-ask
-conditions on its own, and the highest-stakes kind: a refusal added where none existed. Waiting for the
-owner's explicit go before it touches Awami, same as every other write-path migration this session.
+**Applied and verified.** The owner approved the hard-block design as proposed (his own words above) and said
+to apply it. Live-checked directly afterward: both `nf_save_line` and `nf_delete_line` carry the guard in their
+actual `prosrc`, not just in the migration file. Confirmed inert today, exactly as the owner noted when
+approving it — `nf_iif_batch_vouchers` has zero rows for Awami, so nothing is locked yet; the guard only starts
+doing anything the day the first real IIF export happens. Full regression re-run clean afterward:
+`verify-nf-rules.js` 52/52, `verify-nf-golden-ui.js` 28/28, `verify-nf-party-field.js` 15/15 — all three exercise
+`nf_save_line`/`nf_delete_line` directly, and none of them regressed. Committed and pushed as the unapplied
+design first (`b46f04e`), then applied for real once the go-ahead came back; no separate commit needed for the
+apply itself since the file already matches what's now live.
+
+All three go-live blockers from §27.3 are now closed: the party field (§27.4), the Journal default period
+(§28), and period locking (this section).
+
+## 30 · Handover, 2026-09-19 — status is now on-call, not readiness-pass
+
+The owner's own instruction closing out this pass: stop initiating readiness work. No more pre-emptive fixes,
+no more "while we're here" design passes. From here, act only when he reports something actually broken — the
+sections below are the state to pick up cold from, not a queue to keep working through unprompted.
+
+**What works, verified by test, not memory:**
+- The full daily-closing workflow — open a day, enter receipts/payments (including a party-required Token
+  Money receipt and an inter-company voucher), close the day, print the director report — `verify-nf-golden-ui.js`
+  (28/28).
+- The party field — search existing parties and aliases first, "add new" only after a search visibly returns
+  nothing, backend resolution never creates a duplicate for an existing pick — `verify-nf-party-field.js` (15/15).
+- Every backend rule, race condition, and role boundary this session has ever checked, still holding after
+  today's changes — `verify-nf-rules.js` (52/52).
+- The Journal now defaults to the current month, not "All time," and its print filename carries the selected
+  range (§28).
+- Period locking — editing or deleting a voucher already exported to QuickBooks is refused outright; reopening
+  a day, or adding a brand-new voucher to one, is unaffected (§29). Confirmed inert today — nothing is exported
+  yet, so nothing is currently locked.
+- The IIF export pipeline (Parts 1–3, §25–26) — dry-run gate, the only write step, and reconciliation against
+  real ground truth — built and tested, but **never run for real**. No Awami voucher has ever been exported.
+
+**What's genuinely still open:**
+- **Syed Yousaf Shah's viewer account** — blocked on his email. The owner has asked him again; nothing gets
+  created (not even a placeholder) until it arrives. Role is settled (`viewer`, not `director` — §27.2,
+  deliberate separation of duties, his own receivable is tracked in these books).
+- **Part 3 of the go-live readiness pass — the end-to-end dry run on a disposable fixture — was never started.**
+  Superseded by this handover, not abandoned by oversight: raised here so it isn't silently forgotten, but not
+  something to pick up unprompted either.
+- The real open day (`DC-001`, 2026-09-19, zero lines so far) is still sitting there, untouched, exactly as
+  instructed in §27.1. The owner has not yet begun entering real daily closings — when he does, two things
+  change at once, both already agreed: (1) the migration auto-apply carve-out narrows further (real daily users
+  now exist), and (2) it becomes the moment the Excel-parallel reconciliation window (~2 weeks) actually starts.
+  Nobody has said that moment has arrived yet.
+- The 34 free-text payee legs (§27.5) and the `nf-pl.js` all-time-default (§28) are both recorded, deliberate
+  non-fixes — not bugs waiting to be picked up, don't "fix" either without being asked again.
+
+**How to pick this up cold:** start at §27 for the full readiness-pass context, §29 for the most recent applied
+change, and this section for what's actually outstanding. Everything in §27.3's original three blockers is
+closed. The only two open items are Syed Yousaf Shah's email and the never-started Part 3 dry run — both are
+waiting on someone else's action (the owner's own), not on more building.
