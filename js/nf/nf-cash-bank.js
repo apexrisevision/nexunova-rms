@@ -67,6 +67,7 @@
       '    <div><div class="co">' + companyLine + '</div><h1>Cash &amp; Bank Movement</h1></div></div>' +
       '  <div class="actions">' +
       '    <button class="btn" id="nf-cb-back" type="button">← Back to closing sheet</button>' +
+      global.NfReportsMenu.html('cashbank') +
       '    <button class="btn primary" id="nf-cb-print" type="button">Print</button>' +
       '  </div>' +
       '</header>' +
@@ -104,6 +105,7 @@
 
     root.querySelector('#nf-cb-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-cb-print').addEventListener('click', function () { global.print(); });
+    global.NfReportsMenu.wire(root, ctx);
     root.querySelector('#nf-cb-apply').addEventListener('click', function () {
       load({ from: root.querySelector('#nf-cb-from').value, to: root.querySelector('#nf-cb-to').value });
     });

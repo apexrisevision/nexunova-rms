@@ -111,6 +111,7 @@
       '    <div><div class="co">' + companyLine + '</div><h1>Party Statement</h1></div></div>' +
       '  <div class="actions">' +
       '    <button class="btn" id="nf-pty-back" type="button">← Back to closing sheet</button>' +
+      global.NfReportsMenu.html('party') +
       '    <button class="btn primary" id="nf-pty-print" type="button">Print</button>' +
       '  </div>' +
       '</header>' +
@@ -128,6 +129,7 @@
 
     root.querySelector('#nf-pty-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-pty-print').addEventListener('click', function () { global.print(); });
+    global.NfReportsMenu.wire(root, ctx);
     root.querySelector('#nf-pty-sel').addEventListener('change', function (e) {
       actions.setState({ partyId: e.target.value });
       actions.loadStatement();

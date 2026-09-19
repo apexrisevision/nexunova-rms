@@ -63,6 +63,7 @@
       '    <div><div class="co">' + companyLine + '</div><h1>Trial Balance</h1></div></div>' +
       '  <div class="actions">' +
       '    <button class="btn" id="nf-tb-back" type="button">← Back to closing sheet</button>' +
+      global.NfReportsMenu.html('tb') +
       '    <button class="btn primary" id="nf-tb-print" type="button">Print</button>' +
       '  </div>' +
       '</header>' +
@@ -86,6 +87,7 @@
 
     root.querySelector('#nf-tb-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-tb-print').addEventListener('click', function () { global.print(); });
+    global.NfReportsMenu.wire(root, ctx);
     root.querySelector('#nf-tb-apply').addEventListener('click', function () {
       load(root.querySelector('#nf-tb-asof').value);
     });

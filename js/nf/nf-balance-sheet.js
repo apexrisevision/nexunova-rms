@@ -85,6 +85,7 @@
       '    <div><div class="co">' + companyLine + '</div><h1>Balance Sheet</h1></div></div>' +
       '  <div class="actions">' +
       '    <button class="btn" id="nf-bs-back" type="button">← Back to closing sheet</button>' +
+      global.NfReportsMenu.html('bs') +
       '    <button class="btn primary" id="nf-bs-print" type="button">Print</button>' +
       '  </div>' +
       '</header>' +
@@ -115,6 +116,7 @@
 
     root.querySelector('#nf-bs-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-bs-print').addEventListener('click', function () { global.print(); });
+    global.NfReportsMenu.wire(root, ctx);
     root.querySelector('#nf-bs-apply').addEventListener('click', function () {
       load(root.querySelector('#nf-bs-asof').value);
     });

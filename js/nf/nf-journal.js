@@ -94,6 +94,7 @@
       '    <div><div class="co">' + companyLine + '</div><h1>General Journal</h1></div></div>' +
       '  <div class="actions">' +
       '    <button class="btn" id="nf-jrn-back" type="button">← Back to closing sheet</button>' +
+      global.NfReportsMenu.html('journal') +
       '    <button class="btn primary" id="nf-jrn-print" type="button">Print</button>' +
       '  </div>' +
       '</header>' +
@@ -118,6 +119,7 @@
 
     root.querySelector('#nf-jrn-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-jrn-print').addEventListener('click', function () { global.print(); });
+    global.NfReportsMenu.wire(root, ctx);
     root.querySelector('#nf-jrn-apply').addEventListener('click', function () {
       load({ from: root.querySelector('#nf-jrn-from').value, to: root.querySelector('#nf-jrn-to').value });
     });

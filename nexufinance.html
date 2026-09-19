@@ -29,6 +29,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/nf/nf.css?v=20260917a">
 <link rel="stylesheet" href="css/nf/nf-print.css?v=20260917a" media="print">
+<link rel="stylesheet" href="css/nf/nf-reports-menu.css?v=20260919g">
 <link rel="stylesheet" href="css/nf/nf-report.css?v=20260918a">
 <link rel="stylesheet" href="css/nf/nf-report-print.css?v=20260918a" media="print">
 <link rel="stylesheet" href="css/nf/nf-journal.css?v=20260918a">
@@ -49,6 +50,8 @@
 <link rel="stylesheet" href="css/nf/nf-cash-bank-print.css?v=20260919d" media="print">
 <link rel="stylesheet" href="css/nf/nf-floor-summary.css?v=20260919e">
 <link rel="stylesheet" href="css/nf/nf-floor-summary-print.css?v=20260919e" media="print">
+<link rel="stylesheet" href="css/nf/nf-project-cost.css?v=20260919f">
+<link rel="stylesheet" href="css/nf/nf-project-cost-print.css?v=20260919f" media="print">
 <script>
 try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
 </script>
@@ -87,6 +90,7 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
 <script src="js/supabase.js?v=20260917a"></script>
 <script src="js/nf/nf-format.js?v=20260917a"></script>
 <script src="js/nf/nf-api.js?v=20260917a"></script>
+<script src="js/nf/nf-reports-menu.js?v=20260919g"></script>
 <script src="js/nf/nf-messages.js?v=20260917a"></script>
 <script src="js/nf/nf-sheet.js?v=20260917a"></script>
 <script src="js/nf/nf-report.js?v=20260918a"></script>
@@ -99,6 +103,7 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
 <script src="js/nf/nf-token-register.js?v=20260919c"></script>
 <script src="js/nf/nf-cash-bank.js?v=20260919d"></script>
 <script src="js/nf/nf-floor-summary.js?v=20260919e"></script>
+<script src="js/nf/nf-project-cost.js?v=20260919f"></script>
 <script>
 (function () {
   'use strict';
@@ -122,7 +127,7 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
   catch (e) { SB = null; }
 
   if (!SB) return fail('Could not reach the database', new Error('The Supabase client did not load. Reload the page.'));
-  if (!window.NfFmt || !window.NfApi || !window.NfMsg || !window.NfSheet || !window.NfReport || !window.NfJournal || !window.NfLedger || !window.NfTrialBalance || !window.NfPL || !window.NfBalanceSheet || !window.NfPartyStatement || !window.NfTokenRegister || !window.NfCashBank || !window.NfFloorSummary) {
+  if (!window.NfFmt || !window.NfApi || !window.NfMsg || !window.NfSheet || !window.NfReport || !window.NfJournal || !window.NfLedger || !window.NfTrialBalance || !window.NfPL || !window.NfBalanceSheet || !window.NfPartyStatement || !window.NfTokenRegister || !window.NfCashBank || !window.NfFloorSummary || !window.NfProjectCost || !window.NfReportsMenu) {
     return fail('Could not load the cash book', new Error('A module file did not load. Reload the page.'));
   }
 

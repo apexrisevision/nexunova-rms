@@ -64,6 +64,7 @@
       '    <div><div class="co">' + companyLine + '</div><h1>Floor/Class Cost &amp; Collection</h1></div></div>' +
       '  <div class="actions">' +
       '    <button class="btn" id="nf-flr-back" type="button">← Back to closing sheet</button>' +
+      global.NfReportsMenu.html('floor') +
       '    <button class="btn primary" id="nf-flr-print" type="button">Print</button>' +
       '  </div>' +
       '</header>' +
@@ -98,6 +99,7 @@
 
     root.querySelector('#nf-flr-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-flr-print').addEventListener('click', function () { global.print(); });
+    global.NfReportsMenu.wire(root, ctx);
     root.querySelector('#nf-flr-apply').addEventListener('click', function () {
       load({ from: root.querySelector('#nf-flr-from').value, to: root.querySelector('#nf-flr-to').value });
     });

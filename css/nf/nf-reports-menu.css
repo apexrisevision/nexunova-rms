@@ -1,0 +1,17 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   NexuFinance v1 — the shared Reports dropdown (js/nf/nf-reports-menu.js).
+   Reuses .btn from nf.css for the toggle.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.rpmenu{position:relative}
+.rpmcaret{margin-left:2px}
+.rpmpanel{position:absolute;top:calc(100% + 6px);right:0;min-width:220px;background:var(--card);border:1px solid var(--line2);
+  border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:6px;z-index:40;display:flex;flex-direction:column;gap:1px}
+.rpmgrouplabel{font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;
+  padding:8px 10px 4px}
+.rpmitem{display:block;width:100%;text-align:left;background:none;border:0;border-radius:7px;padding:8px 10px;
+  font-size:13px;color:var(--ink);cursor:pointer}
+.rpmitem:hover{background:var(--soft)}
+.rpmitem.active{background:var(--soft);font-weight:600;color:var(--brand-2)}
+
+@media print{.rpmenu{display:none!important}}

@@ -2115,3 +2115,53 @@ clean, 28/28. Fail/fail/pass on unchanged code confirms this is the same class o
 already documented in §13.2 (8GB, memory-constrained, many Puppeteer launches this session), not a regression —
 recorded in this much detail specifically because two failures in a row is a weaker signal than one, and this is
 exactly the situation the standing rule means by "stop and report" rather than assume and move on.
+
+## 23 · The header got crowded, then a shared Reports menu — and the flake question resolved
+
+### 23.1 Eleven buttons in one unwrapped row
+
+By the time Project Cost Summary landed, the closing sheet's header (`.actions{display:flex;gap:8px}`, no
+`flex-wrap`) carried 11 report-launch buttons plus Director Report, Start New Day and Print — a real, growing UX
+problem the owner caught before it shipped further: a director on a normal screen would face the same
+horizontal overflow this session's own automated tests were starting to hit. Flagged directly rather than
+silently adding a 12th and 13th button for the two reports still to come.
+
+### 23.2 The flake question — resolved as REAL, not purely environmental
+
+Per the owner's own instruction: don't leave this as "probably environmental," find out which. Before the nav
+fix, `verify-nf-golden-ui.js` failed twice in a run of four attempts across two consecutive migrations, always at
+the same point (the `#nf-tBank` transfer field, just after the last voucher save) with the same class of
+Puppeteer DOM-timing error (`Node is detached from document` / `Node is either not clickable or not an
+Element`). After building the Reports dropdown (§23.3) and shrinking the header back down to four top-level
+items, the same test was run **five times in a row, byte-identical code, 28/28 clean every time** — a sharp
+reversal from 2 failures in the prior 4 attempts. Five clean runs after a fix is a real, meaningful signal where
+a single clean run wouldn't have been. **Conclusion: the crowded header was a genuine contributing cause of the
+flake, not purely environmental machine-load noise** — most likely the extra unwrapped DOM width/layout
+computation on every render made an already-tight timing window (a debounced save racing the next click) fail
+more often, not a coincidence. Recorded here precisely so it doesn't get remembered as "probably fine, never
+figured out."
+
+### 23.3 The Reports dropdown (`js/nf/nf-reports-menu.js`)
+
+One shared module, used identically by the closing sheet and all ten report screens — `NfReportsMenu.html(activeKey)`
+renders the toggle + panel, `NfReportsMenu.wire(root, ctx)` attaches every handler. Ordered by actual use
+frequency, per the owner's own instruction, not alphabetically:
+1. **Daily Closing** — the one screen opened every day, always first, never buried.
+2. **Statements** — Profit & Loss, Balance Sheet, Trial Balance.
+3. **Detail Reports** — General Journal, General Ledger, Party Statement, Token Register, Cash & Bank Movement,
+   Floor/Class Summary, Project Cost Summary.
+
+Cross-navigation works directly between any two reports without detouring back through the closing sheet first
+— every report screen's own `mount()` already receives the exact `{ api, companyId, role, displayName,
+companyName, settings, onBack }` shape every other screen's `mount()` expects, so the same `ctx` object passes
+straight through the menu to whichever report is chosen, and `onBack` still correctly chains back to the
+original closing sheet no matter how many reports deep the navigation goes. "Daily Closing" is not a module —
+selecting it calls `ctx.onBack()` directly, the same function every screen's own back button already calls.
+Verified end to end via a real Puppeteer session: opened the menu from the closing sheet, navigated to Trial
+Balance, cross-navigated directly from Trial Balance to Token Register (no back-and-forth through closing),
+then back to Daily Closing via the menu — all confirmed working, and confirmed visually by screenshot (menu
+renders correctly, "Daily Closing" highlighted as the active item, both group labels present, all ten reports
+listed in the specified order).
+
+Director Report, Start New Day and Print were left as their own direct buttons — three items in an unwrapped
+row was never the problem, eleven was.

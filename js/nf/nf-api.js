@@ -135,6 +135,9 @@
       getFloorSummary: function (companyId, from, to) {
         return call('nf_get_floor_summary', { p_company_id: companyId, p_from: from || null, p_to: to || null });
       },
+      getProjectCostSummary: function (companyId, from, to) {
+        return call('nf_get_project_cost_summary', { p_company_id: companyId, p_from: from || null, p_to: to || null });
+      },
 
       // membership
       setMember: function (companyId, userId, role, displayName, active) {

@@ -232,8 +232,20 @@ function serve() {
     const flrTiles = await page.$$eval('.rtile b', els => els.map(el => el.textContent.trim()));
     console.log(`Floor Summary: Cost ${flrTiles[0]} | Income ${flrTiles[1]} | Token Collected ${flrTiles[2]}`);
     await savePdf('Awami_Floor_Summary_2026-09-19.pdf');
+    await page.click('#nf-flr-back');
+    await page.waitForSelector('#nf-toPC', { timeout: 10000 });
 
-    console.log('\nAll nine PDFs saved to', OUT_DIR);
+    // ── Project Cost Summary ────────────────────────────────────────────
+    await page.click('#nf-toPC');
+    await page.waitForSelector('.pcsheet', { timeout: 10000 });
+    await page.waitForFunction(() => {
+      const b = document.querySelector('#nf-pc-body'); return b && !/Loading…/.test(b.textContent);
+    }, { timeout: 10000 });
+    const pcTiles = await page.$$eval('.rtile b', els => els.map(el => el.textContent.trim()));
+    console.log(`Project Cost Summary: Total ${pcTiles[0]}`);
+    await savePdf('Awami_Project_Cost_Summary_2026-09-19.pdf');
+
+    console.log('\nAll ten PDFs saved to', OUT_DIR);
   } finally {
     if (browser) await browser.close();
     if (srv) srv.close();

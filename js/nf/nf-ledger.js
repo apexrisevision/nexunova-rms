@@ -109,6 +109,7 @@
       '    <div><div class="co">' + companyLine + '</div><h1>General Ledger</h1></div></div>' +
       '  <div class="actions">' +
       '    <button class="btn" id="nf-lgr-back" type="button">← Back to closing sheet</button>' +
+      global.NfReportsMenu.html('ledger') +
       '    <button class="btn primary" id="nf-lgr-print" type="button">Print</button>' +
       '  </div>' +
       '</header>' +
@@ -126,6 +127,7 @@
 
     root.querySelector('#nf-lgr-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-lgr-print').addEventListener('click', function () { global.print(); });
+    global.NfReportsMenu.wire(root, ctx);
     root.querySelector('#nf-lgr-acct').addEventListener('change', function (e) {
       actions.setState({ accountCode: e.target.value });
       actions.loadLedger();

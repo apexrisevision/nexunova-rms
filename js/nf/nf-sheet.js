@@ -130,15 +130,7 @@
         '      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>' +
         '    </button>' +
         (d ? '    <button class="btn" id="nf-toDir" type="button">Director report</button>' : '') +
-        '    <button class="btn" id="nf-toJrn" type="button">General Journal</button>' +
-        '    <button class="btn" id="nf-toLgr" type="button">General Ledger</button>' +
-        '    <button class="btn" id="nf-toTB" type="button">Trial Balance</button>' +
-        '    <button class="btn" id="nf-toPL" type="button">Profit &amp; Loss</button>' +
-        '    <button class="btn" id="nf-toBS" type="button">Balance Sheet</button>' +
-        '    <button class="btn" id="nf-toPty" type="button">Party Statement</button>' +
-        '    <button class="btn" id="nf-toTkr" type="button">Token Register</button>' +
-        '    <button class="btn" id="nf-toCB" type="button">Cash &amp; Bank</button>' +
-        '    <button class="btn" id="nf-toFlr" type="button">Floor Summary</button>' +
+        global.NfReportsMenu.html('closing') +
         (d && d.status === 'CLOSED' && d.is_latest ? '    <button class="btn" id="nf-startNext" type="button">Start new day</button>' : '') +
         '    <button class="btn primary" id="nf-print" type="button">' +
         '      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7"/></svg>Print</button>' +
@@ -636,95 +628,16 @@
           onBack: function () { global.NfSheet.mount(root, ctx); },
         });
       });
-      var toJrn = root.querySelector('#nf-toJrn');
-      if (toJrn) toJrn.addEventListener('click', function () {
-        // same full-remount reasoning as #nf-toDir above — NfJournal.mount
-        // also replaces root.innerHTML wholesale.
-        global.NfJournal.mount(root, {
-          api: api, companyId: companyId, role: role,
-          displayName: ctx.displayName, companyName: ctx.companyName, settings: S.settings,
-          onBack: function () { global.NfSheet.mount(root, ctx); },
-        });
-      });
-      var toLgr = root.querySelector('#nf-toLgr');
-      if (toLgr) toLgr.addEventListener('click', function () {
-        // same full-remount reasoning as #nf-toDir above — NfLedger.mount
-        // also replaces root.innerHTML wholesale.
-        global.NfLedger.mount(root, {
-          api: api, companyId: companyId, role: role,
-          displayName: ctx.displayName, companyName: ctx.companyName, settings: S.settings,
-          onBack: function () { global.NfSheet.mount(root, ctx); },
-        });
-      });
-      var toTB = root.querySelector('#nf-toTB');
-      if (toTB) toTB.addEventListener('click', function () {
-        // same full-remount reasoning as #nf-toDir above — NfTrialBalance.mount
-        // also replaces root.innerHTML wholesale.
-        global.NfTrialBalance.mount(root, {
-          api: api, companyId: companyId, role: role,
-          displayName: ctx.displayName, companyName: ctx.companyName, settings: S.settings,
-          onBack: function () { global.NfSheet.mount(root, ctx); },
-        });
-      });
-      var toPL = root.querySelector('#nf-toPL');
-      if (toPL) toPL.addEventListener('click', function () {
-        // same full-remount reasoning as #nf-toDir above — NfPL.mount
-        // also replaces root.innerHTML wholesale.
-        global.NfPL.mount(root, {
-          api: api, companyId: companyId, role: role,
-          displayName: ctx.displayName, companyName: ctx.companyName, settings: S.settings,
-          onBack: function () { global.NfSheet.mount(root, ctx); },
-        });
-      });
-      var toBS = root.querySelector('#nf-toBS');
-      if (toBS) toBS.addEventListener('click', function () {
-        // same full-remount reasoning as #nf-toDir above — NfBalanceSheet.mount
-        // also replaces root.innerHTML wholesale.
-        global.NfBalanceSheet.mount(root, {
-          api: api, companyId: companyId, role: role,
-          displayName: ctx.displayName, companyName: ctx.companyName, settings: S.settings,
-          onBack: function () { global.NfSheet.mount(root, ctx); },
-        });
-      });
-      var toPty = root.querySelector('#nf-toPty');
-      if (toPty) toPty.addEventListener('click', function () {
-        // same full-remount reasoning as #nf-toDir above — NfPartyStatement.mount
-        // also replaces root.innerHTML wholesale.
-        global.NfPartyStatement.mount(root, {
-          api: api, companyId: companyId, role: role,
-          displayName: ctx.displayName, companyName: ctx.companyName, settings: S.settings,
-          onBack: function () { global.NfSheet.mount(root, ctx); },
-        });
-      });
-      var toTkr = root.querySelector('#nf-toTkr');
-      if (toTkr) toTkr.addEventListener('click', function () {
-        // same full-remount reasoning as #nf-toDir above — NfTokenRegister.mount
-        // also replaces root.innerHTML wholesale.
-        global.NfTokenRegister.mount(root, {
-          api: api, companyId: companyId, role: role,
-          displayName: ctx.displayName, companyName: ctx.companyName, settings: S.settings,
-          onBack: function () { global.NfSheet.mount(root, ctx); },
-        });
-      });
-      var toCB = root.querySelector('#nf-toCB');
-      if (toCB) toCB.addEventListener('click', function () {
-        // same full-remount reasoning as #nf-toDir above — NfCashBank.mount
-        // also replaces root.innerHTML wholesale.
-        global.NfCashBank.mount(root, {
-          api: api, companyId: companyId, role: role,
-          displayName: ctx.displayName, companyName: ctx.companyName, settings: S.settings,
-          onBack: function () { global.NfSheet.mount(root, ctx); },
-        });
-      });
-      var toFlr = root.querySelector('#nf-toFlr');
-      if (toFlr) toFlr.addEventListener('click', function () {
-        // same full-remount reasoning as #nf-toDir above — NfFloorSummary.mount
-        // also replaces root.innerHTML wholesale.
-        global.NfFloorSummary.mount(root, {
-          api: api, companyId: companyId, role: role,
-          displayName: ctx.displayName, companyName: ctx.companyName, settings: S.settings,
-          onBack: function () { global.NfSheet.mount(root, ctx); },
-        });
+      // Replaces the ten individual report buttons this header used to
+      // carry (docs/PLAN.md §23) — one shared dropdown, same
+      // { api, companyId, role, displayName, companyName, settings,
+      // onBack } shape every report screen's own mount() already
+      // expects, built fresh here the same way each of the old
+      // individual handlers above did.
+      global.NfReportsMenu.wire(root, {
+        api: api, companyId: companyId, role: role,
+        displayName: ctx.displayName, companyName: ctx.companyName, settings: S.settings,
+        onBack: function () { global.NfSheet.mount(root, ctx); },
       });
       var startNext = root.querySelector('#nf-startNext') || root.querySelector('#nf-startNext2');
       if (startNext) startNext.addEventListener('click', function () {

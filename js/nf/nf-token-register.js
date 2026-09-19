@@ -70,6 +70,7 @@
       '    <div><div class="co">' + companyLine + '</div><h1>Token Money Register</h1></div></div>' +
       '  <div class="actions">' +
       '    <button class="btn" id="nf-tkr-back" type="button">← Back to closing sheet</button>' +
+      global.NfReportsMenu.html('token') +
       '    <button class="btn primary" id="nf-tkr-print" type="button">Print</button>' +
       '  </div>' +
       '</header>' +
@@ -98,6 +99,7 @@
 
     root.querySelector('#nf-tkr-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-tkr-print').addEventListener('click', function () { global.print(); });
+    global.NfReportsMenu.wire(root, ctx);
     root.querySelector('#nf-tkr-apply').addEventListener('click', function () {
       load({ from: root.querySelector('#nf-tkr-from').value, to: root.querySelector('#nf-tkr-to').value });
     });
