@@ -2193,3 +2193,62 @@ five new reports don't exist yet (§17.3's own gap, never closed) — correctnes
 not yet a repeatable automated one. Worth building before daily use. The IIF export work is next, and per the
 owner's own instruction, that gets flagged before it starts — it is the first thing in this whole pass that
 writes back into the owner's own book of record, not another read-only report.
+
+## 25 · IIF export, Part 1 — export-state tracking (2026-09-19)
+
+Flagged before starting, per the owner's own instruction: this is the first thing in the whole reports pass that
+writes back into the owner's actual book of record, not another read-only report, so it gets the same treatment
+as the original history import — dry run, checksum, nothing applied without explicit go. Scoped as three parts
+by the owner: (1) export-state tracking, (2) a pre-export validation gate, (3) per-account post-import
+reconciliation. Part 1 only, here.
+
+**Why the state-tracking has to exist at all, decided first, before any schema:** the 64 historical vouchers
+already exist in QuickBooks — that is where they were imported FROM. A first IIF export that included them would
+double-post the client's entire history into QuickBooks, and the cleanup is 64 manual deletions there. So every
+voucher needs an export-eligibility state, not left to convention.
+
+`nf_vouchers.iif_exportable` (boolean, default `true` — new vouchers created in NexuFinance from here on are
+exportable by default, which is correct). Two new tables: `nf_iif_batches` (one row per export run: file name,
+date range, which QuickBooks chart file/checksum the pre-export validation checked against) and
+`nf_iif_batch_vouchers` (which vouchers went into which batch; a `CHECK` constraint, not just app-layer
+discipline, enforces that a voucher already exported can only appear in a later batch as an explicit
+`is_reexport=true` row carrying a non-null reason). Two RPCs: `nf_iif_list_candidates` (read-only — POSTED,
+exportable, never-exported vouchers in range) and `nf_iif_record_batch` (the only write path; rejects the whole
+batch, writes nothing, if any voucher isn't POSTED/exportable/in this company, or has a prior export not listed
+as a reasoned re-export).
+
+Rehearsed in a rolled-back transaction before presenting anything, per the owner's own instruction — not just a
+syntax check: the one-time backfill (`iif_exportable = false` for every voucher created by the system import
+user) affects exactly 64 rows, 0 left exportable, confirmed by direct count before AND after applying. The two
+RPCs were exercised end to end inside the same rehearsal: a happy-path export of two real test vouchers,
+confirming candidates then come back empty; a re-export attempt without a reason correctly raising
+`NF:IIF_ALREADY_EXPORTED`; a re-export with a reason correctly succeeding and recording `is_reexport=true` with
+the reason text. Applied only after the owner reviewed this summary and gave explicit go. Live backfill and
+grants re-verified immediately after applying, matching the rehearsal exactly (64/0, `anon:false` on both RPCs).
+
+**Real regression found running the full post-apply sweep, unrelated to this migration — a gap in my own
+earlier verification discipline, not this migration's fault:** `verify-nf-general-ledger.js`,
+`verify-nf-general-journal.js` and `verify-nf-trial-balance.js` all failed, each at a `page.click()` on a button
+ID (`#nf-toLgr`, `#nf-toJrn`, `#nf-toTB`) that no longer exists since §23's Reports-dropdown consolidation. That
+refactor's own regression check only ran `verify-nf-golden-ui.js` and `verify-nf-rules.js` — the two broad
+suites — never the three report-specific ones, so this broke silently in an already-pushed commit until this
+migration's full sweep caught it. Fixed all three to open the dropdown and click the matching `[data-goto]`
+entry, the same pattern `export-real-reports.js` was already updated to use; re-ran each individually clean
+(12/12, 11/11, 10/10), plus Director Report for completeness (18/18, unaffected — its own button was kept).
+
+**Fixed at the source, not just the backfill, per the owner's own instruction** ("same discipline you applied to
+gen-seed.js — fix it at the source so the next project inherits it correctly"): `import-awami-history.js` now
+includes an explicit `UPDATE ... SET iif_exportable = false` for every voucher it creates, added after Awami's
+own run (which predates the column) so the next historical import (KBH, FMH, or a re-run) copies a script that
+already gets this right, rather than rediscovering the same bug. The file's own header now says plainly it's
+historical/already-run and explains why that UPDATE is there despite never having executed for Awami's own data.
+
+**New standing check added to `verify-nf-rules.js`**, per the owner's own instruction — `IIF-IMPORTED-NOT-EXPORTABLE`:
+queries real Awami data directly (not the ZZTEST fixture) and fails if any voucher whose narration or
+`created_by` marks it as a historical import is ever `iif_exportable`. 52/52 after adding it.
+
+Next: Part 2 (the pre-export validation gate — balance check, fresh-QuickBooks-chart account-name matching,
+already-exported check, date-range/filename consistency) and Part 3 (per-account post-import reconciliation,
+one row per COA code with both systems' figures and the difference — not the retired two-number
+`reconciliations` table shape). Nothing gets imported into QuickBooks on this session's own judgment; the owner
+reviews the generated file and the validation output first.

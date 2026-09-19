@@ -141,8 +141,13 @@ async function http_(method, urlPath, { key, jwt, body } = {}) {
     await page.setViewport({ width: 1400, height: 1000 });
     await page.goto(`http://127.0.0.1:${PORT}/nexufinance.html?company=${C}`, { waitUntil: 'networkidle2' });
     await page.waitForSelector('.pos-grid', { timeout: 15000 });
-    ok('L-01 nav button present', await page.$('#nf-toLgr') !== null, 'no #nf-toLgr button on the closing sheet');
-    await page.click('#nf-toLgr');
+    // #nf-toLgr no longer exists — the header consolidated to a shared
+    // Reports dropdown (docs/PLAN.md §23, 2026-09-19). L-01 now checks
+    // the dropdown itself carries the Ledger entry, not a dedicated button.
+    ok('L-01 nav button present', await page.$('#nf-rpm-toggle') !== null, 'no #nf-rpm-toggle (Reports menu) on the closing sheet');
+    await page.click('#nf-rpm-toggle');
+    await page.waitForSelector('#nf-rpm-panel:not([hidden])', { timeout: 5000 });
+    await page.click('[data-goto="ledger"]');
     await page.waitForSelector('.lsheet', { timeout: 10000 });
     await page.waitForFunction(() => document.querySelectorAll('#nf-lgr-acct option').length > 1, { timeout: 10000 });
 

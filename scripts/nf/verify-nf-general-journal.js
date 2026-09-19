@@ -143,12 +143,17 @@ async function http_(method, urlPath, { key, jwt, body } = {}) {
     await page.setViewport({ width: 1400, height: 1000 });
     await page.goto(`http://127.0.0.1:${PORT}/nexufinance.html?company=${C}`, { waitUntil: 'networkidle2' });
     await page.waitForSelector('.pos-grid', { timeout: 15000 });
-    ok('J-01 nav button present', await page.$('#nf-toJrn') !== null, 'no #nf-toJrn button on the closing sheet');
+    // #nf-toJrn no longer exists — the header consolidated to a shared
+    // Reports dropdown (docs/PLAN.md §23, 2026-09-19). J-01 now checks
+    // the dropdown itself carries the Journal entry, not a dedicated button.
+    ok('J-01 nav button present', await page.$('#nf-rpm-toggle') !== null, 'no #nf-rpm-toggle (Reports menu) on the closing sheet');
     const settled = () => page.waitForFunction(
       () => { var b = document.querySelector('#nf-jrn-body'); return b && !/Loading…/.test(b.textContent); },
       { timeout: 10000 });
 
-    await page.click('#nf-toJrn');
+    await page.click('#nf-rpm-toggle');
+    await page.waitForSelector('#nf-rpm-panel:not([hidden])', { timeout: 5000 });
+    await page.click('[data-goto="journal"]');
     await page.waitForSelector('.jsheet', { timeout: 10000 });
     await settled();
 

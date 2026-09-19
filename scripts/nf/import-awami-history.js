@@ -28,6 +28,15 @@
  * the same transaction, which rolls back everything — no partial import
  * is possible, and nothing is adjusted to force a match.
  *
+ * HISTORICAL — already run successfully for Awami (2026-09-18); running
+ * it again would fail on duplicate voucher_no. Kept as the record of
+ * what happened AND as the template for the next historical import
+ * (KBH, FMH, or a re-run) — including the `iif_exportable = false`
+ * UPDATE added below on 2026-09-19, after Awami's own run, once IIF
+ * export-state tracking existed (supabase/migrations/20260919h). Every
+ * voucher this kind of import creates already exists in QuickBooks — the
+ * next import script should carry that UPDATE too, not rediscover it.
+ *
  *   node scripts/nf/import-awami-history.js
  */
 'use strict';
@@ -225,6 +234,17 @@ INSERT INTO _import_parties (name, id) VALUES
     ${partySql};
 
 ${voucherSql}
+
+-- Every voucher this import creates already exists in QuickBooks — that
+-- is where it came from. Set at the source, not left as a one-time
+-- backfill after the fact (see supabase/migrations/20260919h's own
+-- header on why a backfill alone isn't enough: the NEXT historical
+-- import — KBH, FMH, or a re-run — would otherwise default to
+-- iif_exportable=true and queue itself for double-posting back into
+-- QuickBooks the same way this one would have). Any future historical
+-- import script should carry the same line.
+UPDATE public.nf_vouchers SET iif_exportable = false
+ WHERE company_id = ${sqlStr(AWAMI)}::uuid AND created_by = ${sqlStr(SYSTEM_USER)}::uuid;
 
 DO $verify$
 DECLARE v_actual numeric;

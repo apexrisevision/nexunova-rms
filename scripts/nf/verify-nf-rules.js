@@ -449,6 +449,21 @@ if (require.main === module) (async () => {
     console.log(`  Awami nf_ rows after:  ${JSON.stringify(awamiAfter)}`);
     ok('AWAMI-UNTOUCHED', JSON.stringify(awamiBefore) === JSON.stringify(awamiAfter), `${JSON.stringify(awamiBefore)} → ${JSON.stringify(awamiAfter)}`);
 
+    // IIF export-state invariant (supabase/migrations/20260919h,
+    // 2026-09-19): no voucher whose narration or created_by marks it as
+    // a historical import may be iif_exportable — every one of those
+    // already exists in QuickBooks, and exporting it back would
+    // double-post the client's own history. Checked directly against
+    // real Awami data, not the ZZTEST fixture, since that's the only
+    // company this invariant currently has real rows to check.
+    const [badExportable] = await q(`
+      select count(*)::int n from nf_vouchers
+       where company_id = '${AWAMI_COMPANY_ID}'
+         and iif_exportable
+         and (narration ilike '%Imported from QuickBooks history%'
+              or created_by = '50e3d1be-ef2f-421c-a0f9-2fd2296176e4'::uuid)`);
+    ok('IIF-IMPORTED-NOT-EXPORTABLE', badExportable.n === 0, `${badExportable.n} imported voucher(s) incorrectly marked iif_exportable`);
+
     const failed = results.filter(x => !x.pass);
     console.log(`\n${results.length} checks · ${results.length - failed.length} passed · ${failed.length} failed`);
     // exitCode, not exit(): on Windows, exit() with fetch sockets open aborts in libuv (seen: 127)
