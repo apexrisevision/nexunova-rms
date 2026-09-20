@@ -268,19 +268,17 @@ const okStatus = r => r.status >= 200 && r.status < 300;
     ok('CVD-31 …and 10100\'s movements still tie to the day (in 75000, out 30000+105000)',
       !!cash && Number(cash.total_in) === 75000 && Number(cash.total_out) === 135000, JSON.stringify(cash));
 
-    // RECORDED, NOT FIXED — separate pre-existing defect, out of this pass's
-    // scope (docs/AUDIT_REPORT.md MEDIUM-4, found by this suite 2026-09-20).
-    // nf_get_cash_bank_movement derives `opening` purely from voucher legs and
-    // never reads nf_days.typed_open_cash/petty/bank, so the money the company
-    // started with is missing from its opening AND closing columns — this same
-    // day reads closing -60000 here and +440000 on the sheet. It was written
-    // that way in 20260919d and 20260920a did not touch that CTE (verified by
-    // reading the live body). Asserted here as the CURRENT behaviour so the
-    // gap is visible and so whoever fixes it is told to close the finding —
-    // not because -60000 is right.
-    ok('CVD-32 MEDIUM-4 still open: the report omits the first-day opening balance',
-      !!cash && Number(cash.opening) === 0 && Number(cash.closing) === -60000,
-      'behaviour changed — re-check docs/AUDIT_REPORT.md MEDIUM-4: ' + JSON.stringify(cash));
+    // MEDIUM-4, CLOSED by 20260920b. This assertion was written the other way
+    // up one pass ago: it pinned the BUG (opening 0, closing −60000) so the
+    // gap stayed visible and whoever fixed it would be told to close the
+    // finding. That is exactly what happened, so it now pins the fix.
+    // nf_get_cash_bank_movement asks nf_ledger_position — the same function
+    // the sheet uses — instead of deriving the opening from legs alone, so
+    // report and sheet cannot drift apart. 500000 opened + 75000 in
+    // − 30000 paid − 105000 transferred = 440000, the sheet's own figure
+    // (CVD-24).
+    ok('CVD-32 MEDIUM-4 closed: the report opens at the typed opening, and closes where the sheet does',
+      !!cash && Number(cash.opening) === 500000 && Number(cash.closing) === 440000, JSON.stringify(cash));
 
     // ── 6. the screen, for completeness — the picker cannot offer cash ───
     if (!puppeteer || !CHROME) {

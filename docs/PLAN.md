@@ -3388,3 +3388,168 @@ same project at once):
 
 **254 checks, nothing red.** Not runnable, both pre-existing and both the MEDIUM-2 class described above:
 `verify-nf-schema.js`, `verify-nf-de-migration.js`. Not a suite: `verify-nf-qb-accounts.js`.
+
+---
+
+## 40 · Fix pass 3 of 3 — the MEDIUMs closed, the dormant tests woken up (2026-09-20)
+
+`20260920b_nf_medium_fixes.sql` plus test and UI work. Closes AUDIT_REPORT.md MEDIUM-1, MEDIUM-2 (both
+instances), MEDIUM-3 and MEDIUM-4; LOW-1 becomes an accurate comment; LOW-2 becomes a standing rule. A status
+table was added to the audit report as §1b — the findings themselves are left exactly as written, because a
+forensic record that gets edited after the fact stops being one.
+
+### MEDIUM-4 — the report and the sheet now open at the same number, by construction
+
+`nf_get_cash_bank_movement` derived `opening` purely from voucher legs and never read
+`nf_days.typed_open_cash/petty/bank`, so the money the company started with was missing from its opening and
+therefore its closing.
+
+The fix is deliberately not "add the typed opening here too" — that would be a second implementation of the
+same arithmetic, free to drift again. The report now calls **`nf_ledger_position`, the function the sheet
+itself uses**. That works for every day including the first, because
+`nf_ledger_position(c, first_day.business_date)` = `typed_open + Σ(via legs over an empty range)` = `typed_open`,
+which is exactly what `nf_position_row` returns for a first day. `p_from IS NULL` means "all time", so the
+opening it needs is the balance before any voucher at all — hence `COALESCE(p_from, first day)`. A Bank-typed
+head that is *not* a via account has no typed opening to read and keeps the leg-derived figure; Awami has none,
+but the report no longer assumes that.
+
+Tested red first, on **both** branches of `nf_position_row`, in the dry run's real two-day fixture:
+
+```
+FAIL  S6 MEDIUM-4 · report opening == sheet opening on the FIRST day (typed by hand)
+      report {"10100":0,"10200":0,"10300":0} vs sheet {"10100":500000,"10200":20000,"10300":3000000}
+FAIL  S6 MEDIUM-4 · report opening == sheet opening on a LATER day (carried forward)
+      report {"10100":65000,"10200":0,"10300":-300000} vs sheet {"10100":565000,"10200":20000,"10300":2700000}
+```
+
+Both green after. A third check asserts the first day's opening is actually non-zero, so a report that ignored
+it would differ rather than coincidentally match.
+
+**One correction to the brief, on the evidence.** The task described this as "a live wrong number on a
+director-facing report". It was a real defect and it is worth having fixed, but for Awami it was **latent, not
+visible**: checked live, Awami's one real day (2026-09-19) was started with typed openings of 0/0/0 and no cash
+voucher has been entered yet, so report and sheet both read zero and agreed by accident. The −60,000 / +440,000
+divergence quoted in the finding is from the fix-pass-2 fixture, which opens at 500,000. It would have become a
+wrong printed number the first time a non-zero opening or a cash voucher existed — which is to say, on the
+owner's first real day of entry.
+
+### MEDIUM-1 — a voucher header with no legs
+
+`nf_voucher_balance_check` is a deferred constraint trigger on `nf_voucher_**legs**`, so it only fires if a leg
+row is touched; a header inserted alone never fired it. `nf_voucher_has_legs_check` is the mirror on the header.
+`DEFERRABLE INITIALLY DEFERRED` is what makes it usable: `nf_post_voucher` writes the header and then its legs
+inside one statement, so the check runs at COMMIT and sees them — an IMMEDIATE check would reject every voucher
+the system creates. That is verified, not assumed: every `H-G02` line of the golden day still posts, and the
+suite is green.
+
+**Scope beyond the letter of the brief, stated rather than slipped in.** The brief said INSERT; this also fires
+on `UPDATE OF status`. A header inserted `DRAFT` (legal — `nf_vouchers_status_check` allows DRAFT/POSTED/VOID)
+and later flipped to POSTED with no legs is the same hole through a different door, and the legs trigger would
+not catch that either. `UPDATE OF status` is narrow on purpose: `nf_save_line` updates
+`voucher_no`/`narration`/`version` on every edit and must not re-run this. The migration also refuses to apply
+if any existing POSTED voucher already has fewer than two legs (checked live: none, company-wide).
+
+### MEDIUM-2 — the dormant tests, and two suites that looked broken every run
+
+Two things, and the first matters more than the second.
+
+**The tests now run.** `verify-nf-schema.js`'s R1 block has been dormant since the schema was installed. Read
+honestly, R1-01 (one paisa over the drawer) was *not* actually missing — `verify-nf-rules.js` already had it as
+`H-R1 the CPV-1222 invariant`, same 313000.01. The two that were genuinely uncovered are **R1-05 and R1-06**,
+and they are the interesting ones, because they attack R1 from the side nothing else does: not a payment bigger
+than the drawer, but **shrinking money that is already there**. Deleting a receipt, or editing one downwards,
+reduces the position exactly as a payment does, and a guard that only inspects new payments would wave both
+through.
+
+Ported as `H-R1b..H-R1g`, against a live scratch company. R1-02/03/04 came along because they build the state
+R1-05/06 need. The schema suite could hardcode 313000 because it owned a pristine day; the rules suite's day 2
+has already been written to by the checks above it, so the amounts are read live from `nf_get_report` and the
+*shape* is what was ported, not the numbers. `H-R1g` then asserts the drawer is still 50000 — SR-9: a refusal
+must not have half-applied, so assert the money and not only the error code.
+
+**And the two suites stop crying wolf.** `verify-nf-schema.js` and `verify-nf-de-migration.js` are both
+from-scratch rehearsals: they replay `CREATE TABLE` into `public` and abort with `42P07 … already exists`
+hundreds of statements before any assertion. That raw abort read like a regression in every regression run.
+Each now probes for its own first table (`nf_members`, `nf_parties`) and exits 0 with an explicit
+*"SKIPPED — from-scratch rehearsal, not runnable on a populated schema"*, naming where its live coverage went.
+**Not made idempotent, on the owner's explicit instruction and for a good reason**: the value of a from-scratch
+rehearsal is that it is from scratch, and one rewritten to tolerate an existing schema would be a different,
+weaker test wearing the same name.
+
+### MEDIUM-3 — a failed recovery is no longer silent
+
+`js/nf/nf-sheet.js`'s `serialDebounce` had `.catch(function () {})`. Every `fn()` it drives already catches its
+own save error, toasts it, and returns `refresh()` to re-sync — so anything still rejecting at that point is
+**the recovery itself failing**, leaving the person looking at a sheet that had quietly stopped matching the
+database with no sign anything was wrong. It now toasts "Screen refresh failed — reload." and logs the error.
+The queue still drains either way: the `.then()` runs whether the run rejected or not, so a failure can never
+wedge `running` true or strand a pending edit.
+
+**Honest limitation: this one has no automated coverage.** Forcing a `refresh()` rejection in the real browser
+would mean stubbing the API layer from inside the page, which is a bigger and more invasive change than the fix.
+It is a read-and-reason change, and it is the only item in this pass that is not backed by a test.
+
+### LOW-1 / LOW-2
+
+LOW-1 is a **comment-only** change in `nf_days_guard`'s reopen branch. The old text ended "period locking does
+not exist yet"; half of it exists now, and it is the half that mattered — `20260919k` refuses to touch a voucher
+already written to an IIF batch (`NF:VOUCHER_ALREADY_EXPORTED`, in both `nf_save_line` and `nf_delete_line`, both
+verified in the live bodies) and `20260919p` added `NF:PERIOD_CLOSED` to `nf_jv_save`/`nf_jv_delete`. So
+reopening a day can no longer be used to **edit** a voucher QuickBooks already has. What is still missing is the
+day-level gate: reopening such a day is still permitted and a **new** line may still be added to it. The comment
+now says exactly that.
+
+Because this meant re-emitting a 170-line function body to change a comment, the migration section was
+**generated** from the live catalog rather than retyped: the generator asserts that the comment block matched
+verbatim before replacing it, and then that stripping every comment line from the before and after leaves two
+identical texts. A transcription error could not have survived that.
+
+LOW-2 needs no code. The standing rule, recorded here so it is findable: **any NEW write path that accepts an
+amount must route it through `nf_check_amount`.** The columns are `numeric(14,2)` and would silently *round* a
+third decimal; only the RPC layer refuses it (`NF:AMOUNT_SCALE`). Every current path does; the gap is latent and
+stays latent only as long as that remains true.
+
+### Two things the red run found that were mine, not the code's
+
+- **`voucher_key` is a GENERATED column.** The first version of the legless-header test tried to insert it and
+  got `428C9: cannot insert a non-DEFAULT value into column "voucher_key"` — the test was wrong, not the
+  trigger. Worth writing down: the header's natural key is derived, not supplied.
+- **`process.exit(0)` in the schema suite's new skip path crashed Node.** The probe's fetch keep-alive socket is
+  still open at that point, and a hard exit on Windows trips libuv's
+  `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` and reports **127** — a clean skip that looked like a
+  crash. Changed to `process.exitCode = 0; return;`, which is what the sibling suite already did.
+
+### One flake, recorded as a flake, with its evidence
+
+`RACE-OK overlap` failed once in the red run — `side2 blocked by side1: false`, `pid1 undefined`, `2 samples` —
+while both sides still returned 201, i.e. the *behaviour* assertion passed and only the overlap *observer*
+missed its window. It passed on the green run of the same code, and the standalone `verify-nf-race-harness.js`
+(whose whole job is to prove the instrument sees a real overlap and does not invent one) passed both times. So:
+a sampling flake in the observer, not a regression and not caused by this pass's added writes to day 2.
+Recorded rather than re-run past — same discipline as §38's transient.
+
+### Full regression — real output, one suite at a time
+
+| suite | result |
+|---|---|
+| rules | **66/66** (was 58 — R1-01..06 ported + MEDIUM-1) |
+| golden day (UI) | 34/34 |
+| dry run | **33/33** (was 30 — the three MEDIUM-4 checks) |
+| cash-via-day-only | 27/27 |
+| journal vouchers | 18/18 |
+| director report | 18/18 |
+| jv-harden | 15/15 |
+| party field | 15/15 |
+| General Journal | 14/14 |
+| General Ledger | 12/12 |
+| Trial Balance | 10/10 |
+| race harness | 3/3 |
+| schema rehearsal | SKIPPED, exit 0, clear message |
+| de-migration rehearsal | SKIPPED, exit 0, clear message |
+
+**265 checks, nothing red, and no suite exits non-zero any more.**
+
+Live re-confirmed after the migration: Awami 64 vouchers, **0** posted vouchers anywhere with fewer than two
+legs, report opening == sheet opening on the real first day, `nf_get_cash_bank_movement` still `authenticated`
+only (no anon, no PUBLIC), one overload each of both changed functions, and `nf_voucher_has_legs_check` holding
+nothing beyond `postgres`/`service_role`.

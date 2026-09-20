@@ -42,7 +42,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { REF, TOKEN } = require('../_sbq');
+const { q, REF, TOKEN } = require('../_sbq');
 const { buildSeed, seedSql } = require('./gen-seed');
 const { WRITTEN_OUTSIDE_NF } = require('./write-guard');
 
@@ -643,6 +643,41 @@ function summarise(results, expectedIds) {
   console.log(`[verify-nf-schema] project ${REF} · run ${run}`);
   console.log(`  migrations: ${FILES.join(', ')} + seed built by gen-seed.js`);
   console.log('  everything runs in ONE transaction that ends in a deliberate exception — nothing can be committed.\n');
+
+  // ── AUDIT_REPORT.md MEDIUM-2 ────────────────────────────────────────────
+  // This is a FROM-SCRATCH rehearsal: it replays CREATE TABLE statements into
+  // public and can only work against a project that does not have the schema
+  // yet. Once NexuFinance is installed — which it has been since 2026-09-16 —
+  // the batch dies on `42P07: relation "nf_members" already exists`, several
+  // hundred statements before any assertion is evaluated. Every check it
+  // contains has therefore been silently dormant, which is what MEDIUM-2 is
+  // about; the three that mattered most (R1-01 one-paisa-over, R1-05
+  // delete-shrinks-the-position, R1-06 edit-shrinks-the-position) now run for
+  // real in verify-nf-rules.js as H-R1/H-R1b..H-R1g against a live scratch
+  // company.
+  //
+  // Deliberately NOT made idempotent (owner, fix pass 3): the value of a
+  // from-scratch rehearsal is that it is from scratch. Rewriting it to
+  // tolerate an existing schema would make it a different, weaker test
+  // wearing the same name. It exits cleanly instead, so it reads as "not
+  // applicable here" rather than as a failure — the raw 42P07 looked like a
+  // regression every time the suite was run.
+  try {
+    const [pop] = await q(`select to_regclass('public.nf_members') is not null as installed`);
+    if (pop.installed) {
+      console.log('SKIPPED — from-scratch rehearsal, not runnable on a populated schema.');
+      console.log('  public.nf_members already exists, so the CREATE TABLE replay would abort with 42P07');
+      console.log('  before reaching a single assertion. This is expected on any project where');
+      console.log('  NexuFinance is installed; it is not a regression.');
+      console.log('  Its live coverage lives in verify-nf-rules.js (H-R1b..H-R1g) — see AUDIT_REPORT.md MEDIUM-2.');
+      // exitCode + return, NOT process.exit(0): the probe's fetch keep-alive
+      // socket is still open at this point, and a hard exit on Windows trips
+      // libuv's `!(handle->flags & UV_HANDLE_CLOSING)` assertion and leaves
+      // the process reporting 127 — a clean skip that looks like a crash.
+      process.exitCode = 0;
+      return;
+    }
+  } catch (e) { console.error('COULD NOT RUN — schema probe failed:', e.message); process.exit(2); }
 
   let built;
   try { built = buildSeed(); } catch (e) { console.error('COULD NOT RUN — seed:', e.message); process.exit(2); }

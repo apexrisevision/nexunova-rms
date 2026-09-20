@@ -384,6 +384,71 @@ if (require.main === module) (async () => {
     r = await line(A, 'OUT', 'CPV-900', '12610', 'P-W', 'Cash', 1000);
     ok('H-R4 director receivable as a head', r.status === 200, JSON.stringify(r.json));
 
+    // ── R1 edge cases ported from verify-nf-schema.js (AUDIT_REPORT.md
+    //    MEDIUM-2) ───────────────────────────────────────────────────────────
+    // R1-01/05/06 lived only in the from-scratch rehearsal suite, which aborts
+    // on a populated schema and so has not actually run in a long time. They
+    // are the strongest tests of R1 there are, because they attack it from the
+    // side nothing else does: not "a payment bigger than the drawer" (H-R1
+    // above already covers that, and is R1-01 by another name), but
+    // **shrinking the money that is already there**. Deleting a receipt, or
+    // editing one downwards, reduces the position exactly as a payment does —
+    // and a guard that only looks at new payments would wave both through.
+    //
+    // The schema suite could hardcode 313000 because it owned a pristine day.
+    // Here day 2 has already been written to by the checks above, so the
+    // amounts are read live and the shape is what is being ported, not the
+    // numbers: spend the drawer to exactly zero, take a receipt in, spend most
+    // of it, then try to remove the receipt underneath what was spent.
+    const cashOf = async () => {
+      const g = await rpc(K, D, 'nf_get_report', { p_day_id: day2 });
+      if (g.status !== 200) throw new Error('cashOf: ' + JSON.stringify(g.json));
+      return Number(g.json.accounts.find(a => a.via === 'Cash').closing);
+    };
+    const inDrawer = await cashOf();
+    r = await line(A, 'OUT', 'CPV-1101', '81300', 'P-W', 'Cash', inDrawer);
+    ok('H-R1b exactly the drawer is allowed (R1-02)', r.status === 200 && (await cashOf()) === 0, JSON.stringify(r.json).slice(0, 200));
+    r = await line(A, 'IN', 'CRV-1101', '21100', 'GF', 'Cash', 150000, { p_party_name: 'Golden Day Test Customer' });
+    ok('H-R1c a receipt refills it (R1-03)', r.status === 200 && (await cashOf()) === 150000, JSON.stringify(r.json).slice(0, 200));
+    r = await line(A, 'OUT', 'CPV-1102', '52600', 'P-W', 'Cash', 100000);
+    ok('H-R1d spending most of it leaves 50000 (R1-04)', r.status === 200 && (await cashOf()) === 50000, JSON.stringify(r.json).slice(0, 200));
+
+    const [rl] = await q(`select id, version from public.nf_lines where day_id = '${day2}' and voucher_key = 'CRV-1101'`);
+    // R1-05: DELETING the receipt would leave −100000. The dormant test.
+    r = await rpc(K, A, 'nf_delete_line', { p_line_id: rl.id, p_version: rl.version });
+    ok('H-R1e deleting a receipt that is already spent is refused (R1-05)',
+      code(r) === 'NF:NEGATIVE_POSITION', JSON.stringify(r.json));
+    // R1-06: EDITING it down to 50000 would leave −50000. Also dormant.
+    r = await rpc(K, A, 'nf_save_line', { p_day_id: day2, p_line_id: rl.id, p_side: 'IN', p_voucher_no: 'CRV-1101',
+      p_description: 'edited down', p_head: '21100', p_floor: 'GF', p_via: 'Cash', p_amount: 50000,
+      p_version: rl.version, p_party_name: 'Golden Day Test Customer' });
+    ok('H-R1f editing a receipt downwards past what was spent is refused (R1-06)',
+      code(r) === 'NF:NEGATIVE_POSITION', JSON.stringify(r.json));
+    // SR-9: a refusal must not have half-applied. Assert the money, not just
+    // the error code.
+    ok('H-R1g neither refusal changed the drawer', (await cashOf()) === 50000, 'cash is now ' + (await cashOf()));
+
+    // ── MEDIUM-1: a voucher header with no legs, inserted as service_role ────
+    // nf_voucher_balance_check is a constraint trigger on nf_voucher_LEGS, so
+    // a header written with no legs at all never fired it. 20260920b adds the
+    // mirror on the header. DEFERRED, so this must survive until COMMIT and
+    // fail there — which is also what lets every real voucher through, since
+    // nf_post_voucher writes header and legs in the same transaction (proved
+    // by every H-G02 above, which all still pass).
+    let legless = null;
+    try {
+      await q(`BEGIN;
+        INSERT INTO public.nf_vouchers (company_id, day_id, voucher_no, voucher_date,
+                                        narration, status, sort, created_by, posted_by, posted_at)
+        VALUES ('${C}', NULL, 'ZZ-NOLEGS', CURRENT_DATE, 'header with no legs',
+                'POSTED', 0, '${users.A.id}', '${users.A.id}', now());
+        COMMIT;`);
+    } catch (e) { legless = e.message; }
+    ok('H-M1 a POSTED voucher header with no legs is refused at COMMIT',
+      !!legless && /NF:VOUCHER_NEEDS_TWO_LEGS/.test(legless), legless || 'the INSERT was ACCEPTED');
+    const [noLeg] = await q(`select count(*) n from public.nf_vouchers where company_id='${C}' and voucher_key='ZZ-NOLEGS'`);
+    ok('H-M1 …and no such row survived', Number(noLeg.n) === 0, `${noLeg.n} rows`);
+
     // ── roles and the doors past the RPCs ────────────────────────────────────
     r = await line(V, 'IN', 'CRV-901', '21100', 'GF', 'Cash', 1);
     ok('H-V viewer writes', code(r) === 'NF:NOT_ALLOWED', JSON.stringify(r.json));

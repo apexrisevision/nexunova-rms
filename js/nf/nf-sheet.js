@@ -598,7 +598,20 @@
       var timer = null, running = false, pending = false;
       function runNow() {
         running = true;
-        fn().catch(function () {}).then(function () {
+        // AUDIT_REPORT.md MEDIUM-3. This used to be `.catch(function () {})`.
+        // Every fn() below already catches its OWN save error, toasts it and
+        // returns refresh() to re-sync the screen — so anything still
+        // rejecting here is that recovery itself failing. Swallowing it left
+        // the person looking at a sheet that had silently stopped matching
+        // the database, with no sign anything was wrong. The one thing they
+        // can actually do about it is reload, so say that.
+        // The queue must still drain either way: .then() below runs whether
+        // this rejected or not, so a failed run never wedges `running` true
+        // and never strands a pending edit.
+        fn().catch(function (err) {
+          toast('Screen refresh failed — reload.', true);
+          if (window.console && console.error) console.error('[nf-sheet] background save/refresh failed', err);
+        }).then(function () {
           running = false;
           if (pending) { pending = false; runNow(); }
         });

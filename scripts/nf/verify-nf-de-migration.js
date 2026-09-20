@@ -323,6 +323,30 @@ INSERT INTO nf_rehearsal_log VALUES ('2_rupee_exact_migration',
 SELECT step, detail FROM nf_rehearsal_log ORDER BY step;
 `;
 
+  // ── AUDIT_REPORT.md MEDIUM-2 (second instance, found in fix pass 2) ─────
+  // Same class as verify-nf-schema.js: this replays 20260918a's CREATE TABLE
+  // statements, so on any project that already has the double-entry schema it
+  // aborts with `42P07: relation "nf_parties" already exists` inside its own
+  // BEGIN…ROLLBACK, long before the checks below. The HISTORICAL banner at
+  // the top of this file has said "frozen, do not re-run" since it was
+  // written — this makes the script itself say so, instead of emitting a raw
+  // Postgres abort that reads like a regression in every regression run.
+  //
+  // Deliberately NOT made idempotent (owner, fix pass 3), for the same reason
+  // as its sibling: a from-scratch rehearsal that tolerates an existing
+  // schema is no longer the test it claims to be.
+  try {
+    const [pop] = await q(`select to_regclass('public.nf_parties') is not null as installed`);
+    if (pop.installed) {
+      say('SKIPPED — from-scratch rehearsal, not runnable on a populated schema.');
+      say('  public.nf_parties already exists, so replaying 20260918a would abort with 42P07.');
+      say('  This script is HISTORICAL (see the banner at the top of this file): the migration it');
+      say('  rehearsed was applied on 2026-09-18 and its result already shipped. Expected, not a regression.');
+      process.exitCode = 0;
+      return;
+    }
+  } catch (e) { say('COULD NOT RUN — schema probe failed: ' + String(e.message || e)); process.exitCode = 2; return; }
+
   const full = `BEGIN;\n${combined}\n${checks}\nROLLBACK;\n`;
   fs.writeFileSync(OUT, full, 'utf8');
   say(`SQL written to ${OUT} (${full.length} bytes)`);

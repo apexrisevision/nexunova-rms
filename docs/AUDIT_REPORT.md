@@ -36,6 +36,26 @@ CPV-1222.
 
 ---
 
+## 1b · Status after fix passes 1–3 (added 2026-09-20; the findings below are left as written)
+
+The report above is the read-only record of what was found and is deliberately **not** rewritten. This table is
+the only thing added: where each finding stands after the three fix passes the owner authorised.
+
+| finding | status | closed by | proved by |
+|---|---|---|---|
+| CRITICAL-1 — a JV can drive cash negative | **closed** | `20260920a` — `NF:CASH_VIA_DAY_ONLY`; the position guard no longer skips a day-less voucher | `verify-nf-cash-via-day-only.js` CVD-05..09, run red first (17/26 failed) |
+| CRITICAL-2 — opening date-scoped vs closing day-scoped | **closed** | same migration: with no via leg possible off the day path, the two agree by construction | CVD-24, dry run S6 carry-forward past a JV's own date |
+| CRITICAL-3 — imported history deletable from the JV screen | **closed** | `20260919p` — `nf_vouchers.source`, `nf_jv_list` filtered, `nf_jv_delete` `IMPORTED_LOCKED` | `verify-nf-jv-harden.js` 15/15 |
+| HIGH-1 — `nf_accounts_head_not_via` missing | **closed** | `20260920a` — constraint restored after splitting `is_head`'s two meanings | CVD-10 (flips the flag back and requires the CHECK to stop it) |
+| MEDIUM-1 — legless voucher header possible | **closed** | `20260920b` — `nf_voucher_has_legs_check`, deferred constraint trigger on the header | `verify-nf-rules.js` H-M1 |
+| MEDIUM-2 — strongest R1 tests in a suite that cannot run | **closed** | R1-01/05/06 ported live into `verify-nf-rules.js`; both rehearsal suites now skip cleanly instead of aborting | H-R1, H-R1b..H-R1g |
+| MEDIUM-3 — failed refresh swallowed | **closed** | `js/nf/nf-sheet.js` `serialDebounce` now toasts "Screen refresh failed — reload" | read-only change; **no automated coverage** — see §40 in PLAN.md |
+| MEDIUM-4 — report opening ≠ sheet opening | **closed** | `20260920b` — the report calls `nf_ledger_position`, the sheet's own function | dry run S6 MEDIUM-4 (first day *and* a later day), CVD-32 |
+| LOW-1 — reopen has no period gate | **partly; comment corrected** | `20260919k`/`20260919p` lock the exported *voucher*; the *day*-level gate is still future work, now said so in `nf_days_guard` | no functional change |
+| LOW-2 — amount scale checked in RPCs, not the column | **open by decision** | no action; standing rule recorded instead: any NEW write path must route through `nf_check_amount` | — |
+
+---
+
 ## 2 · Findings
 
 ### CRITICAL-1 — A journal voucher can drive Cash / Petty / Bank negative

@@ -467,6 +467,38 @@ async function enterLine(page, side, v, d, head, floor, via, amount, party) {
         && String(pos3o.petty) === String(pos2c.close_petty) && String(pos3o.bank) === String(pos2c.close_bank);
       ok('S6 the carry-forward past the journal voucher\'s own date still ties (date-scoped == day-scoped)',
         carry, `day2 close ${JSON.stringify(pos2c)} vs next opening ${JSON.stringify(pos3o)}`);
+      // ── MEDIUM-4 · the director's report and the sheet must open at the
+      //    same number ─────────────────────────────────────────────────────
+      // nf_get_cash_bank_movement used to derive `opening` purely from voucher
+      // legs and never read nf_days.typed_open_*, so it silently dropped the
+      // money the company started with: this same fixture read −60,000 there
+      // and +440,000 on the sheet. 20260920b makes it ask nf_ledger_position —
+      // the sheet's own function — so the two cannot drift apart again.
+      // Checked on the FIRST day (where the opening is typed by hand) and on a
+      // LATER day (where it is carried forward), because those are two
+      // different branches of nf_position_row.
+      const reportOpening = async (from) => {
+        const [x] = await q(`select set_config('request.jwt.claim.sub','${users.D.id}',true);
+          select public.nf_get_cash_bank_movement('${C}', date '${from}', date '${from}') j`);
+        return Object.fromEntries((x.j.accounts || []).map(a => [a.code, Number(a.opening)]));
+      };
+      const sheetOpening = async (dayIdent) => {
+        const [x] = await q(`select set_config('request.jwt.claim.sub','${users.D.id}',true);
+          select open_cash, open_petty, open_bank from nf_position_row(${dayIdent})`);
+        return { '10100': Number(x.open_cash), '10200': Number(x.open_petty), '10300': Number(x.open_bank) };
+      };
+      const day1Ident = `(select id from nf_days where company_id='${C}' and business_date='${DAY1}')`;
+      const [rep1, sheet1] = [await reportOpening(DAY1), await sheetOpening(day1Ident)];
+      ok('S6 MEDIUM-4 · report opening == sheet opening on the FIRST day (typed by hand)',
+        JSON.stringify(rep1) === JSON.stringify(sheet1), `report ${JSON.stringify(rep1)} vs sheet ${JSON.stringify(sheet1)}`);
+      const [rep2, sheet2] = [await reportOpening(DAY2), await sheetOpening(`'${day2.id}'`)];
+      ok('S6 MEDIUM-4 · report opening == sheet opening on a LATER day (carried forward)',
+        JSON.stringify(rep2) === JSON.stringify(sheet2), `report ${JSON.stringify(rep2)} vs sheet ${JSON.stringify(sheet2)}`);
+      // not vacuous: the first day really did start with money typed in, so a
+      // report that ignored it would differ rather than coincidentally match
+      ok('S6 MEDIUM-4 · …and that opening is a real non-zero figure',
+        Number(sheet1['10100']) > 0, JSON.stringify(sheet1));
+
       // and the ledger agrees with the screen
       ok('S6 the closed day is locked against further entry',
         (await q(`select status from nf_days where id=(select id from nf_days where company_id='${C}' and business_date='${DAY1}')`))[0].status === 'CLOSED', '');
