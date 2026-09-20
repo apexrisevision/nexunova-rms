@@ -3136,3 +3136,10 @@ daily-workflow dry run 26/26 · rules 58/58. **205 checks, nothing red.** The jo
 fix of its own along the way: Clear rebuilds the form on a deferred tick, so the test had to settle before
 typing or its voucher number landed in the input that was about to be replaced — the same class of race the
 ledger's double render caused, and worth recognising on sight now.
+
+**One push-gate failure along the way, with a concrete cause rather than a shrug.** The gate's Sales Portal
+smoke came back 31/38 and blocked the push, on a commit that changed a single markdown file and so could not
+possibly have caused it. Re-run on its own immediately afterwards: 38/38. The explanation is not "transient" —
+a NexuFinance suite was deliberately running at that moment, and both it and the gate's smoke drive headless
+Chrome against the same live Supabase project. **Do not run a suite while pushing;** the gate needs the
+project and the machine to itself. Same shape as §15.3's earlier unexplained gate failure, now with a cause.
