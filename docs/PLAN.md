@@ -3129,3 +3129,10 @@ take the highlighted row, Escape to abandon the search and restore what was ther
 - A test-side trap worth recording: `String.prototype.replace` treats `$$` in the replacement as a literal
   `$`, which silently turned a generated `page.$$eval` into `page.$eval` and produced a confusing
   "failed to find element" instead of an empty list.
+
+**Full regression after the picker, every suite green:** golden day 34/34 · party field 15/15 · journal
+vouchers 18/18 · General Ledger 12/12 · General Journal 14/14 · Trial Balance 10/10 · director report 18/18 ·
+daily-workflow dry run 26/26 · rules 58/58. **205 checks, nothing red.** The journal-voucher suite needed one
+fix of its own along the way: Clear rebuilds the form on a deferred tick, so the test had to settle before
+typing or its voucher number landed in the input that was about to be replaced — the same class of race the
+ledger's double render caused, and worth recognising on sight now.
