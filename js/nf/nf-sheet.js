@@ -197,10 +197,17 @@
         return '<option value="' + esc(v.via) + '"' + (v.via === selected ? ' selected' : '') + '>' + esc(v.via) + '</option>';
       }).join('');
     };
-    var headOpts = function (selected) {
-      return '<option value="">Select head</option>' + S.heads.map(function (h) {
-        return '<option value="' + esc(h.code) + '"' + (h.code === selected ? ' selected' : '') + '>' + esc(h.code) + '  ' + esc(h.name) + '</option>';
-      }).join('');
+    // The head used to be a <select> of 82 accounts. A native select only
+    // jumps to options that START with what you type, so reaching
+    // "12610 Syed Yousaf Shah" meant typing the digits or scrolling. It is
+    // now the shared type-to-search picker (js/nf/nf-pick.js), which matches
+    // anywhere in the code OR the name — owner, 2026-09-20: type Y and
+    // Yousaf should come up.
+    var headPick = function (selected, missing) {
+      return global.NfPick.html({
+        key: 'head', value: selected || '', label: global.NfPick.accountLabel(S.heads, selected),
+        placeholder: 'Select head', ariaLabel: 'Account head', missing: missing, disabled: !canWrite,
+      });
     };
     function headName(code) { var h = S.heads.filter(function (x) { return x.code === code; })[0]; return h ? h.name : ''; }
 
@@ -216,17 +223,17 @@
     // not re-rendered from render() — same reasoning as every other text
     // field in this file: rebuilding the row mid-keystroke drops focus.
     function partyFieldHTML(value, missing) {
-      return '<div class="party-field' + (missing ? ' miss' : '') + '" data-party-wrap>' +
-        '<input data-k="p" value="' + esc(value || '') + '" placeholder="Party" autocomplete="off" aria-label="Party">' +
-        '<div class="party-dd" hidden></div>' +
-        '</div>';
+      return global.NfPick.html({
+        key: 'party', value: value || '', label: value || '',
+        placeholder: 'Party', ariaLabel: 'Party', missing: missing,
+      });
     }
     function savedRowHTML(side, l) {
       return '<div class="grid row" data-saved="1" data-id="' + l.id + '" data-version="' + l.version + '" data-side="' + side + '">' +
         '<input class="vno" data-k="v" value="' + esc(l.voucher_no) + '" ' + (canWrite ? '' : 'disabled') + ' aria-label="Voucher number">' +
         '<div class="desc"><input data-k="d" value="' + esc(l.description || '') + '" placeholder="Description" ' + (canWrite ? '' : 'disabled') + ' aria-label="Description">' +
-        '<select data-k="h" ' + (canWrite ? '' : 'disabled') + ' aria-label="Account head">' + headOpts(l.head_code) + '</select></div>' +
-        (canWrite ? partyFieldHTML(l.party_name, false) : '<div class="party-field ro">' + esc(l.party_name || '') + '</div>') +
+        headPick(l.head_code, false) + '</div>' +
+        (canWrite ? partyFieldHTML(l.party_name, false) : '<div class="nfpick ro">' + esc(l.party_name || '') + '</div>') +
         '<select class="sel" data-k="f" ' + (canWrite ? '' : 'disabled') + ' aria-label="Floor">' + floorOpts(l.floor_code) + '</select>' +
         '<select class="sel" data-k="m" ' + (canWrite ? '' : 'disabled') + ' aria-label="Cash, petty or bank">' + viaOpts(l.via) + '</select>' +
         '<input class="amt" data-k="a" inputmode="decimal" value="' + F.grp(l.amount) + '" ' + (canWrite ? '' : 'disabled') + ' aria-label="Amount">' +
@@ -238,7 +245,7 @@
       return '<div class="grid row draft' + (r.error ? ' err' : '') + '" data-draft="' + r.tmpId + '" data-side="' + side + '">' +
         '<input class="vno" data-k="v" value="' + esc(r.v) + '" placeholder="' + (side === 'IN' ? 'CRV-' : 'CPV-') + '" aria-label="Voucher number">' +
         '<div class="desc"><input data-k="d" value="' + esc(r.d) + '" placeholder="Description" aria-label="Description">' +
-        '<select data-k="h" aria-label="Account head" class="' + (errField === 'head' ? 'miss' : '') + '">' + headOpts(r.h) + '</select></div>' +
+        headPick(r.h, errField === 'head') + '</div>' +
         partyFieldHTML(r.p, errField === 'party') +
         '<select class="sel" data-k="f" aria-label="Floor">' + floorOpts(r.f) + '</select>' +
         '<select class="sel" data-k="m" aria-label="Cash, petty or bank">' + viaOpts(r.m) + '</select>' +
@@ -578,61 +585,6 @@
         });
     }
 
-    // Search-first party field: filters S.parties (name + aliases) as the
-    // user types, and only ever offers "add new" once that search has
-    // visibly returned nothing — never as the first or easiest action, per
-    // the owner's own requirement (see partyFieldHTML above). Selection
-    // uses mousedown with preventDefault, not click, so the dropdown item
-    // registers BEFORE the input's blur fires and hides it out from under
-    // the click.
-    function partyMatches(query) {
-      var q = (query || '').trim().toLowerCase();
-      var list = S.parties || [];
-      if (!q) return list.slice(0, 8);
-      return list.filter(function (p) {
-        if ((p.name || '').toLowerCase().indexOf(q) !== -1) return true;
-        return (p.aliases || []).some(function (a) { return (a || '').toLowerCase().indexOf(q) !== -1; });
-      }).slice(0, 8);
-    }
-    function renderPartyDropdown(dd, query) {
-      var q = (query || '').trim();
-      var items = partyMatches(q);
-      var html;
-      if (items.length) {
-        html = items.map(function (p) {
-          return '<div class="party-opt" data-party-pick="' + esc(p.name) + '">' + esc(p.name) +
-            (p.aliases && p.aliases.length ? ' <span class="party-alias">(' + esc(p.aliases.join(', ')) + ')</span>' : '') +
-            '</div>';
-        }).join('');
-      } else if (q) {
-        html = '<div class="party-opt party-add" data-party-add="' + esc(q) + '">+ Add new party “' + esc(q) + '”</div>';
-      } else {
-        html = '';
-      }
-      dd.innerHTML = html;
-      dd.hidden = !html;
-    }
-    function wirePartyFields(onPick) {
-      root.querySelectorAll('[data-party-wrap]').forEach(function (wrap) {
-        var input = wrap.querySelector('input[data-k="p"]');
-        var dd = wrap.querySelector('.party-dd');
-        if (!input || !dd) return;
-        input.addEventListener('focus', function () { renderPartyDropdown(dd, input.value); });
-        input.addEventListener('input', function () { renderPartyDropdown(dd, input.value); });
-        input.addEventListener('blur', function () { setTimeout(function () { dd.hidden = true; }, 150); });
-        input.addEventListener('keydown', function (e) { if (e.key === 'Escape') dd.hidden = true; });
-        dd.addEventListener('mousedown', function (e) {
-          var opt = e.target.closest('[data-party-pick],[data-party-add]');
-          if (!opt) return;
-          e.preventDefault();
-          var name = opt.getAttribute('data-party-pick') || opt.getAttribute('data-party-add');
-          input.value = name;
-          dd.hidden = true;
-          onPick(wrap, name);
-        });
-      });
-    }
-
     // A plain debounce let two edits typed more than `ms` apart (a normal
     // pause between two denomination fields) fire as two SEPARATE requests.
     // Both read S.day.version before either had resolved, both sent the same
@@ -781,9 +733,12 @@
         if (!canWrite) return;
         var id = rowEl.getAttribute('data-id'), version = Number(rowEl.getAttribute('data-version')), side = rowEl.getAttribute('data-side');
         rowEl.querySelectorAll('[data-k]').forEach(function (inp) {
+          // head and party are no longer data-k fields — they are pickers and
+          // route through NfPick.wire below. Only voucher, description, floor,
+          // via and amount still live as plain inputs/selects here.
           inp.addEventListener('change', function () {
             var k = inp.getAttribute('data-k');
-            var patch = {}; patch[{ v: 'voucher_no', d: 'description', h: 'head_code', f: 'floor_code', m: 'via', a: 'amount', p: 'party_name' }[k]] = k === 'a' ? F.n(inp.value) : inp.value;
+            var patch = {}; patch[{ v: 'voucher_no', d: 'description', f: 'floor_code', m: 'via', a: 'amount' }[k]] = k === 'a' ? F.n(inp.value) : inp.value;
             saveSavedLine(side, id, version, patch);
           });
         });
@@ -796,22 +751,66 @@
         });
       });
 
-      // party field — search-first dropdown, shared between draft and saved
-      // rows; picking an item saves through the same path blur/change
-      // already use for that row type (trySaveDraft / saveSavedLine).
-      wirePartyFields(function (wrap, name) {
-        var draftRow = wrap.closest('.row.draft');
-        if (draftRow) {
-          var side = draftRow.getAttribute('data-side'), tmpId = draftRow.getAttribute('data-draft');
-          var r = drafts[side].filter(function (x) { return x.tmpId === tmpId; })[0];
-          if (r) { r.p = name; r.error = null; ensureTrailingBlank(side); trySaveDraft(side, tmpId); }
-          return;
+      // The head and the party are both the shared type-to-search picker
+      // (js/nf/nf-pick.js). Each one routes its choice into the same path
+      // the old <select>'s change handler used for that row type: a draft
+      // row updates its own draft and tries to save, a saved row goes
+      // straight through saveSavedLine. The head redraws afterwards because
+      // whether the party is REQUIRED depends on which head was picked.
+      function rowOf(wrap) {
+        var d = wrap.closest('.row.draft');
+        if (d) return { draft: true, side: d.getAttribute('data-side'), tmpId: d.getAttribute('data-draft') };
+        var sv = wrap.closest('.row[data-saved]');
+        if (sv && canWrite) {
+          return { draft: false, side: sv.getAttribute('data-side'), id: sv.getAttribute('data-id'),
+                   version: Number(sv.getAttribute('data-version')) };
         }
-        var savedRow = wrap.closest('.row[data-saved]');
-        if (savedRow && canWrite) {
-          var id = savedRow.getAttribute('data-id'), version = Number(savedRow.getAttribute('data-version')), sside = savedRow.getAttribute('data-side');
-          saveSavedLine(sside, id, version, { party_name: name });
-        }
+        return null;
+      }
+      global.NfPick.wire(root, {
+        key: 'head',
+        items: function () { return global.NfPick.accountItems(S.heads); },
+        emptyText: 'No head matches that. Heads are never created here.',
+        onPick: function (wrap, code) {
+          var at = rowOf(wrap);
+          if (!at) return;
+          if (at.draft) {
+            var r = drafts[at.side].filter(function (x) { return x.tmpId === at.tmpId; })[0];
+            if (!r) return;
+            r.h = code; r.error = null;
+            ensureTrailingBlank(at.side);
+            // Deferred: onPick runs inside the picker's own mousedown, and
+            // rebuilding the row's DOM from inside the event that is still
+            // being dispatched on it is the same hazard the journal-voucher
+            // screen hit on blur. A redraw IS needed here — whether the party
+            // is required depends on the head just chosen — so it happens on
+            // the next tick instead.
+            setTimeout(function () {
+              render();
+              trySaveDraft(at.side, at.tmpId);
+            }, 0);
+          } else {
+            saveSavedLine(at.side, at.id, at.version, { head_code: code });
+          }
+        },
+      });
+      global.NfPick.wire(root, {
+        key: 'party',
+        items: function () { return global.NfPick.partyItems(S.parties); },
+        allowCreate: true,
+        onPick: function (wrap, name) {
+          var at = rowOf(wrap);
+          if (!at) return;
+          if (at.draft) {
+            var r = drafts[at.side].filter(function (x) { return x.tmpId === at.tmpId; })[0];
+            if (!r) return;
+            r.p = name; r.error = null;
+            ensureTrailingBlank(at.side);
+            trySaveDraft(at.side, at.tmpId);
+          } else {
+            saveSavedLine(at.side, at.id, at.version, { party_name: name });
+          }
+        },
       });
 
       // add-row buttons

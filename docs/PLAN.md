@@ -3078,3 +3078,54 @@ Golden day 34/34, twice in a row after the fix.
 **Full regression after the logo change, every screen-rendering suite green:** golden day 34/34 (twice) ·
 director report 18/18 · General Journal 14/14 · General Ledger 12/12 · Trial Balance 10/10 · journal vouchers
 18/18 · party field 15/15 · daily-workflow dry run 26/26. 147 checks, nothing red.
+
+## 37 · Type-to-search on every account picker (2026-09-20)
+
+The owner's ask, in his own words: on the daily closing, choosing a head should be a search — type Y and
+Yousaf should come up — and the same everywhere, receipts and payments alike. The heads were a native
+`<select>` of 82 accounts, and a native select only jumps to options that **start** with what you type, so
+reaching "12610 Syed Yousaf Shah" meant typing the digits or scrolling.
+
+**One component, not a third copy.** The party field already had a search-first dropdown, hand-written twice —
+once in `nf-sheet.js`, once in `nf-journal-voucher.js`. Adding a head version to three more places would have
+made five copies of the same behaviour, which is exactly the shape of the `.mark` badge duplicated across
+fourteen files that cost real time the day before. So the behaviour now lives once, in **`js/nf/nf-pick.js`**,
+and both duplicates were deleted in favour of it.
+
+Where it is used: the account head on a receipt or payment line (draft **and** already-saved rows), the account
+on a journal-voucher leg, the General Ledger's account filter, and the party field on all of them.
+
+**Matching is a substring over every searchable string on the item** — an account's code *and* its name, a
+party's name *and* every alias — not a prefix, and not only over what is displayed. "yousaf", "12610" and
+"syed" all reach the same account.
+
+**Two kinds of list, and the difference is the point:**
+- **Closed** (accounts). You may only pick something that exists — blueprint Part D is explicit that a head is
+  never invented at the point of entry — so there is no "add new", an unmatched search says so plainly, and
+  leaving the field with text that matches nothing **puts the previous selection back**. A half-typed search
+  can never silently blank a line that was already correct.
+- **Open** (parties). Free text is legitimate, because `nf_save_line` resolves it or creates it. "Add new"
+  still appears only once a search has visibly returned nothing — the owner's own rule from §27.4, carried
+  over unchanged.
+
+**Keyboard, because this is the field an accountant lives in all day:** type to filter, ↑/↓ to move, Enter to
+take the highlighted row, Escape to abandon the search and restore what was there. Selection is bound to
+`mousedown`, not `click`, so the choice registers before the input's own blur closes the list.
+
+### 37.1 What this turned up
+
+- **Picking a head redraws the row** (whether the party is *required* depends on the head), and that redraw was
+  being fired from inside the picker's own `mousedown` — the same hazard as the blur crash in §33.1. Deferred
+  to the next tick.
+- **A row now holds two pickers**, so every test query had to be scoped by `data-pick`; a bare `.nfpick-dd`
+  under a row selector reads the head's list while claiming to check the party's. Fixed across four suites.
+- **The picker must read its list when the person searches, not when it was wired.** The General Ledger renders
+  once immediately and again when the chart arrives, so a snapshot taken at wire time was permanently empty.
+  `items` is now a function everywhere, which is also the honest shape for a list that can change.
+- **The ledger suite's old check counted `<option>` elements**, which cannot survive this change and was never
+  the interesting question anyway. It now asks the thing the owner actually cares about: **L-02 types a NAME,
+  "Yousaf", and requires account 12610 to come back** — something the old prefix-matching select could not have
+  done at all.
+- A test-side trap worth recording: `String.prototype.replace` treats `$$` in the replacement as a literal
+  `$`, which silently turned a generated `page.$$eval` into `page.$eval` and produced a confusing
+  "failed to find element" instead of an empty list.

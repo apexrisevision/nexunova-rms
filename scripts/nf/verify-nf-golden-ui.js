@@ -142,6 +142,24 @@ async function setValue(page, selector, text) {
   }, selector);
   await page.type(selector, text);
 }
+// The head and the party are no longer <select>s — both are the shared
+// type-to-search picker (js/nf/nf-pick.js, owner's ask 2026-09-20: type Y and
+// Yousaf should come up). Driving one means focus it, type enough to narrow
+// the list, wait for the list, then take the row. A `value` of null takes the
+// "+ Add new" row instead, which only an open list (party) ever offers.
+// Picking a head redraws the row, so settle before touching the row again.
+const settle = page => page.evaluate(() => new Promise(r => setTimeout(r, 40)));
+async function pick(page, scope, key, query, value) {
+  const inp = scope + ' [data-pick="' + key + '"] .nfpick-in';
+  await page.focus(inp);
+  await page.evaluate(s => { const e = document.querySelector(s); e.value = ''; e.dispatchEvent(new Event('input', { bubbles: true })); }, inp);
+  await page.type(inp, query);
+  await page.waitForSelector(scope + ' [data-pick="' + key + '"] .nfpick-dd:not([hidden])', { timeout: 5000 });
+  await page.click(scope + ' [data-pick="' + key + '"] ' +
+    (value === null ? '[data-pick-add]' : '[data-pick-value="' + value + '"]'));
+  await settle(page);
+}
+
 async function fillDraftRow(page, side, v, d, h, f, m, a, party) {
   // tmpId is captured ONCE, before anything is typed — filling this row's
   // first field makes ensureTrailingBlank() append a fresh blank row behind
@@ -150,23 +168,20 @@ async function fillDraftRow(page, side, v, d, h, f, m, a, party) {
   // (20260919i/j party-field verify: re-resolving "last" mid-fill picks up
   // the wrong row and silently no-ops the save).
   const tmpId = await lastDraftTmpId(page, side);
-  const sel = k => `.row.draft[data-draft="${tmpId}"] [data-k="${k}"]`;
+  const row = `.row.draft[data-draft="${tmpId}"]`;
+  const sel = k => `${row} [data-k="${k}"]`;
   await setValue(page, sel('v'), v);
   await setValue(page, sel('d'), d);
-  await page.select(sel('h'), h);
+  await pick(page, row, 'head', h, h);          // search by code; the list matches code OR name
   await page.select(sel('f'), f);
   await page.select(sel('m'), m);
   await setValue(page, sel('a'), String(a));
   if (party) {
     // 20260919i/j: the account this golden day posts its token receipt to
-    // (21100) now requires an explicit party on the SCREEN, not just a
-    // description the backend can pattern-match — search-first, pick the
+    // (21100) requires an explicit party on the SCREEN, not just a
+    // description the backend can pattern-match — search-first, take the
     // pre-registered match (never "+ Add new", since it already exists).
-    const partySel = sel('p');
-    await page.focus(partySel);
-    await page.type(partySel, party);
-    await page.waitForSelector(`.row.draft[data-draft="${tmpId}"] .party-dd:not([hidden])`, { timeout: 4000 });
-    await page.click(`.row.draft[data-draft="${tmpId}"] [data-party-pick="${party}"]`);
+    await pick(page, row, 'party', party, party);
   } else {
     await page.focus(sel('a'));
     await page.keyboard.press('Enter');

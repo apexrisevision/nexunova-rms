@@ -43,6 +43,32 @@ async function http_(method, urlPath, { key, jwt, body } = {}) {
   return { status: r.status, json };
 }
 
+// The account filter is the shared picker (js/nf/nf-pick.js): focus, type the
+// code, take the matching row. Typing the CODE also proves the list matches on
+// code as well as name.
+const BOX = '[data-pick="lgr-acct"]';
+// The screen renders once immediately and AGAIN when the chart arrives, which
+// replaces the input. Typing into the first one is thrown away, so every
+// search here retries until the list actually has rows — otherwise the suite
+// reads an empty dropdown and blames the picker for a race of its own making.
+async function search(page, text, tries = 12) {
+  for (let i = 0; i < tries; i++) {
+    const inp = BOX + ' .nfpick-in';
+    await page.focus(inp);
+    await page.evaluate(s => { const e = document.querySelector(s); e.value = ''; e.dispatchEvent(new Event('input', { bubbles: true })); }, inp);
+    await page.type(inp, text);
+    await page.evaluate(() => new Promise(r => setTimeout(r, 120)));
+    const values = await page.$$eval(BOX + ' [data-pick-value]', els => els.map(e => e.getAttribute('data-pick-value')));
+    if (values.length) return values;
+  }
+  return [];
+}
+async function pickAccount(page, code) {
+  const found = await search(page, code);
+  if (!found.includes(code)) throw new Error(`account ${code} never appeared in the picker (saw ${JSON.stringify(found)})`);
+  await page.click(BOX + ' [data-pick-value="' + code + '"]');
+}
+
 (async () => {
   const run = crypto.randomBytes(4).toString('hex');
   console.log(`[verify-nf-general-ledger] project ${REF} · run ${run}`);
@@ -149,10 +175,15 @@ async function http_(method, urlPath, { key, jwt, body } = {}) {
     await page.waitForSelector('#nf-rpm-panel:not([hidden])', { timeout: 5000 });
     await page.click('[data-goto="ledger"]');
     await page.waitForSelector('.lsheet', { timeout: 10000 });
-    await page.waitForFunction(() => document.querySelectorAll('#nf-lgr-acct option').length > 1, { timeout: 10000 });
-
-    const optionCount = await page.$$eval('#nf-lgr-acct option', els => els.length - 1); // minus the placeholder
-    ok('L-02 account picker lists the whole chart', optionCount === 110, `expected 110 accounts, got ${optionCount}`);
+    await page.waitForSelector(BOX + ' .nfpick-in', { timeout: 10000 });
+    // The picker builds its list on demand and caps what it SHOWS, so the
+    // old "count the options" check cannot work. What matters is that the
+    // whole chart is reachable BY SEARCH — so ask for a account by name that
+    // a prefix-matching <select> could never have found by typing 'Y'.
+    const bySurname = await search(page, 'Yousaf');
+    ok('L-02 searching a NAME finds the account (owner: type Y, get Yousaf)',
+      bySurname.includes('12610'), JSON.stringify(bySurname));
+    await page.keyboard.press('Escape');
 
     const settled = () => page.waitForFunction(() => {
       var b = document.querySelector('#nf-lgr-body');
@@ -160,7 +191,7 @@ async function http_(method, urlPath, { key, jwt, body } = {}) {
     }, { timeout: 10000 });
 
     // account with exactly one entry
-    await page.select('#nf-lgr-acct', '22100');
+    await pickAccount(page, '22100');
     await settled();
     let tiles = await page.$$eval('.rtile b', els => els.map(e => e.textContent.trim()));
     const fmtNoDec = n => Math.abs(n).toLocaleString('en-US');
@@ -171,7 +202,7 @@ async function http_(method, urlPath, { key, jwt, body } = {}) {
     ok('L-05 22100 entry count matches ground truth', rowCount === Number(t22100.entries), `journal shows ${rowCount} rows, table has ${t22100.entries}`);
 
     // account with many entries — check the running balance arithmetic itself
-    await page.select('#nf-lgr-acct', cashCode);
+    await pickAccount(page, cashCode);
     await settled();
     const rows = await page.$$eval('.ltab tbody tr', trs => trs.map(tr => {
       const c = [...tr.children].map(td => td.textContent.trim());
@@ -191,8 +222,8 @@ async function http_(method, urlPath, { key, jwt, body } = {}) {
       `rows shown ${rows.length}, ground truth ${tCash.entries}`);
 
     // race: switch accounts twice with no wait — the LAST selection must win
-    await page.select('#nf-lgr-acct', '22100');
-    await page.select('#nf-lgr-acct', cashCode);
+    await pickAccount(page, '22100');
+    await pickAccount(page, cashCode);
     await settled();
     await new Promise(res => setTimeout(res, 500));
     const raceRowCount = await page.$$eval('.ltab tbody tr', els => els.length);

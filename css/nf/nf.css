@@ -134,15 +134,6 @@ td{padding:7px 10px;border-bottom:1px solid var(--line)}
 .desc select.miss{color:var(--neg)}
 .row .sel{appearance:none;-webkit-appearance:none;text-align:center;text-align-last:center;cursor:pointer;font-size:12px;padding:2px 0}
 .row .amt{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
-.party-field{position:relative;min-width:0}
-.party-field input{font-size:12px}
-.party-field.miss input{color:var(--neg)}
-.party-field.ro{padding:2px 4px;font-size:12px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.party-dd{position:absolute;top:calc(100% + 2px);left:0;min-width:220px;max-width:320px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:20;overflow:hidden}
-.party-opt{padding:6px 10px;font-size:12.5px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.party-opt:hover{background:var(--soft)}
-.party-opt .party-alias{color:var(--muted);font-size:11px}
-.party-opt.party-add{color:var(--brand-2);font-weight:500}
 .del{border:0;background:none;color:var(--muted);cursor:pointer;opacity:0;padding:0;font-size:15px;line-height:1}
 .row:hover .del,.del:focus-visible{opacity:1}
 .add{border:0;background:transparent;padding:8px 12px;color:var(--brand-2);font-weight:500;cursor:pointer;text-align:left}
@@ -220,3 +211,25 @@ td{padding:7px 10px;border-bottom:1px solid var(--line)}
   .sec,.signs{padding-left:14px;padding-right:14px}
   .signs{gap:18px}
 }
+
+/* ── the shared type-to-search picker (js/nf/nf-pick.js) ─────────────────
+   Used by the account head on a closing line, the account on a journal-
+   voucher leg, the General Ledger's account filter and the party field on
+   all of them. Replaced the 82-option <select> the heads used to be. The
+   dropdown is positioned absolutely, so every wrapper is a positioning
+   context and the list floats above the row it belongs to. */
+.nfpick{position:relative;min-width:0}
+.nfpick-in{width:100%;min-width:0;border:1px solid transparent;background:transparent;padding:2px 4px;
+  border-radius:4px;font-size:12px;color:var(--ink);text-overflow:ellipsis}
+.nfpick-in:hover,.nfpick-in:focus{border-color:var(--field-b);background:var(--field);outline:none}
+.nfpick-in::placeholder{color:var(--muted)}
+.nfpick.miss .nfpick-in{color:var(--neg);border-color:var(--neg)}
+.nfpick.ro{padding:2px 4px;font-size:12px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nfpick-dd{position:absolute;top:calc(100% + 2px);left:0;min-width:260px;max-width:380px;max-height:280px;overflow-y:auto;
+  background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.14);z-index:30}
+.nfpick-opt{padding:6px 10px;font-size:12.5px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nfpick-opt:hover,.nfpick-opt.on{background:var(--soft)}
+.nfpick-opt.on{box-shadow:inset 2px 0 0 var(--brand-2)}
+.nfpick-hint{color:var(--muted);font-size:11px}
+.nfpick-opt.nfpick-add{color:var(--brand-2);font-weight:500}
+.nfpick-none{padding:8px 10px;font-size:12px;color:var(--muted)}

@@ -88,22 +88,31 @@ async function fillLeg(page, i, { account, floor, party, debit, credit, memo }) 
     return rows[n] ? rows[n].getAttribute('data-leg') : null;
   }, i);
   if (!legId) throw new Error(`leg ${i} not on screen`);
+  // The account and the party are both the shared type-to-search picker, and
+  // a leg carries one of each — so every query is scoped by data-pick, never
+  // by .nfpick-dd alone, or the party's assertions read the account's list.
   const sel = k => `.jvleg[data-leg="${legId}"] [data-k="${k}"]`;
-  await page.select(sel('account'), account); await settle(page);
+  const box = key => `.jvleg[data-leg="${legId}"] [data-pick="${key}"]`;
+  await page.focus(`${box('jv-account')} .nfpick-in`);
+  await page.type(`${box('jv-account')} .nfpick-in`, account);
+  await page.waitForSelector(`${box('jv-account')} .nfpick-dd:not([hidden])`, { timeout: 5000 });
+  await page.click(`${box('jv-account')} [data-pick-value="${account}"]`);
+  await settle(page);
   await page.select(sel('floor'), floor); await settle(page);
   if (debit) await setValue(page, sel('debit'), String(debit));
   if (credit) await setValue(page, sel('credit'), String(credit));
   if (memo) await setValue(page, sel('memo'), memo);
   if (party) {
-    await page.focus(sel('party'));
-    await page.type(sel('party'), party);
-    await page.waitForSelector(`.jvleg[data-leg="${legId}"] .party-dd:not([hidden])`, { timeout: 4000 });
+    const ps = `${box('jv-party')} .nfpick-in`;
+    await page.focus(ps);
+    await page.type(ps, party);
+    await page.waitForSelector(`${box('jv-party')} .nfpick-dd:not([hidden])`, { timeout: 4000 });
     const shape = await page.evaluate(id => {
-      const dd = document.querySelector(`.jvleg[data-leg="${id}"] .party-dd`);
-      return { add: !!dd.querySelector('[data-party-add]'), picks: dd.querySelectorAll('[data-party-pick]').length };
+      const dd = document.querySelector(`.jvleg[data-leg="${id}"] [data-pick="jv-party"] .nfpick-dd`);
+      return { add: !!dd.querySelector('[data-pick-add]'), picks: dd.querySelectorAll('[data-pick-value]').length };
     }, legId);
-    const target = shape.picks ? `[data-party-pick="${party}"]` : `[data-party-add="${party}"]`;
-    await page.click(`.jvleg[data-leg="${legId}"] ${target}`);
+    const target = shape.picks ? `[data-pick-value="${party}"]` : `[data-pick-add="${party}"]`;
+    await page.click(`${box('jv-party')} ${target}`);
     await settle(page);
     return shape;
   }
@@ -238,6 +247,10 @@ async function fillLeg(page, i, { account, floor, party, debit, credit, memo }) 
     ok('JV-09 an unbalanced voucher cannot be posted, and says why',
       unbal.disabled === true && /Out by/.test(unbal.bal) && unbal.issues.some(t => /match/i.test(t)), JSON.stringify(unbal));
     await settle(page); await page.click('#nf-jv-clear');
+    // Clear rebuilds the whole form, and that rebuild is deferred by a tick —
+    // so settle BEFORE typing, or the voucher number lands in the input that
+    // is about to be thrown away and the next check reads an empty form.
+    await settle(page);
 
     // ── a cash-book voucher number is refused ────────────────────────────
     await setValue(page, '#nf-jv-no', 'CRV-500');

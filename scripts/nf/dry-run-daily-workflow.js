@@ -114,25 +114,37 @@ async function waitSaved(page, voucher, timeout = 9000) {
 // Counts every interaction a real accountant would make, so "how awkward is
 // this" has a number behind it rather than an impression.
 let clicks = 0;
+const settle = page => page.evaluate(() => new Promise(r => setTimeout(r, 40)));
+// Head and party are both the shared type-to-search picker now, and a row
+// holds TWO of them — so every query has to be scoped by data-pick, never
+// just by .nfpick-dd, or the party's assertions read the head's dropdown.
 async function enterLine(page, side, v, d, head, floor, via, amount, party) {
   const tmpId = await lastDraftTmpId(page, side);
-  const sel = k => `.row.draft[data-draft="${tmpId}"] [data-k="${k}"]`;
+  const row = `.row.draft[data-draft="${tmpId}"]`;
+  const sel = k => `${row} [data-k="${k}"]`;
+  const box = key => `${row} [data-pick="${key}"]`;
   await setValue(page, sel('v'), v); clicks++;
   await setValue(page, sel('d'), d); clicks++;
-  await page.select(sel('h'), head); clicks++;
+  // the head: type the code, take it off the list
+  await page.focus(`${box('head')} .nfpick-in`);
+  await page.type(`${box('head')} .nfpick-in`, head); clicks++;
+  await page.waitForSelector(`${box('head')} .nfpick-dd:not([hidden])`, { timeout: 5000 });
+  await page.click(`${box('head')} [data-pick-value="${head}"]`); clicks++;
+  await settle(page);
   await page.select(sel('f'), floor); clicks++;
   await page.select(sel('m'), via); clicks++;
   await setValue(page, sel('a'), String(amount)); clicks++;
   if (party) {
-    const ps = `.row.draft[data-draft="${tmpId}"] [data-k="p"]`;
+    const ps = `${box('party')} .nfpick-in`;
     await page.focus(ps); await page.type(ps, party); clicks++;
-    await page.waitForSelector(`.row.draft[data-draft="${tmpId}"] .party-dd:not([hidden])`, { timeout: 4000 });
+    await page.waitForSelector(`${box('party')} .nfpick-dd:not([hidden])`, { timeout: 4000 });
     const shape = await page.evaluate(t => {
-      const dd = document.querySelector(`.row.draft[data-draft="${t}"] .party-dd`);
-      return { add: !!dd.querySelector('[data-party-add]'), picks: dd.querySelectorAll('[data-party-pick]').length };
+      const dd = document.querySelector(`.row.draft[data-draft="${t}"] [data-pick="party"] .nfpick-dd`);
+      return { add: !!dd.querySelector('[data-pick-add]'), picks: dd.querySelectorAll('[data-pick-value]').length };
     }, tmpId);
-    const target = shape.picks ? `[data-party-pick="${party}"]` : `[data-party-add="${party}"]`;
-    await page.click(`.row.draft[data-draft="${tmpId}"] ${target}`); clicks++;
+    const target = shape.picks ? `[data-pick-value="${party}"]` : `[data-pick-add="${party}"]`;
+    await page.click(`${box('party')} ${target}`); clicks++;
+    await settle(page);
     return { tmpId, partyShape: shape };
   }
   await page.focus(sel('a'));

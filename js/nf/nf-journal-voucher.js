@@ -106,11 +106,6 @@
     }
 
     // ── markup ────────────────────────────────────────────────────────────
-    function headOpts(sel) {
-      return '<option value="">Account…</option>' + S.heads.map(function (h) {
-        return '<option value="' + esc(h.code) + '"' + (h.code === sel ? ' selected' : '') + '>' + esc(h.code) + ' ' + esc(h.name) + '</option>';
-      }).join('');
-    }
     // nf_list_floors returns a FLAT ARRAY OF CODES, not objects — unlike
     // nf_list_heads and nf_list_all_parties, which return objects. Reading
     // f.code here silently produced an option list of "undefined" values, so
@@ -125,12 +120,12 @@
       var needsParty = l.account && headRequiresParty(l.account);
       return '<div class="jvleg" data-leg="' + l.id + '">' +
         '<span class="n">' + (i + 1) + '</span>' +
-        '<select data-k="account" aria-label="Account">' + headOpts(l.account) + '</select>' +
+        global.NfPick.html({ key: 'jv-account', value: l.account, label: global.NfPick.accountLabel(S.heads, l.account),
+          placeholder: 'Account', ariaLabel: 'Account' }) +
         '<select data-k="floor" class="sel" aria-label="Floor">' + floorOpts(l.floor) + '</select>' +
-        '<div class="party-field' + (needsParty && !l.party.trim() ? ' miss' : '') + '" data-party-wrap>' +
-          '<input data-k="party" value="' + esc(l.party) + '" placeholder="' + (needsParty ? 'Party (required)' : 'Party') + '" autocomplete="off" aria-label="Party">' +
-          '<div class="party-dd" hidden></div>' +
-        '</div>' +
+        global.NfPick.html({ key: 'jv-party', value: l.party, label: l.party,
+          placeholder: needsParty ? 'Party (required)' : 'Party', ariaLabel: 'Party',
+          missing: needsParty && !l.party.trim() }) +
         '<input class="amt" data-k="debit" inputmode="decimal" value="' + esc(l.debit) + '" placeholder="0" aria-label="Debit">' +
         '<input class="amt" data-k="credit" inputmode="decimal" value="' + esc(l.credit) + '" placeholder="0" aria-label="Credit">' +
         '<input data-k="memo" value="' + esc(l.memo) + '" placeholder="Memo" aria-label="Memo">' +
@@ -213,29 +208,6 @@
         '</div>';
     }
 
-    // ── party dropdown, search-first (Part E) ─────────────────────────────
-    function partyMatches(query) {
-      var qq = (query || '').trim().toLowerCase();
-      var l = S.parties || [];
-      if (!qq) return l.slice(0, 8);
-      return l.filter(function (p) {
-        if ((p.name || '').toLowerCase().indexOf(qq) !== -1) return true;
-        return (p.aliases || []).some(function (a) { return (a || '').toLowerCase().indexOf(qq) !== -1; });
-      }).slice(0, 8);
-    }
-    function renderDropdown(dd, query) {
-      var qq = (query || '').trim(), items = partyMatches(qq), html;
-      if (items.length) {
-        html = items.map(function (p) {
-          return '<div class="party-opt" data-party-pick="' + esc(p.name) + '">' + esc(p.name) +
-            (p.aliases && p.aliases.length ? ' <span class="party-alias">(' + esc(p.aliases.join(', ')) + ')</span>' : '') + '</div>';
-        }).join('');
-      } else if (qq) {
-        html = '<div class="party-opt party-add" data-party-add="' + esc(qq) + '">+ Add new party “' + esc(qq) + '”</div>';
-      } else { html = ''; }
-      dd.innerHTML = html; dd.hidden = !html;
-    }
-
     function legOf(id) { return draft.legs.filter(function (x) { return x.id === id; })[0]; }
 
     function wire() {
@@ -287,27 +259,39 @@
       });
       root.querySelector('#nf-jv-addleg').addEventListener('click', function () {
         draft.legs.push(blankLeg()); redraw();
-        var rows = root.querySelectorAll('.jvleg [data-k="account"]');
-        if (rows.length) rows[rows.length - 1].focus();
+        // redraw() is deferred, so reach for the new row's account box after it lands
+        setTimeout(function () {
+          var rows = root.querySelectorAll('.jvleg [data-pick="jv-account"] .nfpick-in');
+          if (rows.length) rows[rows.length - 1].focus();
+        }, 10);
       });
 
-      // party field, same mousedown-before-blur rule as the daily sheet
-      root.querySelectorAll('[data-party-wrap]').forEach(function (wrap) {
-        var input = wrap.querySelector('[data-k="party"]'), dd = wrap.querySelector('.party-dd');
-        if (!input || !dd) return;
-        input.addEventListener('focus', function () { renderDropdown(dd, input.value); });
-        input.addEventListener('input', function () { renderDropdown(dd, input.value); });
-        input.addEventListener('keydown', function (e) { if (e.key === 'Escape') dd.hidden = true; });
-        input.addEventListener('blur', function () { setTimeout(function () { dd.hidden = true; }, 150); });
-        dd.addEventListener('mousedown', function (e) {
-          var opt = e.target.closest('[data-party-pick],[data-party-add]');
-          if (!opt) return;
-          e.preventDefault();
-          var name = opt.getAttribute('data-party-pick') || opt.getAttribute('data-party-add');
-          input.value = name; dd.hidden = true;
-          var l = legOf(wrap.closest('.jvleg').getAttribute('data-leg'));
-          if (l) { l.party = name; refreshLive(); }
-        });
+      // Account and party are the shared type-to-search picker
+      // (js/nf/nf-pick.js) — the same control, and the same behaviour, as the
+      // daily closing sheet. Neither triggers a full redraw: refreshLive()
+      // patches the totals, the issues list and the party-required marking
+      // in place, so no input the person is working in gets replaced.
+      function legFor(wrap) {
+        var row = wrap.closest('.jvleg');
+        return row ? legOf(row.getAttribute('data-leg')) : null;
+      }
+      global.NfPick.wire(root, {
+        key: 'jv-account',
+        items: function () { return global.NfPick.accountItems(S.heads); },
+        emptyText: 'No account matches that. Accounts are never created here.',
+        onPick: function (wrap, code) {
+          var l = legFor(wrap);
+          if (l) { l.account = code; S.error = null; refreshLive(); }
+        },
+      });
+      global.NfPick.wire(root, {
+        key: 'jv-party',
+        items: function () { return global.NfPick.partyItems(S.parties); },
+        allowCreate: true,
+        onPick: function (wrap, name) {
+          var l = legFor(wrap);
+          if (l) { l.party = name; S.error = null; refreshLive(); }
+        },
       });
 
       root.querySelector('#nf-jv-clear').addEventListener('click', function () {
@@ -367,8 +351,8 @@
       // the party field's "this account needs one" marking follows the head
       root.querySelectorAll('.jvleg').forEach(function (rowEl) {
         var l = legOf(rowEl.getAttribute('data-leg'));
-        var wrap = rowEl.querySelector('[data-party-wrap]');
-        var inp = wrap && wrap.querySelector('[data-k="party"]');
+        var wrap = rowEl.querySelector('[data-pick="jv-party"]');
+        var inp = wrap && wrap.querySelector('.nfpick-in');
         if (!l || !wrap || !inp) return;
         var needs = l.account && headRequiresParty(l.account);
         wrap.classList.toggle('miss', !!(needs && !l.party.trim()));

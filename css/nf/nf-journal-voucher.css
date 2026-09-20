@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════
    NexuFinance v1 — Journal Vouchers (docs/PLAN.md §32.1). Reuses
    .sheet/.hdr/.brand/.mark/.co/.docfoot/.rsec from nf.css, and the
-   .party-field/.party-dd/.party-opt search-first dropdown styles that
+   .nfpick type-to-search picker styles (js/nf/nf-pick.js) that
    nf.css already carries for the daily sheet's own party field — the two
    screens must look and behave identically there, so they share the rules
    rather than each having their own.

@@ -80,10 +80,13 @@
     var companyLine = esc(ctx.settings.company_line || ctx.companyName || '');
     var l = state.ledger;
 
-    var options = '<option value="">— choose an account —</option>' + state.accounts.map(function (a) {
-      return '<option value="' + esc(a.code) + '"' + (a.code === state.accountCode ? ' selected' : '') + '>' +
-        esc(a.code) + ' — ' + esc(a.name) + '</option>';
-    }).join('');
+    // The account filter is the shared type-to-search picker: 110 accounts
+    // in a native select meant scrolling, or knowing the code by heart.
+    var acctPick = global.NfPick.html({
+      key: 'lgr-acct', value: state.accountCode || '',
+      label: global.NfPick.accountLabel(state.accounts, state.accountCode),
+      placeholder: 'Search an account…', ariaLabel: 'Account', className: 'lgr-acct',
+    });
 
     var body;
     if (!state.accountCode) {
@@ -114,7 +117,7 @@
       '  </div>' +
       '</header>' +
       '<section class="rsec lfilter">' +
-      '  <label>Account <select id="nf-lgr-acct">' + options + '</select></label>' +
+      '  <label class="acctlbl">Account ' + acctPick + '</label>' +
       '  <label>From <input type="date" id="nf-lgr-from" value="' + esc(state.from) + '"></label>' +
       '  <label>To <input type="date" id="nf-lgr-to" value="' + esc(state.to) + '"></label>' +
       '  <button class="btn" id="nf-lgr-apply" type="button">Apply</button>' +
@@ -128,9 +131,16 @@
     root.querySelector('#nf-lgr-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-lgr-print').addEventListener('click', function () { global.print(); });
     global.NfReportsMenu.wire(root, ctx);
-    root.querySelector('#nf-lgr-acct').addEventListener('change', function (e) {
-      actions.setState({ accountCode: e.target.value });
-      actions.loadLedger();
+    global.NfPick.wire(root, {
+      key: 'lgr-acct',
+      // a FUNCTION, not a snapshot: the chart arrives asynchronously, so the
+      // list has to be read when the person searches, not when wire() ran.
+      items: function () { return global.NfPick.accountItems(state.accounts); },
+      emptyText: 'No account matches that.',
+      onPick: function (wrap, code) {
+        actions.setState({ accountCode: code });
+        actions.loadLedger();
+      },
     });
     root.querySelector('#nf-lgr-apply').addEventListener('click', function () {
       actions.setState({ from: root.querySelector('#nf-lgr-from').value, to: root.querySelector('#nf-lgr-to').value });
