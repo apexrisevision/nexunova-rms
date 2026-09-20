@@ -3218,3 +3218,173 @@ earlier). Re-run alone: 15/15 again. Noted rather than silently re-run past, per
 rule about test-suite failures during concurrent load (§ the push-gate entry above) — this one was not
 concurrent with anything else, so it is recorded as its own, still-unexplained, single transient network blip,
 not folded into that same explanation.
+
+---
+
+## 39 · Fix pass 2 of 3 — CRITICAL-1, CRITICAL-2, HIGH-1 closed: cash can only move through days (2026-09-20)
+
+**The invariant now enforced at the database:** an account with `via IS NOT NULL` (10100 Cash in Hand, 10200
+Petty Cash, 10300 Bank Al-Habib) may only ever appear on a leg of a **day-attached** voucher. A journal voucher
+(`day_id IS NULL`) can never touch one. `20260920a_nf_cash_via_day_only.sql`.
+
+### The investigation that had to come first
+
+The owner made it a precondition, and it was the right call — the obvious fix would have broken the day path.
+
+Day-path vouchers carry via legs **on purpose**. `nf_save_line` looks up `v_via_code` from
+`nf_accounts WHERE via = p_via` and posts it as the second leg of *every* receipt and payment;
+`nf_set_transfers` posts vouchers where **both** legs are via accounts. And `nf_voucher_legs_guard` accepted a
+leg only if the account was `is_head AND active`. That is exactly why `20260918a` ran
+`UPDATE nf_accounts SET is_head = true WHERE via IS NOT NULL` and dropped `nf_accounts_head_not_via`: under that
+guard, "postable" and "is_head" were the same bit, so making via accounts postable meant making them heads.
+
+So HIGH-1's missing constraint was not an oversight. `20260918a` removed it deliberately, with the reasoning
+written out in full at the time. What it did not notice is that `is_head` was carrying **two** meanings:
+
+- **(a) "a voucher leg may reference this account"** — the leg guard; and `nf_accounts_tree_guard`, which has
+  spelled this as `(is_head OR via IS NOT NULL)` since `20260916b`;
+- **(b) "a cashier may choose this from the HEAD dropdown"** — `nf_list_heads`, which feeds *both* the Daily
+  Closing sheet and the Journal Voucher screen.
+
+Blueprint R4 is about (b). `20260918a` needed (a) and paid for it with (b).
+
+**Mechanism chosen: split the two.** `is_head` goes back to meaning (b) only; the via accounts go back to
+`is_head = false`; `nf_accounts_head_not_via` is restored verbatim; and postability is spelled out where it is
+actually meant — `active AND (is_head OR via IS NOT NULL)`, the same expression the tree guard already used.
+
+Mapping the consumers first is what made this safe. `pg_proc` held **six** functions reading `is_head`:
+
+| function | what happened |
+|---|---|
+| `nf_voucher_legs_guard` | postability spelled out as (a) — day receipts, payments and transfers unaffected |
+| `nf_get_cash_bank_movement` | **would have gone silently EMPTY.** It picks accounts by `qb_type='Bank' AND is_head`, and the three via accounts are the only Bank-typed heads Awami has (verified live: exactly 3 rows). Widened to (a) |
+| `nf_list_heads` | the one place that *wants* them gone — 82 → 79 |
+| `nf_accounts_tree_guard` | already `is_head OR via IS NOT NULL`; untouched |
+| `nf_list_all_accounts` | reports the flag, filters only on `active` — the General Ledger picker still offers cash and bank |
+| `nf_lines_guard` | **unreachable dead code.** `nf_lines` is a VIEW and `pg_trigger` holds no row for it — single-entry leftover. Deliberately not touched |
+
+No JS file reads `is_head` at all. `nf_list_vias` reads `via`, not `is_head`, so the sheet's Via selector is
+untouched (re-confirmed live afterwards: all three still returned).
+
+### What shipped
+
+1. **`nf_list_heads` excludes `via IS NOT NULL` explicitly**, belt-and-braces over the flag reset, so the
+   exclusion holds even if a row's flag is ever wrong. Because this one RPC feeds both screens, the JV account
+   picker stops offering cash at the same moment the sheet's head picker does.
+2. **`NF:CASH_VIA_DAY_ONLY`** in `nf_voucher_legs_guard` — a BEFORE trigger on the table, so it holds for
+   `nf_jv_save`, for `nf_post_voucher` called directly, and for any path not yet written. The migration asserts
+   its own preconditions before changing anything: **0** day-less vouchers touch a via account, and exactly
+   **64** imported Awami vouchers, or it aborts.
+3. **`nf_accounts_head_not_via` restored** (R4), after resetting the flag — the same order `20260918r`'s
+   rollback uses. One thing the rehearsal caught: `nf_accounts_tree_guard` is a DEFERRABLE INITIALLY DEFERRED
+   constraint trigger, so the `UPDATE` leaves pending trigger events and the `ALTER TABLE` failed with
+   `55006: cannot ALTER TABLE because it has pending trigger events`. Fixed with an explicit
+   `SET CONSTRAINTS … IMMEDIATE`, which also means a broken account tree would surface *there* rather than at
+   COMMIT.
+4. **`nf_voucher_legs_position_guard` no longer skips a day-less voucher.** It used to return early on
+   `day_id IS NULL` with the comment *"Journals with no day_id (future, out of this pass's scope)"* — that
+   comment was the CRITICAL-1 vector, and it is gone. A day-less voucher carrying a via leg now asserts the
+   **company-wide** position via the new `nf_assert_not_negative_company`. Step 2 makes that branch
+   unreachable; it exists because "impossible" and "unchecked" are different things.
+
+`nf_assert_not_negative_company` is the only new signature in the pass, and per the Pass 1 note it was
+`REVOKE`d from PUBLIC/anon/authenticated at creation (a fresh `CREATE FUNCTION` is PUBLIC-executable by
+default). Verified live afterwards: ACL `postgres=X | service_role=X`, and **one** overload, not two. No
+existing function changed its argument list, so there were no stale overloads to drop.
+
+`scripts/nf/gen-seed.js` changed alongside: it was minting via accounts as heads, which the restored CHECK now
+rejects at insert time. Its own assertion moved 82 → 79, plus a new one that fails the seed outright if a via
+account is ever flagged `is_head` again.
+
+### Proving it, rather than asserting it
+
+`scripts/nf/verify-nf-cash-via-day-only.js`, **27/27**. Run **red first, against the un-migrated database: 17
+of 26 failed** — including every refusal, the head counts on both the fixture chart and the real Awami chart,
+and both pickers offering cash. Then green.
+
+It answers the two blind spots the audit named by name:
+
+- **SR-5** — `verify-nf-journal-voucher.js` only ever posted *non-cash* journal vouchers, so it supplied the
+  safe case and therefore tested nothing about the unsafe one. This suite posts the unsafe shape on purpose,
+  through the real RPC, in four variants (cash out, cash in, petty, bank), plus one that bypasses `nf_jv_save`
+  entirely and goes straight to `nf_post_voucher` — because a rule that lives in one RPC is not a rule.
+- **SR-11** — the rules suite's `H-R4` checked that 12610 *is* a head, which was true either way, and never
+  that a via account is *absent*. It passed before this pass and after it. `CVD-10` now flips `is_head` back on
+  a via account and requires the CHECK to stop it.
+
+And the other direction, deliberately: `CVD-20..25` drive a real day end to end — receipt, payment, a transfer
+whose both legs are via accounts, the position arithmetic, and an overdraw that must still be refused — so
+"cash is locked down" cannot quietly mean "cash stopped working". `CVD-30` guards the report that would have
+gone empty.
+
+**The dry run's fixture had never contained a journal voucher at all** (SR-5 again), so "day 2 opens at day 1's
+closing" was green only because nothing but day-path vouchers existed. It now posts a real one — FMH paying
+Awami's site labour, the shape this business uses constantly — between the two days, proves it really is in the
+ledger POSTED and day-less, proves a cash one is refused, and then asks the sharper question: `nf_ledger_position`
+past the voucher's own date must still equal the day-scoped closing. **30/30, up from 22.**
+
+That fixture also had to stop dating itself in the future. `DAY1`/`DAY2` were the literals `2026-10-01` /
+`2026-10-02` — harmless while only the day path ran, but once a journal voucher is posted there is no legal
+date left at all: Pass 1's gates refuse anything after today as `NF:DATE_FUTURE` and anything on or before the
+latest CLOSED day as `NF:PERIOD_CLOSED`. They are now yesterday/today, derived in UTC to match the server's
+`CURRENT_DATE`. Worth stating plainly, because it is a genuine second line of defence: **those two Pass 1 gates
+already make it impossible for a journal voucher to land inside a window that has been carried forward**, and
+this pass is what stops it carrying cash even where it *is* legal.
+
+### A new finding, recorded and NOT fixed
+
+`CVD-31` failed green-side for a reason that turned out to have nothing to do with this pass, and chasing it
+rather than adjusting the assertion is what found it. **AUDIT_REPORT.md MEDIUM-4:**
+`nf_get_cash_bank_movement` derives `opening` purely from voucher legs and never reads
+`nf_days.typed_open_cash/petty/bank`, so the money the company started with is missing from its opening *and*
+its closing. The same day reads **−60,000** on that report and **+440,000** on the sheet. Pre-existing since
+`20260919d`; `20260920a` widened only that function's account-selection CTE and left the `opening` CTE
+byte-identical (verified by reading the live body). Recorded for a later pass, not fixed here — it is a
+different defect in a different function, and this pass had a defined scope.
+
+Its red output was also the best evidence CRITICAL-2 produced all session: before the migration, with four
+cash-carrying JVs in the ledger, the same account read **−305,100** on the report and **+440,000** on the day
+sheet. Date-scoped versus day-scoped, in real numbers.
+
+### Live state re-confirmed after the migration
+
+Awami: **64** vouchers, all `source='IMPORT'`, **0** day-less vouchers touching a via account, `nf_list_heads`
+**79** with none of 10100/10200/10300, `nf_list_vias` still returning all three, `nf_jv_list` still empty.
+Company-wide: **0** accounts with `is_head AND via IS NOT NULL`, constraint present.
+
+### Known-broken, unchanged, and now measured
+
+`verify-nf-schema.js` is still MEDIUM-2 — it dies on `relation "nf_members" already exists`, because it
+rehearses the schema from scratch against a project that already has it. **`verify-nf-de-migration.js` fails
+the same way** (`relation "nf_parties" already exists`) and rehearses only `20260918a`–`d`, which do not
+include this migration. That is a second instance of the same class, so the audit's MEDIUM-2 undercounted by
+one; both belong to the pass that owns MEDIUM-2. `verify-nf-qb-accounts.js` is not a standing suite at all — it
+takes a `<chart.iif>` argument and exits 2 without one.
+
+One thing worth carrying into that pass: `verify-nf-schema.js`'s `S08` expects `heads: 78` and its `R4-05`
+expects `nf_accounts_head_not_via` to exist and fire. Live was 82 heads with no constraint; it is now 79 heads
+*with* the constraint. The suite was right about R4 all along and the database had drifted away from it — the
+remaining gap is one head (66000 Payroll Expenses, added later by `20260918j`), not four.
+
+### Full regression — real output, every suite run one at a time
+
+Sequentially, never concurrently (the push-gate lesson in §38.1 was two suites driving headless Chrome at the
+same project at once):
+
+| suite | result |
+|---|---|
+| rules | 58/58 |
+| golden day (UI) | 34/34 |
+| **cash-via-day-only (new)** | **27/27** |
+| daily-workflow dry run | **30/30** (was 26 — the journal voucher and the carry-forward check are new) |
+| journal vouchers (existing) | 18/18 |
+| director report | 18/18 |
+| journal-voucher hardening (pass 1) | 15/15 |
+| party field | 15/15 |
+| General Journal | 14/14 |
+| General Ledger | 12/12 |
+| Trial Balance | 10/10 |
+| race harness | 3/3 — overlap detected, no overlap not invented |
+
+**254 checks, nothing red.** Not runnable, both pre-existing and both the MEDIUM-2 class described above:
+`verify-nf-schema.js`, `verify-nf-de-migration.js`. Not a suite: `verify-nf-qb-accounts.js`.

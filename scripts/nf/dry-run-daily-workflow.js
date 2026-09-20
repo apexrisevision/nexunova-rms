@@ -170,7 +170,15 @@ async function enterLine(page, side, v, d, head, floor, via, amount, party) {
   if (C === AWAMI_COMPANY_ID) { process.exitCode = 2; return; }
   const companyName = `ZZTEST-NF-${run}`;
   const users = {};
-  const DAY1 = '2026-10-01', DAY2 = '2026-10-02';
+  // Relative to today, not fixed literals. They used to be '2026-10-01' /
+  // '2026-10-02', which were in the future — harmless while only the day path
+  // was exercised (it has no future-date gate), but once this fixture posts a
+  // JOURNAL voucher there is no legal date left at all: Pass 1's nf_jv_save
+  // refuses anything after the latest CLOSED day as NF:DATE_FUTURE and
+  // anything on or before it as NF:PERIOD_CLOSED. Yesterday/today is what a
+  // real closing looks like anyway. UTC, to match the server's CURRENT_DATE.
+  const dayOffset = n => { const t = new Date(); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+  const DAY1 = dayOffset(-1), DAY2 = dayOffset(0);
   const OPEN = { cash: 500000, petty: 20000, bank: 3000000 };
   const newCustomer = `Bilal Ahmad shop GF-14 ${run}`;
 
@@ -392,12 +400,46 @@ async function enterLine(page, side, v, d, head, floor, via, amount, party) {
     // which is why the earlier query worked without one.
     const [pos1] = await q(`select set_config('request.jwt.claim.sub','${users.D.id}',true);
       select close_cash, close_petty, close_bank from nf_position_row((select id from nf_days where company_id='${C}' and business_date='${DAY1}'))`);
+    // ── a JOURNAL VOUCHER now sits between the two days (SR-5) ────────────
+    // The old fixture had no journal voucher anywhere in it, so "day 2 opens
+    // at day 1's closing" was green only because nothing but day-path
+    // vouchers existed — a test that supplies only the safe state has not
+    // tested the rule. Post a real one, through the real RPC, in the real
+    // shape this business uses constantly: FMH paid Awami's site labour, so
+    // no cash of Awami's moved at all.
+    // It has to be dated exactly DAY2: Pass 1's gates leave one legal day —
+    // anything on or before DAY1 is NF:PERIOD_CLOSED (DAY1 is now the latest
+    // CLOSED day) and anything after today is NF:DATE_FUTURE. Which is worth
+    // saying plainly: those two gates together are already why a journal
+    // voucher cannot land inside a window that has been carried forward, and
+    // 20260920a is why it cannot carry cash even where it IS legal.
+    const jvRes = await q(`select set_config('request.jwt.claim.sub','${users.D.id}',true);
+      select public.nf_jv_save('${C}', 'JV-DRY-1', '${DAY2}', 'FMH paid site labour on Awami''s behalf',
+        '[{"account_code":"52600","floor_code":"GF","debit":40000},
+          {"account_code":"22100","floor_code":"GF","credit":40000}]'::jsonb) j`);
+    ok('S6 a journal voucher posts between the two days', !!(jvRes[0] && jvRes[0].j && jvRes[0].j.id), JSON.stringify(jvRes[0]));
+    const [jvCheck] = await q(`select count(*) n, min(status) status, min(day_id::text) day_id
+      from nf_vouchers where company_id='${C}' and voucher_key='JV-DRY-1'`);
+    // not vacuous: the voucher really is in the ledger, POSTED, and day-less
+    ok('S6 …and it is really in the ledger, POSTED and day-less',
+      Number(jvCheck.n) === 1 && jvCheck.status === 'POSTED' && jvCheck.day_id === null, JSON.stringify(jvCheck));
+    // and it could not have carried cash even if someone tried
+    let jvCashErr = null;
+    try {
+      await q(`select set_config('request.jwt.claim.sub','${users.D.id}',true);
+        select public.nf_jv_save('${C}', 'JV-DRY-CASH', '${DAY2}', 'must be refused',
+          '[{"account_code":"52600","floor_code":"GF","debit":1000},
+            {"account_code":"10100","floor_code":"GF","credit":1000}]'::jsonb)`);
+    } catch (e) { jvCashErr = e.message; }
+    ok('S6 a journal voucher touching Cash in Hand is refused (NF:CASH_VIA_DAY_ONLY)',
+      !!jvCashErr && /CASH_VIA_DAY_ONLY/.test(jvCashErr), jvCashErr || 'it was ACCEPTED');
+
     await dir.goto(`http://127.0.0.1:${PORT}/nexufinance.html?company=${C}`, { waitUntil: 'networkidle2' });
     await dir.waitForSelector('.pos-grid', { timeout: 15000 });
     const startBtn = await dir.evaluate(() => !!(document.querySelector('#nf-startNext') || document.querySelector('#nf-startNext2')));
     ok('S6 "Start new day" is offered once the day is closed', startBtn, 'no start-next button found');
     await dir.evaluate(() => { const b = document.querySelector('#nf-startNext') || document.querySelector('#nf-startNext2'); if (b) b.click(); }); clicks++;
-    await dir.waitForFunction(d => { const el = document.querySelector('.docmeta'); return el && el.innerText.includes(d); }, { timeout: 15000 }, '02').catch(() => {});
+    await dir.waitForFunction(d => { const el = document.querySelector('.docmeta'); return el && el.innerText.includes(d); }, { timeout: 15000 }, DAY2.slice(8, 10)).catch(() => {});
     const [day2] = await q(`select id, business_date, closing_no, status from nf_days where company_id='${C}' and business_date > '${DAY1}' order by business_date limit 1`);
     ok('S6 the next day was created', !!day2, JSON.stringify(day2));
     if (day2) {
@@ -408,6 +450,23 @@ async function enterLine(page, side, v, d, head, floor, via, amount, party) {
       ok('S6 tomorrow\'s opening EQUALS today\'s closing (cash, petty and bank)', same,
         `day1 close ${JSON.stringify(pos1)} vs day2 open ${JSON.stringify(pos2)}`);
       note('Step 6', `carry-forward is computed from the ledger, not copied: day 2 opened at cash ${pos2 && pos2.open_cash} with nothing typed in.`);
+
+      // The sharper version of the same question. A day's OPENING is
+      // date-scoped (nf_ledger_position over every posted voucher with a via
+      // leg) while its CLOSING is day-scoped (nf_lines WHERE day_id = …) —
+      // AUDIT_REPORT.md CRITICAL-2. JV-DRY-1 is dated DAY2, so it falls
+      // strictly inside the window a day-3 opening would sum, which the day-2
+      // closing does not see. The two must still agree: they only can because
+      // the journal voucher carries no via leg, and 20260920a is what makes
+      // that true of every journal voucher rather than just this one.
+      const [pos2c] = await q(`select set_config('request.jwt.claim.sub','${users.D.id}',true);
+        select close_cash, close_petty, close_bank from nf_position_row('${day2.id}')`);
+      const [pos3o] = await q(`select set_config('request.jwt.claim.sub','${users.D.id}',true);
+        select cash, petty, bank from nf_ledger_position('${C}', (date '${DAY2}' + 1))`);
+      const carry = pos2c && pos3o && String(pos3o.cash) === String(pos2c.close_cash)
+        && String(pos3o.petty) === String(pos2c.close_petty) && String(pos3o.bank) === String(pos2c.close_bank);
+      ok('S6 the carry-forward past the journal voucher\'s own date still ties (date-scoped == day-scoped)',
+        carry, `day2 close ${JSON.stringify(pos2c)} vs next opening ${JSON.stringify(pos3o)}`);
       // and the ledger agrees with the screen
       ok('S6 the closed day is locked against further entry',
         (await q(`select status from nf_days where id=(select id from nf_days where company_id='${C}' and business_date='${DAY1}')`))[0].status === 'CLOSED', '');

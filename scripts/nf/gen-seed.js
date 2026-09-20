@@ -117,16 +117,17 @@ function buildSeed() {
 
   const children = new Set(accounts.filter(a => a.parent_code).map(a => a.parent_code));
   for (const a of accounts) {
-    // Double-entry (owner decision, 2026-09-18): a via-account (Cash/Petty/
-    // Bank) is now a normal postable head too — a voucher names both sides
-    // explicitly, so a transfer between two via-accounts (e.g. a bank
-    // withdrawal into the till) needs both legs to be headable. Single-entry
-    // never allowed this (via was always the implicit OTHER side of a
-    // line); see supabase/migrations/20260918a's drop of
-    // nf_accounts_head_not_via for the full reasoning. Any company seeded
-    // from here on gets this correctly from the start, not via a one-time
-    // UPDATE the way already-existing rows were migrated.
-    a.is_head = headCodes.has(a.code) || !!vias[a.code];
+    // is_head means ONE thing: "a cashier may choose this from the HEAD
+    // dropdown of a receipt or payment" (blueprint R4, nf_list_heads). It is
+    // NOT the same question as "a voucher leg may reference this account" —
+    // a via-account (Cash/Petty/Bank) is never a head but is always postable,
+    // being the other leg of every receipt and payment and BOTH legs of a
+    // transfer. 20260918a conflated the two and flipped these to true because
+    // nf_voucher_legs_guard tested is_head for postability; 20260920a splits
+    // them apart again, spells postability out as `is_head OR via IS NOT
+    // NULL`, and restores nf_accounts_head_not_via — so a seed that sets this
+    // true for a via-account is now rejected by the CHECK at insert time.
+    a.is_head = headCodes.has(a.code);
     a.via = vias[a.code] ? vias[a.code].via : null;
     a.via_label = vias[a.code] ? vias[a.code].via_label : null;
   }
@@ -143,16 +144,16 @@ function buildSeed() {
     const a = accounts.find(x => x.code === h.code);
     check(a && a.name === h.name, `head ${h.code}: reference "${h.name}" vs chart "${a && a.name}"`);
   }
-  // The leaves that are NOT heads are the QuickBooks-managed / unused ones
-  // — the Vias moved OUT of this list under double-entry (they are heads
-  // now too, see above).
+  // The leaves that are NOT heads: the QuickBooks-managed / unused ones, plus
+  // the three Vias — postable, but never offered as a head (R4, 20260920a).
   const leavesNotHeads = accounts.filter(a => !children.has(a.code) && !a.is_head).map(a => a.code).sort();
-  const expectLeavesNotHeads = ['11000', '24000', '30000', '32000'];
+  const expectLeavesNotHeads = ['10100', '10200', '10300', '11000', '24000', '30000', '32000'];
   check(JSON.stringify(leavesNotHeads) === JSON.stringify(expectLeavesNotHeads),
         `leaves that are not heads: ${leavesNotHeads.join(',')} (expected ${expectLeavesNotHeads.join(',')})`);
 
   check(accounts.length === 110, `seed should hold 110 accounts, holds ${accounts.length}`);
-  check(accounts.filter(a => a.is_head).length === 82, `seed should hold 82 heads (78 + the 3 via-accounts + 66000 Payroll Expenses), holds ${accounts.filter(a => a.is_head).length}`);
+  check(accounts.filter(a => a.is_head).length === 79, `seed should hold 79 heads (78 + 66000 Payroll Expenses; the 3 via-accounts are postable but NOT heads — R4 / 20260920a), holds ${accounts.filter(a => a.is_head).length}`);
+  check(!accounts.some(a => a.is_head && a.via), 'a via-account is flagged is_head — nf_accounts_head_not_via would reject this seed at insert time');
   check(!accounts.some(a => a.code.startsWith('104')), 'a 104xx code survived');
   for (const c of ['12610', '12620']) {
     const a = accounts.find(x => x.code === c);
