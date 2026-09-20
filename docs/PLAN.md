@@ -3143,3 +3143,78 @@ possibly have caused it. Re-run on its own immediately afterwards: 38/38. The ex
 a NexuFinance suite was deliberately running at that moment, and both it and the gate's smoke drive headless
 Chrome against the same live Supabase project. **Do not run a suite while pushing;** the gate needs the
 project and the machine to itself. Same shape as §15.3's earlier unexplained gate failure, now with a cause.
+
+## 38 · Fix pass 1 of 3 — CRITICAL-3 closed: imported history protected, JV period-gated and version-locked (2026-09-20)
+
+Closes `docs/AUDIT_REPORT.md` CRITICAL-3, found in the read-only forensic audit: `nf_jv_list` selected by
+`day_id IS NULL AND status='POSTED'`, and every one of Awami's 64 QuickBooks-imported historical vouchers is
+also day-less. The real Journal Vouchers screen, asked as the real director, returned all 64 — each marked not
+exported, each with a Delete button. `20260919p_nf_jv_harden.sql`, applied on the owner's own go-ahead for this
+fix pass.
+
+**A derived fact, not a caller-supplied flag.** `nf_vouchers.source` ('JV' | 'IMPORT' | 'DAY'), NOT NULL.
+`nf_post_voucher` sets it itself — `p_day_id IS NOT NULL → 'DAY'`, else the column default `'JV'` — so no
+caller can forget or spoof it. The one case that needs to be something else, historical import, is tagged the
+same way `20260919h` already tags `iif_exportable`: a follow-up `UPDATE` immediately after posting
+(`scripts/nf/import-awami-history.js`, changed alongside this, so the next historical import — KBH, FMH, a
+re-run — inherits it at the source, not from a one-time backfill).
+
+**The backfill refused to guess.** It targets exactly the rows `20260919h` already marked
+`iif_exportable=false`, counts them first, and aborts the whole migration if the count is not exactly 64 —
+verified live before writing a line of SQL, and again as the actual result: `source='IMPORT'` on 64 rows,
+`source='DAY'` on 18 (the two demo companies' day-attached vouchers), zero surprises.
+
+**`nf_jv_list`** now filters `AND v.source = 'JV'`. The 64 stay completely readable everywhere that reads the
+ledger directly — the Journal, the Ledger, every statement — just never through the one screen with a Delete
+button. **`nf_jv_delete`** refuses `source <> 'JV'` as `NF:IMPORTED_LOCKED`, checked at the database, not the
+UI — proven by calling it directly over real HTTP with a real JWT on the imported voucher's own id, bypassing
+the screen entirely. It also gained the optimistic lock every other write path already has (`p_version` →
+`NF:VERSION_CONFLICT`) and a period gate (`NF:PERIOD_CLOSED`): a journal voucher dated on or before the
+company's latest CLOSED day cannot be deleted, exported or not. **`nf_jv_save`** gained the same period gate on
+the way in, plus a future-date bound (`NF:DATE_FUTURE`) — deliberately placed in `nf_jv_save`, not
+`nf_post_voucher`, so the service-role import path (which posts real historical dates, always "in the past" by
+definition) is untouched.
+
+**A real technical trap caught before it shipped:** `CREATE OR REPLACE FUNCTION` does not replace a function
+whose argument list differs — Postgres treats it as a new overload. Adding `p_version` to `nf_jv_delete` would
+have left the OLD, one-argument, unguarded version still live and callable side by side with the new one,
+silently defeating the entire fix. The old signature is dropped explicitly first. And because a fresh
+`CREATE FUNCTION` defaults to PUBLIC-executable — the exact class of hole `SEC-RPC-PUBLIC` exists to catch
+(§18/§31) — and `DROP FUNCTION` takes the old signature's grants with it, the new signature's grants are
+re-locked by hand in the same migration, not assumed to survive.
+
+**Rehearsed first, in one `BEGIN…ROLLBACK`, 13/13 green** — including the real day-path (`nf_save_line`)
+tagging itself `source='DAY'` and staying invisible to `nf_jv_list`, and `nf_jv_delete` still refusing a
+daily-closing voucher exactly as before. Applied, then verified live: Awami's real `nf_jv_list` now returns
+**zero** vouchers (was 64); `anon`/`PUBLIC` confirmed with no execute on the new `nf_jv_delete`; `verify-nf-rules.js`
+58/58, confirming the standing `SEC-RPC-PUBLIC`/`SEC-RPC-ROLE-CHECK` checks catch the new signature correctly.
+
+**New standing suite — `scripts/nf/verify-nf-jv-harden.js`, 15/15 — built SR-5/SR-7-honest:** the earlier
+journal-voucher suite never seeded an imported voucher, so it could not have caught this; a test that only
+supplies the safe case has not tested the rule. This one seeds the unsafe case on purpose, and proves the fix
+on two layers deliberately, not one: the real screen, in a real browser, never renders the imported voucher
+**anywhere** — not "no Delete button on it," not present in the DOM at all — and `nf_jv_delete` is also called
+directly over real HTTP with a real JWT on the imported voucher's own id, bypassing the UI entirely, to prove
+the refusal is a database fact rather than a menu omission. Also covers: future date, period-closed on both
+save and delete (including a genuine `source='JV'` voucher dated before a since-closed period — not just the
+imported one), stale-version delete, and a clean correct-version delete.
+
+Full regression after this pass: golden day, party field, journal vouchers (existing suite), general ledger,
+general journal, trial balance, director report, the daily-workflow dry run, and rules — see the next entry for
+the actual numbers. `verify-nf-schema.js` remains the pre-existing known-broken from-scratch rehearsal
+(§31/MEDIUM-2 in the audit) — confirmed unchanged, not touched by this pass, on the record for the fix pass
+that MEDIUM-2 belongs to.
+
+**Full regression, every suite green (one transient network failure on the first pass, re-run clean — see
+below):** golden day 34/34 · party field 15/15 · journal vouchers (existing suite) 18/18 · **journal-voucher
+hardening (new suite) 15/15** · General Ledger 12/12 · General Journal 14/14 · Trial Balance 10/10 · director
+report 18/18 · daily-workflow dry run 26/26 · rules 58/58. **220 checks, nothing red.** Live-reconfirmed
+afterward: Awami still exactly 64 vouchers, all `source='IMPORT'`, and the real `nf_jv_list` for Awami returns
+zero — unchanged since the moment the migration applied.
+
+One `TypeError: fetch failed` on `verify-nf-jv-harden.js`'s first run inside the batched suite — a bare
+Node-level network rejection, not a logic failure (the same suite had already passed 15/15 standalone minutes
+earlier). Re-run alone: 15/15 again. Noted rather than silently re-run past, per this session's own standing
+rule about test-suite failures during concurrent load (§ the push-gate entry above) — this one was not
+concurrent with anything else, so it is recorded as its own, still-unexplained, single transient network blip,
+not folded into that same explanation.

@@ -246,6 +246,17 @@ ${voucherSql}
 UPDATE public.nf_vouchers SET iif_exportable = false
  WHERE company_id = ${sqlStr(AWAMI)}::uuid AND created_by = ${sqlStr(SYSTEM_USER)}::uuid;
 
+-- Same reasoning, added 2026-09-20 alongside supabase/migrations/
+-- 20260919p (docs/AUDIT_REPORT.md CRITICAL-3): nf_post_voucher derives
+-- source='JV' for any day-less voucher by default, which is correct for a
+-- real journal voucher but wrong for imported history — the Journal
+-- Vouchers screen's Delete button must never reach these 64 rows, and
+-- source='IMPORT' is what nf_jv_list/nf_jv_delete now key that refusal on.
+-- Set at the source for the same reason as iif_exportable above: the next
+-- historical import must not rely on a one-time backfill either.
+UPDATE public.nf_vouchers SET source = 'IMPORT'
+ WHERE company_id = ${sqlStr(AWAMI)}::uuid AND created_by = ${sqlStr(SYSTEM_USER)}::uuid;
+
 DO $verify$
 DECLARE v_actual numeric;
 BEGIN

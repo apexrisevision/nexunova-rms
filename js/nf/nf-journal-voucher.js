@@ -139,7 +139,7 @@
         '  <span class="nar">' + esc(v.narration || '') + '</span>' +
         '  <span class="r amt">Rs ' + F.fmt(v.total) + '</span>' +
         (v.exported ? '<span class="lockpill" title="Already sent to QuickBooks — correct it with a new voucher">In QuickBooks</span>'
-                    : (canWrite ? '<button class="btn danger sm" type="button" data-del-jv="' + esc(v.id) + '" data-no="' + esc(v.voucher_no) + '">Delete</button>' : '')) +
+                    : (canWrite ? '<button class="btn danger sm" type="button" data-del-jv="' + esc(v.id) + '" data-ver="' + esc(v.version) + '" data-no="' + esc(v.voucher_no) + '">Delete</button>' : '')) +
         '</div>' +
         '<div class="jvlegs">' + (v.legs || []).map(function (l) {
           return '<div class="jvlegrow">' +
@@ -303,8 +303,9 @@
       root.querySelectorAll('[data-del-jv]').forEach(function (b) {
         b.addEventListener('click', function () {
           var id = b.getAttribute('data-del-jv'), vno = b.getAttribute('data-no');
+          var ver = Number(b.getAttribute('data-ver'));
           if (!global.confirm('Delete ' + vno + '? Its lines go with it. This is recorded in the audit log.')) return;
-          ctx.api.jvDelete(id)
+          ctx.api.jvDelete(id, ver)
             .then(function () { return loadList(); })
             .then(function () { redraw(); })
             .catch(function (e) { S.error = messageFor(e); redraw(); });
@@ -390,6 +391,10 @@
       if (c === 'NF:VOUCHER_PREFIX_IS_CASHBOOK') return 'CRV/BRV/CPV/BPV belong to the daily closing sheet. Use JV- for a journal voucher.';
       if (c === 'NF:HEAD_NOT_POSTABLE') return 'That account cannot take an entry directly.';
       if (c === 'NF:NOT_ALLOWED') return 'You do not have permission to post vouchers.';
+      if (c === 'NF:DATE_FUTURE') return 'The date cannot be in the future.';
+      if (c === 'NF:PERIOD_CLOSED') return 'That date falls in a period that is already closed. Use a date after the last closed day.';
+      if (c === 'NF:IMPORTED_LOCKED') return 'That voucher is part of the imported history and cannot be deleted here.';
+      if (c === 'NF:VERSION_CONFLICT') return 'This voucher changed since the page loaded — reload and try again.';
       return (e && e.message) || String(e);
     }
 

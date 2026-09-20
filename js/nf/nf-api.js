@@ -140,7 +140,7 @@
           p_narration: narration || null, p_legs: legs,
         });
       },
-      jvDelete: function (voucherId) { return call('nf_jv_delete', { p_voucher_id: voucherId }); },
+      jvDelete: function (voucherId, version) { return call('nf_jv_delete', { p_voucher_id: voucherId, p_version: version }); },
       getPartyStatement: function (companyId, partyId, from, to) {
         return call('nf_get_party_statement', { p_company_id: companyId, p_party_id: partyId, p_from: from || null, p_to: to || null });
       },
