@@ -111,13 +111,19 @@ function countPdfPages(buf) {
     // the real inter-company voucher the owner asked to see reflected: no
     // via leg at all — FMH paying an Awami cost directly
     const floor = built.seed.floors[0].code;
-    r = await rpc('nf_post_voucher', { p_company_id: C, p_day_id: null, p_voucher_no: 'JV-SAMPLE-1',
-      p_voucher_date: s.date, p_narration: 'FMH paid a project cost directly, on Awami\u2019s behalf', p_sort: 0,
+    // Through nf_jv_save, which is the public path for a day-less voucher.
+    // This used to call nf_post_voucher directly; 20260920c revoked EXECUTE on
+    // that primitive from `authenticated` (AUDIT_REPORT.md R-2), so a direct
+    // call from a signed-in session is refused now \u2014 as it should be. Same
+    // voucher, same legs, same result; nf_jv_save posts with day_id NULL
+    // always and derives source='JV' itself.
+    r = await rpc('nf_jv_save', { p_company_id: C, p_voucher_no: 'JV-SAMPLE-1',
+      p_voucher_date: s.date, p_narration: 'FMH paid a project cost directly, on Awami\u2019s behalf',
       p_legs: [
         { account_code: '53100', floor_code: floor, debit: 75000 },
         { account_code: '22100', floor_code: floor, credit: 75000 },
       ] });
-    if (r.status !== 200) throw new Error('nf_post_voucher (FMH): ' + JSON.stringify(r.json));
+    if (r.status !== 200) throw new Error('nf_jv_save (FMH): ' + JSON.stringify(r.json));
     console.log('  fixture ready: golden day entered, FMH inter-company voucher posted');
 
     srv = await serve();

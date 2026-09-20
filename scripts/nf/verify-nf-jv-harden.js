@@ -107,7 +107,7 @@ const code = r => (r.json && typeof r.json === 'object' && r.json.message) || nu
   const users = {};
   const awamiBefore = (await q(`select count(*) n from nf_vouchers where company_id='${AWAMI_COMPANY_ID}'`))[0].n;
 
-  let srv, browser;
+  let srv, browser, C2 = null;
   try {
     await q(`insert into companies (id, company_code, company_name) values ('${C}', 'ZZJVX${run}', 'ZZTEST-NF-${run}')`);
     await q(seedSql(C, built.seed));
@@ -232,12 +232,102 @@ const code = r => (r.json && typeof r.json === 'object' && r.json.message) || nu
     ok('JVX-08 the correct version deletes cleanly', r.status >= 200 && r.status < 300 && r.json && r.json.deleted === 'JV-AFTER', JSON.stringify(r.json));
 
     ok('JVX-09 no console or page errors on the real screen', errors.length === 0, JSON.stringify(errors.slice(0, 3)));
+
+    // ── JVX-10 · the REAL import path must tag its own rows (SR-7) ──────────
+    // Re-audit test gap (b): everything above proves the RULE — an IMPORT
+    // voucher cannot be listed or deleted — but the fixture sets
+    // source='IMPORT' by hand, so nothing proved that the thing which
+    // actually creates imported history produces that state. If a future
+    // KBH/FMH import arrived untagged it would default to source='JV' and be
+    // listed with a Delete button on every row, which is CRITICAL-3 again.
+    //
+    // So run the real script, on the real spreadsheet, through its own code
+    // path (`--dry-run` regenerates the SQL and writes it without executing),
+    // then execute that SQL against THIS disposable company and check what
+    // actually lands in the table. Nothing is hand-set here.
+    const genPath = path.join(ROOT, 'scripts', 'nf', '_import_awami_generated.sql');
+    try { fs.unlinkSync(genPath); } catch {}
+    const dry = require('child_process').spawnSync(process.execPath,
+      [path.join(ROOT, 'scripts', 'nf', 'import-awami-history.js'), '--dry-run'],
+      { cwd: ROOT, encoding: 'utf8' });
+    ok('JVX-10 the real import script runs and regenerates its SQL',
+      dry.status === 0 && fs.existsSync(genPath),
+      `exit ${dry.status} · ${String(dry.stderr || '').slice(0, 200)}`);
+
+    if (dry.status === 0 && fs.existsSync(genPath)) {
+      // A SECOND disposable company, because the import's own voucher numbers
+      // are JV-0001..JV-0064 and the fixture above already owns JV-0001 —
+      // a collision would fail on NF:DUPLICATE_VOUCHER and prove nothing
+      // about tagging. Renaming the vouchers instead would mean editing the
+      // script's output, and the point is to run what the script produces.
+      C2 = crypto.randomUUID();
+      await q(`insert into companies (id, company_code, company_name) values ('${C2}', 'ZZIMP${run}', 'ZZTEST-NF-${run}-imp')`);
+      await q(seedSql(C2, built.seed));
+      await q(`insert into nf_members (company_id, user_id, role, display_name, active)
+               values ('${C2}','${users.D.id}','director','JVX Director',true)`);
+
+      let importSql = fs.readFileSync(genPath, 'utf8');
+      const sysUser = fs.readFileSync(path.join(ROOT, 'scripts', 'nf', '_import_system_user_id.txt'), 'utf8').trim();
+      // retarget: that second disposable company and this test's director, nobody else
+      importSql = importSql.split(AWAMI_COMPANY_ID).join(C2).split(sysUser).join(users.D.id);
+      // SAFETY, asserted rather than assumed — if a single Awami id or the
+      // system user survived the retarget this would write to the real book.
+      const clean = !importSql.includes(AWAMI_COMPANY_ID) && !importSql.includes(sysUser);
+      ok('JVX-10 setup: the retargeted SQL contains no Awami id and no system user id', clean,
+        'retarget failed — NOT executed');
+      if (clean) {
+        let impErr = null;
+        try { await q(importSql); } catch (e) { impErr = e.message; }
+        ok('JVX-11 the real import path completes against a scratch company',
+          impErr === null, String(impErr).slice(0, 300));
+
+        const [tag] = await q(`select
+            count(*) total,
+            count(*) filter (where source = 'IMPORT') tagged,
+            count(*) filter (where source <> 'IMPORT') untagged,
+            count(*) filter (where iif_exportable) exportable,
+            count(*) filter (where day_id is null) dayless
+          from nf_vouchers where company_id='${C2}' and created_by='${users.D.id}'`);
+        ok('JVX-12 every voucher the import created carries source=\'IMPORT\' — none defaulted to \'JV\'',
+          Number(tag.total) === 64 && Number(tag.tagged) === 64 && Number(tag.untagged) === 0,
+          JSON.stringify(tag));
+        ok('JVX-13 …and each is day-less and not queued for re-export to QuickBooks',
+          Number(tag.dayless) === 64 && Number(tag.exportable) === 0, JSON.stringify(tag));
+
+        // the consequence that matters: they are invisible and undeletable
+        const lst = await rpc(K.anon, users.D.jwt, 'nf_jv_list', { p_company_id: C2, p_from: null, p_to: null });
+        const listed = (lst.json && lst.json.vouchers) || [];
+        // C2 holds the 64 imported vouchers and nothing else, so a correct
+        // nf_jv_list returns an EMPTY list here — the real JV-0001 lives in C.
+        ok('JVX-14 nf_jv_list shows none of the 64 freshly imported vouchers',
+          listed.length === 0,
+          `${listed.length} listed: ${JSON.stringify(listed.map(v => v.voucher_no).slice(0, 5))}`);
+        // "nothing is listed" is only meaningful if the list can show something,
+        // so prove the same call in the SAME company does return a real JV once
+        // one exists — otherwise an always-empty list would pass this.
+        const realJv = await rpc(K.anon, users.D.jwt, 'nf_jv_save', {
+          p_company_id: C2, p_voucher_no: 'JV-REAL-1', p_voucher_date: '2026-09-01',
+          p_narration: 'a genuine journal voucher alongside the imported ones',
+          p_legs: [{ account_code: '22100', floor_code: 'P-W', debit: 10 },
+                   { account_code: '70100', floor_code: 'P-W', credit: 10 }] });
+        const lst2 = await rpc(K.anon, users.D.jwt, 'nf_jv_list', { p_company_id: C2, p_from: null, p_to: null });
+        const listed2 = (lst2.json && lst2.json.vouchers) || [];
+        ok('JVX-14b …and the list is not simply always empty: a real JV in the same company IS shown',
+          realJv.status === 200 && listed2.length === 1 && listed2[0].voucher_no === 'JV-REAL-1',
+          `${listed2.length}: ${JSON.stringify(listed2.map(v => v.voucher_no))}`);
+        const [anImport] = await q(`select id, version from nf_vouchers
+          where company_id='${C2}' and created_by='${users.D.id}' and source='IMPORT' limit 1`);
+        const del = await rpc(K.anon, users.D.jwt, 'nf_jv_delete', { p_voucher_id: anImport.id, p_version: anImport.version });
+        ok('JVX-15 …and nf_jv_delete refuses one of them by id', code(del) === 'NF:IMPORTED_LOCKED', JSON.stringify(del.json));
+      }
+    }
   } catch (e) {
     ok('RUN', false, e.stack || e.message);
   } finally {
     if (browser) await browser.close();
     if (srv) srv.close();
     console.log('\n── cleanup');
+    if (C2) { try { console.log('  purge C2:', JSON.stringify((await q(`select public._nf_test_purge('${C2}') j`))[0].j)); } catch (e) { console.log('  purge C2 raised:', e.message); } }
     try { console.log('  purge:', JSON.stringify((await q(`select public._nf_test_purge('${C}') j`))[0].j)); }
     catch (e) { console.log('  purge raised:', e.message); }
     if (users.D && users.D.id) {

@@ -73,8 +73,26 @@
       'a refused line stays on the sheet with the reason shown underneath it. "Start new day" carries today’s closing forward as ' +
       'tomorrow’s opening.';
 
+    // AUDIT_REPORT.md R-4. #nf-toast-host lives in the shell this module
+    // renders, and the shell is replaced wholesale when the person opens the
+    // Director Report or the Journal Vouchers screen (see the #nf-toDir
+    // handler). A debounced save still in flight at that moment used to reach
+    // `host.appendChild` with host === null and throw — which both lost the
+    // message and, because the throw happened inside a .catch handler, wedged
+    // serialDebounce's queue. Re-create the host if it is gone rather than
+    // giving up on the message: the toast is the only signal the person gets.
     function toast(msg, bad) {
       var host = root.querySelector('#nf-toast-host');
+      if (!host) {
+        try {
+          host = document.createElement('div');
+          host.id = 'nf-toast-host';
+          root.appendChild(host);
+        } catch (e) {
+          if (window.console && console.error) console.error('[nf-sheet] toast host unavailable:', msg);
+          return;
+        }
+      }
       var el = document.createElement('div');
       el.className = 'nf-toast' + (bad ? ' bad' : '');
       el.textContent = msg;
@@ -608,9 +626,18 @@
         // The queue must still drain either way: .then() below runs whether
         // this rejected or not, so a failed run never wedges `running` true
         // and never strands a pending edit.
+        // The catch body is itself wrapped (AUDIT_REPORT.md R-4): anything
+        // thrown HERE would reject the promise `.then()` is chained to, so
+        // `running` would never be cleared and every later edit in this
+        // session would be silently queued and never sent. The handler must
+        // be incapable of throwing, whatever it is asked to report.
         fn().catch(function (err) {
-          toast('Screen refresh failed — reload.', true);
-          if (window.console && console.error) console.error('[nf-sheet] background save/refresh failed', err);
+          try {
+            toast('Screen refresh failed — reload.', true);
+            if (window.console && console.error) console.error('[nf-sheet] background save/refresh failed', err);
+          } catch (e) {
+            if (window.console && console.error) console.error('[nf-sheet] could not report a failed save', e, err);
+          }
         }).then(function () {
           running = false;
           if (pending) { pending = false; runNow(); }

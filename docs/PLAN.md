@@ -3553,3 +3553,150 @@ Live re-confirmed after the migration: Awami 64 vouchers, **0** posted vouchers 
 legs, report opening == sheet opening on the real first day, `nf_get_cash_bank_movement` still `authenticated`
 only (no anon, no PUBLIC), one overload each of both changed functions, and `nf_voucher_has_legs_check` holding
 nothing beyond `postgres`/`service_role`.
+
+---
+
+## 41 · Fix pass 4 — the re-audit's residuals (2026-09-20)
+
+`20260920c_nf_reaudit_residuals.sql` plus a browser fix and two closed test gaps. Closes R-2, R-4, R-3 and R-1
+from the "Re-audit sign-off" section of `docs/AUDIT_REPORT.md`.
+
+The re-audit was a hostile second pass that refused to take passes 1–3 at their word. It was right to: it found
+one HIGH that re-opened CRITICAL-2 through a different door, and one regression that passes 1–3 had
+*introduced*.
+
+### R-2 (HIGH) — nf_post_voucher was a public primitive
+
+`nf_post_voucher` held EXECUTE for `authenticated` while enforcing only "≥2 legs, balanced, amounts sane, day
+OPEN". It does **not** enforce the shape `nf_lines` requires (exactly two legs, line 1 a non-via head, line 2
+the via account), and it never tied `p_voucher_date` to the day it attaches to. So a signed-in accountant
+calling the RPC directly — through no screen — could create a day voucher whose cash lands in the next day's
+OPENING (date-scoped, counts every via leg) but in NO day's CLOSING (needs the narrow shape). CRITICAL-2 again.
+
+**Fix 1: take the primitive away.** Verified against the live catalog *before* revoking, because the whole
+posting system depends on it: `nf_post_voucher` has exactly three callers — `nf_save_line`, `nf_jv_save` and
+`nf__upsert_transfer_voucher` (which `nf_set_transfers` uses) — and **all three are SECURITY DEFINER**, so
+they execute as the function owner and the owner's EXECUTE is what the nested call is checked against.
+Revoking `authenticated` therefore cannot break them, and the full regression confirms it did not. Live ACL
+after: `postgres=X | service_role=X`.
+
+**Fix 2: the belt, which covers the channel the revoke does not** — service_role, i.e. migrations and import
+scripts. `NF:DATE_DAY_MISMATCH`: a day-attached voucher must carry that day's own `business_date`. The
+migration aborts if any existing day voucher already breaks it (live: 0).
+
+What this does *not* do, stated plainly: the **shape** axis is now closed by the grant, not by a constraint.
+Nothing with the service key is stopped from posting a three-leg or leg-order-flipped day voucher. That is a
+deliberate scope call — the owner chose the revoke — and the two detector queries in the re-audit's §3 remain
+the standing check for it.
+
+**Consequence worth recording:** five scripts called `nf_post_voucher` over HTTP and broke on the revoke —
+`verify-nf-{director-report,general-journal,general-ledger,trial-balance}.js` and
+`export-director-report-sample.js`. All five were posting a day-less inter-company voucher, so all five moved
+to **`nf_jv_save`**, which is the public path for exactly that. They are better tests for it: they now exercise
+the path a real user takes rather than an internal primitive. (I found four of those five only when the
+regression failed — my first grep for callers was piped through `head` and silently truncated at ten lines.
+The standing rule about never filtering run output applies to greps over the codebase too.)
+
+### R-4 — a regression passes 1–3 introduced, and the one item that had no test
+
+The re-audit's sharpest finding, because it was against our own fix. `toast()` does
+`root.querySelector('#nf-toast-host').appendChild(...)` with no null check, and that host is destroyed when the
+person opens the Director Report or the JV screen. MEDIUM-3's fix put a `toast()` call inside
+`serialDebounce`'s catch handler — so a debounced save failing after navigation threw **inside the catch**,
+which meant the `.then()` that resets `running` never ran. The queue wedged for the rest of the session and
+every later edit was silently dropped. The previous empty `.catch(){}` could not throw, so passes 1–3 made this
+worse, not better, while claiming in a code comment that "the queue must still drain either way".
+
+Fixed on both levels: `toast()` re-creates the host if it is missing (the message matters more than the
+container), and the catch body is wrapped so it is incapable of throwing whatever it is asked to report.
+
+**And it now has the test it never had.** `CVD-50..53` reproduces it with no stubbing at all: delete the toast
+host, make one save fail *for real* by bumping the day's version out of band, then type again and require the
+second edit to reach the database. Run red first, against the pre-fix file:
+
+```
+FAIL  CVD-53 R-4: a later edit still saves — the queue drained despite the failed toast
+      {"remarks":"bumped out of band"}
+```
+
+The second edit had never arrived. `CVD-52` guards against the test going vacuous by asserting the first save
+really was rejected.
+
+### R-3 — the existence oracle
+
+`nf_jv_delete` looked the voucher up unscoped, so a member of company A asking about company B's voucher id got
+`NF:NOT_ALLOWED` ("not a member") while a random uuid got `NF:VOUCHER_NOT_FOUND` — two distinguishable answers,
+i.e. an oracle over every voucher id in the database. The lookup is now scoped to companies the caller belongs
+to, so both cases take the same branch and give the same answer. A viewer who really *is* a member still gets
+the accurate `NF:NOT_ALLOWED` from the role gate that follows.
+
+### R-1 — re-parenting a voucher off its day
+
+`NF:CASH_VIA_DAY_ONLY` lives in the **leg** guard, so `UPDATE nf_vouchers SET day_id = NULL` moved a voucher
+and all its via legs off the day path without touching a leg row — nothing fired. The re-audit proved this from
+the catalog; `CVD-26` proved it for real, red:
+
+```
+FAIL  CVD-26 R-1: UPDATE nf_vouchers SET day_id = NULL is refused (NF:VOUCHER_DAY_IMMUTABLE)
+      the UPDATE was ACCEPTED
+FAIL  CVD-26b …and no voucher of this company became day-less        1 are
+```
+
+A voucher genuinely became day-less while carrying cash legs. Now forbidden outright rather than re-checked:
+nothing in the system changes a voucher's day — the only function that writes `nf_vouchers` at all is
+`nf_save_line`, and it writes `voucher_no`, `narration` and `version`, never `day_id`.
+
+### The two test gaps
+
+**(a) The head-list filter, not the data.** `CVD-01..04` passed because `gen-seed` and `20260920a` both set
+`is_head = false` on the via accounts — they would have passed even with no `via IS NULL` clause in
+`nf_list_heads`. `CVD-11` now plants the thing the filter exists to catch: a via account flagged
+`is_head = true`. The CHECK constraint forbids exactly that, so the constraint is dropped and the whole probe
+runs inside **one statement batch ending in ROLLBACK** — nothing is committed, and the constraint is never
+absent from a committed state even if the probe fails part-way. `CVD-11b` then verifies the rollback actually
+happened (constraint back, nothing planted survives).
+
+**(b) The import script's own tagging.** Everything about CRITICAL-3 proved the *rule*; nothing proved that the
+thing which creates imported history produces `source='IMPORT'`. The fixture set it by hand (SR-7). `JVX-10..15`
+now runs the **real script** on the **real spreadsheet** through its own `--dry-run` path, retargets the SQL it
+generates to a second disposable company, executes it, and checks what lands in the table: **64 vouchers, 64
+tagged `IMPORT`, 0 defaulted to `JV`**, all day-less and none queued for re-export, invisible to `nf_jv_list`
+and refused by `nf_jv_delete`. Two safety rails: the retarget asserts that neither the Awami company id nor the
+import system user id survives the substitution *before* executing anything, and it uses a second company
+because the import's own voucher numbers (JV-0001..JV-0064) would otherwise collide with the fixture's JV-0001.
+`JVX-14b` keeps the "nothing is listed" assertion honest by proving a real JV in the same company *is* listed.
+
+### Full regression — real output
+
+One suite at a time, never concurrently.
+
+| suite | result |
+|---|---|
+| rules | 66/66 |
+| **cash-via-day-only** | **39/39** (was 27 — R-1, R-2, R-3, R-4 and the planted-filter probe) |
+| golden day (UI) | 34/34 |
+| dry run | 33/33 |
+| **jv-harden** | **23/23** (was 15 — the real import path) |
+| journal vouchers | 18/18 |
+| director report | 18/18 |
+| party field | 15/15 |
+| General Journal | 14/14 |
+| General Ledger | 12/12 |
+| Trial Balance | 10/10 |
+| race harness | 3/3 |
+| schema rehearsal | SKIPPED, exit 0 |
+| de-migration rehearsal | SKIPPED, exit 0 |
+
+**285 checks, nothing red.** The first full run of the batch had five failures, all one cause — the four report
+suites and the sample exporter still calling `nf_post_voucher` over HTTP after the revoke — plus one wrong
+expectation of mine in `JVX-14` (it asserted the second company would list the fixture's JV-0001, which lives
+in the *first* company). Fixed and re-run green, then the whole batch re-run clean from scratch.
+
+Live re-confirmed after the migration: Awami 64 vouchers all `IMPORT`, `nf_jv_list` 0, 79 heads, 0 day-less
+vouchers touching a via account, **0 date/day mismatches**, 0 legless posted vouchers, `nf_post_voucher` ACL
+`postgres | service_role` with no `anon`/`authenticated`, and one signature each of the three changed
+functions.
+
+Housekeeping still open, not a finding and not touched (no instruction to delete live rows): one leftover test
+tenant `ZZTEST-NF-02bed4e9` from an earlier suite run whose cleanup did not complete. `ZZTEST-NF-DEMO` and
+`ZZTEST-NF-SHOT` are deliberate demo tenants, not residue.

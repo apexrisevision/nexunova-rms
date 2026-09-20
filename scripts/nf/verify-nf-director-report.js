@@ -150,13 +150,18 @@ async function injectSession(page, ref, jwt, userId, email) {
     // besides Token Money to show — a real, direct nf_post_voucher call
     // (the pattern the owner asked be proven, no via leg at all)
     const floor = built.seed.floors[0].code;
-    r = await rpc('nf_post_voucher', { p_company_id: C, p_day_id: null, p_voucher_no: 'JV-REPORT-1',
-      p_voucher_date: s.date, p_narration: 'FMH paid a project cost directly, rehearsal', p_sort: 0,
+    // nf_jv_save, the public path for a day-less voucher. This used to call
+    // nf_post_voucher directly; 20260920c revoked EXECUTE on that internal
+    // primitive from `authenticated` (AUDIT_REPORT.md R-2), so a signed-in
+    // session is refused now — correctly. Same voucher and legs, and it goes
+    // through the path a real user takes instead of an internal one.
+    r = await rpc('nf_jv_save', { p_company_id: C, p_voucher_no: 'JV-REPORT-1',
+      p_voucher_date: s.date, p_narration: 'FMH paid a project cost directly, rehearsal',
       p_legs: [
         { account_code: '53100', floor_code: floor, debit: 75000 },
         { account_code: '22100', floor_code: floor, credit: 75000 },
       ] });
-    if (r.status !== 200) throw new Error('nf_post_voucher (FMH): ' + JSON.stringify(r.json));
+    if (r.status !== 200) throw new Error('nf_jv_save (FMH): ' + JSON.stringify(r.json));
 
     srv = await serve();
     browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox', '--font-render-hinting=none'] });

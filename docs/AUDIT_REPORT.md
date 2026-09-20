@@ -393,3 +393,315 @@ Run in this session, on the current code, full output (not a summary claim):
 ---
 
 *No code was modified and no data was written in the course of this audit.*
+
+---
+
+# Re-audit sign-off — 2026-09-20
+
+Second, hostile pass over the fixes in `2e7537b`, `2600b74`, `e14393a`. **PLAN.md §38–§40, the §1b status
+table, and the commit messages were treated as claims and used only to know where to look — no statement in
+them was accepted as evidence.** Everything below is from the live catalog, live read-only queries and RPC
+calls made as the real member roles, or from source. No code was changed and nothing was written to the
+database; where an exploit would have required a write, it is proved from catalog/source and labelled as such.
+
+**Tags:** PROVEN = demonstrated here. INDICATIVE = strongly supported but not executed end to end.
+
+---
+
+## 1 · CRITICAL-1 / HIGH-1 — can a via account still reach a day-less voucher?
+
+**HOLDS on every application path. One residual re-parenting gap (service_role only) — finding R-1.**
+
+PROVEN, live, company-wide:
+
+| query | result |
+|---|---|
+| day-less vouchers carrying a via leg | **0** |
+| accounts with `is_head AND via IS NOT NULL` | **0** |
+| `nf_accounts_head_not_via` | present **and `convalidated = true`** — it covers the rows that already existed, not just new ones |
+
+The guard is deployed as claimed and covers the write surface: `nf_voucher_legs_guard` is
+`BEFORE INSERT OR DELETE OR UPDATE … FOR EACH ROW`, `tgenabled = 'O'`, and the live body carries
+`IF v_voucher.day_id IS NULL AND v_acc.via IS NOT NULL THEN RAISE 'NF:CASH_VIA_DAY_ONLY'`. Because it is a
+table trigger, no RPC can route around it. A leg cannot be moved to another voucher either — `voucher_id` is in
+the `NF:IMMUTABLE_COLUMN` tuple.
+
+Entry paths attacked: `nf_jv_save` (always posts a NULL day), `nf_post_voucher` called directly (it is
+`authenticated`-executable, and is the bypass CVD-09 exercises), a leg `UPDATE` re-pointing an account code at a
+via account, and deleting the day row to orphan its vouchers. The last is closed by the catalog:
+`nf_vouchers_day_fk` is `confdeltype = 'a'` (NO ACTION), so a day with vouchers cannot be deleted at all.
+
+The trigger-bypass escape hatch `nf_purging()` is **double-gated** and can never apply to Awami — PROVEN:
+
+```
+SELECT COALESCE(current_setting('nf.purge_company', true), '') = p_company_id::text
+   AND EXISTS (SELECT 1 FROM companies c WHERE c.id = p_company_id AND c.company_name LIKE 'ZZTEST-NF-%')
+```
+
+Awami's `company_name` is `"Awami Market"`. `nf_purging` and `_nf_test_purge` hold EXECUTE for
+`postgres`/`service_role` only.
+
+**All six `is_head` consumers re-verified against the live catalog** (not against the Pass-2 claim):
+
+| function | live predicate | verdict |
+|---|---|---|
+| `nf_voucher_legs_guard` | `NOT v_acc.active OR NOT (v_acc.is_head OR v_acc.via IS NOT NULL)` | day receipts/payments/transfers still postable |
+| `nf_list_heads` | `a.is_head AND a.active AND a.via IS NULL` | **79** heads, **0** via — PROVEN as the real Awami director |
+| `nf_get_cash_bank_movement` | `qb_type='Bank' AND active AND (is_head OR via IS NOT NULL)` | returns all **3** accounts, did not go empty |
+| `nf_list_all_accounts` | filters on `active` only | still returns 10100 — the General Ledger picker is intact |
+| `nf_accounts_tree_guard` | `(is_head OR via IS NOT NULL)` | unchanged, consistent |
+| `nf_lines_guard` | tests `NOT v_acc.is_head` | **confirmed orphaned** — `pg_trigger` holds no row for it; `nf_lines` is a view. Dead code, no effect |
+
+`nf_list_vias` was checked separately as the brief asked: it keys on `via`, not `is_head`, and still returns all
+three — so the Daily Closing Via selector is unaffected. PROVEN.
+
+---
+
+## 2 · Overload trap and grants
+
+**HOLDS. PROVEN — zero stale signatures anywhere.**
+
+All 21 functions touched across the three passes were enumerated from `pg_proc` by `oid::regprocedure`.
+**Every one has exactly one signature.** `nf_jv_delete` exists only as `nf_jv_delete(uuid,integer)` — the
+pre-Pass-1 `nf_jv_delete(uuid)` is gone, not shadowed.
+
+Grants, PROVEN from `proacl`:
+
+- **`anon` and `PUBLIC` hold nothing** — no EXECUTE on any of the 21, and no table privilege on
+  `nf_vouchers`, `nf_voucher_legs`, `nf_accounts`, `nf_days`. No function sits on the PostgreSQL
+  `CREATE FUNCTION` default.
+- `authenticated` holds EXECUTE on exactly the user-facing set (`nf_jv_save`, `nf_jv_list`, `nf_jv_delete`,
+  `nf_save_line`, `nf_delete_line`, `nf_list_heads`, `nf_list_vias`, `nf_list_all_accounts`,
+  `nf_get_cash_bank_movement`, **`nf_post_voucher`**) and on nothing else.
+- Every trigger function and internal helper (`nf_voucher_legs_guard`, `nf_voucher_legs_position_guard`,
+  `nf_voucher_has_legs_check`, `nf_voucher_balance_check`, `nf_assert_not_negative`,
+  `nf_assert_not_negative_company`, `nf_position_row`, `nf_ledger_position`, `nf_days_guard`,
+  `nf_accounts_tree_guard`, `nf_lines_guard`) holds `postgres`/`service_role` only.
+- All four tables: `authenticated = SELECT` only; RLS enabled on each; `nf_lines` carries
+  `security_invoker=true`.
+
+`nf_post_voucher` being `authenticated`-executable is intended (CVD-09 depends on it) but it is the entry point
+for finding R-2 below.
+
+---
+
+## 3 · CRITICAL-2 — do opening and closing still draw from sets that cannot diverge?
+
+**BREACH — R-2, HIGH. The `day_id` axis is closed; two other axes are not.**
+
+The period gate is correct and there is **no off-by-one** (PROVEN, exact live predicate):
+
+```
+IF p_voucher_date > CURRENT_DATE            THEN RAISE 'NF:DATE_FUTURE'
+IF v_latest_closed IS NOT NULL
+   AND p_voucher_date <= v_latest_closed    THEN RAISE 'NF:PERIOD_CLOSED'
+```
+
+`<=` is inclusive of the latest closed day itself, which is the correct boundary. `nf_days_one_unclosed`
+(unique on `company_id WHERE status <> 'CLOSED'`) plus an ordering check in `nf_days_guard` means
+`max(business_date) WHERE status='CLOSED'` really is the frontier. The frozen `close_cash` snapshot is therefore
+safe from the JV path: a JV cannot be dated into a closed period, and a day-attached voucher cannot be written
+to a non-OPEN day (`NF:DAY_LOCKED`, verified in the live guard body).
+
+**But "cannot diverge by construction" is too strong.** The opening and the closing read *different predicates*,
+and closing the `day_id` gap closed only one of three differences:
+
+- **Opening** — `nf_ledger_position`: every via leg of every POSTED voucher with
+  `voucher_date >= first_day.business_date AND voucher_date < p_before_date`. Keyed on **date**, indifferent to
+  voucher shape.
+- **Closing** — `nf_position_row`: `in`/`out` from the `nf_lines` view, plus `trf` from vouchers where *every*
+  leg is a via account. Keyed on **day_id**, and on a **narrow shape**.
+
+The live `nf_lines` definition requires *exactly two legs*, with **line 1 a non-via account** (`ha.via IS NULL`)
+and **line 2 a via account**. So a day-attached voucher escapes both halves of the closing if it has
+
+1. **three or more legs** including a via leg and a non-via leg, or
+2. **two legs in the other order** — line 1 via, line 2 non-via.
+
+Neither is hypothetical about the view: PROVEN empirically on `ZZTEST-NF-DEMO`, which has **9 day vouchers but
+only 8 rows in `nf_lines`**. The missing one is the transfer `XFR-BANK-…`, whose line 1 is `10300` (via) — it is
+excluded from `nf_lines` by exactly the `ha.via IS NULL` predicate, and is recovered *only* by the `trf` branch,
+which requires **all** legs to be via. Put a non-via leg on it and nothing recovers it.
+
+A third axis: `nf_post_voucher` takes `p_day_id` and `p_voucher_date` as independent arguments and **never
+compares them** (PROVEN: its body does not mention `business_date`). A voucher attached to today's day but dated
+before the first day would be counted in that day's closing and excluded from every opening, because
+`nf_ledger_position` filters `voucher_date >= first_day.business_date`.
+
+**Reachability.** `nf_post_voucher` is EXECUTE-granted to `authenticated` and enforces only: ≥2 legs, balanced,
+`nf_check_amount` per leg, day OPEN. PROVEN from source: **no leg-shape check, no voucher-prefix check, no
+date/day coupling.** So a logged-in accountant or director calling the RPC directly — not through any screen —
+can create a day voucher whose cash movement lands in tomorrow's opening but in no day's closing. That is the
+CRITICAL-2 shape, restored through a different door. It is *not* reachable through the UI: `nf_save_line` always
+builds the head+via two-leg shape with the day's own `business_date`.
+
+**Not realised in live data** (PROVEN, read-only):
+
+| detector | result |
+|---|---|
+| via legs on day vouchers counted by neither `nf_lines` nor `trf` | **0 vouchers, ₨0 unseen** |
+| day vouchers with `voucher_date <> day.business_date` | **0** |
+| day vouchers touching a via account | 18, all exactly 2 legs, the only line-1-via ones being the two transfers |
+
+So the books are correct today. The guarantee is narrower than claimed: it rests on every writer going through
+`nf_save_line`, not on the database refusing the other shapes.
+
+---
+
+## 4 · CRITICAL-3 — imported history
+
+**HOLDS. PROVEN.**
+
+- `nf_jv_list` called as the **real Awami director** (`request.jwt.claim.sub` = a live `nf_members` director
+  row) returns **`vouchers: []` — 0 rows**, against 64 imported vouchers present. Its live body carries both
+  `day_id IS NULL` and `source = 'JV'`.
+- **No caller can set `source`.** PROVEN from the live body: `nf_post_voucher` has no `p_source` argument and
+  writes `CASE WHEN p_day_id IS NOT NULL THEN 'DAY' ELSE 'JV' END`. It is derived, never supplied. The only way
+  to write `'IMPORT'` is a direct `UPDATE`, and `authenticated` holds SELECT only on `nf_vouchers`.
+- `nf_jv_delete` attempt-map on an IMPORT voucher, in the live body's order:
+  `SELECT … FOR UPDATE` → `NF:VOUCHER_NOT_FOUND` → **`nf_require_role(accountant|director)`** →
+  `NF:NOT_A_JOURNAL_VOUCHER` (if `day_id IS NOT NULL`) → **`NF:IMPORTED_LOCKED` (`source <> 'JV'`)** →
+  `NF:VOUCHER_ALREADY_EXPORTED` → `NF:PERIOD_CLOSED` → `nf_check_version`. For an imported Awami voucher the
+  role check passes for a real director and `IMPORTED_LOCKED` fires — the refusal does not depend on the period
+  gate or on the list filter.
+- Minor (**R-3, LOW**): `NF:VOUCHER_NOT_FOUND` is raised *before* `nf_require_role`, so any authenticated user
+  can distinguish "this voucher id exists" from "it does not" for **any** company. An existence oracle over
+  UUIDs; no content leaks.
+
+---
+
+## 5 · MEDIUM-4, MEDIUM-1, MEDIUM-3
+
+**MEDIUM-4 — HOLDS. PROVEN live, on both branches.** The live body computes
+`SELECT * INTO lp FROM nf_ledger_position(p_company_id, COALESCE(p_from, v_first))` and maps
+`lp.cash/petty/bank` onto the via accounts, so the report and the sheet read the *same function*. Measured on
+`ZZTEST-NF-DEMO`, which has real cash movement:
+
+| | 10100 | 10200 | 10300 |
+|---|---:|---:|---:|
+| sheet first-day **opening** | 250,000 | 20,000 | 1,500,000 |
+| report opening at the first day | **250,000** | **20,000** | **1,500,000** |
+| sheet first-day **closing** | 313,000 | 13,500 | 2,108,960 |
+| `nf_ledger_position` at a later date | 313,000 | 13,500 | 2,108,960 |
+| report opening at that later date | **313,000** | **13,500** | **2,108,960** |
+
+The later-date opening equals the first day's closing, so the carry-forward chain ties through the report too.
+All-time (`p_from IS NULL`) opens at the typed opening and closes at the true balance. Note this rests on
+`nf_ledger_position`, so it inherits R-2's shape/date caveat — no more, no less, than the sheet does.
+
+**MEDIUM-1 — HOLDS for both paths, PROVEN from the catalog.** The live trigger is
+`CREATE CONSTRAINT TRIGGER nf_voucher_has_legs_check AFTER INSERT OR UPDATE OF status ON public.nf_vouchers
+DEFERRABLE INITIALLY DEFERRED FOR EACH ROW`, so it fires on INSERT **and** on the DRAFT→POSTED flip, and its
+body gates on `NEW.status IS DISTINCT FROM 'POSTED'` then counts legs and the debit−credit difference.
+Company-wide there are **0** POSTED vouchers with fewer than two legs. Two acknowledged edges, both benign: a
+legless voucher may persist as `DRAFT` (it is not POSTED, so it claims nothing about the books), and the trigger
+does not fire on `UPDATE OF day_id` — which is finding R-1.
+
+**MEDIUM-3 — BREACH, R-4, LOW. The rejection path is *not* surfaced in every case, and the fix introduces a
+queue wedge that did not exist before.** `serialDebounce` has three callers (`saveTransfers`, `saveCount`,
+`saveRemarks`, `js/nf/nf-sheet.js:631/638/648`); each catches its own save error, toasts it, and returns
+`refresh()`, so a rejection reaching the outer handler really is a failed recovery — the diagnosis is right.
+But `toast()` (`js/nf/nf-sheet.js:76-83`) is:
+
+```js
+function toast(msg, bad) {
+  var host = root.querySelector('#nf-toast-host');
+  …
+  host.appendChild(el);      // no null check
+}
+```
+
+and `root.innerHTML` is replaced wholesale when the user opens the Director Report or the JV screen — the file
+says so itself at the `#nf-toDir` handler. A debounced save still in flight when the person navigates away
+(700 ms for remarks) therefore reaches a `toast()` whose `host` is `null`, and `host.appendChild` throws
+**inside the catch handler**. Two consequences:
+
+1. the message is never shown — the exact silent failure MEDIUM-3 set out to remove; and
+2. `fn().catch(H).then(B)` with `H` throwing means the `.catch()` promise rejects, so **`B` never runs,
+   `running` stays `true` for good and any `pending` edit is stranded.** The previous `.catch(function () {})`
+   could not throw, so `B` always ran. The code comment's claim that "the queue must still drain either way" is
+   false in this case.
+
+INDICATIVE rather than PROVEN: derived from source and the promise semantics, not executed in a browser — and
+MEDIUM-3 is the one item in the three passes with **no automated test**, so nothing else covers it either. No
+ledger consequence: this is display and queue behaviour only.
+
+---
+
+## 6 · Tests of the tests
+
+| suite | verdict |
+|---|---|
+| **CVD-01..04** (head list) | **SR-5, partial.** The fixture company is seeded by `gen-seed.js`, which now sets `is_head = false` on the vias, and the Awami rows were flipped by the migration. So these pass **because of the data**, and would pass even if `nf_list_heads` had no `via IS NULL` filter. They do not isolate the filter. That filter is in fact *untestable* while `nf_accounts_head_not_via` exists — you cannot construct a via account with `is_head = true` to catch. The real guarantee is CVD-10, which flips the flag and requires the CHECK to refuse; that one is sound. |
+| **CVD-05..09** (JV refusals) | **Clean.** Self-proving: a missing or unpostable account would raise `NF:HEAD_NOT_POSTABLE`, and the tests assert the exact code `NF:CASH_VIA_DAY_ONLY`. CVD-09b then proves no row survived. The contrast is established rather than assumed, because CVD-21/22 post the same via account successfully on a *day* voucher. |
+| **jv-harden JVX-01..03** | **Clean on SR-11.** The "imported voucher must not appear" assertions are not vacuous: JVX-01 proves the screen rendered exactly one card and that it is `JV-0001`, so a blank screen fails. |
+| **jv-harden fixture** | **SR-7.** It creates its IMPORT voucher with a hand-written `UPDATE nf_vouchers SET source='IMPORT'`. It therefore tests the *rule* but cannot test that the **import script** produces that state. `scripts/nf/import-awami-history.js:257` does set it, and Awami's live 64 are all `source='IMPORT'` (verified here) — but that is live data, not a test. A future KBH/FMH import has no automated guard that it tags its rows, and an untagged import would be listed and deletable. |
+| **H-R1b..H-R1g** (ported R1) | **Clean.** The suite supplies its own state, which is unavoidable, but proves it: H-R1c and H-R1d assert the drawer really reached 150,000 then 50,000 before the refusals are attempted, and H-R1g asserts it is still 50,000 afterwards, so neither refusal half-applied (SR-9). No SR-11 issue. |
+
+---
+
+## Residual findings raised by this re-audit
+
+**R-1 — a day voucher can be re-parented to day-less with no check. MEDIUM (service_role only). PROVEN
+(catalog).** `nf_vouchers` carries only `nf_audit_row` and
+`nf_voucher_has_legs_check (AFTER INSERT OR UPDATE OF status)`. Nothing fires on `UPDATE OF day_id`, so
+`UPDATE nf_vouchers SET day_id = NULL` moves a voucher and its via legs out of the day path without touching a
+leg row — producing exactly the state `NF:CASH_VIA_DAY_ONLY` exists to prevent. Not reachable by an app user
+(`authenticated` = SELECT only); exposure is migrations, import scripts and anything with the service key. Same
+class as the original MEDIUM-1. Not executed — the brief forbade writes.
+
+**R-2 — `nf_post_voucher` does not enforce the day-voucher shape or the date/day coupling. HIGH. PROVEN
+(source + catalog + the 9-vs-8 `nf_lines` demonstration).** See §3. Reachable by any authenticated accountant or
+director calling the RPC directly. Not realised in live data (0 on both detectors). The two detector queries
+used here are worth keeping as standing checks.
+
+**R-3 — existence oracle in `nf_jv_delete`. LOW. PROVEN (source).** `NF:VOUCHER_NOT_FOUND` precedes
+`nf_require_role`, so voucher-id existence leaks across companies to any authenticated user.
+
+**R-4 — MEDIUM-3's toast can throw and wedge the save queue. LOW. INDICATIVE (source).** See §5.
+
+Housekeeping, not a finding: a leftover test tenant `ZZTEST-NF-02bed4e9` (2 day-less vouchers, 0 days) is still
+present from an earlier suite run whose cleanup did not complete.
+
+---
+
+## Verdict
+
+**Safe to run Awami's real books on this: YES.**
+
+Every invariant holds in live data — 0 day-less vouchers touching cash, 0 via accounts flagged as heads with the
+CHECK validated against existing rows, 0 legless posted vouchers, 0 vouchers invisible to the position
+arithmetic, 0 date/day mismatches, `nf_jv_list` returning nothing for Awami as the real director, and no
+`anon`/`PUBLIC` grant anywhere. The three CRITICALs are genuinely closed on every path the application can take,
+and MEDIUM-4 is fixed in the one way that cannot silently drift — by calling the sheet's own function.
+
+**Single biggest residual risk: R-2.** `nf_post_voucher` is executable by any authenticated accountant or
+director and enforces neither the two-leg head+via shape that `nf_lines` requires nor any relationship between
+`p_voucher_date` and the day it is attached to. A voucher posted through it in a shape `nf_save_line` would
+never produce moves cash in the opening but in no day's closing — CRITICAL-2's exact failure, through a door the
+fix did not close. Nothing in the live data has gone through that door, and the screens cannot open it; the risk
+is a future script, integration or direct API call that posts vouchers without going through `nf_save_line`. The
+narrow fix would be a shape/date check inside `nf_post_voucher` (and, for R-1, a trigger on `UPDATE OF day_id`);
+the cheap mitigation meanwhile is to run the two detector queries in §3 as a standing check.
+
+---
+
+## Re-audit residuals — status after fix pass 4 (added 2026-09-20)
+
+The sign-off above is left exactly as written. This is the only thing appended: where each residual stands
+after `20260920c_nf_reaudit_residuals.sql` and the accompanying browser and test work.
+
+| residual | status | closed by | proved by |
+|---|---|---|---|
+| **R-2** — `nf_post_voucher` public, no shape or date/day coupling | **closed for every authenticated caller; shape axis open to service_role by decision** | EXECUTE revoked from `authenticated` (all three callers verified SECURITY DEFINER first), plus `NF:DATE_DAY_MISMATCH` inside the function, which also binds service_role | `CVD-09` (the RPC is refused), `CVD-09a` (the rule still holds with full privilege), `CVD-27` / `CVD-27b` (off-day refused, on-day accepted) |
+| **R-4** — MEDIUM-3's toast throws and wedges the save queue | **closed** | `toast()` re-creates a missing `#nf-toast-host`; `serialDebounce`'s catch body wrapped so it cannot throw | `CVD-50..53`, run red first against the pre-fix file — the second edit never reached the database |
+| **R-3** — existence oracle in `nf_jv_delete` | **closed** | the lookup is scoped to the caller's companies, so "exists elsewhere" and "does not exist" take the same branch | `CVD-14` (a real Awami voucher id and a random uuid now answer identically) |
+| **R-1** — a day voucher could be re-parented to day-less | **closed** | `nf_voucher_day_immutable`, a BEFORE UPDATE OF day_id trigger on `nf_vouchers` | `CVD-26` / `CVD-26b`, red first — a voucher really did become day-less carrying cash legs |
+| test gap (a) — head-list tests pass by data, not by filter | **closed** | `CVD-11` plants a via account with `is_head = true` inside a rolled-back batch and requires `nf_list_heads` to still exclude it | `CVD-11`, `CVD-11b` (rollback verified) |
+| test gap (b) — the import script's own tagging untested | **closed** | `JVX-10..15` runs the real script on the real spreadsheet, retargets its generated SQL to a disposable company and checks the table | 64 vouchers, 64 `source='IMPORT'`, 0 defaulted to `'JV'`; `JVX-14b` proves the list is not simply always empty |
+| housekeeping — leftover `ZZTEST-NF-02bed4e9` tenant | **still present** | not touched — deleting live rows was not part of the brief | — |
+
+**The one thing deliberately left open.** R-2's *shape* axis is now closed by a grant, not by a constraint:
+`authenticated` can no longer reach `nf_post_voucher` at all, but nothing stops the service key from posting a
+three-leg or leg-order-flipped day voucher, which `nf_lines` would not count. The date axis *is* constrained
+for everyone. The two detector queries in §3 of the sign-off remain the standing check, and both read 0 today.

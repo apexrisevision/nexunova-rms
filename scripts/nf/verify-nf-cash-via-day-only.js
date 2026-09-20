@@ -182,13 +182,32 @@ const okStatus = r => r.status >= 200 && r.status < 300;
     ok('CVD-08 nf_jv_save refuses the bank (10300)', code(r) === 'NF:CASH_VIA_DAY_ONLY', JSON.stringify(r.json));
 
     // bypass nf_jv_save entirely — the rule must live at the DB layer, not in
-    // one RPC that a second entry path could simply not call
+    // one RPC that a second entry path could simply not call.
+    // R-2 (re-audit): nf_post_voucher is an INTERNAL primitive and no longer
+    // holds EXECUTE for `authenticated`, so this call must now be refused by
+    // the grant BEFORE the rule is even consulted.
+    const rawLegs = [{ account_code: '70100', floor_code: 'P-W', debit: 100 },
+                     { account_code: '10100', floor_code: 'P-W', credit: 100 }];
     r = await rpc(K.anon, users.D.jwt, 'nf_post_voucher', {
       p_company_id: C, p_day_id: null, p_voucher_no: 'JV-RAW', p_voucher_date: '2026-03-01',
-      p_narration: 'straight past nf_jv_save', p_sort: 0,
-      p_legs: [{ account_code: '70100', floor_code: 'P-W', debit: 100 }, { account_code: '10100', floor_code: 'P-W', credit: 100 }] });
-    ok('CVD-09 nf_post_voucher(day_id NULL) with a via leg is refused too, bypassing nf_jv_save',
-      code(r) === 'NF:CASH_VIA_DAY_ONLY', JSON.stringify(r.json));
+      p_narration: 'straight past nf_jv_save', p_sort: 0, p_legs: rawLegs });
+    ok('CVD-09 R-2: nf_post_voucher is not callable by an authenticated user at all',
+      r.status === 404 || r.status === 403 || /permission denied|Could not find the function/i.test(JSON.stringify(r.json)),
+      `${r.status} ${JSON.stringify(r.json)}`);
+
+    // …and the rule still holds underneath the grant. Executed with FULL
+    // privilege over the Management API (the service_role/migration channel,
+    // which the revoke does NOT cover) with a real member's claim set, so
+    // this tests the TRIGGER and not the ACL. Without this the suite would
+    // only prove the door is locked, never that the wall behind it stands.
+    let rawErr = null;
+    try {
+      await q(`select set_config('request.jwt.claim.sub','${users.D.id}',true);
+        select public.nf_post_voucher('${C}', NULL, 'JV-RAW', '2026-03-01', 'straight past nf_jv_save', 0,
+          '${JSON.stringify(rawLegs)}'::jsonb)`);
+    } catch (e) { rawErr = e.message; }
+    ok('CVD-09a …and with full privilege the DB layer still refuses it (NF:CASH_VIA_DAY_ONLY)',
+      !!rawErr && /CASH_VIA_DAY_ONLY/.test(rawErr), rawErr || 'it was ACCEPTED');
 
     const [leaked] = await q(`select count(*) n from nf_vouchers where company_id='${C}'`);
     ok('CVD-09b not one of those refusals left a row behind', Number(leaked.n) === 0, `${leaked.n} vouchers exist`);
@@ -201,6 +220,45 @@ const okStatus = r => r.status >= 200 && r.status < 300;
       !!r4err && /nf_accounts_head_not_via/.test(r4err), r4err || 'the UPDATE was ACCEPTED');
     const [stillNot] = await q(`select count(*) n from nf_accounts where company_id='${C}' and via is not null and is_head`);
     ok('CVD-10b no via account is flagged is_head', Number(stillNot.n) === 0, `${stillNot.n} are`);
+
+    // ── 3b. the head-list FILTER itself, not the data (re-audit test gap a) ──
+    // CVD-01..04 pass because gen-seed and 20260920a both set is_head=false on
+    // the vias — they would pass even if nf_list_heads had no `via IS NULL`
+    // clause, so they prove the outcome and not the filter. Plant the thing
+    // the filter exists to catch: a via account flagged is_head=true. The
+    // CHECK constraint forbids exactly that, so the constraint is dropped and
+    // the whole probe runs inside ONE statement batch that ends in ROLLBACK —
+    // nothing is committed and the constraint is never actually absent from a
+    // committed state, even if this fails part-way.
+    const [planted] = await q(`BEGIN;
+      ALTER TABLE public.nf_accounts DROP CONSTRAINT nf_accounts_head_not_via;
+      UPDATE public.nf_accounts SET is_head = true WHERE company_id = '${C}' AND via IS NOT NULL;
+      SELECT set_config('request.jwt.claim.sub','${users.D.id}',true);
+      SELECT json_build_object(
+        'planted', (SELECT count(*) FROM public.nf_accounts WHERE company_id='${C}' AND via IS NOT NULL AND is_head),
+        'heads',   jsonb_array_length(public.nf_list_heads('${C}')),
+        'vias_offered', (SELECT count(*) FROM jsonb_array_elements(public.nf_list_heads('${C}')) e
+                          WHERE e->>'code' IN ('10100','10200','10300'))) j;
+      ROLLBACK;`);
+    ok('CVD-11 the head list excludes a via account even when is_head is TRUE (filter, not data)',
+      Number(planted.j.planted) === 3 && Number(planted.j.vias_offered) === 0 && Number(planted.j.heads) === 79,
+      JSON.stringify(planted.j));
+    const [rolledBack] = await q(`select
+        (select count(*) from pg_constraint where conname='nf_accounts_head_not_via' and conrelid='public.nf_accounts'::regclass) constraint_back,
+        (select count(*) from public.nf_accounts where via is not null and is_head) still_planted`);
+    ok('CVD-11b the probe rolled back cleanly: constraint restored, nothing planted survives',
+      Number(rolledBack.constraint_back) === 1 && Number(rolledBack.still_planted) === 0, JSON.stringify(rolledBack));
+
+    // ── 3c. R-3: no existence oracle across companies ───────────────────────
+    // This director is a member of the scratch company only. Asking about a
+    // REAL Awami voucher id and about a random uuid must be indistinguishable.
+    const [awamiV] = await q(`select id from public.nf_vouchers where company_id='${AWAMI_COMPANY_ID}' limit 1`);
+    const realOther = await rpc(K.anon, users.D.jwt, 'nf_jv_delete', { p_voucher_id: awamiV.id, p_version: 0 });
+    const nonExistent = await rpc(K.anon, users.D.jwt, 'nf_jv_delete', { p_voucher_id: crypto.randomUUID(), p_version: 0 });
+    ok('CVD-14 R-3: a real voucher in another company answers exactly like one that does not exist',
+      code(realOther) === 'NF:VOUCHER_NOT_FOUND' && code(nonExistent) === 'NF:VOUCHER_NOT_FOUND'
+      && realOther.status === nonExistent.status,
+      `other-company: ${realOther.status} ${JSON.stringify(realOther.json)} · random: ${nonExistent.status} ${JSON.stringify(nonExistent.json)}`);
 
     // ── 4. the day path still works end to end ──────────────────────────
     r = await rpc(K.anon, users.D.jwt, 'nf_start_first_day', {
@@ -280,6 +338,41 @@ const okStatus = r => r.status >= 200 && r.status < 300;
     ok('CVD-32 MEDIUM-4 closed: the report opens at the typed opening, and closes where the sheet does',
       !!cash && Number(cash.opening) === 500000 && Number(cash.closing) === 440000, JSON.stringify(cash));
 
+    // ── 4b. R-1: a day voucher cannot be re-parented to day-less ────────────
+    // The via-leg rule lives in the LEG guard, so moving the HEADER off its
+    // day slipped past it untouched — the legs never change, so nothing fired.
+    // service_role only, which is exactly the channel this q() runs on.
+    let reparent = null;
+    try {
+      await q(`update public.nf_vouchers set day_id = null
+                where id = (select id from public.nf_vouchers where company_id='${C}' and day_id is not null limit 1)`);
+    } catch (e) { reparent = e.message; }
+    ok('CVD-26 R-1: UPDATE nf_vouchers SET day_id = NULL is refused (NF:VOUCHER_DAY_IMMUTABLE)',
+      !!reparent && /VOUCHER_DAY_IMMUTABLE/.test(reparent), reparent || 'the UPDATE was ACCEPTED');
+    const [stillDay] = await q(`select count(*) n from public.nf_vouchers where company_id='${C}' and day_id is null`);
+    ok('CVD-26b …and no voucher of this company became day-less', Number(stillDay.n) === 0, `${stillDay.n} are`);
+
+    // ── 4c. R-2 belt: a day voucher must carry its day's own date ───────────
+    // Not reachable by an app user any more (CVD-09), so this is aimed at the
+    // one channel the revoke does not cover: migrations and import scripts.
+    let dateMismatch = null;
+    try {
+      await q(`select set_config('request.jwt.claim.sub','${users.D.id}',true);
+        select public.nf_post_voucher('${C}', '${dayRow.id}', 'CPV-OFFDATE', '2026-03-01', 'dated off its day', 99,
+          '[{"account_code":"52600","floor_code":"GF","debit":10},{"account_code":"10100","floor_code":"GF","credit":10}]'::jsonb)`);
+    } catch (e) { dateMismatch = e.message; }
+    ok('CVD-27 R-2 belt: a day voucher dated off its day is refused (NF:DATE_DAY_MISMATCH)',
+      !!dateMismatch && /DATE_DAY_MISMATCH/.test(dateMismatch), dateMismatch || 'it was ACCEPTED');
+    // and the same call with the day's OWN date is accepted, so CVD-27 is
+    // testing the date rule and not merely that the statement fails
+    let sameDate = null;
+    try {
+      await q(`select set_config('request.jwt.claim.sub','${users.D.id}',true);
+        select public.nf_post_voucher('${C}', '${dayRow.id}', 'CPV-ONDATE', '2026-03-02', 'dated on its day', 98,
+          '[{"account_code":"52600","floor_code":"GF","debit":10},{"account_code":"10100","floor_code":"GF","credit":10}]'::jsonb)`);
+    } catch (e) { sameDate = e.message; }
+    ok('CVD-27b …while the identical voucher dated ON its day is accepted', sameDate === null, sameDate || '');
+
     // ── 6. the screen, for completeness — the picker cannot offer cash ───
     if (!puppeteer || !CHROME) {
       console.log('  (browser layer skipped — no puppeteer-core/Chrome)');
@@ -337,6 +430,51 @@ const okStatus = r => r.status >= 200 && r.status < 300;
       ok('CVD-41 the Daily Closing head picker does not offer them either',
         sheetOffered.hasCash === false, JSON.stringify(sheetOffered).slice(0, 300));
       ok('CVD-42 no console or page errors on either screen', errors.length === 0, JSON.stringify(errors.slice(0, 3)));
+
+      // ── R-4 · the save queue must drain even when the toast cannot show ──
+      // The re-audit's finding against our own MEDIUM-3 fix: toast() does
+      // `root.querySelector('#nf-toast-host').appendChild(...)` with no null
+      // check, and that host is destroyed when the person opens the Director
+      // Report or the JV screen. A debounced save failing after that reaches a
+      // toast whose host is null, throws INSIDE the catch handler, and
+      // serialDebounce's `.then()` — the only thing that resets `running` —
+      // never runs. The queue is wedged for the rest of the session and every
+      // later edit is silently dropped. The previous empty `.catch(){}` could
+      // not throw, so this was a regression the fix introduced.
+      //
+      // Reproduced here exactly, with no stubbing: delete the toast host, make
+      // one save fail for real (a stale version, by bumping it out of band),
+      // then type again and require the second edit to reach the database.
+      const [dv0] = await q(`select version from nf_days where id='${dayRow.id}'`);
+      await page.goto(`http://127.0.0.1:${PORT}/nexufinance.html?company=${C}`, { waitUntil: 'networkidle2' });
+      await page.waitForSelector('#nf-remarks', { timeout: 15000 });
+      // out of band: the page's cached day version is now stale by one
+      await rpc(K.anon, users.D.jwt, 'nf_set_remarks', { p_day_id: dayRow.id, p_remarks: 'bumped out of band', p_version: dv0.version });
+
+      const typeRemark = async (text) => page.evaluate(t => {
+        const el = document.querySelector('#nf-remarks');
+        if (!el) return false;
+        el.value = t;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        return true;
+      }, text);
+
+      await page.evaluate(() => { const h = document.querySelector('#nf-toast-host'); if (h) h.remove(); });
+      const hostGone = await page.evaluate(() => !document.querySelector('#nf-toast-host'));
+      ok('CVD-50 setup: the toast host is really gone (as it is after opening a report)', hostGone, 'host still present');
+
+      ok('CVD-51 setup: the remarks box accepted the first edit', await typeRemark('first attempt'), 'no #nf-remarks');
+      await new Promise(res => setTimeout(res, 2500));   // 700ms debounce + the round trip
+      const [afterFirst] = await q(`select remarks from nf_days where id='${dayRow.id}'`);
+      // not vacuous: that save MUST have failed, or the test proves nothing
+      ok('CVD-52 setup: the first save really was rejected (stale version)',
+        afterFirst.remarks !== 'first attempt', JSON.stringify(afterFirst));
+
+      await typeRemark('second attempt');
+      await new Promise(res => setTimeout(res, 3000));
+      const [afterSecond] = await q(`select remarks from nf_days where id='${dayRow.id}'`);
+      ok('CVD-53 R-4: a later edit still saves — the queue drained despite the failed toast',
+        afterSecond.remarks === 'second attempt', JSON.stringify(afterSecond));
     }
   } catch (e) {
     ok('RUN', false, e.stack || e.message);
