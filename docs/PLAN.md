@@ -3074,3 +3074,7 @@ is dark. Print forces the chip off — paper is always light.
   the first two passed while print was still square.
 
 Golden day 34/34, twice in a row after the fix.
+
+**Full regression after the logo change, every screen-rendering suite green:** golden day 34/34 (twice) ·
+director report 18/18 · General Journal 14/14 · General Ledger 12/12 · Trial Balance 10/10 · journal vouchers
+18/18 · party field 15/15 · daily-workflow dry run 26/26. 147 checks, nothing red.
