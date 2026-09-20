@@ -63,7 +63,7 @@
     root.innerHTML = '' +
       '<div class="sheet cbsheet">' +
       '<header class="hdr">' +
-      '  <div class="brand"><div class="mark" aria-hidden="true">' + mark + '</div>' +
+      '  <div class="brand">' + F.brandMark(mark) +
       '    <div><div class="co">' + companyLine + '</div><h1>Cash &amp; Bank Movement</h1></div></div>' +
       '  <div class="actions">' +
       '    <button class="btn" id="nf-cb-back" type="button">← Back to closing sheet</button>' +

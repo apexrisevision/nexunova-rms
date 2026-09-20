@@ -128,7 +128,7 @@
       return '' +
         '<header class="hdr">' +
         '  <div class="brand">' +
-        '    <div class="mark" aria-hidden="true">' + mark + '</div>' +
+        '    ' + F.brandMark(mark) +
         '    <div><div class="co">' + companyLine + '</div><h1>' + title + '</h1></div>' +
         '  </div>' +
         '  <div class="actions">' +

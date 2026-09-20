@@ -107,7 +107,7 @@
     root.innerHTML = '' +
       '<div class="sheet pgsheet">' +
       '<header class="hdr">' +
-      '  <div class="brand"><div class="mark" aria-hidden="true">' + mark + '</div>' +
+      '  <div class="brand">' + F.brandMark(mark) +
       '    <div><div class="co">' + companyLine + '</div><h1>Party Statement</h1></div></div>' +
       '  <div class="actions">' +
       '    <button class="btn" id="nf-pty-back" type="button">← Back to closing sheet</button>' +

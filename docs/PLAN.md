@@ -3029,3 +3029,48 @@ fix restored, 31/31. A check that has never been seen to fail is not evidence.
 **The general lesson, worth carrying:** an assertion about an attribute, a class or a flag is not an assertion
 about what the user sees. When the symptom is visual, measure the rendered state. This is the same class of bug
 as the NexuAttend hidden-attribute override already on file.
+
+## 36 · The real logo, on every document (2026-09-20)
+
+The owner sent the Awami Market lockup — shield emblem, "AWAMI" in maroon, "MARKET" in gold, "KARKHANO
+PESHAWAR" beneath — and asked for it on the reports, ledgers, daily closings and financial statements. Until
+now every one of those screens showed a 44px square badge with the two letters from `nf_settings.mark`.
+
+**The artwork.** The source was a 1600×399 WhatsApp JPEG on a flat #F7F7F7 background. Converted rather than
+dropped in as-is: background knocked out to transparency (corner-sampled, with a feathered tolerance so JPEG
+ringing around the letterforms leaves no halo), trimmed, and resampled to 800×200 — `assets/awami-logo.png`,
+98 KB, still over 300 dpi at the size it occupies on a printed A4. Transparency matters because the counters
+inside the letters have to show the page behind them, on either theme. The repo's existing
+`assets/awami-mark.svg` is only the shield; this is the full lockup, which is what a letterhead needs.
+
+**One place, fourteen screens.** The badge markup was duplicated identically in all fourteen screen modules, so
+it is now `F.brandMark(mark)` in `nf-format.js` — the brand cannot drift between the daily closing and a
+statement a bank might see. It emits an `<img>`, **not** a CSS background, deliberately: browsers drop
+background images from print unless the reader happens to tick "Background graphics", and the logo would
+vanish from exactly the documents that need it most. `nf_settings.mark` survives as the `alt` text.
+
+**Dark theme.** Maroon on near-black does not read. A `--logo-chip` token (transparent on light, white with a
+little padding on dark, defined in all three theme blocks) puts the logo on a white label where the background
+is dark. Print forces the chip off — paper is always light.
+
+### 36.1 Three real problems the work turned up, all caught by measurement rather than by looking
+
+- **Nine print stylesheets each carried `.mark{width:32px;height:32px}`** — the old square badge. Every
+  NexuFinance print stylesheet is loaded on the page at once and `@media print` rules from all of them apply to
+  *any* printed page, so whichever loaded last won and squashed the 4:1 lockup into a square on paper. Fixing
+  the report's copy alone was not enough; all nine now size by height only. (`nf-print.css`'s own header
+  already documents this same non-scoping for `@page` — the lesson simply had not been applied to `.mark`.)
+- **The `<img>` had no width or height attributes, so it occupied zero width until it loaded and then snapped
+  to ~170px.** `render()` rebuilds the header, so that shift repeated on every redraw — visible jitter for a
+  person, and enough movement under automation to knock clicks off target: it broke two consecutive golden-day
+  runs (UI-03b and UI-04, then a detached-node error) before the cause was found. Explicit `width="800"
+  height="200"` lets the browser reserve the right box from the first paint. **Worth noting against §23.2: a
+  "Node is detached from document" failure is not automatically the environment flake.** Two runs failing where
+  the suite had been green twice the same day was the signal not to dismiss it.
+- **A logo can fail silently.** A wrong path leaves the `<img>` in the DOM, every structural assertion passing,
+  and a broken-image box in the header. **UI-13** in `verify-nf-golden-ui.js` therefore checks what actually
+  happened: the file loaded (`naturalWidth > 0`), it is on screen, and its rendered ratio is still ~4:1 rather
+  than squashed — on screen **and** under print media. That last check is what caught the nine stylesheets;
+  the first two passed while print was still square.
+
+Golden day 34/34, twice in a row after the fix.

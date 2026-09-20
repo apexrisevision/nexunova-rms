@@ -27,7 +27,7 @@
   :root,:root[data-theme="dark"]{
     --bg:#fff;--card:#fff;--ink:#111827;--ink2:#374151;--muted:#6B7280;--line:#E5E7EB;--line2:#CBD2DC;
     --brand:#1B365D;--brand-2:#2C5282;--soft:#F3F5F8;--field:transparent;--field-b:transparent;
-    --pos:#18794E;--pos-soft:#EAF7F0;--neg:#B42318;--neg-soft:#FDF1F0;--shadow:none;color-scheme:light}
+    --pos:#18794E;--pos-soft:#EAF7F0;--neg:#B42318;--neg-soft:#FDF1F0;--shadow:none;--logo-chip:transparent;--logo-chip-pad:0;color-scheme:light}
   body{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff}
   .sheet{margin:0;width:1100px;max-width:none;border:0;border-radius:0;zoom:.665}
   .hdr{padding:10px 24px}.docmeta>div{padding-top:6px;padding-bottom:6px}

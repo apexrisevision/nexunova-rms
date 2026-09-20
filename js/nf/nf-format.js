@@ -94,5 +94,31 @@
     return new Date(dateStr + 'T00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
-  global.NfFmt = { n: n, fmt: fmt, grp: grp, words: words, esc: esc, ddMonYyyy: ddMonYyyy, weekday: weekday, longDate: longDate };
+  // The letterhead, shared by all fourteen screens so the brand cannot drift
+  // between the daily closing and the statements a bank might see.
+  //
+  // An <img>, NOT a CSS background, deliberately: every one of these screens
+  // is meant to be printed or saved as a PDF, and browsers drop background
+  // images from print unless the person happens to tick "Background graphics"
+  // — the logo would disappear from exactly the documents that most need it.
+  //
+  // `mark` is nf_settings.mark, the company's own short code, which used to BE
+  // the badge. It stays as the alt text so the page still identifies itself if
+  // the file is ever missing, and so screen readers hear the company rather
+  // than "image".
+  // The width/height attributes are not decoration — they are what stops the
+  // header jumping. Without them an <img> sized by CSS height with width:auto
+  // occupies ZERO width until the bits arrive, then snaps to ~170px. Every
+  // render() rebuilds the header, so that shift repeated on every redraw:
+  // visible jitter for a person, and enough movement under automation to
+  // knock a click off its target (it broke two golden-day runs before this
+  // was added). The attributes let the browser reserve the right 4:1 box from
+  // the first paint; the CSS still decides the actual size.
+  var LOGO = 'assets/awami-logo.png?v=20260919q';
+  function brandMark(mark) {
+    return '<img class="mark" src="' + LOGO + '" width="800" height="200" ' +
+      'alt="' + esc(mark || 'Awami Market') + '">';
+  }
+
+  global.NfFmt = { n: n, fmt: fmt, grp: grp, words: words, esc: esc, ddMonYyyy: ddMonYyyy, weekday: weekday, longDate: longDate, brandMark: brandMark };
 })(window);

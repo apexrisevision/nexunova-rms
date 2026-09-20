@@ -16,7 +16,7 @@
   .pgsheet{margin:0;max-width:none;width:auto;zoom:1;border:0;border-radius:0;box-shadow:none}
   .hdr{padding:6px 4px}
   .brand h1{font-size:15px}
-  .mark{width:32px;height:32px;font-size:12px;border-radius:7px}
+  .mark{height:30px;width:auto;max-width:170px;border-radius:0;padding:0} /* the Awami lockup is 4:1 — size by HEIGHT only, never a square */
   .actions,.pgfilter{display:none!important}
   .rsec{padding:8px 4px 0}
   .rtiles{gap:8px}

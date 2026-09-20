@@ -499,6 +499,42 @@ async function waitRowError(page, side, timeout = 6000) {
     const reclosed = await menuVis();
     ok('UI-12 and closes again when clicked a second time', reclosed && reclosed.visible === false, JSON.stringify(reclosed));
 
+    // UI-13: the letterhead. A missing or mis-pathed logo is the classic
+    // silent failure — the <img> is present in the DOM and every structural
+    // assertion passes while the header shows a broken-image box. So this
+    // checks the thing that actually matters: did the file LOAD
+    // (naturalWidth > 0), is it on screen, and does it keep its 4:1 shape
+    // rather than being squashed by a leftover square rule. Checked on
+    // screen AND under print media, because the report's print stylesheet
+    // has its own .mark rule and paper is where this logo matters most.
+    const logoState = async (media) => {
+      if (media) await accPage.emulateMediaType(media);
+      const s = await accPage.evaluate(() => {
+        const el = document.querySelector('img.mark');
+        if (!el) return { present: false };
+        const r = el.getBoundingClientRect();
+        return {
+          present: true, loaded: el.naturalWidth > 0, src: el.getAttribute('src'),
+          natural: el.naturalWidth + 'x' + el.naturalHeight,
+          shown: Math.round(r.width) + 'x' + Math.round(r.height),
+          ratio: r.height ? +(r.width / r.height).toFixed(2) : 0,
+          visible: r.width > 0 && r.height > 0 && getComputedStyle(el).display !== 'none',
+          alt: el.getAttribute('alt'),
+        };
+      });
+      if (media) await accPage.emulateMediaType('screen');
+      return s;
+    };
+    const logoScreen = await logoState(null);
+    ok('UI-13 the letterhead logo is present and actually loaded',
+      logoScreen.present && logoScreen.loaded && logoScreen.visible, JSON.stringify(logoScreen));
+    // the artwork is 4:1; allow a little slack for the dark-theme chip padding
+    ok('UI-13 it keeps its shape, not squashed into a square',
+      logoScreen.ratio >= 3 && logoScreen.ratio <= 5, JSON.stringify(logoScreen));
+    const logoPrint = await logoState('print');
+    ok('UI-13 and it survives print, still in shape',
+      logoPrint.loaded && logoPrint.visible && logoPrint.ratio >= 3 && logoPrint.ratio <= 5, JSON.stringify(logoPrint));
+
     ok('UI-11 no console/page errors', dirPage.__errors.length === 0 && accPage.__errors.length === 0,
       JSON.stringify(dirPage.__errors.concat(accPage.__errors)));
 

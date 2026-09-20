@@ -26,13 +26,15 @@
   :root,:root[data-theme="dark"]{
     --bg:#fff;--card:#fff;--ink:#111827;--ink2:#374151;--muted:#6B7280;--line:#E5E7EB;--line2:#CBD2DC;
     --brand:#1B365D;--brand-2:#2C5282;--soft:#F3F5F8;--field:transparent;--field-b:transparent;
-    --pos:#18794E;--pos-soft:#EAF7F0;--neg:#B42318;--neg-soft:#FDF1F0;--warn:#9A6700;--warn-soft:#FBF3E4;--shadow:none;color-scheme:light}
+    --pos:#18794E;--pos-soft:#EAF7F0;--neg:#B42318;--neg-soft:#FDF1F0;--warn:#9A6700;--warn-soft:#FBF3E4;--shadow:none;--logo-chip:transparent;--logo-chip-pad:0;color-scheme:light}
   body{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff;font-size:10.5px}
   .nf-topbar{display:none}
   .rsheet{margin:0;max-width:none;width:auto;zoom:1;border:0;border-radius:0;box-shadow:none}
   .hdr{padding:6px 4px}
   .brand h1{font-size:15px}
-  .mark{width:32px;height:32px;font-size:12px;border-radius:7px}
+  /* .mark is the Awami lockup (4:1), not the old square badge — size it by
+     HEIGHT only or the artwork gets squashed into a square on paper. */
+  .mark{height:30px;width:auto;max-width:170px;border-radius:0;padding:0}
   .actions{display:none!important}
   .docmeta{padding:0}
   .docmeta>div{padding:5px 10px 5px 4px}
