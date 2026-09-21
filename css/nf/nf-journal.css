@@ -13,5 +13,7 @@
 
 .jtab td,.jtab th{vertical-align:top}
 .jtab tr.jvfirst td{border-top:1px solid var(--line2);padding-top:9px}
-.jtab tr.jvleg td{color:var(--ink2)}
+.jtab tr.jrnleg td{color:var(--ink2)}
+/* the date is short and fixed-shape; never let it break at its hyphens */
+.jtab td:first-child{white-space:nowrap}
 .jtab tr.jvfirst td:nth-child(1),.jtab tr.jvfirst td:nth-child(2){font-weight:600}

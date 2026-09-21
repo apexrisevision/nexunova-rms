@@ -68,7 +68,12 @@
     var legs = v.legs || [];
     return legs.map(function (l, i) {
       var first = i === 0;
-      return '<tr class="' + (first ? 'jvfirst' : 'jvleg') + '">' +
+      // 'jrnleg', not 'jvleg': the Journal Voucher screen (nf-journal-voucher.css)
+      // styles .jvleg as display:grid for its own entry rows, and every
+      // stylesheet loads on the same page — so a <tr class="jvleg"> here
+      // stopped being a table row, squashing each voucher's second line into
+      // narrow grid tracks and blowing the Date column out to ~460px.
+      return '<tr class="' + (first ? 'jvfirst' : 'jrnleg') + '">' +
         '<td>' + (first ? F.ddMonYyyy(v.voucher_date) : '') + '</td>' +
         '<td>' + (first ? esc(v.voucher_no) : '') + '</td>' +
         // Each leg's own memo (the real transaction description) takes
