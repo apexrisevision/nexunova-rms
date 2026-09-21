@@ -37,13 +37,14 @@
       }).catch(function (e) {
         if (!alive || myGen !== gen) return;
         root.innerHTML = '<div class="nf-gate"><h2>Could not open the monthly trend</h2><p>' + esc(e.message || String(e)) + '</p>' +
-          '<button class="btn" id="nf-mt-back" type="button">← Back to closing sheet</button></div>';
+          '<button class="btn" id="nf-mt-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button></div>';
         var back = root.querySelector('#nf-mt-back');
         if (back) back.addEventListener('click', function () { ctx.onBack(); });
       });
     }
 
-    load({ from: '', to: '' });
+    // ctx.from/ctx.to: reopened by Back from a drill (js/nf/nf-drill.js)
+    load({ from: ctx.from || '', to: ctx.to || '' });
   }
 
   function rows(list) {
@@ -53,8 +54,8 @@
       return '<div class="mtrow">' +
         '<span class="mtym">' + esc(ymLabel(m.ym)) + '</span>' +
         '<span class="mtbarwrap"><span class="mtbar" style="width:' + pct + '%"></span></span>' +
-        '<span class="r">' + F.fmt(m.cost) + '</span>' +
-        '<span class="r muted">' + F.fmt(m.token_collected) + '</span>' +
+        '<span class="r"><span class="nf-drill-fig" data-drill-ym="' + esc(m.ym) + '" data-drill-kind="cost" data-drill-expect="' + F.n(m.cost) + '" title="Show the transactions in this figure">' + F.fmt(m.cost) + '</span></span>' +
+        '<span class="r muted"><span class="nf-drill-fig" data-drill-ym="' + esc(m.ym) + '" data-drill-kind="token" data-drill-expect="' + F.n(m.token_collected) + '" title="Show the transactions in this figure">' + F.fmt(m.token_collected) + '</span></span>' +
         '</div>';
     }).join('');
   }
@@ -69,7 +70,7 @@
       '  <div class="brand">' + F.brandMark(mark) +
       '    <div><div class="co">' + companyLine + '</div><h1>Month-wise Expense Trend</h1></div></div>' +
       '  <div class="actions">' +
-      '    <button class="btn" id="nf-mt-back" type="button">← Back to closing sheet</button>' +
+      '    <button class="btn" id="nf-mt-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button>' +
       global.NfReportsMenu.html('trend') +
       '    <button class="btn primary" id="nf-mt-print" type="button">Print</button>' +
       '  </div>' +
@@ -97,6 +98,24 @@
 
     root.querySelector('#nf-mt-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-mt-print').addEventListener('click', function () { global.print(); });
+    root.querySelectorAll('[data-drill-ym]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var here = { from: range.from, to: range.to };
+        var ym = el.getAttribute('data-drill-ym'), kind = el.getAttribute('data-drill-kind');
+        var y = Number(ym.slice(0, 4)), mo = Number(ym.slice(5, 7));
+        var first = ym + '-01';
+        var last = ym + '-' + String(new Date(Date.UTC(y, mo, 0)).getUTCDate()).padStart(2, '0');
+        var from = here.from && here.from > first ? here.from : first;
+        var to = here.to && here.to < last ? here.to : last;
+        global.NfDrill.detail(root, ctx, {
+          from: from, to: to, expect: Number(el.getAttribute('data-drill-expect')),
+          filter: kind === 'cost' ? { title: ymLabel(ym) + ' — Cost', qbTypes: ['Cost of Goods Sold', 'Expense'], sign: 'dr' }
+                                  : { title: ymLabel(ym) + ' — Token Collected', accounts: ['21100'], sign: 'cr' },
+          backLabel: '← Back to Monthly Trend',
+          onBack: function () { global.NfMonthlyTrend.mount(root, Object.assign({}, ctx, here)); },
+        });
+      });
+    });
     root.querySelector('#nf-mt-apply').addEventListener('click', function () {
       load({ from: root.querySelector('#nf-mt-from').value, to: root.querySelector('#nf-mt-to').value });
     });

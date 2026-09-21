@@ -25,7 +25,9 @@
     var alive = true;
     var trueOnBack = ctx.onBack;
     ctx = Object.assign({}, ctx, { onBack: function () { alive = false; trueOnBack(); } });
-    var state = { parties: [], partyId: '', from: '', to: '', stmt: null, loading: false };
+    // ctx.partyId/from/to: reopened by Back from a drilled-into entry
+    // (js/nf/nf-drill.js), on the same party and range.
+    var state = { parties: [], partyId: ctx.partyId || '', from: ctx.from || '', to: ctx.to || '', stmt: null, loading: false };
 
     function loadStatement() {
       if (!state.partyId) { state.stmt = null; renderAll(); return; }
@@ -39,7 +41,7 @@
         if (!alive || myGen !== gen) return;
         state.loading = false;
         root.innerHTML = '<div class="nf-gate"><h2>Could not open the party statement</h2><p>' + esc(e.message || String(e)) + '</p>' +
-          '<button class="btn" id="nf-pty-back" type="button">← Back to closing sheet</button></div>';
+          '<button class="btn" id="nf-pty-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button></div>';
         var back = root.querySelector('#nf-pty-back');
         if (back) back.addEventListener('click', function () { ctx.onBack(); });
       });
@@ -48,6 +50,7 @@
     function renderAll() { render(root, ctx, state, { loadStatement: loadStatement, setState: function (patch) { Object.assign(state, patch); } }); }
 
     renderAll();
+    if (state.partyId) loadStatement();
     ctx.api.listAllParties(ctx.companyId).then(function (parties) {
       if (!alive) return;
       state.parties = parties || [];
@@ -55,7 +58,7 @@
     }).catch(function (e) {
       if (!alive) return;
       root.innerHTML = '<div class="nf-gate"><h2>Could not load the party list</h2><p>' + esc(e.message || String(e)) + '</p>' +
-        '<button class="btn" id="nf-pty-back" type="button">← Back to closing sheet</button></div>';
+        '<button class="btn" id="nf-pty-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button></div>';
       var back = root.querySelector('#nf-pty-back');
       if (back) back.addEventListener('click', function () { ctx.onBack(); });
     });
@@ -63,7 +66,8 @@
 
   function entryRows(entries) {
     return (entries || []).map(function (e) {
-      return '<div class="pgrow">' +
+      // double-click → the original entry (js/nf/nf-drill.js)
+      return '<div class="pgrow nf-drill" data-drill-vno="' + esc(e.voucher_no) + '" data-drill-date="' + esc(e.voucher_date) + '" title="Double-click to open this entry">' +
         '<span>' + F.ddMonYyyy(e.voucher_date) + '</span>' +
         '<span>' + esc(e.voucher_no) + '</span>' +
         '<span class="wrap">' + esc(e.memo || e.narration || '') + '</span>' +
@@ -110,7 +114,7 @@
       '  <div class="brand">' + F.brandMark(mark) +
       '    <div><div class="co">' + companyLine + '</div><h1>Party Statement</h1></div></div>' +
       '  <div class="actions">' +
-      '    <button class="btn" id="nf-pty-back" type="button">← Back to closing sheet</button>' +
+      '    <button class="btn" id="nf-pty-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button>' +
       global.NfReportsMenu.html('party') +
       '    <button class="btn primary" id="nf-pty-print" type="button">Print</button>' +
       '  </div>' +
@@ -133,6 +137,16 @@
     root.querySelector('#nf-pty-sel').addEventListener('change', function (e) {
       actions.setState({ partyId: e.target.value });
       actions.loadStatement();
+    });
+    root.querySelectorAll('[data-drill-vno]').forEach(function (row) {
+      row.addEventListener('dblclick', function () {
+        var here = { partyId: state.partyId, from: state.from, to: state.to };
+        global.NfDrill.entry(root, ctx, {
+          voucherNo: row.getAttribute('data-drill-vno'), date: row.getAttribute('data-drill-date'),
+          backLabel: '← Back to party statement',
+          onBack: function () { global.NfPartyStatement.mount(root, Object.assign({}, ctx, here)); },
+        });
+      });
     });
     root.querySelector('#nf-pty-apply').addEventListener('click', function () {
       actions.setState({ from: root.querySelector('#nf-pty-from').value, to: root.querySelector('#nf-pty-to').value });

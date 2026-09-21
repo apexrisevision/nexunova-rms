@@ -31,19 +31,23 @@
       }).catch(function (e) {
         if (!alive || myGen !== gen) return;
         root.innerHTML = '<div class="nf-gate"><h2>Could not open the project cost summary</h2><p>' + esc(e.message || String(e)) + '</p>' +
-          '<button class="btn" id="nf-pc-back" type="button">← Back to closing sheet</button></div>';
+          '<button class="btn" id="nf-pc-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button></div>';
         var back = root.querySelector('#nf-pc-back');
         if (back) back.addEventListener('click', function () { ctx.onBack(); });
       });
     }
 
-    load({ from: '', to: '' });
+    // ctx.from/ctx.to: reopened by Back from a drill (js/nf/nf-drill.js)
+    load({ from: ctx.from || '', to: ctx.to || '' });
   }
 
   function rows(list, total) {
     return (list || []).map(function (c) {
       var pct = total ? (F.n(c.cost) / total * 100) : 0;
-      return '<div class="pcrow"><span>' + esc(c.category_name) + '</span>' +
+      // click → Transaction Detail: every COGS/Expense line whose account
+      // sits under this category (js/nf/nf-drill.js)
+      return '<div class="pcrow nf-drill" data-drill-cat="' + esc(c.category_code) + '" data-drill-name="' + esc(c.category_name) + '"' +
+        ' data-drill-expect="' + F.n(c.cost) + '" title="Show the transactions in this category"><span>' + esc(c.category_name) + '</span>' +
         '<span class="r">' + F.fmt(c.cost) + '</span>' +
         '<span class="r muted">' + pct.toFixed(1) + '%</span></div>';
     }).join('');
@@ -59,7 +63,7 @@
       '  <div class="brand">' + F.brandMark(mark) +
       '    <div><div class="co">' + companyLine + '</div><h1>Project Cost Summary</h1></div></div>' +
       '  <div class="actions">' +
-      '    <button class="btn" id="nf-pc-back" type="button">← Back to closing sheet</button>' +
+      '    <button class="btn" id="nf-pc-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button>' +
       global.NfReportsMenu.html('projectcost') +
       '    <button class="btn primary" id="nf-pc-print" type="button">Print</button>' +
       '  </div>' +
@@ -77,7 +81,8 @@
         '<section class="rsec"><div class="pctab">' +
         '<div class="pcrow pchead"><span>Category</span><span class="r">Cost</span><span class="r">% of Total</span></div>' +
         (rows(r.categories, F.n(r.total_cost)) || '<div class="pcrow muted"><span style="grid-column:1/-1;text-align:center;padding:16px">No cost in this range</span></div>') +
-        '<div class="pcrow pctot"><span>Total</span><span class="r">' + F.fmt(r.total_cost) + '</span><span class="r">100.0%</span></div>' +
+        '<div class="pcrow pctot nf-drill" data-drill-cat="" data-drill-name="All project cost" data-drill-expect="' + F.n(r.total_cost) + '"' +
+        ' title="Show every transaction in this total"><span>Total</span><span class="r">' + F.fmt(r.total_cost) + '</span><span class="r">100.0%</span></div>' +
         '</div></section>'
       ) : '<p class="muted" style="padding:18px 0;text-align:center">Loading…</p>') + '</div>' +
       '<div class="docfoot"><span>' + esc(ctx.companyName || '') + ' · Project Cost Summary</span>' +
@@ -87,6 +92,19 @@
     root.querySelector('#nf-pc-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-pc-print').addEventListener('click', function () { global.print(); });
     global.NfReportsMenu.wire(root, ctx);
+    root.querySelectorAll('[data-drill-cat]').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var here = { from: range.from, to: range.to };
+        var cat = row.getAttribute('data-drill-cat');
+        global.NfDrill.detail(root, ctx, {
+          from: here.from, to: here.to, expect: Number(row.getAttribute('data-drill-expect')),
+          filter: { title: row.getAttribute('data-drill-name'), category: cat || null,
+                    qbTypes: ['Cost of Goods Sold', 'Expense'], sign: 'dr' },
+          backLabel: '← Back to Project Cost',
+          onBack: function () { global.NfProjectCost.mount(root, Object.assign({}, ctx, here)); },
+        });
+      });
+    });
     root.querySelector('#nf-pc-apply').addEventListener('click', function () {
       load({ from: root.querySelector('#nf-pc-from').value, to: root.querySelector('#nf-pc-to').value });
     });

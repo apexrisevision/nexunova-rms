@@ -53,10 +53,13 @@
     }).join('');
   }
 
-  function section(title, list, total) {
+  // A section TOTAL has no single ledger: it opens Transaction Detail — every
+  // line of that qb_type in the range (js/nf/nf-drill.js).
+  function section(title, list, total, qb) {
     return '<section class="rsec plsec"><h2>' + esc(title) + '</h2>' +
       '<div class="oblist">' + (rows(list) || '<div class="orow muted"><span>No activity</span><b>–</b></div>') +
-      '<div class="orow tot"><span>Total ' + esc(title) + '</span><b>' + F.fmt(total) + '</b></div>' +
+      '<div class="orow tot nf-drill" data-drill-qb="' + esc(qb) + '" data-drill-expect="' + F.n(total) + '"' +
+      ' title="Show every transaction in this total"><span>Total ' + esc(title) + '</span><b>' + F.fmt(total) + '</b></div>' +
       '</div></section>';
   }
 
@@ -90,9 +93,9 @@
         '  <div class="rtile"><small>Total Expense</small><b>Rs ' + F.fmt(r.total_expense) + '</b></div>' +
         '  <div class="rtile"><small>Net Income</small><b class="' + netClass + '">Rs ' + F.fmt(r.net_income) + '</b></div>' +
         '</div></section>' +
-        section('Income', r.income, r.total_income) +
-        (r.cogs && r.cogs.length ? section('Cost of Goods Sold', r.cogs, r.total_cogs) : '') +
-        section('Expense', r.expense, r.total_expense) +
+        section('Income', r.income, r.total_income, 'Income') +
+        (r.cogs && r.cogs.length ? section('Cost of Goods Sold', r.cogs, r.total_cogs, 'Cost of Goods Sold') : '') +
+        section('Expense', r.expense, r.total_expense, 'Expense') +
         '<section class="rsec plnet"><div class="oblist"><div class="orow tot net"><span>Net Income</span>' +
         '<b class="' + netClass + '">' + F.fmt(r.net_income) + '</b></div></div></section>'
       ) : '<p class="muted" style="padding:18px 0;text-align:center">Loading…</p>') + '</div>' +
@@ -112,6 +115,18 @@
           // Back reopens THIS P&L on THIS range, and its own Back still leads
           // to wherever the P&L was opened from.
           onBack: function () { global.NfPL.mount(root, Object.assign({}, ctx, { from: here.from, to: here.to })); },
+        });
+      });
+    });
+    root.querySelectorAll('[data-drill-qb]').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var here = { from: range.from, to: range.to };
+        var qb = row.getAttribute('data-drill-qb');
+        global.NfDrill.detail(root, ctx, {
+          from: here.from, to: here.to, expect: Number(row.getAttribute('data-drill-expect')),
+          filter: { title: 'Total ' + qb, qbTypes: [qb], sign: qb === 'Income' ? 'cr' : 'dr' },
+          backLabel: '← Back to Profit & Loss',
+          onBack: function () { global.NfPL.mount(root, Object.assign({}, ctx, here)); },
         });
       });
     });

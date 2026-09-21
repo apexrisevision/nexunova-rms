@@ -36,7 +36,16 @@
       var myGen = ++gen;
       var body = root.querySelector('#nf-jrn-body');
       if (body) body.innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center;padding:16px">Loading…</td></tr>';
-      return ctx.api.getJournal(ctx.companyId, range.from || null, range.to || null).then(function (r) {
+      // Transaction Detail mode (ctx.detail, js/nf/nf-drill.js) needs each
+      // account's qb_type and parent to decide which lines belong to the
+      // figure — the chart is fetched once per mount and kept on ctx.
+      var needChart = ctx.detail && !ctx.__accts;
+      return Promise.all([
+        ctx.api.getJournal(ctx.companyId, range.from || null, range.to || null),
+        needChart ? ctx.api.listAllAccounts(ctx.companyId) : null,
+      ]).then(function (res) {
+        var r = res[0];
+        if (needChart) { ctx.__accts = {}; (res[1] || []).forEach(function (a) { ctx.__accts[a.code] = a; }); }
         if (!alive || myGen !== gen) return; // a newer request, or a navigate-away, already won
         render(root, ctx, r, range, load);
       }).catch(function (e) {
@@ -60,21 +69,28 @@
       return { from: from, to: to };
     }
     // A drill (js/nf/nf-drill.js) opens the journal on one voucher's date.
-    var initialRange = (ctx.from || ctx.to) ? { from: ctx.from || '', to: ctx.to || '' } : currentMonthRange();
+    // A drill (Transaction Detail) carries its range explicitly, and an empty
+    // one there means ALL TIME (an all-postings Balance Sheet) — not this month.
+    var initialRange = (ctx.from || ctx.to || ctx.detail) ? { from: ctx.from || '', to: ctx.to || '' } : currentMonthRange();
     render(root, ctx, null, initialRange, load);
     load(initialRange);
   }
 
-  function legRows(v) {
+  function legRows(v, isMatch) {
     var legs = v.legs || [];
     return legs.map(function (l, i) {
       var first = i === 0;
+      var hit = isMatch && isMatch(l);
       // 'jrnleg', not 'jvleg': the Journal Voucher screen (nf-journal-voucher.css)
       // styles .jvleg as display:grid for its own entry rows, and every
       // stylesheet loads on the same page — so a <tr class="jvleg"> here
       // stopped being a table row, squashing each voucher's second line into
       // narrow grid tracks and blowing the Date column out to ~460px.
-      return '<tr class="' + (first ? 'jvfirst' : 'jrnleg') + '"' + (first ? ' data-jrn-vno="' + esc(v.voucher_no) + '"' : '') + '>' +
+      // data-jrn-vno/-date on EVERY line, so double-clicking any line of a
+      // voucher opens it (js/nf/nf-drill.js); data-jrn-first marks where a
+      // voucher starts.
+      return '<tr class="' + (first ? 'jvfirst' : 'jrnleg') + (hit ? ' jrn-match' : '') + ' nf-drill" title="Double-click to open this entry"' +
+        ' data-jrn-vno="' + esc(v.voucher_no) + '" data-jrn-date="' + esc(v.voucher_date) + '"' + (first ? ' data-jrn-first="1"' : '') + '>' +
         '<td>' + (first ? F.ddMonYyyy(v.voucher_date) : '') + '</td>' +
         '<td>' + (first ? esc(v.voucher_no) : '') + '</td>' +
         // Each leg's own memo (the real transaction description) takes
@@ -96,20 +112,41 @@
     }).join('');
   }
 
+  function detailNote(f, n, total) {
+    var ties = f.expect == null || Math.round((F.n(f.expect) - total) * 100) === 0;
+    return '<section class="rsec"><div class="nf-drill-note jrn-detail">' +
+      '<b>' + esc(f.title || 'Transaction detail') + '</b> · ' + n + (n === 1 ? ' voucher' : ' vouchers') +
+      ' · the marked lines total <b data-detail-total="' + total + '">Rs ' + F.fmt(total) + '</b>' +
+      (ties ? (f.expect == null ? '' : ' — matches the figure clicked.')
+        : ' — <span class="neg">the figure clicked was Rs ' + F.fmt(f.expect) + '; difference Rs ' + F.fmt(F.n(f.expect) - total) + '</span>') +
+      ' Double-click any line to open its entry.</div></section>';
+  }
+
   function render(root, ctx, r, range, load) {
     var mark = esc(ctx.settings.mark || 'NF');
     var companyLine = esc((r && r.company_line) || ctx.settings.company_line || ctx.companyName || '');
     var vouchers = r ? (r.vouchers || []) : [];
-    var rows = vouchers.map(legRows).join('');
-    var totalDebit = r ? F.n(r.total_debit) : 0;
-    var totalCredit = r ? F.n(r.total_credit) : 0;
+    // Transaction Detail: keep only the vouchers that contribute a line to
+    // the figure that was clicked, mark those lines, and total them the same
+    // way the figure's own SQL did — so the total can be checked against it.
+    var f = ctx.detail, isMatch = null, matchTotal = 0;
+    if (f && r) {
+      var accts = ctx.__accts || {};
+      isMatch = function (leg) { return global.NfDrill.legMatches(f, leg, accts[leg.account_code]); };
+      vouchers = vouchers.filter(function (v) { return (v.legs || []).some(isMatch); });
+      vouchers.forEach(function (v) { (v.legs || []).forEach(function (l) { if (isMatch(l)) matchTotal += global.NfDrill.legAmount(f, l); }); });
+      matchTotal = Math.round(matchTotal * 100) / 100;
+    }
+    var rows = vouchers.map(function (v) { return legRows(v, isMatch); }).join('');
+    var totalDebit = r ? (f ? vouchers.reduce(function (t, v) { return t + (v.legs || []).reduce(function (u, l) { return u + F.n(l.debit); }, 0); }, 0) : F.n(r.total_debit)) : 0;
+    var totalCredit = r ? (f ? vouchers.reduce(function (t, v) { return t + (v.legs || []).reduce(function (u, l) { return u + F.n(l.credit); }, 0); }, 0) : F.n(r.total_credit)) : 0;
     var unbalanced = r && Math.round((totalDebit - totalCredit) * 100) !== 0;
 
     root.innerHTML = '' +
       '<div class="sheet jsheet">' +
       '<header class="hdr">' +
       '  <div class="brand">' + F.brandMark(mark) +
-      '    <div><div class="co">' + companyLine + '</div><h1>General Journal</h1></div></div>' +
+      '    <div><div class="co">' + companyLine + '</div><h1>' + (f ? 'Transaction Detail' : 'General Journal') + '</h1></div></div>' +
       '  <div class="actions">' +
       '    <button class="btn" id="nf-jrn-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button>' +
       global.NfReportsMenu.html('journal') +
@@ -128,6 +165,9 @@
       // docs/AUDIT_REPORT.md CRITICAL-3), so a drill shows it here, read-only.
       (r && ctx.importedNote && ctx.focusVoucher ? '<section class="rsec"><div class="nf-drill-note">Voucher <b>' + esc(ctx.focusVoucher) +
         '</b> was imported from QuickBooks history. It has no entry screen here and cannot be edited — shown read-only.</div></section>' : '') +
+      // Transaction Detail: what was clicked, and the tie-out — the marked
+      // lines total to the figure, or the difference is shown, never hidden.
+      (r && f ? detailNote(f, vouchers.length, matchTotal) : '') +
       '<section class="rsec">' +
       '<table class="rtab jtab"><thead><tr><th>Date</th><th>Voucher</th><th>Narration</th><th>Account</th>' +
       '<th>Floor</th><th>Party</th><th class="r">Debit</th><th class="r">Credit</th></tr></thead>' +
@@ -136,7 +176,7 @@
       '<td class="r' + (unbalanced ? ' neg' : '') + '">' + F.fmt(totalDebit) + '</td>' +
       '<td class="r' + (unbalanced ? ' neg' : '') + '">' + F.fmt(totalCredit) + '</td></tr></tfoot>' +
       '</table></section>' +
-      '<div class="docfoot"><span>' + esc(ctx.companyName || '') + ' · General Journal</span>' +
+      '<div class="docfoot"><span>' + esc(ctx.companyName || '') + ' · ' + (f ? 'Transaction Detail — ' + esc(f.title || '') : 'General Journal') + '</span>' +
       '<span>' + (range.from || range.to ? (range.from || '…') + ' – ' + (range.to || '…') : 'All time') + '</span></div>' +
       '</div>';
 
@@ -162,12 +202,24 @@
     root.querySelector('#nf-jrn-clear').addEventListener('click', function () {
       load({ from: '', to: '' });
     });
+    // Double-click any line → the original entry (js/nf/nf-drill.js). Back
+    // reopens this journal (or Transaction Detail) on this range.
+    root.querySelectorAll('[data-jrn-vno]').forEach(function (tr) {
+      tr.addEventListener('dblclick', function () {
+        var here = { from: range.from, to: range.to, focusVoucher: null, importedNote: false, __drillDone: true };
+        global.NfDrill.entry(root, ctx, {
+          voucherNo: tr.getAttribute('data-jrn-vno'), date: tr.getAttribute('data-jrn-date'),
+          backLabel: f ? '← Back to transaction detail' : '← Back to journal',
+          onBack: function () { global.NfJournal.mount(root, Object.assign({}, ctx, here)); },
+        });
+      });
+    });
     // Drilled here (js/nf/nf-drill.js): light the voucher once, on the first
     // render that actually has rows — not again on every Apply.
     if (r && ctx.focusVoucher && !ctx.__drillDone) {
       ctx.__drillDone = true;
       var want = String(ctx.focusVoucher).toUpperCase();
-      var hit = [].filter.call(root.querySelectorAll('[data-jrn-vno]'), function (tr) {
+      var hit = [].filter.call(root.querySelectorAll('[data-jrn-first]'), function (tr) {
         return String(tr.getAttribute('data-jrn-vno')).toUpperCase() === want;
       })[0];
       global.NfDrill.highlight(hit);

@@ -36,18 +36,23 @@
       }).catch(function (e) {
         if (!alive || myGen !== gen) return;
         root.innerHTML = '<div class="nf-gate"><h2>Could not open cash &amp; bank movement</h2><p>' + esc(e.message || String(e)) + '</p>' +
-          '<button class="btn" id="nf-cb-back" type="button">← Back to closing sheet</button></div>';
+          '<button class="btn" id="nf-cb-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button></div>';
         var back = root.querySelector('#nf-cb-back');
         if (back) back.addEventListener('click', function () { ctx.onBack(); });
       });
     }
 
-    load({ from: '', to: '' });
+    // ctx.from/ctx.to: reopened by Back from a drill (js/nf/nf-drill.js)
+    load({ from: ctx.from || '', to: ctx.to || '' });
   }
 
   function rows(list) {
     return (list || []).map(function (a) {
-      return '<div class="cbrow"><span>' + esc(a.code) + ' ' + esc(a.name) + '</span>' +
+      // click → that account's ledger for the same range: its movement is
+      // this row's In − Out (js/nf/nf-drill.js). The OPENING can differ by a
+      // first-day typed opening, which is never posted —
+      // docs/findings/2026-09-21-P-typed-opening-never-posted.md.
+      return '<div class="cbrow nf-drill" data-drill-acct="' + esc(a.code) + '" title="Open the ledger for this account"><span>' + esc(a.code) + ' ' + esc(a.name) + '</span>' +
         '<span class="r">' + F.fmt(a.opening) + '</span>' +
         '<span class="r">' + F.fmt(a.total_in) + '</span>' +
         '<span class="r">' + F.fmt(a.total_out) + '</span>' +
@@ -66,7 +71,7 @@
       '  <div class="brand">' + F.brandMark(mark) +
       '    <div><div class="co">' + companyLine + '</div><h1>Cash &amp; Bank Movement</h1></div></div>' +
       '  <div class="actions">' +
-      '    <button class="btn" id="nf-cb-back" type="button">← Back to closing sheet</button>' +
+      '    <button class="btn" id="nf-cb-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button>' +
       global.NfReportsMenu.html('cashbank') +
       '    <button class="btn primary" id="nf-cb-print" type="button">Print</button>' +
       '  </div>' +
@@ -106,6 +111,16 @@
     root.querySelector('#nf-cb-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-cb-print').addEventListener('click', function () { global.print(); });
     global.NfReportsMenu.wire(root, ctx);
+    root.querySelectorAll('[data-drill-acct]').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var here = { from: range.from, to: range.to };
+        global.NfDrill.ledger(root, ctx, {
+          accountCode: row.getAttribute('data-drill-acct'), from: here.from, to: here.to,
+          backLabel: '← Back to Cash & Bank',
+          onBack: function () { global.NfCashBank.mount(root, Object.assign({}, ctx, here)); },
+        });
+      });
+    });
     root.querySelector('#nf-cb-apply').addEventListener('click', function () {
       load({ from: root.querySelector('#nf-cb-from').value, to: root.querySelector('#nf-cb-to').value });
     });

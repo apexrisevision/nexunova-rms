@@ -33,18 +33,22 @@
       }).catch(function (e) {
         if (!alive || myGen !== gen) return;
         root.innerHTML = '<div class="nf-gate"><h2>Could not open the token register</h2><p>' + esc(e.message || String(e)) + '</p>' +
-          '<button class="btn" id="nf-tkr-back" type="button">← Back to closing sheet</button></div>';
+          '<button class="btn" id="nf-tkr-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button></div>';
         var back = root.querySelector('#nf-tkr-back');
         if (back) back.addEventListener('click', function () { ctx.onBack(); });
       });
     }
 
-    load({ from: '', to: '' });
+    // ctx.from/ctx.to: reopened by Back from a drill (js/nf/nf-drill.js)
+    load({ from: ctx.from || '', to: ctx.to || '' });
   }
 
   function rows(list) {
     return (list || []).map(function (u) {
-      return '<div class="tkrow ' + (u.status === 'Returned' ? 'returned' : '') + '">' +
+      // click → Transaction Detail: every 21100 line for this unit; the
+      // lines total to Net (js/nf/nf-drill.js)
+      return '<div class="tkrow nf-drill ' + (u.status === 'Returned' ? 'returned' : '') + '" data-drill-unit="' + esc(u.unit_code) + '" data-drill-floor="' + esc(u.floor_code) + '"' +
+        ' data-drill-expect="' + F.n(u.net) + '" title="Show this unit\'s token transactions">' +
         '<span>' + esc(u.unit_code) + '</span>' +
         '<span>' + esc(u.floor_name || u.floor_code || '') + '</span>' +
         '<span class="wrap">' + esc(u.parties || '') + '</span>' +
@@ -69,7 +73,7 @@
       '  <div class="brand">' + F.brandMark(mark) +
       '    <div><div class="co">' + companyLine + '</div><h1>Token Money Register</h1></div></div>' +
       '  <div class="actions">' +
-      '    <button class="btn" id="nf-tkr-back" type="button">← Back to closing sheet</button>' +
+      '    <button class="btn" id="nf-tkr-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button>' +
       global.NfReportsMenu.html('token') +
       '    <button class="btn primary" id="nf-tkr-print" type="button">Print</button>' +
       '  </div>' +
@@ -100,6 +104,18 @@
     root.querySelector('#nf-tkr-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-tkr-print').addEventListener('click', function () { global.print(); });
     global.NfReportsMenu.wire(root, ctx);
+    root.querySelectorAll('[data-drill-unit]').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var here = { from: range.from, to: range.to };
+        var unit = row.getAttribute('data-drill-unit');
+        global.NfDrill.detail(root, ctx, {
+          from: here.from, to: here.to, expect: Number(row.getAttribute('data-drill-expect')),
+          filter: { title: 'Unit ' + unit + ' — tokens', accounts: ['21100'], memoUnit: unit, floor: row.getAttribute('data-drill-floor'), sign: 'cr' },
+          backLabel: '← Back to Token Register',
+          onBack: function () { global.NfTokenRegister.mount(root, Object.assign({}, ctx, here)); },
+        });
+      });
+    });
     root.querySelector('#nf-tkr-apply').addEventListener('click', function () {
       load({ from: root.querySelector('#nf-tkr-from').value, to: root.querySelector('#nf-tkr-to').value });
     });

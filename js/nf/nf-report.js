@@ -42,7 +42,7 @@
       render(root, ctx, r);
     }).catch(function (e) {
       root.innerHTML = '<div class="nf-gate"><h2>Could not open the report</h2><p>' + esc(e.message || String(e)) + '</p>' +
-        '<button class="btn" id="nf-rep-back" type="button">← Back to closing sheet</button></div>';
+        '<button class="btn" id="nf-rep-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button></div>';
       var back = root.querySelector('#nf-rep-back');
       if (back) back.addEventListener('click', function () { ctx.onBack(); });
     });
@@ -55,7 +55,10 @@
   function cashBankTable(accounts) {
     var rows = (accounts || []).map(function (a) {
       var cl = F.n(a.closing);
-      return '<tr><td>' + esc(a.label) + '</td>' +
+      // click → that cash/bank account's ledger for this day: its movement
+      // is this row's (js/nf/nf-drill.js); the opening can differ by a
+      // first-day typed opening — docs/findings/2026-09-21-P-typed-opening-never-posted.md.
+      return '<tr class="nf-drill" data-drill-via="' + esc(a.via) + '" title="Open the ledger for this account"><td>' + esc(a.label) + '</td>' +
         '<td class="r">' + F.fmt(a.opening) + '</td>' +
         '<td class="r">' + F.fmt(a.received) + '</td>' +
         '<td class="r">' + F.fmt(a.paid) + '</td>' +
@@ -107,7 +110,9 @@
   function entriesTable(title, sub, side, lines) {
     var rows = lines.filter(function (l) { return l.side === side; });
     var body = rows.map(function (l) {
-      return '<tr><td>' + esc(l.voucher_no) + '</td><td>' + esc(l.description || '') + '</td>' +
+      // double-click → the entry on the closing sheet (js/nf/nf-drill.js)
+      return '<tr class="nf-drill" data-drill-vno="' + esc(l.voucher_no) + '" title="Double-click to open this entry">' +
+        '<td>' + esc(l.voucher_no) + '</td><td>' + esc(l.description || '') + '</td>' +
         '<td>' + esc(l.head_name) + '</td><td>' + esc(l.floor_name || l.floor_code || '') + '</td>' +
         '<td>' + esc(l.via) + '</td><td class="r">' + F.fmt(l.amount) + '</td></tr>';
     }).join('');
@@ -149,7 +154,7 @@
       '  <div class="brand">' + F.brandMark(mark) +
       '    <div><div class="co">' + companyLine + '</div><h1>' + esc(r.report_title || 'Daily Closing') + '</h1></div></div>' +
       '  <div class="actions">' +
-      '    <button class="btn" id="nf-rep-back" type="button">← Back to closing sheet</button>' +
+      '    <button class="btn" id="nf-rep-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button>' +
       '    <button class="btn primary" id="nf-rep-print" type="button">Print</button>' +
       '  </div>' +
       '</header>' +
@@ -184,6 +189,20 @@
 
     root.querySelector('#nf-rep-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-rep-print').addEventListener('click', function () { global.print(); });
+    // Every drill from here comes Back to THIS report.
+    var back = { backLabel: '← Back to Director Report',
+      onBack: function () { global.NfReport.mount(root, Object.assign({}, ctx)); } };
+    var day = String(r.business_date || '').slice(0, 10);
+    root.querySelectorAll('[data-drill-via]').forEach(function (row) {
+      row.addEventListener('click', function () {
+        global.NfDrill.ledgerByVia(root, ctx, Object.assign({ via: row.getAttribute('data-drill-via'), from: day, to: day }, back));
+      });
+    });
+    root.querySelectorAll('[data-drill-vno]').forEach(function (row) {
+      row.addEventListener('dblclick', function () {
+        global.NfDrill.entry(root, ctx, Object.assign({ voucherNo: row.getAttribute('data-drill-vno'), date: day }, back));
+      });
+    });
   }
 
   global.NfReport = { mount: mount };

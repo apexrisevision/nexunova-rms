@@ -3700,3 +3700,96 @@ functions.
 Housekeeping still open, not a finding and not touched (no instruction to delete live rows): one leftover test
 tenant `ZZTEST-NF-02bed4e9` from an earlier suite run whose cleanup did not complete. `ZZTEST-NF-DEMO` and
 `ZZTEST-NF-SHOT` are deliberate demo tenants, not residue.
+
+## 43 · Drill-down ("360"), QuickBooks-style (2026-09-21)
+
+The owner's ask, in his words: every figure and every entry, on any report, the P&L and the Balance
+Sheet, should lead to its full trail. Agreed design: a figure or head opens that account's **ledger** for
+the report's own range; double-clicking an entry opens the **original entry** in the screen it was
+entered on; a grouped figure opens a **voucher list**. Rollout was staged: stage 1 (P&L → ledger →
+entry) was shown and pushed first.
+
+Where a voucher lives is derived, not stored. The logic is in `js/nf/nf-drill.js`: a cashbook prefix
+means the Daily Closing sheet, membership of `nf_jv_list` means the Journal Vouchers screen, and anything
+else is imported history, which opens read-only in the General Journal. No database change was made.
+
+### Stage 2 — every other screen
+
+| screen | click / double-click | lands on |
+|---|---|---|
+| P&L | account row | ledger, same range (stage 1) |
+| P&L | Income / COGS / Expense total | Transaction Detail |
+| Balance Sheet | account row | ledger from inception to the as-of date (closing = the figure) |
+| Balance Sheet | current earnings / accumulated deficit | the P&L to that date (it is computed, not an account) |
+| Balance Sheet | Total Assets / Total Liabilities | Transaction Detail |
+| Trial Balance | account row | ledger to the as-of date |
+| Cash & Bank | account row | ledger, same range |
+| Project Cost | a category / the total | Transaction Detail |
+| Floor Summary | a floor's cost, income or token figure | Transaction Detail |
+| Monthly Trend | a month's cost or token figure | Transaction Detail (the month ∩ the range) |
+| Token Register | a unit | Transaction Detail, that unit's 21100 lines |
+| Director Report | a cash/bank row | that account's ledger for the day |
+| Director Report | an entry (double-click) | the original entry |
+| Party Statement | an entry (double-click) | the original entry |
+| General Journal / Transaction Detail | any line of a voucher (double-click) | the original entry |
+
+Not clickable, on purpose: Total Equity (it includes the computed earnings), Gross Profit and Net Income
+(both computed), and the Trial Balance total.
+
+**Transaction Detail** is the General Journal in a filtered mode (`ctx.detail`), not a new screen.
+- It keeps only the vouchers that contribute a line to the clicked figure.
+- It shades those lines.
+- It totals them with the same rule the figure's own database function uses (the qb_type, floor,
+  parent category, `unit X` memo and sign).
+- It prints the tie-out: "the marked lines total Rs X — matches the figure clicked". If they differ, it
+  prints both numbers and the difference, and never hides it.
+
+Back always returns to the screen drilled from, with its range. That screen's own Back still leads where
+it did before.
+
+### What the suite proves
+
+`scripts/nf/verify-nf-drilldown.js` holds 49 checks (stage 1 had 17). Every grouped figure the fixture
+produces is clicked and must tie, penny for penny:
+- every Project Cost category and its total;
+- every non-zero Floor Summary cost, income and token figure;
+- every Monthly Trend figure;
+- the Token Register unit;
+- the Balance Sheet totals;
+- the P&L section total.
+
+A fifth voucher, `JV-TKN-1` (a token against unit G-12), was added to the fixture so the Token Register
+has a unit to drill into.
+
+### Found on the way — recorded, not fixed
+
+`docs/findings/2026-09-21-P-typed-opening-never-posted.md`: a first-day **typed opening** balance is
+never posted. So Cash & Bank, the Director Report and the closing sheet (which start from it) disagree
+with the ledger, the Trial Balance and the Balance Sheet (which do not) by exactly that amount.
+- The movement for any range still ties, and that is what S2-08 and S2-15 assert.
+- **Live Awami is unaffected**: its typed openings are 0.
+- Whether to post an "Opening Balance Equity" voucher is the owner's and his accountant's decision.
+
+### Full regression — real output
+
+One suite at a time, never concurrently.
+
+| suite | result |
+|---|---|
+| rules | 66/66 |
+| cash-via-day-only | 39/39 |
+| golden day (UI) | 34/34 |
+| dry run | 33/33 |
+| jv-harden | 23/23 |
+| journal vouchers | 18/18 |
+| director report | 18/18 |
+| party field | 15/15 |
+| General Journal | 14/14 |
+| General Ledger | 12/12 |
+| Trial Balance | 10/10 |
+| race harness | 3/3 |
+| **drill-down** | **49/49** (was 17) |
+| schema rehearsal | SKIPPED, exit 0 |
+| de-migration rehearsal | SKIPPED, exit 0 |
+
+**334 checks, nothing red.**

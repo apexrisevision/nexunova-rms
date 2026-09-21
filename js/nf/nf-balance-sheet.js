@@ -29,25 +29,38 @@
       }).catch(function (e) {
         if (!alive || myGen !== gen) return;
         root.innerHTML = '<div class="nf-gate"><h2>Could not open the balance sheet</h2><p>' + esc(e.message || String(e)) + '</p>' +
-          '<button class="btn" id="nf-bs-back" type="button">← Back to closing sheet</button></div>';
+          '<button class="btn" id="nf-bs-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button></div>';
         var back = root.querySelector('#nf-bs-back');
         if (back) back.addEventListener('click', function () { ctx.onBack(); });
       });
     }
 
-    load('');
+    // ctx.asOf: reopened by Back from a drill (js/nf/nf-drill.js)
+    load(ctx.asOf || '');
   }
 
   function rows(list) {
     return (list || []).map(function (a) {
-      return '<div class="orow"><span>' + esc(a.code) + ' ' + esc(a.name) + '</span><b>' + F.fmt(a.amount) + '</b></div>';
+      // Click an account → its ledger from inception to the as-of date, so
+      // the ledger's closing balance IS the figure (js/nf/nf-drill.js).
+      return '<div class="orow nf-drill" data-drill-acct="' + esc(a.code) + '" title="Open the ledger for this account">' +
+        '<span>' + esc(a.code) + ' ' + esc(a.name) + '</span><b>' + F.fmt(a.amount) + '</b></div>';
     }).join('');
+  }
+
+  // Posted-account section totals open Transaction Detail; Total Equity does
+  // not (it includes the computed earnings, which is not a set of lines).
+  var ASSET_TYPES = ['Bank', 'Accounts Receivable', 'Other Current Asset', 'Fixed Asset', 'Other Asset'];
+  var LIAB_TYPES = ['Accounts Payable', 'Other Current Liability', 'Long Term Liability'];
+  function totalRow(label, total, kind, extraClass) {
+    return '<div class="orow tot' + (extraClass || '') + ' nf-drill" data-drill-total="' + kind + '" data-drill-expect="' + F.n(total) + '"' +
+      ' title="Show every transaction in this total"><span>' + label + '</span><b>' + F.fmt(total) + '</b></div>';
   }
 
   function section(title, list, total) {
     return '<section class="rsec bssec"><h2>' + esc(title) + '</h2>' +
       '<div class="oblist">' + (rows(list) || '<div class="orow muted"><span>No activity</span><b>–</b></div>') +
-      '<div class="orow tot"><span>Total ' + esc(title) + '</span><b>' + F.fmt(total) + '</b></div>' +
+      totalRow('Total ' + esc(title), total, 'assets') +
       '</div></section>';
   }
 
@@ -74,7 +87,7 @@
       : 'computed, not a posted account — accumulated net income to date; Awami has never run a formal period-end close';
     var equityBody = r ? (
       rows(r.equity) +
-      '<div class="orow computed"><span>' + esc(earningsLabel) + ' <i>(' + esc(earningsNote) + ')</i></span><b>' + F.fmt(r.current_earnings.amount) + '</b></div>' +
+      '<div class="orow computed nf-drill" data-drill-earnings="1" title="Open the Profit &amp; Loss behind this figure"><span>' + esc(earningsLabel) + ' <i>(' + esc(earningsNote) + ')</i></span><b>' + F.fmt(r.current_earnings.amount) + '</b></div>' +
       '<div class="orow tot"><span>Total Equity</span><b>' + F.fmt(r.total_equity) + '</b></div>'
     ) : '';
 
@@ -84,7 +97,7 @@
       '  <div class="brand">' + F.brandMark(mark) +
       '    <div><div class="co">' + companyLine + '</div><h1>Balance Sheet</h1></div></div>' +
       '  <div class="actions">' +
-      '    <button class="btn" id="nf-bs-back" type="button">← Back to closing sheet</button>' +
+      '    <button class="btn" id="nf-bs-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button>' +
       global.NfReportsMenu.html('bs') +
       '    <button class="btn primary" id="nf-bs-print" type="button">Print</button>' +
       '  </div>' +
@@ -105,7 +118,7 @@
         '<section class="rsec bssec"><h2>Liabilities &amp; Equity</h2>' +
         '<div class="oblist">' +
         rows(r.liabilities) +
-        '<div class="orow tot"><span>Total Liabilities</span><b>' + F.fmt(r.total_liabilities) + '</b></div>' +
+        totalRow('Total Liabilities', r.total_liabilities, 'liabilities') +
         equityBody +
         '<div class="orow tot net"><span>Total Liabilities &amp; Equity</span><b>' + F.fmt(r.total_liabilities_and_equity) + '</b></div>' +
         '</div></section>'
@@ -117,6 +130,27 @@
     root.querySelector('#nf-bs-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-bs-print').addEventListener('click', function () { global.print(); });
     global.NfReportsMenu.wire(root, ctx);
+    // Every drill from here comes Back to THIS sheet on THIS date.
+    var back = { backLabel: '← Back to Balance Sheet',
+      onBack: function () { global.NfBalanceSheet.mount(root, Object.assign({}, ctx, { asOf: asOf })); } };
+    root.querySelectorAll('[data-drill-acct]').forEach(function (row) {
+      row.addEventListener('click', function () {
+        global.NfDrill.ledger(root, ctx, Object.assign({ accountCode: row.getAttribute('data-drill-acct'), from: '', to: asOf }, back));
+      });
+    });
+    root.querySelectorAll('[data-drill-earnings]').forEach(function (row) {
+      row.addEventListener('click', function () { global.NfDrill.pl(root, ctx, Object.assign({ from: '', to: asOf }, back)); });
+    });
+    root.querySelectorAll('[data-drill-total]').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var assets = row.getAttribute('data-drill-total') === 'assets';
+        global.NfDrill.detail(root, ctx, Object.assign({
+          from: '', to: asOf, expect: Number(row.getAttribute('data-drill-expect')),
+          filter: assets ? { title: 'Total Assets', qbTypes: ASSET_TYPES, sign: 'dr' }
+                         : { title: 'Total Liabilities', qbTypes: LIAB_TYPES, sign: 'cr' },
+        }, back));
+      });
+    });
     root.querySelector('#nf-bs-apply').addEventListener('click', function () {
       load(root.querySelector('#nf-bs-asof').value);
     });

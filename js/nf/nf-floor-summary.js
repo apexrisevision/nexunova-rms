@@ -35,21 +35,24 @@
       }).catch(function (e) {
         if (!alive || myGen !== gen) return;
         root.innerHTML = '<div class="nf-gate"><h2>Could not open the floor summary</h2><p>' + esc(e.message || String(e)) + '</p>' +
-          '<button class="btn" id="nf-flr-back" type="button">← Back to closing sheet</button></div>';
+          '<button class="btn" id="nf-flr-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button></div>';
         var back = root.querySelector('#nf-flr-back');
         if (back) back.addEventListener('click', function () { ctx.onBack(); });
       });
     }
 
-    load({ from: '', to: '' });
+    // ctx.from/ctx.to: reopened by Back from a drill (js/nf/nf-drill.js)
+    load({ from: ctx.from || '', to: ctx.to || '' });
   }
 
   function rows(list) {
     return (list || []).map(function (f) {
+      function fig(kind, amount) {
+        return '<span class="r"><span class="nf-drill-fig" data-drill-floor="' + esc(f.floor_code) + '" data-drill-fname="' + esc(f.floor_name || f.floor_code) + '"' +
+          ' data-drill-kind="' + kind + '" data-drill-expect="' + F.n(amount) + '" title="Show the transactions in this figure">' + F.fmt(amount) + '</span></span>';
+      }
       return '<div class="flrow"><span>' + esc(f.floor_name || f.floor_code) + '</span>' +
-        '<span class="r">' + F.fmt(f.cost) + '</span>' +
-        '<span class="r">' + F.fmt(f.income) + '</span>' +
-        '<span class="r">' + F.fmt(f.token_collected) + '</span></div>';
+        fig('cost', f.cost) + fig('income', f.income) + fig('token', f.token_collected) + '</div>';
     }).join('');
   }
 
@@ -63,7 +66,7 @@
       '  <div class="brand">' + F.brandMark(mark) +
       '    <div><div class="co">' + companyLine + '</div><h1>Floor/Class Cost &amp; Collection</h1></div></div>' +
       '  <div class="actions">' +
-      '    <button class="btn" id="nf-flr-back" type="button">← Back to closing sheet</button>' +
+      '    <button class="btn" id="nf-flr-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button>' +
       global.NfReportsMenu.html('floor') +
       '    <button class="btn primary" id="nf-flr-print" type="button">Print</button>' +
       '  </div>' +
@@ -100,6 +103,21 @@
     root.querySelector('#nf-flr-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-flr-print').addEventListener('click', function () { global.print(); });
     global.NfReportsMenu.wire(root, ctx);
+    root.querySelectorAll('[data-drill-floor]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var here = { from: range.from, to: range.to };
+        var kind = el.getAttribute('data-drill-kind'), name = el.getAttribute('data-drill-fname');
+        var filter = kind === 'cost' ? { title: name + ' — Cost', qbTypes: ['Cost of Goods Sold', 'Expense'], sign: 'dr' }
+          : kind === 'income' ? { title: name + ' — Income', qbTypes: ['Income'], sign: 'cr' }
+          : { title: name + ' — Token Collected', accounts: ['21100'], sign: 'cr' };
+        filter.floor = el.getAttribute('data-drill-floor');
+        global.NfDrill.detail(root, ctx, {
+          from: here.from, to: here.to, expect: Number(el.getAttribute('data-drill-expect')), filter: filter,
+          backLabel: '← Back to Floor Summary',
+          onBack: function () { global.NfFloorSummary.mount(root, Object.assign({}, ctx, here)); },
+        });
+      });
+    });
     root.querySelector('#nf-flr-apply').addEventListener('click', function () {
       load({ from: root.querySelector('#nf-flr-from').value, to: root.querySelector('#nf-flr-to').value });
     });

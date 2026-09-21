@@ -67,6 +67,58 @@
     });
   }
 
+  // The Director Report and the cash views know an account as Cash / Petty /
+  // Bank, not by code; resolve it the same way the sheet does (nf_list_vias).
+  function ledgerByVia(root, ctx, o) {
+    return ctx.api.listVias(ctx.companyId).then(function (vias) {
+      var v = (vias || []).filter(function (x) { return x.via === o.via; })[0];
+      if (!v) return;
+      ledger(root, ctx, Object.assign({}, o, { accountCode: v.code }));
+    });
+  }
+
+  // The Balance Sheet's "current earnings" is not a posted account — it is
+  // the P&L to date — so its trail is the P&L, not a ledger (as QuickBooks
+  // does it).
+  function pl(root, ctx, o) {
+    global.NfPL.mount(root, Object.assign(base(ctx), { from: o.from || '', to: o.to || '', backLabel: o.backLabel, onBack: o.onBack }));
+  }
+
+  // A GROUPED figure (a floor's cost, a month's tokens, a project-cost
+  // category, a section total) has no single ledger. Its trail is
+  // "Transaction Detail": the General Journal filtered to exactly the lines
+  // that make up that figure, with their total shown so it can be checked
+  // against the figure that was clicked. `filter` is the same definition
+  // the figure's own database function uses:
+  //   { title, floor, qbTypes:[…], accounts:[…], category, memoUnit, sign:'dr'|'cr' }
+  function detail(root, ctx, o) {
+    global.NfJournal.mount(root, Object.assign(base(ctx), {
+      from: o.from || '', to: o.to || '', detail: Object.assign({ expect: o.expect }, o.filter),
+      backLabel: o.backLabel, onBack: o.onBack,
+    }));
+  }
+
+  // Does one journal leg belong to a detail filter? Mirrors the SQL that
+  // produced the figure (nf_get_floor_summary / _monthly_trend /
+  // _project_cost_summary / _token_register), so the lines found total to it.
+  function legMatches(f, leg, acct) {
+    if (f.floor && leg.floor_code !== f.floor) return false;
+    if (f.accounts && f.accounts.indexOf(leg.account_code) < 0) return false;
+    if (f.qbTypes && (!acct || f.qbTypes.indexOf(acct.qb_type) < 0)) return false;
+    // project-cost category = the account's immediate parent, or the account
+    // itself when it has none: COALESCE(pa.code, a.code) in the SQL
+    if (f.category && (!acct || (acct.parent_code || acct.code) !== f.category)) return false;
+    if (f.memoUnit) {
+      var m = /unit ([A-Za-z0-9-]+)/.exec(leg.memo || '');
+      if (!m || m[1] !== f.memoUnit) return false;
+    }
+    return true;
+  }
+  function legAmount(f, leg) {
+    var dr = Number(leg.debit) || 0, cr = Number(leg.credit) || 0;
+    return f.sign === 'cr' ? cr - dr : dr - cr;
+  }
+
   // After a screen has rendered: bring the drilled item into view and light
   // it for a moment, so the eye lands on it.
   function highlight(el) {
@@ -80,5 +132,17 @@
     return true;
   }
 
-  global.NfDrill = { ledger: ledger, entry: entry, highlight: highlight, isCashbook: function (v) { return CASHBOOK.test(v || ''); } };
+  // Wire one drill action onto every element matching `selector`: `how` is
+  // 'click' (a figure) or 'dblclick' (an entry), `fn(el)` does the navigation.
+  function on(root, selector, how, fn) {
+    [].forEach.call(root.querySelectorAll(selector), function (el) {
+      el.addEventListener(how, function () { fn(el); });
+    });
+  }
+
+  global.NfDrill = {
+    ledger: ledger, ledgerByVia: ledgerByVia, pl: pl, entry: entry, detail: detail,
+    legMatches: legMatches, legAmount: legAmount, highlight: highlight, on: on,
+    isCashbook: function (v) { return CASHBOOK.test(v || ''); },
+  };
 })(window);

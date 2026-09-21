@@ -31,18 +31,20 @@
       }).catch(function (e) {
         if (!alive || myGen !== gen) return;
         root.innerHTML = '<div class="nf-gate"><h2>Could not open the trial balance</h2><p>' + esc(e.message || String(e)) + '</p>' +
-          '<button class="btn" id="nf-tb-back" type="button">← Back to closing sheet</button></div>';
+          '<button class="btn" id="nf-tb-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button></div>';
         var back = root.querySelector('#nf-tb-back');
         if (back) back.addEventListener('click', function () { ctx.onBack(); });
       });
     }
 
-    load('');
+    // ctx.asOf: reopened by Back from a drill (js/nf/nf-drill.js)
+    load(ctx.asOf || '');
   }
 
   function rows(list) {
     return (list || []).map(function (a) {
-      return '<tr><td>' + esc(a.code) + '</td><td>' + esc(a.name) + '</td>' +
+      // click → that account's ledger to the as-of date (js/nf/nf-drill.js)
+      return '<tr class="nf-drill" data-drill-acct="' + esc(a.code) + '" title="Open the ledger for this account"><td>' + esc(a.code) + '</td><td>' + esc(a.name) + '</td>' +
         '<td class="r">' + (F.n(a.debit) ? F.fmt(a.debit) : '') + '</td>' +
         '<td class="r">' + (F.n(a.credit) ? F.fmt(a.credit) : '') + '</td></tr>';
     }).join('');
@@ -62,7 +64,7 @@
       '  <div class="brand">' + F.brandMark(mark) +
       '    <div><div class="co">' + companyLine + '</div><h1>Trial Balance</h1></div></div>' +
       '  <div class="actions">' +
-      '    <button class="btn" id="nf-tb-back" type="button">← Back to closing sheet</button>' +
+      '    <button class="btn" id="nf-tb-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button>' +
       global.NfReportsMenu.html('tb') +
       '    <button class="btn primary" id="nf-tb-print" type="button">Print</button>' +
       '  </div>' +
@@ -88,6 +90,15 @@
     root.querySelector('#nf-tb-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-tb-print').addEventListener('click', function () { global.print(); });
     global.NfReportsMenu.wire(root, ctx);
+    root.querySelectorAll('[data-drill-acct]').forEach(function (row) {
+      row.addEventListener('click', function () {
+        global.NfDrill.ledger(root, ctx, {
+          accountCode: row.getAttribute('data-drill-acct'), from: '', to: asOf,
+          backLabel: '← Back to Trial Balance',
+          onBack: function () { global.NfTrialBalance.mount(root, Object.assign({}, ctx, { asOf: asOf })); },
+        });
+      });
+    });
     root.querySelector('#nf-tb-apply').addEventListener('click', function () {
       load(root.querySelector('#nf-tb-asof').value);
     });
