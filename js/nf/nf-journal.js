@@ -42,7 +42,7 @@
       }).catch(function (e) {
         if (!alive || myGen !== gen) return;
         root.innerHTML = '<div class="nf-gate"><h2>Could not open the journal</h2><p>' + esc(e.message || String(e)) + '</p>' +
-          '<button class="btn" id="nf-jrn-back" type="button">← Back to closing sheet</button></div>';
+          '<button class="btn" id="nf-jrn-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button></div>';
         var back = root.querySelector('#nf-jrn-back');
         if (back) back.addEventListener('click', function () { ctx.onBack(); });
       });
@@ -59,7 +59,8 @@
       var to = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
       return { from: from, to: to };
     }
-    var initialRange = currentMonthRange();
+    // A drill (js/nf/nf-drill.js) opens the journal on one voucher's date.
+    var initialRange = (ctx.from || ctx.to) ? { from: ctx.from || '', to: ctx.to || '' } : currentMonthRange();
     render(root, ctx, null, initialRange, load);
     load(initialRange);
   }
@@ -73,7 +74,7 @@
       // stylesheet loads on the same page — so a <tr class="jvleg"> here
       // stopped being a table row, squashing each voucher's second line into
       // narrow grid tracks and blowing the Date column out to ~460px.
-      return '<tr class="' + (first ? 'jvfirst' : 'jrnleg') + '">' +
+      return '<tr class="' + (first ? 'jvfirst' : 'jrnleg') + '"' + (first ? ' data-jrn-vno="' + esc(v.voucher_no) + '"' : '') + '>' +
         '<td>' + (first ? F.ddMonYyyy(v.voucher_date) : '') + '</td>' +
         '<td>' + (first ? esc(v.voucher_no) : '') + '</td>' +
         // Each leg's own memo (the real transaction description) takes
@@ -110,7 +111,7 @@
       '  <div class="brand">' + F.brandMark(mark) +
       '    <div><div class="co">' + companyLine + '</div><h1>General Journal</h1></div></div>' +
       '  <div class="actions">' +
-      '    <button class="btn" id="nf-jrn-back" type="button">← Back to closing sheet</button>' +
+      '    <button class="btn" id="nf-jrn-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button>' +
       global.NfReportsMenu.html('journal') +
       '    <button class="btn primary" id="nf-jrn-print" type="button">Print</button>' +
       '  </div>' +
@@ -122,6 +123,11 @@
       '  <button class="btn" id="nf-jrn-clear" type="button">All time</button>' +
       '  <span class="muted jcount">' + vouchers.length + (vouchers.length === 1 ? ' voucher' : ' vouchers') + '</span>' +
       '</section>' +
+      // An imported QuickBooks voucher has no entry screen here by design
+      // (it must never reach the Journal Vouchers screen's Delete button —
+      // docs/AUDIT_REPORT.md CRITICAL-3), so a drill shows it here, read-only.
+      (r && ctx.importedNote && ctx.focusVoucher ? '<section class="rsec"><div class="nf-drill-note">Voucher <b>' + esc(ctx.focusVoucher) +
+        '</b> was imported from QuickBooks history. It has no entry screen here and cannot be edited — shown read-only.</div></section>' : '') +
       '<section class="rsec">' +
       '<table class="rtab jtab"><thead><tr><th>Date</th><th>Voucher</th><th>Narration</th><th>Account</th>' +
       '<th>Floor</th><th>Party</th><th class="r">Debit</th><th class="r">Credit</th></tr></thead>' +
@@ -156,6 +162,20 @@
     root.querySelector('#nf-jrn-clear').addEventListener('click', function () {
       load({ from: '', to: '' });
     });
+    // Drilled here (js/nf/nf-drill.js): light the voucher once, on the first
+    // render that actually has rows — not again on every Apply.
+    if (r && ctx.focusVoucher && !ctx.__drillDone) {
+      ctx.__drillDone = true;
+      var want = String(ctx.focusVoucher).toUpperCase();
+      var hit = [].filter.call(root.querySelectorAll('[data-jrn-vno]'), function (tr) {
+        return String(tr.getAttribute('data-jrn-vno')).toUpperCase() === want;
+      })[0];
+      global.NfDrill.highlight(hit);
+      // a voucher is ALL of its lines — light the legs under it too
+      for (var nx = hit && hit.nextElementSibling; nx && nx.classList.contains('jrnleg'); nx = nx.nextElementSibling) {
+        (function (row) { row.classList.add('nf-drill-hit'); setTimeout(function () { row.classList.remove('nf-drill-hit'); }, 4000); })(nx);
+      }
+    }
   }
 
   global.NfJournal = { mount: mount };

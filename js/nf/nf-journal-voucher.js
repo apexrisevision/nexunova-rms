@@ -96,11 +96,21 @@
     function boot() {
       root.innerHTML = '<div class="sheet jvsheet"><section class="rsec"><p class="muted">Loading…</p></section></div>';
       Promise.all([loadLookups(), loadList()])
-        .then(function () { if (alive) { render(); wire(); } })
+        .then(function () {
+          if (!alive) return;
+          render(); wire();
+          // Drilled here from a ledger (js/nf/nf-drill.js): light that voucher.
+          if (ctx.focusVoucher) {
+            var want = String(ctx.focusVoucher).toUpperCase();
+            global.NfDrill.highlight([].filter.call(root.querySelectorAll('[data-jv-no]'), function (c) {
+              return String(c.getAttribute('data-jv-no')).toUpperCase() === want;
+            })[0]);
+          }
+        })
         .catch(function (e) {
           if (!alive) return;
           root.innerHTML = '<div class="nf-gate"><h2>Could not open journal vouchers</h2><p>' + esc(e.message || String(e)) + '</p>' +
-            '<button class="btn" id="nf-jv-back" type="button">← Back to closing sheet</button></div>';
+            '<button class="btn" id="nf-jv-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button></div>';
           var b = root.querySelector('#nf-jv-back'); if (b) b.addEventListener('click', function () { ctx.onBack(); });
         });
     }
@@ -133,7 +143,7 @@
         '</div>';
     }
     function savedVoucher(v) {
-      return '<div class="jvcard' + (v.exported ? ' exported' : '') + '">' +
+      return '<div class="jvcard' + (v.exported ? ' exported' : '') + '" data-jv-no="' + esc(v.voucher_no) + '">' +
         '<div class="jvhead">' +
         '  <b>' + esc(v.voucher_no) + '</b><span class="d">' + F.ddMonYyyy(v.voucher_date) + '</span>' +
         '  <span class="nar">' + esc(v.narration || '') + '</span>' +
@@ -166,7 +176,7 @@
         '  <div class="brand">' + F.brandMark(mark) +
         '    <div><div class="co">' + companyLine + '</div><h1>Journal Vouchers</h1></div></div>' +
         '  <div class="actions">' +
-        '    <button class="btn" id="nf-jv-back" type="button">← Back to closing sheet</button>' +
+        '    <button class="btn" id="nf-jv-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button>' +
         global.NfReportsMenu.html('jv') +
         '    <button class="btn primary" id="nf-jv-print" type="button">Print</button>' +
         '  </div>' +

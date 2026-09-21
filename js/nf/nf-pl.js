@@ -32,18 +32,24 @@
       }).catch(function (e) {
         if (!alive || myGen !== gen) return;
         root.innerHTML = '<div class="nf-gate"><h2>Could not open the profit &amp; loss</h2><p>' + esc(e.message || String(e)) + '</p>' +
-          '<button class="btn" id="nf-pl-back" type="button">← Back to closing sheet</button></div>';
+          '<button class="btn" id="nf-pl-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button></div>';
         var back = root.querySelector('#nf-pl-back');
         if (back) back.addEventListener('click', function () { ctx.onBack(); });
       });
     }
 
-    load({ from: '', to: '' });
+    // ctx.from/ctx.to: when Back returns here from a drilled-into ledger, the
+    // P&L reopens on the range it had, not "All time".
+    load({ from: ctx.from || '', to: ctx.to || '' });
   }
 
+  // Each account row is a drill target (docs/PLAN.md §43): click it and that
+  // account's ledger opens for the SAME range, so the ledger's movement ties
+  // to the figure that was clicked.
   function rows(list) {
     return (list || []).map(function (a) {
-      return '<div class="orow"><span>' + esc(a.code) + ' ' + esc(a.name) + '</span><b>' + F.fmt(a.amount) + '</b></div>';
+      return '<div class="orow nf-drill" data-drill-acct="' + esc(a.code) + '" title="Open the ledger for this account">' +
+        '<span>' + esc(a.code) + ' ' + esc(a.name) + '</span><b>' + F.fmt(a.amount) + '</b></div>';
     }).join('');
   }
 
@@ -66,7 +72,7 @@
       '  <div class="brand">' + F.brandMark(mark) +
       '    <div><div class="co">' + companyLine + '</div><h1>Profit &amp; Loss</h1></div></div>' +
       '  <div class="actions">' +
-      '    <button class="btn" id="nf-pl-back" type="button">← Back to closing sheet</button>' +
+      '    <button class="btn" id="nf-pl-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button>' +
       global.NfReportsMenu.html('pl') +
       '    <button class="btn primary" id="nf-pl-print" type="button">Print</button>' +
       '  </div>' +
@@ -97,6 +103,18 @@
     root.querySelector('#nf-pl-back').addEventListener('click', function () { ctx.onBack(); });
     root.querySelector('#nf-pl-print').addEventListener('click', function () { global.print(); });
     global.NfReportsMenu.wire(root, ctx);
+    root.querySelectorAll('[data-drill-acct]').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var here = { from: range.from, to: range.to };
+        global.NfDrill.ledger(root, ctx, {
+          accountCode: row.getAttribute('data-drill-acct'), from: here.from, to: here.to,
+          backLabel: '← Back to Profit & Loss',
+          // Back reopens THIS P&L on THIS range, and its own Back still leads
+          // to wherever the P&L was opened from.
+          onBack: function () { global.NfPL.mount(root, Object.assign({}, ctx, { from: here.from, to: here.to })); },
+        });
+      });
+    });
     root.querySelector('#nf-pl-apply').addEventListener('click', function () {
       load({ from: root.querySelector('#nf-pl-from').value, to: root.querySelector('#nf-pl-to').value });
     });

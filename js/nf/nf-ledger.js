@@ -23,7 +23,9 @@
     var alive = true;
     var trueOnBack = ctx.onBack;
     ctx = Object.assign({}, ctx, { onBack: function () { alive = false; trueOnBack(); } });
-    var state = { accounts: [], accountCode: '', from: '', to: '', ledger: null, loading: false };
+    // ctx.accountCode/from/to: opened by a drill from the P&L / Balance Sheet
+    // (docs/PLAN.md §43), already on that account and that report's range.
+    var state = { accounts: [], accountCode: ctx.accountCode || '', from: ctx.from || '', to: ctx.to || '', ledger: null, loading: false };
 
     function loadLedger() {
       if (!state.accountCode) { state.ledger = null; renderAll(); return; }
@@ -37,7 +39,7 @@
         if (!alive || myGen !== gen) return;
         state.loading = false;
         root.innerHTML = '<div class="nf-gate"><h2>Could not open the ledger</h2><p>' + esc(e.message || String(e)) + '</p>' +
-          '<button class="btn" id="nf-lgr-back" type="button">← Back to closing sheet</button></div>';
+          '<button class="btn" id="nf-lgr-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button></div>';
         var back = root.querySelector('#nf-lgr-back');
         if (back) back.addEventListener('click', function () { ctx.onBack(); });
       });
@@ -46,6 +48,9 @@
     function renderAll() { render(root, ctx, state, { loadLedger: loadLedger, setState: function (patch) { Object.assign(state, patch); } }); }
 
     renderAll();
+    // Opened on an account already (a drill): load it now rather than
+    // waiting for someone to pick it.
+    if (state.accountCode) loadLedger();
     ctx.api.listAllAccounts(ctx.companyId).then(function (accts) {
       if (!alive) return;
       state.accounts = accts || [];
@@ -53,7 +58,7 @@
     }).catch(function (e) {
       if (!alive) return;
       root.innerHTML = '<div class="nf-gate"><h2>Could not load the chart of accounts</h2><p>' + esc(e.message || String(e)) + '</p>' +
-        '<button class="btn" id="nf-lgr-back" type="button">← Back to closing sheet</button></div>';
+        '<button class="btn" id="nf-lgr-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button></div>';
       var back = root.querySelector('#nf-lgr-back');
       if (back) back.addEventListener('click', function () { ctx.onBack(); });
     });
@@ -66,7 +71,11 @@
       // narration — needs 20260918u applied first (nf_get_ledger never
       // returned l.memo before that), harmlessly falls through to
       // narration until then since e.memo is simply undefined.
-      return '<tr><td>' + F.ddMonYyyy(e.voucher_date) + '</td><td>' + esc(e.voucher_no) + '</td>' +
+      // Double-click an entry → the original entry, in the screen it was
+      // entered on (js/nf/nf-drill.js, docs/PLAN.md §43).
+      return '<tr class="nf-drill" data-drill-vno="' + esc(e.voucher_no) + '" data-drill-date="' + esc(e.voucher_date) + '"' +
+        ' title="Double-click to open this entry">' +
+        '<td>' + F.ddMonYyyy(e.voucher_date) + '</td><td>' + esc(e.voucher_no) + '</td>' +
         '<td>' + esc(e.memo || e.narration || '') + '</td><td>' + esc(e.floor_name || e.floor_code || '') + '</td>' +
         '<td>' + esc(e.party || '') + '</td>' +
         '<td class="r">' + (F.n(e.debit) ? F.fmt(e.debit) : '') + '</td>' +
@@ -111,7 +120,7 @@
       '  <div class="brand">' + F.brandMark(mark) +
       '    <div><div class="co">' + companyLine + '</div><h1>General Ledger</h1></div></div>' +
       '  <div class="actions">' +
-      '    <button class="btn" id="nf-lgr-back" type="button">← Back to closing sheet</button>' +
+      '    <button class="btn" id="nf-lgr-back" type="button">' + esc(ctx.backLabel || '← Back to closing sheet') + '</button>' +
       global.NfReportsMenu.html('ledger') +
       '    <button class="btn primary" id="nf-lgr-print" type="button">Print</button>' +
       '  </div>' +
@@ -149,6 +158,18 @@
     root.querySelector('#nf-lgr-clear').addEventListener('click', function () {
       actions.setState({ from: '', to: '' });
       actions.loadLedger();
+    });
+    root.querySelectorAll('[data-drill-vno]').forEach(function (tr) {
+      tr.addEventListener('dblclick', function () {
+        var here = { accountCode: state.accountCode, from: state.from, to: state.to };
+        global.NfDrill.entry(root, ctx, {
+          voucherNo: tr.getAttribute('data-drill-vno'), date: tr.getAttribute('data-drill-date'),
+          backLabel: '← Back to ledger',
+          // Back reopens THIS ledger on THIS account and range; its own Back
+          // still leads wherever the ledger was opened from (e.g. the P&L).
+          onBack: function () { global.NfLedger.mount(root, Object.assign({}, ctx, here)); },
+        });
+      });
     });
   }
 

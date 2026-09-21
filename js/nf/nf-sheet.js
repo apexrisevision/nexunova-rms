@@ -154,6 +154,7 @@
         '      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>' +
         '      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>' +
         '    </button>' +
+        (ctx.onBack ? '    <button class="btn" id="nf-sheet-back" type="button">' + esc(ctx.backLabel || '← Back') + '</button>' : '') +
         (d ? '    <button class="btn" id="nf-toDir" type="button">Director report</button>' : '') +
         global.NfReportsMenu.html('closing') +
         (d && d.status === 'CLOSED' && d.is_latest ? '    <button class="btn" id="nf-startNext" type="button">Start new day</button>' : '') +
@@ -517,6 +518,19 @@
       }
       return null;
     }
+    // Light the drilled-into line. A receipt/payment is a saved row whose
+    // voucher field holds that number; a transfer (XFR-…) has no row of its
+    // own — it is the transfers table, so that is what gets lit.
+    function focusDrilled(vno) {
+      var want = String(vno).toUpperCase();
+      var row = [].filter.call(sheetEl.querySelectorAll('.row[data-saved]'), function (r) {
+        var v = r.querySelector('.vno');
+        return v && String(v.value).toUpperCase() === want;
+      })[0];
+      if (!row && /^XFR-/.test(want)) row = sheetEl.querySelector('.rec');
+      global.NfDrill.highlight(row);
+    }
+
     function render() {
       var sel = focusSelector();
       var range = null;
@@ -682,6 +696,8 @@
 
     // ── wiring ─────────────────────────────────────────────────────────────
     function wire() {
+      var sheetBack = root.querySelector('#nf-sheet-back');
+      if (sheetBack) sheetBack.addEventListener('click', function () { ctx.onBack(); });
       var themeBtn = root.querySelector('#nf-theme');
       if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
       var printBtn = root.querySelector('#nf-print');
@@ -958,7 +974,14 @@
       if (saved) document.documentElement.dataset.theme = saved;
     } catch (e) {}
 
-    return Promise.all([loadLookups(), loadDay(null)]).then(render).catch(function (err) {
+    // ctx.date / ctx.focusVoucher: opened by a drill from a ledger
+    // (js/nf/nf-drill.js, docs/PLAN.md §43) on the day that voucher belongs
+    // to, with its line lit. Without them — every normal open — this is
+    // exactly the old boot: the latest day, nothing highlighted.
+    return Promise.all([loadLookups(), loadDay(ctx.date || null)]).then(function () {
+      render();
+      if (ctx.focusVoucher) focusDrilled(ctx.focusVoucher);
+    }).catch(function (err) {
       sheetEl.innerHTML = '<div class="nf-gate"><h2>The cash book could not load</h2><p>' + esc(err && err.message) + '</p></div>';
       throw err;
     });
