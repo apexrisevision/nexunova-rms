@@ -42,15 +42,14 @@
       settings: ctx.settings || {},
     };
     var drafts = { IN: [], OUT: [] };       // {tmpId, v, d, h, f, m, a, saving, error:{field,message}}
-    // Cash count and transfers live only in the DOM once typed, same as a
-    // draft line — but unlike a draft line they have nowhere else to be kept.
-    // Without an overlay, a render() triggered by an UNRELATED save landing
-    // late (the transfer save, still in flight while the person has already
-    // moved on to typing the cash count) rebuilds these fields from the last
-    // server state and silently erases whatever had just been typed. null
-    // means "show the server's own value"; once set, it's shown instead,
-    // until its own save clears it back to null.
-    var countDraft = null;      // {"5000": "50", "1000": "60", ...} | null
+    // The transfers live only in the DOM once typed, same as a draft line —
+    // but unlike a draft line they have nowhere else to be kept. Without an
+    // overlay, a render() triggered by an UNRELATED save landing late
+    // rebuilds these fields from the last server state and silently erases
+    // whatever had just been typed. null means "show the server's own value";
+    // once set, it's shown instead, until its own save clears it back to null.
+    // (The cash count that used to share this overlay was removed on
+    // 2026-09-21, docs/PLAN.md §44.)
     var transferDraft = null;   // {tBank, tPetty} | null
     var busy = false;
 
@@ -69,7 +68,7 @@
     var sheetEl = root.querySelector('#nf-sheet');
     var noteEl = root.querySelector('#nf-note');
     noteEl.textContent = 'Click any cell to edit. Choose a head under each description, then the floor and whether the money went ' +
-      'through Cash, Petty or Bank. A line is saved automatically once its voucher, head, floor, via and amount are all filled in; ' +
+      'through Cash, Petty or Bank. A line is saved automatically once its head, floor, via and amount are filled in — the voucher number can wait until the paper voucher is written, but the day cannot close without it; ' +
       'a refused line stays on the sheet with the reason shown underneath it. "Start new day" carries today’s closing forward as ' +
       'tomorrow’s opening.';
 
@@ -248,8 +247,15 @@
       });
     }
     function savedRowHTML(side, l) {
-      return '<div class="grid row" data-saved="1" data-id="' + l.id + '" data-version="' + l.version + '" data-side="' + side + '">' +
-        '<input class="vno" data-k="v" value="' + esc(l.voucher_no) + '" ' + (canWrite ? '' : 'disabled') + ' aria-label="Voucher number">' +
+      // Two numbers per voucher (owner, 2026-09-21, docs/PLAN.md §44): the
+      // field is the MANUAL (paper) number, which may still be blank; under
+      // it, the SYSTEM number NexuFinance gave the voucher when it was saved,
+      // which never changes. data-vno carries the system number so a
+      // drill-down finds the row whatever the manual number says.
+      var pend = !!l.number_pending;
+      return '<div class="grid row' + (pend ? ' vno-pending' : '') + '" data-saved="1" data-id="' + l.id + '" data-version="' + l.version + '" data-side="' + side + '" data-vno="' + esc(l.voucher_no) + '">' +
+        '<div class="vnocell"><input class="vno" data-k="v" value="' + esc(l.manual_no || '') + '" placeholder="' + (pend ? 'Manual no.' : '') + '" ' + (canWrite ? '' : 'disabled') + ' aria-label="Manual voucher number"' + (pend ? ' title="Manual voucher number not entered yet — needed before Close day"' : '') + '>' +
+        '<span class="vno-sys" title="System number, given by NexuFinance">' + esc(l.voucher_no) + '</span></div>' +
         '<div class="desc"><input data-k="d" value="' + esc(l.description || '') + '" placeholder="Description" ' + (canWrite ? '' : 'disabled') + ' aria-label="Description">' +
         headPick(l.head_code, false) + '</div>' +
         (canWrite ? partyFieldHTML(l.party_name, false) : '<div class="nfpick ro">' + esc(l.party_name || '') + '</div>') +
@@ -262,7 +268,7 @@
     function draftRowHTML(side, r) {
       var errField = r.error && r.error.field;
       return '<div class="grid row draft' + (r.error ? ' err' : '') + '" data-draft="' + r.tmpId + '" data-side="' + side + '">' +
-        '<input class="vno" data-k="v" value="' + esc(r.v) + '" placeholder="' + (side === 'IN' ? 'CRV-' : 'CPV-') + '" aria-label="Voucher number">' +
+        '<input class="vno" data-k="v" value="' + esc(r.v) + '" placeholder="Manual no." aria-label="Manual voucher number" title="The number on the paper voucher — can be added later, needed before Close day">' +
         '<div class="desc"><input data-k="d" value="' + esc(r.d) + '" placeholder="Description" aria-label="Description">' +
         headPick(r.h, errField === 'head') + '</div>' +
         partyFieldHTML(r.p, errField === 'party') +
@@ -314,55 +320,25 @@
       return codes.map(function (c) { return '<tr><td><span class="code">' + esc(c) + '</span>' + esc(headName(c)) + '</td><td class="r t">' + F.fmt(by[c]) + '</td></tr>'; }).join('');
     }
 
-    // ── cash count / transfers ─────────────────────────────────────────────
-    var DENOMS = [5000, 1000, 500, 100, 75, 50, 20, 10];
+    // ── transfers ──────────────────────────────────────────────────────────
+    // The cash count (notes × pieces, "as counted", short/over) was removed on
+    // the owner's instruction, 2026-09-21 (docs/PLAN.md §44). The transfers
+    // are real entries and stay.
     function renderTri() {
       if (!S.day) return '';
       var d = S.day;
-      // countDraft holds what is on screen while it's being typed; its keys
-      // are raw input strings (possibly grouped, possibly mid-edit), so read
-      // amounts through F.n() same as a denominations value from the server.
-      var den = countDraft || d.denominations || {};
-      var cells = DENOMS.map(function (v) { return { k: String(v), lab: 'Rs ' + v.toLocaleString('en-US') }; }).concat([{ k: 'coins', lab: 'Coins (Rs)' }]);
-      function cell(c, first) {
-        if (!c) return '<td class="sep"></td><td></td><td></td>';
-        var v = den[c.k];
-        var blank = v === undefined || v === null || String(v).trim() === '';
-        var amt = c.k === 'coins' ? F.n(v) : F.n(v) * Number(c.k);
-        return '<td class="' + (first ? '' : 'sep') + '">' + c.lab + '</td><td class="r"><input class="fld" data-den="' + c.k + '" inputmode="decimal" value="' + (blank ? '' : (countDraft ? esc(v) : F.grp(v))) + '" aria-label="' + c.lab + '" ' + (canWrite ? '' : 'disabled') + '></td><td class="r t">' + (blank ? '–' : F.fmt(amt)) + '</td>';
-      }
-      var denBody = '';
-      for (var i = 0; i < 5; i++) denBody += '<tr>' + cell(cells[i], true) + cell(cells[i + 5], false) + '</tr>';
-
       var cashRow = ((S.position && S.position.rows) || []).filter(function (r) { return r.via === 'Cash'; })[0];
       var book = cashRow ? F.n(cashRow.closing) : 0;
-      // Computed from what's on screen (den), not from the server's stored
-      // counted_cash — so the total updates live as the person types, exactly
-      // like the reference, and never shows a figure that doesn't match what
-      // the fields say right now.
-      var anyCount = Object.keys(den).some(function (k) { return den[k] !== undefined && den[k] !== null && String(den[k]).trim() !== ''; });
-      var counted = anyCount ? Object.keys(den).reduce(function (t, k) {
-        var v = den[k]; if (v === undefined || v === null || String(v).trim() === '') return t;
-        return t + (k === 'coins' ? F.n(v) : F.n(v) * Number(k));
-      }, 0) : null;
-      var diff = counted === null ? null : book - counted;
-
       var tb = transferDraft ? transferDraft.tBank : F.grp(d.transfer_to_bank);
       var tp = transferDraft ? transferDraft.tPetty : F.grp(d.transfer_to_petty);
 
       return '' +
         '<section class="sec"><div class="tri">' +
-        '  <div><div class="sh"><h2>Cash count</h2><span>Cash in hand</span></div>' +
-        '    <div class="box"><table class="den"><thead><tr><th>Note</th><th class="r">Pieces</th><th class="r">Amount</th><th class="sep">Note</th><th class="r">Pieces</th><th class="r">Amount</th></tr></thead>' +
-        '    <tbody>' + denBody + '</tbody><tfoot><tr><td colspan="5">Total cash counted</td><td class="r t">' + (counted === null ? '–' : F.fmt(counted)) + '</td></tr></tfoot></table></div></div>' +
         '  <div><div class="sh"><h2>Transfers and reconciliation</h2></div>' +
         '    <div class="box"><table class="rec">' +
         '      <tr><td>Cash deposited in bank</td><td class="r"><input class="fld" id="nf-tBank" inputmode="decimal" value="' + esc(tb) + '" ' + (canWrite ? '' : 'disabled') + '></td></tr>' +
         '      <tr><td>Cash given to petty cash</td><td class="r"><input class="fld" id="nf-tPetty" inputmode="decimal" value="' + esc(tp) + '" ' + (canWrite ? '' : 'disabled') + '></td></tr>' +
         '      <tr><td>Cash in hand as per book</td><td class="r t">' + F.fmt(book) + '</td></tr>' +
-        '      <tr><td>Cash in hand as counted</td><td class="r t">' + (counted === null ? 'Not counted' : F.fmt(counted)) + '</td></tr>' +
-        '      <tr class="hl"><td>' + (diff === null ? 'Difference' : diff === 0 ? 'Difference, cash matches' : diff > 0 ? 'Cash short' : 'Cash over') + '</td>' +
-        '          <td class="r t" style="color:' + (diff === null ? '' : diff === 0 ? 'var(--pos)' : 'var(--neg)') + '">' + (diff === null ? '–' : F.fmt(Math.abs(diff))) + '</td></tr>' +
         '    </table></div></div>' +
         '</div></section>';
     }
@@ -402,7 +378,6 @@
           if (!r.h) issues.push('has no head selected');
           if (r.h && headRequiresParty(r.h) && !(r.p || '').trim()) issues.push('needs a party — this account always tracks who it is with');
           if (!r.m) issues.push('is not marked Cash, Petty or Bank, so it is left out of the balances');
-          if (!r.v) issues.push('has no voucher number');
           if (!r.f) issues.push('has no floor');
         });
       }
@@ -422,17 +397,22 @@
       var all = serverTexts.concat(extra);
       var ok = all.length === 0;
       var listHtml = ok
-        ? '<li>All checks passed. Every line has a voucher, head, floor and account; no balance is negative; counted cash matches the book.</li>'
+        ? '<li>All checks passed. Every line has a head, floor and account; no balance is negative.</li>'
         : all.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('');
-      var canClose = canWrite;
-      var mismatchOnly = (S.checks || []).length && (S.checks || []).every(function (c) { return c.key === 'count_mismatch'; }) && !extra.length;
+      // Not a failed check — a voucher may be saved before its paper voucher
+      // is written — but the day cannot close until it has its number
+      // (docs/PLAN.md §44), so say so where the Close day button is.
+      var pending = pendingLines();
+      var pendingNote = pending.length && S.day.status !== 'CLOSED'
+        ? '<p class="nf-pending-note" id="nf-pending-note">' + pending.length + (pending.length === 1 ? ' voucher is' : ' vouchers are') +
+          ' waiting for the manual voucher number. You can save now; the numbers are needed before Close day.</p>'
+        : '';
 
       return '' +
         '<section class="sec"><div class="sh"><h2>Checks</h2></div>' +
-        '<ul class="checks ' + (ok ? 'ok' : 'bad') + '">' + listHtml + '</ul>' +
-        (mismatchOnly && role === 'director' ? varianceBoxHTML() : '') +
+        '<ul class="checks ' + (ok ? 'ok' : 'bad') + '">' + listHtml + '</ul>' + pendingNote +
         '<textarea class="remarks" id="nf-remarks" placeholder="Remarks" ' + (canWrite ? '' : 'disabled') + '>' + esc(S.day.remarks || '') + '</textarea>' +
-        '<div class="nf-day-actions">' + actionButtons(ok, mismatchOnly) + '</div>' +
+        '<div class="nf-day-actions">' + actionButtons(ok) + '</div>' +
         '</section>' +
         '<div class="signs">' +
         '  <div><span>Prepared by (Accountant)</span><span>Date</span></div>' +
@@ -441,18 +421,15 @@
         '</div>' +
         '<div class="docfoot"><span>' + esc(ctx.companyName || '') + ' · Daily Cash &amp; Bank Closing</span><span id="nf-stamp">' + esc(S.day.closing_no || '') + ' · ' + F.ddMonYyyy(S.day.business_date) + '</span></div>';
     }
-    function varianceBoxHTML() {
-      return '<div class="variance-box show" id="nf-variance-box"><b>Cash count does not match the books.</b> Only a director may close ' +
-        'with a variance, and only with a written reason.<textarea id="nf-variance-reason" placeholder="What actually happened…"></textarea></div>';
-    }
-    function actionButtons(ok, mismatchOnly) {
+    function pendingLines() { return (S.lines || []).filter(function (l) { return l.number_pending; }); }
+    function actionButtons(ok) {
       if (!S.day) return '';
       var btns = [];
       if (S.day.status === 'OPEN' && (role === 'accountant' || role === 'director')) {
         btns.push('<button class="btn" id="nf-submit" type="button"' + (ok ? '' : ' disabled') + '>Submit</button>');
       }
       if ((S.day.status === 'OPEN' || S.day.status === 'SUBMITTED') && (role === 'accountant' || role === 'director')) {
-        var closeDisabled = !ok && !(mismatchOnly && role === 'director');
+        var closeDisabled = !ok;
         btns.push('<button class="btn primary" id="nf-close" type="button"' + (closeDisabled ? ' disabled' : '') + '>Close day</button>');
       }
       if (S.day.status === 'SUBMITTED' && role === 'director') {
@@ -501,14 +478,12 @@
     // silently drops focus and the caret position mid-keystroke is worse than
     // the bug it replaced (see serialDebounce above), so every render() finds
     // its way back to whatever was focused, by a selector stable across a
-    // redraw: an id, a data-den key, or a data-k field within the same
+    // redraw: an id, or a data-k field within the same
     // draft/saved row (identified by its tmpId/line id, not by DOM position).
     function focusSelector() {
       var el = document.activeElement;
       if (!el || !sheetEl.contains(el)) return null;
       if (el.id) return '#' + el.id;
-      var den = el.getAttribute('data-den');
-      if (den) return '[data-den="' + den + '"]';
       var k = el.getAttribute('data-k');
       if (k) {
         var row = el.closest('[data-draft]');
@@ -524,8 +499,7 @@
     function focusDrilled(vno) {
       var want = String(vno).toUpperCase();
       var row = [].filter.call(sheetEl.querySelectorAll('.row[data-saved]'), function (r) {
-        var v = r.querySelector('.vno');
-        return v && String(v.value).toUpperCase() === want;
+        return String(r.getAttribute('data-vno') || '').toUpperCase() === want;
       })[0];
       if (!row && /^XFR-/.test(want)) row = sheetEl.querySelector('.rec');
       global.NfDrill.highlight(row);
@@ -587,7 +561,10 @@
       var r = arr.filter(function (x) { return x.tmpId === tmpId; })[0];
       if (!r || r.saving) return;
       var partyOk = !headRequiresParty(r.h) || (r.p || '').trim();
-      var complete = r.v.trim() && r.h && r.f && r.m && F.n(r.a) > 0 && partyOk;
+      // The voucher number is NOT required here (docs/PLAN.md §44): saved
+      // without it, the line gets a temporary number and waits for the real
+      // one before Close day.
+      var complete = r.h && r.f && r.m && F.n(r.a) > 0 && partyOk;
       if (!complete) return;
       r.saving = true;
       api.saveLine(S.day.id, null, side, r.v.trim(), r.d, r.h, r.f, r.m, F.n(r.a), null, r.p)
@@ -596,7 +573,12 @@
           // ones, and this one still has everything typed into it
           drafts[side] = drafts[side].filter(function (x) { return x.tmpId !== tmpId; });
           applyDay(res);
-          toast((side === 'IN' ? 'Receipt' : 'Payment') + ' ' + r.v.trim() + ' saved.');
+          // name it by the system number it was just given — the newest
+          // line of its side — and say whether the manual one is still owed
+          var mine = (res.lines || []).filter(function (l) { return l.side === side; })
+            .sort(function (a, b) { return b.sort - a.sort; })[0];
+          toast((side === 'IN' ? 'Receipt' : 'Payment') + ' ' + (mine ? mine.voucher_no : '') +
+            (mine && mine.manual_no ? ' saved (manual ' + mine.manual_no + ').' : ' saved — manual voucher number pending.'));
         })
         .catch(function (err) {
           r.saving = false;
@@ -609,7 +591,11 @@
       var l = S.lines.filter(function (x) { return String(x.id) === String(id); })[0];
       if (!l) return;
       var merged = Object.assign({}, l, patch);
-      api.saveLine(S.day.id, id, side, merged.voucher_no, merged.description, merged.head_code, merged.floor_code, merged.via, F.n(merged.amount), version, merged.party_name)
+      // nf_save_line's voucher argument is the MANUAL number (docs/PLAN.md
+      // §44); the system number is the server's and is never sent. An edit
+      // that isn't to the voucher field sends the manual number unchanged.
+      var manual = Object.prototype.hasOwnProperty.call(patch, 'voucher_no') ? patch.voucher_no : (l.manual_no || '');
+      api.saveLine(S.day.id, id, side, manual, merged.description, merged.head_code, merged.floor_code, merged.via, F.n(merged.amount), version, merged.party_name)
         .then(applyDay)
         .catch(function (err) {
           toast(Msg.forLine(err), true);
@@ -675,16 +661,6 @@
       return api.setTransfers(S.day.id, tb || null, tp || null, S.day.version)
         .then(function (res) { transferDraft = null; applyDay(res); })
         .catch(function (err) { toast(Msg.forDay(err), true); transferDraft = null; return refresh(); });
-    }, 500);
-    var saveCount = serialDebounce(function () {
-      var denoms = {};
-      Object.keys(countDraft || {}).forEach(function (k) {
-        var v = countDraft[k];
-        if (v !== undefined && v !== null && String(v).trim() !== '') denoms[k] = F.n(v);
-      });
-      return api.saveCount(S.day.id, denoms, S.day.version)
-        .then(function (res) { countDraft = null; applyDay(res); })
-        .catch(function (err) { toast(Msg.forDay(err), true); countDraft = null; return refresh(); });
     }, 500);
     var saveRemarks = serialDebounce(function () {
       var el = root.querySelector('#nf-remarks');
@@ -880,16 +856,9 @@
         });
       });
 
-      // cash count / transfers — every keystroke updates the overlay first
-      // (so a render() mid-typing has something true to redraw from), then
-      // asks for a save; the debounce decides when that actually goes out.
-      root.querySelectorAll('[data-den]').forEach(function (inp) {
-        inp.addEventListener('input', function () {
-          if (!countDraft) countDraft = Object.assign({}, (S.day && S.day.denominations) || {});
-          countDraft[inp.getAttribute('data-den')] = inp.value;
-          saveCount();
-        });
-      });
+      // transfers — every keystroke updates the overlay first (so a render()
+      // mid-typing has something true to redraw from), then asks for a save;
+      // the debounce decides when that actually goes out.
       var tBank = root.querySelector('#nf-tBank'), tPetty = root.querySelector('#nf-tPetty');
       function touchTransferDraft() {
         if (!transferDraft) transferDraft = { tBank: F.grp(S.day.transfer_to_bank), tPetty: F.grp(S.day.transfer_to_petty) };
@@ -930,11 +899,13 @@
       });
       var closeBtn = root.querySelector('#nf-close');
       if (closeBtn) closeBtn.addEventListener('click', function () {
-        var reasonEl = root.querySelector('#nf-variance-reason');
-        var reason = reasonEl ? reasonEl.value.trim() : null;
-        api.closeDay(S.day.id, S.day.version, reason || null)
-          .then(function (res) { applyDay(res); toast('Day closed.'); })
-          .catch(function (err) { toast(Msg.forDay(err), true); refresh(); });
+        // The owner's rule (docs/PLAN.md §44): a voucher may be saved before
+        // its paper voucher is written, but the day does not close until
+        // every one has its number — so they come up here, to be filled in
+        // on the spot. The server enforces the same rule on its own
+        // (NF:VOUCHER_NUMBERS_PENDING); this is where a person meets it.
+        if (pendingLines().length) { openNumbersDialog(); return; }
+        closeNow();
       });
       var returnBtn = root.querySelector('#nf-return');
       if (returnBtn) returnBtn.addEventListener('click', function () {
@@ -945,6 +916,75 @@
       if (reopenBtn) reopenBtn.addEventListener('click', function () {
         var reason = prompt('Why is this closed day being reopened?'); if (!reason) return;
         api.reopenDay(S.day.id, reason, S.day.version).then(applyDay).catch(function (err) { toast(Msg.forDay(err), true); });
+      });
+    }
+
+    function closeNow() {
+      return api.closeDay(S.day.id, S.day.version, null)
+        .then(function (res) { applyDay(res); toast('Day closed.'); })
+        .catch(function (err) {
+          if (Msg.code(err) === 'NF:VOUCHER_NUMBERS_PENDING') { return refresh().then(openNumbersDialog); }
+          toast(Msg.forDay(err), true); refresh();
+        });
+    }
+
+    // ── Close day: the vouchers still waiting for their manual number ──────
+    function openNumbersDialog() {
+      var list = pendingLines();
+      if (!list.length) return;
+      var old = root.querySelector('#nf-numbers-dialog');
+      if (old) old.remove();
+      var host = document.createElement('div');
+      host.className = 'nf-dialog-backdrop';
+      host.id = 'nf-numbers-dialog';
+      host.innerHTML =
+        '<div class="nf-dialog nf-numbers" role="dialog" aria-modal="true" aria-labelledby="nf-numbers-title">' +
+        '  <h3 id="nf-numbers-title">' + list.length + (list.length === 1 ? ' voucher needs its' : ' vouchers need their') + ' manual number before the day can close</h3>' +
+        '  <p>Type the number written on each paper voucher. A number is never accepted twice for the same voucher type.</p>' +
+        '  <div class="nfn-list">' +
+        list.map(function (l) {
+          var type = String(l.voucher_no || '').split('-')[0];
+          return '<div class="nfn-row" data-line="' + esc(l.id) + '">' +
+            '<span class="nfn-type" title="System number">' + esc(l.voucher_no) + '</span>' +
+            '<span class="nfn-desc">' + esc(l.description || headName(l.head_code) || '') + '</span>' +
+            '<span class="nfn-amt">' + F.fmt(l.amount) + '</span>' +
+            '<input class="nfn-in" data-prefix="' + esc(type + '-') + '" value="" placeholder="' + esc(type) + ' manual no." aria-label="Manual voucher number for ' + esc(l.voucher_no) + '">' +
+            '<span class="nfn-err" hidden></span></div>';
+        }).join('') +
+        '  </div>' +
+        '  <div class="actions"><button class="btn" type="button" id="nf-numbers-later">Later</button>' +
+        '  <button class="btn primary" type="button" id="nf-numbers-go">Save numbers &amp; close day</button></div>' +
+        '</div>';
+      root.appendChild(host);
+      var first = host.querySelector('.nfn-in');
+      if (first) { first.focus(); first.setSelectionRange(first.value.length, first.value.length); }
+      host.querySelector('#nf-numbers-later').addEventListener('click', function () { host.remove(); });
+      host.addEventListener('keydown', function (e) { if (e.key === 'Escape') host.remove(); });
+      host.querySelector('#nf-numbers-go').addEventListener('click', function () {
+        var go = host.querySelector('#nf-numbers-go');
+        go.disabled = true;
+        var rows = [].slice.call(host.querySelectorAll('.nfn-row'));
+        // One at a time: each save returns the fresh day, and the next reads
+        // its line's own version from that — never a stale one.
+        var chain = Promise.resolve(), failed = 0;
+        rows.forEach(function (rowEl) {
+          chain = chain.then(function () {
+            var inp = rowEl.querySelector('.nfn-in'), errEl = rowEl.querySelector('.nfn-err');
+            var v = inp.value.trim();
+            errEl.hidden = true;
+            if (!v || v.toUpperCase() === inp.getAttribute('data-prefix').toUpperCase()) { failed++; errEl.textContent = 'Number still missing.'; errEl.hidden = false; return; }
+            var l = S.lines.filter(function (x) { return String(x.id) === rowEl.getAttribute('data-line'); })[0];
+            if (!l) return;
+            return api.saveLine(S.day.id, l.id, l.side, v, l.description, l.head_code, l.floor_code, l.via, F.n(l.amount), l.version, l.party_name)
+              .then(function (res) { applyDay(res); rowEl.classList.add('done'); inp.disabled = true; })
+              .catch(function (err) { failed++; errEl.textContent = Msg.forLine(err); errEl.hidden = false; });
+          });
+        });
+        chain.then(function () {
+          if (failed || pendingLines().length) { go.disabled = false; return; }
+          host.remove();
+          return closeNow();
+        });
       });
     }
 

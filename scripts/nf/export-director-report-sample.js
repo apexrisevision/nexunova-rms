@@ -104,9 +104,7 @@ function countPdfPages(buf) {
     }
     r = await rpc('nf_set_transfers', { p_day_id: dayId, p_to_bank: Number(s.tBank), p_to_petty: null, p_version: r.json.day.version });
     if (r.status !== 200) throw new Error('nf_set_transfers: ' + JSON.stringify(r.json));
-    const den = Object.fromEntries(Object.entries(s.den).filter(([, v]) => v !== '').map(([k, v]) => [k, Number(v)]));
-    r = await rpc('nf_save_count', { p_day_id: dayId, p_denoms: den, p_version: r.json.day.version });
-    if (r.status !== 200) throw new Error('nf_save_count: ' + JSON.stringify(r.json));
+    // (the cash count was removed 2026-09-21, docs/PLAN.md §44 — nf_save_count now refuses)
 
     // the real inter-company voucher the owner asked to see reflected: no
     // via leg at all — FMH paying an Awami cost directly

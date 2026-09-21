@@ -162,7 +162,11 @@ const n = s => Number(String(s || '').replace(/[^0-9.\-()]/g, '').replace(/^\((.
     if (r.status !== 200) throw new Error('nf_jv_save JV-TKN-1: ' + JSON.stringify(r.json));
     const cpv53100 = s.out.find(x => x.h === '53100' && Number(x.a));
     if (!cpv53100) throw new Error('golden day has no 53100 payment to drill into');
-    console.log(`  fixture: golden day (${cpv53100.v} on 53100) + JV-JRN-1 + imported JV-9101, all on 53100\n`);
+    // Two numbers per voucher (docs/PLAN.md §44): the golden day types its
+    // MANUAL numbers (CPV-001…); ledgers, reports and every drill carry the
+    // SYSTEM number NexuFinance gave it. Look that one up.
+    const [{ voucher_no: cpvSys }] = await q(`select voucher_no from nf_vouchers where company_id='${C}' and manual_no='${cpv53100.v.toUpperCase()}'`);
+    console.log(`  fixture: golden day (${cpv53100.v} = ${cpvSys} on 53100) + JV-JRN-1 + imported JV-9101, all on 53100\n`);
 
     srv = await serve();
     browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox', '--font-render-hinting=none'] });
@@ -206,7 +210,7 @@ const n = s => Number(String(s || '').replace(/[^0-9.\-()]/g, '').replace(/^\((.
     ok('D-02 the ledger\'s Back says it returns to the P&L', /Profit & Loss/.test(lg.back), lg.back);
     ok('D-03 the ledger ties to the exact figure clicked on the P&L', n(lg.closing) === n(plFigure) && n(plFigure) !== 0,
       `P&L ${plFigure} vs ledger closing ${lg.closing}`);
-    ok('D-03b all three kinds of entry are on this ledger', ['JV-JRN-1', 'JV-9101', cpv53100.v].every(v => lg.vnos.includes(v)), JSON.stringify(lg.vnos));
+    ok('D-03b all three kinds of entry are on this ledger', ['JV-JRN-1', 'JV-9101', cpvSys].every(v => lg.vnos.includes(v)), JSON.stringify(lg.vnos));
 
     const backToLedger = async () => {
       await page.waitForSelector('.lsheet [data-drill-vno]', { timeout: 15000 });
@@ -215,7 +219,7 @@ const n = s => Number(String(s || '').replace(/[^0-9.\-()]/g, '').replace(/^\((.
     };
 
     // ── ledger → a daily-closing payment ────────────────────────────────────
-    await clickStable(page, `.lsheet [data-drill-vno="${cpv53100.v}"]`, { count: 2 });
+    await clickStable(page, `.lsheet [data-drill-vno="${cpvSys}"]`, { count: 2 });
     await page.waitForSelector('#nf-sheet [data-drilled]', { timeout: 15000 });
     const sh = await page.evaluate(() => {
       const hit = document.querySelector('#nf-sheet [data-drilled]');
@@ -411,7 +415,7 @@ const n = s => Number(String(s || '').replace(/[^0-9.\-()]/g, '').replace(/^\((.
       const pv = await page.$eval('.pgrow[data-drill-vno]', el => el.getAttribute('data-drill-vno'));
       await clickStable(page, `.pgrow[data-drill-vno="${pv}"]`, { count: 2 });
       await page.waitForSelector('#nf-sheet [data-drilled]', { timeout: 15000 });
-      const pvHit = await page.$eval('#nf-sheet [data-drilled] .vno', el => el.value);
+      const pvHit = await page.$eval('#nf-sheet [data-drilled]', el => el.getAttribute('data-vno'));
       ok(`S2-13 Party Statement: double-clicking ${pv} opens it on the closing sheet, lit`, pvHit === pv, pvHit);
       await clickStable(page, '#nf-sheet-back');
       await page.waitForSelector('.pgrow[data-drill-vno]', { timeout: 15000 });
@@ -446,8 +450,8 @@ const n = s => Number(String(s || '').replace(/[^0-9.\-()]/g, '').replace(/^\((.
     ok(`S2-15 Director Report "${dr.via}" row → its ledger for that day; the day's movement ties`,
       n(l.closing) - n(l.opening) === n(dr.closing) - n(dr.opening) && /Director Report/.test(l.back), `${dr.opening}→${dr.closing} vs ${JSON.stringify(l)}`);
     await clickStable(page, '#nf-lgr-back');
-    await page.waitForSelector(`.rsheet tr[data-drill-vno="${cpv53100.v}"]`, { timeout: 15000 });
-    await clickStable(page, `.rsheet tr[data-drill-vno="${cpv53100.v}"]`, { count: 2 });
+    await page.waitForSelector(`.rsheet tr[data-drill-vno="${cpvSys}"]`, { timeout: 15000 });
+    await clickStable(page, `.rsheet tr[data-drill-vno="${cpvSys}"]`, { count: 2 });
     await page.waitForSelector('#nf-sheet [data-drilled]', { timeout: 15000 });
     ok(`S2-16 Director Report: double-clicking ${cpv53100.v} opens that line on the closing sheet`,
       await page.$eval('#nf-sheet [data-drilled] .vno', el => el.value) === cpv53100.v, '');

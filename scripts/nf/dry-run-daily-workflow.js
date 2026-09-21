@@ -290,8 +290,9 @@ async function enterLine(page, side, v, d, head, floor, via, amount, party) {
     const clicksForDay = clicks - clicksBefore;
     note('Step 2', `three lines took ${clicksForDay} field interactions (~${Math.round(clicksForDay / 3)} per line): voucher, description, head, floor, via, amount, and a party where the head needs one. No keyboard-only path was tested; every head/floor/via is a dropdown.`);
 
-    // ── STEP 3 · transfer, count, submit ───────────────────────────────────
-    console.log('\n── Step 3 · transfer, count the drawer, submit');
+    // ── STEP 3 · transfer, submit ──────────────────────────────────────────
+    // (the drawer count was removed on 2026-09-21, docs/PLAN.md §44)
+    console.log('\n── Step 3 · transfer, submit');
     const tb = await acc.$('#nf-tBank');
     await tb.click({ clickCount: 3 }); await tb.type('100000'); await tb.press('Tab'); clicks += 2;
     // The transfer save is debounced (500ms) and the position table only
@@ -313,19 +314,13 @@ async function enterLine(page, side, v, d, head, floor, via, amount, party) {
       const row = [...document.querySelectorAll('.pos tbody tr')].find(tr => /Cash in hand/.test(tr.textContent));
       return row && row.querySelectorAll('td')[5].textContent.trim() === '565,000';
     }, { timeout: 10000 }).catch(() => {});
-    // count the drawer to exactly what the sheet expects, so the day is clean
     const expectCash = await acc.evaluate(() => {
       const row = [...document.querySelectorAll('.pos tbody tr')].find(tr => /Cash in hand/.test(tr.textContent));
       return row ? row.querySelectorAll('td')[5].textContent.trim() : null;
     });
     const expectN = Number(String(expectCash).replace(/,/g, ''));
-    ok('S3 cash closing is computed and shown before counting', Number.isFinite(expectN) && expectN > 0, String(expectCash));
     // 500,000 opening + 250,000 in − 85,000 out − 100,000 to bank = 565,000
-    const denoms = { 5000: Math.floor(expectN / 5000) };
-    const rem = expectN - denoms[5000] * 5000;
-    if (rem % 1000 === 0 && rem > 0) denoms[1000] = rem / 1000;
-    for (const [k, v] of Object.entries(denoms)) { await setValue(acc, `[data-den="${k}"]`, String(v)); clicks++; }
-    await acc.click('.sh h2');
+    ok('S3 cash closing is computed and shown', expectN === 565000, String(expectCash));
     await acc.waitForFunction(() => { const b = document.querySelector('#nf-submit'); return b && !b.disabled; }, { timeout: 15000 }).catch(() => {});
     const submitState = await acc.evaluate(() => {
       const b = document.querySelector('#nf-submit');
@@ -333,7 +328,7 @@ async function enterLine(page, side, v, d, head, floor, via, amount, party) {
       return { present: !!b, disabled: b ? b.disabled : null, status: st ? st.textContent.trim() : null };
     });
     ok('S3 day balances and Submit is enabled', submitState.present && submitState.disabled === false, JSON.stringify(submitState));
-    note('Step 3', `the drawer count had to be entered denomination by denomination to reach ${expectCash}; the sheet shows the expected figure alongside, so a mismatch is visible immediately rather than after submitting.`);
+    note('Step 3', `no drawer count any more (removed 2026-09-21): the day balanced on its entries alone, cash closing ${expectCash}, and Submit was available straight away.`);
     await acc.click('#nf-submit'); clicks++;
     await acc.waitForFunction(() => { const p = document.querySelector('.state-pill'); return p && /SUBMITTED/i.test(p.textContent); }, { timeout: 12000 }).catch(() => {});
     const afterSubmit = await acc.evaluate(() => { const p = document.querySelector('.state-pill'); return p ? p.textContent.trim() : null; });

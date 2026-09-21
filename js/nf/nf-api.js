@@ -83,7 +83,6 @@
       setTransfers: function (dayId, toBank, toPetty, version) {
         return call('nf_set_transfers', { p_day_id: dayId, p_to_bank: toBank, p_to_petty: toPetty, p_version: version });
       },
-      saveCount: function (dayId, denoms, version) { return call('nf_save_count', { p_day_id: dayId, p_denoms: denoms, p_version: version }); },
       setRemarks: function (dayId, remarks, version) { return call('nf_set_remarks', { p_day_id: dayId, p_remarks: remarks, p_version: version }); },
 
       // PDCs

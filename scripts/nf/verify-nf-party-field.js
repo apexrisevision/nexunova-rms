@@ -279,7 +279,7 @@ async function pickHead(page, tmpId, code) {
     catch (e) { ok('PF-02 line with existing party saved', false, await accPage.evaluate(t => { const row = document.querySelector(`.row.draft[data-draft="${t}"]`); const el = row && row.querySelector('.row-err'); const p = row && row.querySelector('[data-pick="party"] .nfpick-in'); return el ? el.textContent : 'no row-err; row found=' + !!row + ' party value=' + (p ? p.value : null); }, tmpId)); }
 
     const [row1] = await q(`select vl.party_id, p.name from nf_lines l join public.nf_voucher_legs vl on vl.id = l.id
-                              join public.nf_parties p on p.id = vl.party_id where l.company_id='${C}' and l.voucher_no='CRV-PF1'`);
+                              join public.nf_parties p on p.id = vl.party_id where l.company_id='${C}' and l.voucher_key in (select voucher_key from nf_vouchers where company_id='${C}' and manual_no='CRV-PF1')`);
     ok('PF-02 party_id points at the EXISTING party (no duplicate)', row1 && row1.name === existingPartyName, JSON.stringify(row1));
     const dupCount1 = (await q(`select count(*) n from nf_parties where company_id='${C}' and name='${existingPartyName.replace(/'/g, "''")}'`))[0].n;
     ok('PF-02 still exactly one party row with that name', Number(dupCount1) === 1, `rows: ${dupCount1}`);
@@ -313,7 +313,7 @@ async function pickHead(page, tmpId, code) {
     const [newParty] = await q(`select id, name, kind from public.nf_parties where company_id='${C}' and name='${newPartyName.replace(/'/g, "''")}'`);
     ok('PF-04 a real nf_parties row was created', !!newParty, JSON.stringify(newParty));
     const [row2] = await q(`select vl.party_id from nf_lines l join public.nf_voucher_legs vl on vl.id = l.id
-                              where l.company_id='${C}' and l.voucher_no='CRV-PF2'`);
+                              where l.company_id='${C}' and l.voucher_key in (select voucher_key from nf_vouchers where company_id='${C}' and manual_no='CRV-PF2')`);
     ok('PF-04 saved line points at the new party', row2 && newParty && row2.party_id === newParty.id, JSON.stringify({ row2, newParty }));
 
     // PF-05: editing an already-SAVED line's party through the same dropdown
@@ -335,7 +335,7 @@ async function pickHead(page, tmpId, code) {
       await accPage.click(editPick);
       await new Promise(r => setTimeout(r, 1200)); // saveSavedLine round-trip + applyDay redraw
       const [row1After] = await q(`select vl.party_id, p.name from nf_lines l join public.nf_voucher_legs vl on vl.id = l.id
-                                     join public.nf_parties p on p.id = vl.party_id where l.company_id='${C}' and l.voucher_no='CRV-PF1'`);
+                                     join public.nf_parties p on p.id = vl.party_id where l.company_id='${C}' and l.voucher_key in (select voucher_key from nf_vouchers where company_id='${C}' and manual_no='CRV-PF1')`);
       ok('PF-05 saved-row party edit took effect', row1After && row1After.name === secondExistingParty, JSON.stringify(row1After));
     }
 

@@ -94,8 +94,7 @@ COMMIT;`);
     }
   }
   await rpc('nf_set_transfers', { p_day_id: dayId, p_to_bank: Number(s.tBank), p_to_petty: null, p_version: 0 });
-  const den = Object.fromEntries(Object.entries(s.den).filter(([, v]) => v !== '').map(([k, v]) => [Number(k), Number(v)]));
-  res = await rpc('nf_save_count', { p_day_id: dayId, p_denoms: den, p_version: 1 });
+  // (the cash count was removed 2026-09-21, docs/PLAN.md §44)
 
   console.log(JSON.stringify({ company_id: C, day_id: dayId, closing: res.json?.day?.status, balanced: res.json?.balanced }));
 })().catch(e => { console.error(e); process.exit(1); });

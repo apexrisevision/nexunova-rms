@@ -60,6 +60,12 @@
     'NF:VARIANCE_NEEDS_DIRECTOR': function () { return 'The cash count does not match the books. Only a director can close a day with a variance, and only with a written reason.'; },
     'NF:VARIANCE_REASON_REQUIRED': function () { return 'Write what actually happened with the cash count before closing.'; },
     'NF:NO_VARIANCE_TO_EXPLAIN': function () { return 'The count matches the books — no reason is needed to close.'; },
+    'NF:VOUCHER_NUMBERS_PENDING': function (err) {
+      var list = err.detail;
+      var n = Array.isArray(list) ? list.length : 0;
+      return (n ? n + (n === 1 ? ' voucher still needs its' : ' vouchers still need their') : 'Some vouchers still need their') + ' manual voucher number. Enter them, then close the day.';
+    },
+    'NF:CASH_COUNT_REMOVED': function () { return 'The cash count is no longer part of the daily closing.'; },
     'NF:REOPEN_NEEDS_DIRECTOR': function () { return 'Only a director can reopen a closed day.'; },
     'NF:RETURN_NEEDS_DIRECTOR': function () { return 'Only a director can send a submitted day back.'; },
     'NF:REASON_REQUIRED': function () { return 'Write a reason.'; },

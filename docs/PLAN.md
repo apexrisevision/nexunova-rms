@@ -3793,3 +3793,90 @@ One suite at a time, never concurrently.
 | de-migration rehearsal | SKIPPED, exit 0 |
 
 **334 checks, nothing red.**
+
+## 44 · Voucher popups, Stage A: no cash count, two numbers per voucher (2026-09-21)
+
+The owner asked for three things in one message:
+- remove the cash count ("cash count portion hatao, no need of that");
+- let a voucher be saved before its paper voucher is written, but not let the day close without that number;
+- enter vouchers through one popup per type.
+
+The popup mockup (`D:\Claude Cowork\Voucher popup mockup\`) was approved. The work is staged:
+- **A** — this section;
+- **B** — the popups;
+- **C** — new heads and payees, travelling to QuickBooks in the IIF, with the controls agreed in chat.
+
+### Two numbers per voucher (owner, 2026-09-21)
+
+"Har voucher ko system generated number milna chahiye ... taakay ham osay jab zaroorat ho retrieve kar
+sakain. Aur aik number hai manual."
+
+| | System number (`voucher_no`) | Manual number (`manual_no`, new) |
+|---|---|---|
+| given by | NexuFinance, when the line is saved | the person, from the paper voucher |
+| form | `CRV/BRV/CPV/BPV-000001`, one sequence per type per company (owner's choice) | any: "CPV-117" or "117"; stored trimmed, in capitals |
+| changes | never; never reused; a saved voucher keeps its type (`NF:VOUCHER_TYPE_FIXED`) | editable while the day is open |
+| required | always | not at save; **before Close day** (`nf_days_numbers_guard`, `NF:VOUCHER_NUMBERS_PENDING`) |
+| unique | per company | per company **within its type** (`nf_vouchers_manual_unique`) |
+| QuickBooks | appended to the first line's MEMO as `[NF CPV-000012]` | the IIF **DOCNUM** (owner: "manual DOCNUM mai") |
+
+**The first design was wrong, and was corrected before it reached the database.** It used a temporary
+number that the manual one replaced. The owner corrected that before it was applied; the rule is now in
+memory (`nf_voucher_two_numbers`).
+
+**How the number gets through the existing API.** `nf_save_line` keeps its signature: its voucher argument
+now carries the **manual** number. A blank value, or only the prefix the screen pre-fills ("CPV-"), means
+the number is not written yet.
+
+**Existing day vouchers.** All were in test tenants; Awami had none. Their typed number was their only
+number, so it became their manual number too.
+
+**The counter.** `nf_voucher_counters` is incremented only by `nf__next_voucher_no`. Both are locked away
+from `anon`/`authenticated`, and the table has RLS on: a fresh table here otherwise gets full anon
+grants.
+
+### Cash count removed
+
+- `nf_checks` no longer reports "not counted" or "short/over".
+- `nf_save_count` refuses (`NF:CASH_COUNT_REMOVED`) after its role check.
+- The sheet has no count table, no "as counted / difference" rows and no variance box. The transfers stay.
+- The count columns remain for days closed before today.
+
+`20260921n` exists because the first run of the rules suite against the applied `m` found that
+**no uncounted day could close**. The table CHECK `nf_days_closed_has_snapshot` required a non-NULL
+`variance`, which is NULL when nothing is counted. For the few minutes between the two migrations, a close
+was impossible on live. Awami closed nothing in that window: its only day is open, with no entries.
+
+### The screen
+
+- Each saved row shows the manual number in the field, with the system number beneath it.
+- A row still missing its manual number is marked, and a note above Close day says how many there are.
+- Close day, with any missing, opens a dialog listing them (system number, description, amount) with an
+  input each. "Save numbers & close day" saves them one at a time, then closes.
+- The Director Report's Voucher column shows both numbers.
+
+### The IIF
+
+- DOCNUM is the manual number, with the system number in the memo.
+- New gate 5 refuses to export any receipt/payment without a manual number.
+
+### Full regression — real output, one suite at a time
+
+| suite | result |
+|---|---|
+| rules | **80/80** (H-N1…H-N11 new; H-G04 and R6 rewritten for "no count") |
+| cash-via-day-only | 39/39 |
+| golden day (UI) | **38/38** (UI-03b/c, UI-14…16 new) |
+| dry run | 33/33 |
+| jv-harden | 23/23 |
+| journal vouchers | 18/18 |
+| director report | 18/18 (still one A4 page with both numbers) |
+| party field | 15/15 (its lookups moved to the manual number; one run red before that) |
+| General Journal | 14/14 |
+| General Ledger | 12/12 |
+| Trial Balance | 10/10 |
+| race harness | 3/3 |
+| drill-down | 49/49 |
+| schema / de-migration rehearsals | SKIPPED, exit 0 |
+
+**352 checks, nothing red.**

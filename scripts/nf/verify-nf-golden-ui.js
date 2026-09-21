@@ -336,13 +336,13 @@ async function waitRowError(page, side, timeout = 6000) {
     const timeline = [];
     accPage.on('request', req => {
       const u = req.url();
-      if (u.includes('/rpc/nf_set_transfers') || u.includes('/rpc/nf_save_count') || u.includes('/rpc/nf_get_day')) {
+      if (u.includes('/rpc/nf_set_transfers') || u.includes('/rpc/nf_get_day')) {
         timeline.push(`+${Date.now() - t0}ms → ${u.split('/rpc/')[1]} ${req.postData() || ''}`);
       }
     });
     accPage.on('response', async res => {
       const u = res.url();
-      if (u.includes('/rpc/nf_set_transfers') || u.includes('/rpc/nf_save_count') || u.includes('/rpc/nf_get_day')) {
+      if (u.includes('/rpc/nf_set_transfers') || u.includes('/rpc/nf_get_day')) {
         let body = '';
         try { body = (await res.text()).slice(0, 200); } catch (e) { body = 'READ-ERR:' + e.message; }
         timeline.push(`+${Date.now() - t0}ms ← ${u.split('/rpc/')[1].split('?')[0]} HTTP ${res.status()} ${body}`);
@@ -356,29 +356,30 @@ async function waitRowError(page, side, timeout = 6000) {
     }, { timeout: 6000 }).catch(() => {});
     await new Promise(r => setTimeout(r, 700)); // debounced save (500ms)
 
-    const den = { 5000: 50, 1000: 60, 500: 5, 100: 5 };
-    for (const [k, v] of Object.entries(den)) {
-      await setValue(accPage, `[data-den="${k}"]`, String(v));
-    }
-    await accPage.click('.sh h2');   // blur the last count field
-    // The "as counted" cell updates from a LOCAL overlay the instant a digit
-    // is typed (so the total feels live, matching the reference) — waiting
-    // for the DOM to stop saying "Not counted" was therefore satisfied
-    // client-side almost immediately, well before the debounced save had
-    // actually reached the server. Wait for the database itself: the one
-    // fact neither client timing nor a client bug can fake.
-    async function waitForDbCount(timeoutMs) {
+    // The cash count was removed (owner, 2026-09-21, docs/PLAN.md §44). UI-03b
+    // used to wait for the typed count to reach the database; it now waits
+    // for the TRANSFER typed just above — the one fact neither client timing
+    // nor a client bug can fake — and UI-03c proves the count is really gone.
+    async function waitForDbTransfer(timeoutMs) {
       const start = Date.now();
       for (;;) {
-        const [row] = await q(`select denominations from nf_days where company_id='${C}' order by business_date desc limit 1`);
-        if (row && row.denominations) return true;
+        const [row] = await q(`select count(*) n from nf_vouchers where company_id='${C}' and voucher_key like 'XFR-%'`);
+        if (row && Number(row.n) > 0) return true;
         if (Date.now() - start > timeoutMs) return false;
         await new Promise(r => setTimeout(r, 250));
       }
     }
-    const counted = await waitForDbCount(15000);
-    if (!counted) console.log('  DEBUG timeline:\n    ' + timeline.join('\n    '));
-    ok('UI-03b count reached the database', counted, 'nf_days.denominations still null after 15s');
+    const transferred = await waitForDbTransfer(15000);
+    if (!transferred) console.log('  DEBUG timeline:\n    ' + timeline.join('\n    '));
+    ok('UI-03b the transfer reached the database', transferred, 'no XFR- voucher after 15s');
+    const countGone = await accPage.evaluate(() => ({
+      denFields: document.querySelectorAll('[data-den]').length,
+      countHeading: [...document.querySelectorAll('.sh h2')].some(h => /cash count/i.test(h.textContent)),
+      asCounted: /as counted|Not counted|Cash short|Cash over/.test(document.querySelector('#nf-sheet').innerText),
+      transfersStill: !!document.querySelector('#nf-tBank') && !!document.querySelector('#nf-tPetty'),
+    }));
+    ok('UI-03c the cash count is gone from the sheet; the transfers are still there',
+      countGone.denFields === 0 && !countGone.countHeading && !countGone.asCounted && countGone.transfersStill, JSON.stringify(countGone));
     await new Promise(r => setTimeout(r, 600));   // let the client's own refresh() catch up and re-render
     await accPage.waitForSelector('.pos-grid', { timeout: 10000 });
 
@@ -471,7 +472,7 @@ async function waitRowError(page, side, timeout = 6000) {
     let negMsg;
     try { negMsg = await waitRowError(accPage, 'OUT'); ok('UI-09 negative payment refused', /does not have enough money/.test(negMsg || ''), negMsg); }
     catch (e) { ok('UI-09 negative payment refused', false, 'no row-err appeared: ' + e.message); }
-    const linesAfterNeg = (await q(`select count(*) n from nf_lines where company_id='${C}' and voucher_key='CPV-901'`))[0].n;
+    const linesAfterNeg = (await q(`select count(*) n from nf_vouchers where company_id='${C}' and manual_no='CPV-901'`))[0].n;
     ok('UI-09 nothing was written', Number(linesAfterNeg) === 0, `nf_lines rows for CPV-901: ${linesAfterNeg}`);
 
     // clear that draft row before the next test (click its delete button)
@@ -490,7 +491,7 @@ async function waitRowError(page, side, timeout = 6000) {
     let dupMsg;
     try { dupMsg = await waitRowError(accPage, 'IN'); ok('UI-10 duplicate voucher refused', /already on the books/.test(dupMsg || ''), dupMsg); }
     catch (e) { ok('UI-10 duplicate voucher refused', false, 'no row-err appeared: ' + e.message); }
-    const dupCount = (await q(`select count(*) n from nf_lines where company_id='${C}' and voucher_key='${reusedVoucher.toUpperCase()}'`))[0].n;
+    const dupCount = (await q(`select count(*) n from nf_vouchers where company_id='${C}' and manual_no='${reusedVoucher.toUpperCase()}'`))[0].n;
     ok('UI-10 still exactly one row for that voucher', Number(dupCount) === 1, `rows: ${dupCount}`);
 
     // UI-12: the Reports dropdown must be genuinely INVISIBLE until asked for.
@@ -549,6 +550,51 @@ async function waitRowError(page, side, timeout = 6000) {
     const logoPrint = await logoState('print');
     ok('UI-13 and it survives print, still in shape',
       logoPrint.loaded && logoPrint.visible && logoPrint.ratio >= 3 && logoPrint.ratio <= 5, JSON.stringify(logoPrint));
+
+    // ── §44: a voucher saved WITHOUT its manual number; Close day asks ──────
+    // The owner's rule (2026-09-21): the closing is made before the paper
+    // voucher is written, so a line saves without its number — but the day
+    // does not close until every number is in, and Close day brings those
+    // vouchers up to be filled in on the spot.
+    const pendRow = s.in.filter(r => Number(r.a)).find(r => r.h !== '21100') || s.in[1];
+    await fillDraftRow(accPage, 'IN', '', 'Receipt before its paper voucher', pendRow.h, pendRow.f, 'Cash', 1000);
+    let pendingShown = null;
+    try {
+      await accPage.waitForSelector('.row.vno-pending[data-saved]', { timeout: 8000 });
+      pendingShown = await accPage.evaluate(() => {
+        const r = document.querySelector('.row.vno-pending[data-saved]');
+        return { value: r.querySelector('.vno').value, placeholder: r.querySelector('.vno').placeholder,
+                 stored: r.getAttribute('data-vno'), sys: (r.querySelector('.vno-sys') || {}).textContent,
+                 note: !!document.querySelector('#nf-pending-note') };
+      });
+    } catch (e) { pendingShown = { error: e.message }; }
+    // two numbers (owner, 2026-09-21): the SYSTEM one is given at save and
+    // shown under the field; the MANUAL one is still blank
+    ok('UI-14 a receipt saves with NO manual number, but with its system number (CRV-000001 style)',
+      pendingShown && pendingShown.value === '' && pendingShown.placeholder === 'Manual no.' && /^CRV-\d{6}$/.test(pendingShown.stored || '')
+        && pendingShown.sys === pendingShown.stored && pendingShown.note,
+      JSON.stringify(pendingShown));
+    await accPage.click('#nf-close');
+    let dlg = null;
+    try {
+      await accPage.waitForSelector('#nf-numbers-dialog .nfn-in', { timeout: 5000 });
+      dlg = await accPage.evaluate(() => ({ rows: document.querySelectorAll('#nf-numbers-dialog .nfn-row').length,
+        prefill: document.querySelector('#nf-numbers-dialog .nfn-in').value }));
+    } catch (e) { dlg = { error: e.message }; }
+    const stillOpen = (await q(`select status from nf_days where company_id='${C}' order by business_date desc limit 1`))[0].status;
+    ok('UI-15 Close day does not close; it brings up the voucher still missing its manual number', dlg && dlg.rows === 1 && dlg.prefill === '' && stillOpen === 'OPEN',
+      JSON.stringify({ dlg, stillOpen }));
+    await setValue(accPage, '#nf-numbers-dialog .nfn-in', 'CRV-0777');
+    await accPage.click('#nf-numbers-go');
+    let closedRow = null;
+    for (let i = 0; i < 40; i++) {
+      [closedRow] = await q(`select d.status, (select count(*)::int from nf_vouchers v where v.company_id=d.company_id and v.manual_no='CRV-0777') pend
+                              from nf_days d where d.company_id='${C}' order by d.business_date desc limit 1`);
+      if (closedRow && closedRow.status === 'CLOSED') break;
+      await new Promise(r => setTimeout(r, 250));
+    }
+    ok('UI-16 typing the number there saves it and closes the day', closedRow && closedRow.status === 'CLOSED' && closedRow.pend === 1,
+      JSON.stringify(closedRow));
 
     ok('UI-11 no console/page errors', dirPage.__errors.length === 0 && accPage.__errors.length === 0,
       JSON.stringify(dirPage.__errors.concat(accPage.__errors)));

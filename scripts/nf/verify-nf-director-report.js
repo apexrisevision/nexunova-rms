@@ -10,7 +10,7 @@
  *
  * Fixture: a fresh ZZTEST-NF-<run> company, the same golden day sample
  * gen-seed's reference already provides, entered through nf_save_line/
- * nf_set_transfers/nf_save_count directly (typing-simulation is already
+ * nf_set_transfers directly (typing-simulation is already
  * proven by verify-nf-golden-ui.js — this script's job is the REPORT, not
  * re-proving entry). Awami is never touched; cleanup is verified by query.
  *
@@ -141,9 +141,7 @@ async function injectSession(page, ref, jwt, userId, email) {
     }
     r = await rpc('nf_set_transfers', { p_day_id: dayId, p_to_bank: Number(s.tBank), p_to_petty: null, p_version: r.json.day.version });
     if (r.status !== 200) throw new Error('nf_set_transfers: ' + JSON.stringify(r.json));
-    const den = Object.fromEntries(Object.entries(s.den).filter(([, v]) => v !== '').map(([k, v]) => [k, Number(v)]));
-    r = await rpc('nf_save_count', { p_day_id: dayId, p_denoms: den, p_version: r.json.day.version });
-    if (r.status !== 200) throw new Error('nf_save_count: ' + JSON.stringify(r.json));
+    // (the cash count was removed 2026-09-21, docs/PLAN.md §44 — nf_save_count now refuses)
     console.log('  fixtures: company, seed, golden day entered, 1 director signed in\n');
 
     // a real inter-company movement, so "Other Balances" has something

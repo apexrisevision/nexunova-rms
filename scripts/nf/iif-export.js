@@ -32,7 +32,10 @@
  *     docs/PLAN.md §20 — confirmed reused correctly, not re-derived).
  *     Every other leg's NAME is the plain party name (or blank).
  *   - CLASS = the leg's floor's qb_class.
- *   - DOCNUM = the voucher_no. MEMO = the leg's own memo.
+ *   - DOCNUM = the MANUAL (paper) voucher number where there is one, else
+ *     voucher_no; the SYSTEM number (voucher_no) is appended to the first
+ *     line's MEMO as "[NF CPV-000012]" (docs/PLAN.md §44). MEMO = the leg's
+ *     own memo.
  *   - First leg -> TRNS, remaining legs -> SPL, then ENDTRNS.
  *
  * VALIDATION GATE — the file is not written unless ALL of these pass:
@@ -53,6 +56,8 @@
  *   4. every candidate voucher's own date falls inside [from, to] —
  *      re-checked directly rather than trusting the candidate query's
  *      own WHERE clause alone.
+ *   5. every receipt/payment has its MANUAL voucher number, which is the
+ *      DOCNUM QuickBooks receives (docs/PLAN.md §44).
  */
 'use strict';
 
@@ -200,6 +205,19 @@ function iifField(s) {
     console.log('  gate 4 (every voucher date is inside the requested range): PASS');
   }
 
+  // ── gate 5: every receipt/payment has its manual number (docs/PLAN.md §44)
+  // The manual (paper) number is the DOCNUM QuickBooks receives. The day
+  // cannot close without it, but a voucher on a still-open day is a
+  // candidate too — and one without it would reach QuickBooks under its
+  // system number instead, silently.
+  const pendingRows = await q(`SELECT voucher_no FROM nf_vouchers WHERE id IN (${ids}) AND manual_no IS NULL
+      AND upper(split_part(voucher_no, '-', 1)) IN ('CRV','BRV','CPV','BPV') ORDER BY voucher_no`);
+  if (pendingRows.length > 0) {
+    problems.push(`GATE 5 FAILED — ${pendingRows.length} receipt/payment voucher(s) have no manual voucher number yet: ${pendingRows.map(r => r.voucher_no).join(', ')}`);
+  } else {
+    console.log('  gate 5 (every receipt/payment has its manual number): PASS');
+  }
+
   if (problems.length) {
     console.log(`\n✗ VALIDATION FAILED — no file written.\n`);
     problems.forEach(p => console.log('  ' + p));
@@ -209,7 +227,7 @@ function iifField(s) {
 
   // ── all gates passed — build the file ─────────────────────────────────
   const legs = await q(`
-    SELECT l.voucher_id, v.voucher_no, v.voucher_date, l.line_no, l.debit, l.credit, l.memo, v.narration,
+    SELECT l.voucher_id, v.voucher_no, v.manual_no, v.voucher_date, l.line_no, l.debit, l.credit, l.memo, v.narration,
            a.code AS account_code, f.qb_class AS floor_class, pt.name AS party_name
       FROM nf_voucher_legs l
       JOIN nf_vouchers v ON v.id = l.voucher_id
@@ -259,7 +277,13 @@ function iifField(s) {
       const row = [
         i === 0 ? 'TRNS' : 'SPL', '', 'GENERAL JOURNAL', iifDate(l.voucher_date),
         iifField(pathByCode.get(l.account_code) || l.account_code), iifField(nameFor(l)), iifField(l.floor_class),
-        amount, iifField(l.voucher_no), iifField(l.memo || l.narration || ''),
+        // DOCNUM is the MANUAL (paper) number — owner, 2026-09-21: "manual
+        // DOCNUM mai". The SYSTEM number rides in the first line's memo, so
+        // the voucher can be found from QuickBooks too (docs/PLAN.md §44).
+        // A voucher with no manual number (imported history, a transfer)
+        // keeps its one number as DOCNUM, as before.
+        amount, iifField(l.manual_no || l.voucher_no),
+        iifField((l.memo || l.narration || '') + (i === 0 && l.manual_no ? ' [NF ' + l.voucher_no + ']' : '')),
       ].join('\t');
       lines.push(row);
     });

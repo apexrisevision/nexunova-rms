@@ -255,3 +255,27 @@ td{padding:7px 10px;border-bottom:1px solid var(--line)}
 .nf-drill-hit,.nf-drill-hit td{background:color-mix(in srgb, var(--brand-2) 16%, transparent)!important;transition:background .6s}
 .nf-drill-hit{outline:2px solid var(--brand-2);outline-offset:-2px;border-radius:6px}
 .nf-drill-note{padding:10px 14px;border-radius:8px;background:var(--soft);border:1px solid var(--line2);color:var(--ink2);font-size:12.5px}
+
+/* ── manual voucher numbers, docs/PLAN.md §44 ─────────────────────────────
+   A voucher saved before its paper voucher is written carries a temporary
+   number; its field shows empty and marked until the real one is typed.
+   Class names checked unused before adding (vno-pending, nf-pending-note,
+   nfn-*, nf-numbers). ─────────────────────────────────────────────────── */
+.row.vno-pending .vno{border-color:#F79009;background:#FFFAEB}
+.row.vno-pending .vno::placeholder{color:#B54708}
+.nf-pending-note{margin:10px 0 0;padding:9px 12px;border-radius:8px;background:#FFFAEB;border:1px solid #FEDF89;color:#93370D;font-size:12.5px}
+.nf-dialog.nf-numbers{max-width:720px}
+.nfn-list{border:1px solid var(--line2);border-radius:10px;overflow:hidden;margin-bottom:14px}
+.nfn-row{display:grid;grid-template-columns:96px 1fr 100px 150px;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);font-size:12.5px}
+.nfn-row:last-child{border-bottom:0}
+.nfn-type{font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;background:#FEF0C7;color:#93370D;justify-self:start}
+.nfn-amt{text-align:right;font-variant-numeric:tabular-nums}
+.nfn-in{border:1px solid var(--field-b);background:var(--field);border-radius:6px;padding:6px 8px;font:inherit;color:var(--ink)}
+.nfn-err{grid-column:2/-1;color:var(--neg);font-size:11.5px}
+.nfn-row.done .nfn-type{background:#E7F6EC;color:#11723A}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .row.vno-pending .vno,:root:not([data-theme="light"]) .nf-pending-note{background:#2A2110;border-color:#7A4B0C;color:#FEC84B}}
+:root[data-theme="dark"] .row.vno-pending .vno,:root[data-theme="dark"] .nf-pending-note{background:#2A2110;border-color:#7A4B0C;color:#FEC84B}
+@media print{.nf-pending-note{display:none}}
+/* the SYSTEM number under the manual one in each saved row (§44) */
+.vnocell{display:flex;flex-direction:column;gap:1px;min-width:0}
+.vno-sys{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:2px}

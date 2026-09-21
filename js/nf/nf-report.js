@@ -112,14 +112,14 @@
     var body = rows.map(function (l) {
       // double-click → the entry on the closing sheet (js/nf/nf-drill.js)
       return '<tr class="nf-drill" data-drill-vno="' + esc(l.voucher_no) + '" title="Double-click to open this entry">' +
-        '<td>' + esc(l.voucher_no) + '</td><td>' + esc(l.description || '') + '</td>' +
+        '<td>' + esc(l.manual_no || '—') + '<span class="vno-sys" style="display:block">' + esc(l.voucher_no) + '</span></td><td>' + esc(l.description || '') + '</td>' +
         '<td>' + esc(l.head_name) + '</td><td>' + esc(l.floor_name || l.floor_code || '') + '</td>' +
         '<td>' + esc(l.via) + '</td><td class="r">' + F.fmt(l.amount) + '</td></tr>';
     }).join('');
     var total = rows.reduce(function (s, l) { return s + F.n(l.amount); }, 0);
     return '' +
       '<section class="rsec"><div class="rsh"><h2>' + esc(title) + '</h2><span class="muted">' + rows.length + (rows.length === 1 ? ' entry' : ' entries') + '</span></div>' +
-      '<table class="rtab"><thead><tr><th>Voucher</th><th>Description</th><th>Head</th><th>Floor</th><th>Cash/Bank</th><th class="r">Amount ' + esc(sub) + '</th></tr></thead>' +
+      '<table class="rtab"><thead><tr><th>Voucher <small class="muted">manual / system</small></th><th>Description</th><th>Head</th><th>Floor</th><th>Cash/Bank</th><th class="r">Amount ' + esc(sub) + '</th></tr></thead>' +
       '<tbody>' + (body || '<tr><td colspan="6" class="muted" style="text-align:center;padding:10px">No entries</td></tr>') + '</tbody>' +
       '<tfoot><tr><td colspan="5">Total ' + esc(sub)  + '</td><td class="r">' + F.fmt(total) + '</td></tr></tfoot></table></section>';
   }

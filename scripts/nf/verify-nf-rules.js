@@ -352,9 +352,14 @@ if (require.main === module) (async () => {
     }
     r = await rpc(K, A, 'nf_set_transfers', { p_day_id: day1, p_to_bank: Number(s.tBank), p_to_petty: null, p_version: last.json.day.version });
     ok('H-G03', r.status === 200, JSON.stringify(r.json));
+    // The cash count was removed (owner, 2026-09-21, docs/PLAN.md §44). What
+    // H-G04 used to prove — the count lands — is now its opposite: the RPC
+    // refuses, and the day balances and closes without any count at all.
+    const afterTransfers = r;
     const den = Object.fromEntries(Object.entries(s.den).filter(([, v]) => v !== '').map(([k, v]) => [k, Number(v)]));
-    r = await rpc(K, A, 'nf_save_count', { p_day_id: day1, p_denoms: den, p_version: r.json.day.version });
-    ok('H-G04', r.status === 200 && Number(r.json.day.counted_cash) === 313000, JSON.stringify(r.json.day));
+    r = await rpc(K, A, 'nf_save_count', { p_day_id: day1, p_denoms: den, p_version: afterTransfers.json.day.version });
+    ok('H-G04 the cash count is gone: nf_save_count refuses', code(r) === 'NF:CASH_COUNT_REMOVED', JSON.stringify(r.json));
+    r = afterTransfers;
     const pos = Object.fromEntries(r.json.position.rows.map(x => [x.via, Number(x.closing)]));
     ok('H-G05', pos.Cash === 313000 && pos.Petty === 13500 && pos.Bank === 2108960
       && Number(r.json.position.total.closing) === 2435460 && Number(r.json.position.net) === 665460 && r.json.balanced === true,
@@ -413,7 +418,7 @@ if (require.main === module) (async () => {
     r = await line(A, 'OUT', 'CPV-1102', '52600', 'P-W', 'Cash', 100000);
     ok('H-R1d spending most of it leaves 50000 (R1-04)', r.status === 200 && (await cashOf()) === 50000, JSON.stringify(r.json).slice(0, 200));
 
-    const [rl] = await q(`select id, version from public.nf_lines where day_id = '${day2}' and voucher_key = 'CRV-1101'`);
+    const [rl] = await q(`select l.id, l.version from public.nf_lines l join public.nf_vouchers v on v.company_id = l.company_id and v.voucher_key = l.voucher_key where l.day_id = '${day2}' and v.manual_no = 'CRV-1101'`);
     // R1-05: DELETING the receipt would leave −100000. The dormant test.
     r = await rpc(K, A, 'nf_delete_line', { p_line_id: rl.id, p_version: rl.version });
     ok('H-R1e deleting a receipt that is already spent is refused (R1-05)',
@@ -473,14 +478,73 @@ if (require.main === module) (async () => {
        (r.status === 500 && /cannot update view/.test(JSON.stringify(r.json))),
        `${r.status} ${JSON.stringify(r.json)}`);
 
-    // ── R6 / R7 ───────────────────────────────────────────────────────────────
-    let d2 = (await rpc(K, A, 'nf_get_day', { p_company_id: C, p_date: null })).json;
-    r = await rpc(K, A, 'nf_save_count', { p_day_id: day2, p_denoms: { coins: 1 }, p_version: d2.day.version });
-    r = await rpc(K, A, 'nf_close_day', { p_day_id: day2, p_version: r.json.day.version, p_variance_reason: 'x' });
-    ok('H-R6 accountant variance close', code(r) === 'NF:VARIANCE_NEEDS_DIRECTOR', JSON.stringify(r.json));
+    // ── §44: two numbers per voucher (owner, 2026-09-21) ───────────────────
+    // SYSTEM number: given by NexuFinance on save, CPV-000001 style, one
+    // sequence per type, never changed. MANUAL number: the paper voucher's,
+    // optional at save, compulsory before the day closes, never repeated
+    // within its type. R6's variance rules went with the cash count; this is
+    // what replaces them as the gate on closing a day.
+    const pendingOf = res => (res.json.lines || []).filter(l => l.number_pending);
+    const byId = (res, id) => (res.json.lines || []).find(l => l.id === id);
+    const SYS = t => new RegExp('^' + t + '-\\d{6}$');
+    r = await line(A, 'IN', '', '21100', 'GF', 'Cash', 500, { p_party_name: 'Golden Day Test Customer' });
+    ok('H-N1 a line saves with NO manual number', r.status === 200, JSON.stringify(r.json).slice(0, 300));
+    const pIn = r.status === 200 ? pendingOf(r)[0] : null;
+    ok('H-N2 …it still gets its SYSTEM number (CRV-000001 style), and is marked pending',
+      !!pIn && SYS('CRV').test(pIn.voucher_no) && pIn.manual_no === null, JSON.stringify(pIn));
+    r = await line(A, 'OUT', 'CPV-', '81300', 'P-W', 'Bank', 100);
+    const pOut = r.status === 200 ? pendingOf(r).find(l => l.side === 'OUT') : null;
+    ok('H-N3 only the prefix also means "not written yet"; the system number follows the via (Bank → BPV)',
+      !!pOut && SYS('BPV').test(pOut.voucher_no), JSON.stringify(r.json).slice(0, 300));
+    r = await line(A, 'OUT', '', '81300', 'P-W', 'Bank', 100);
+    const pOut2nd = r.status === 200 ? pendingOf(r).filter(l => l.side === 'OUT').find(l => l.id !== pOut.id) : null;
+    ok('H-N3b the next of the same type is the next number — nothing skipped, nothing reused',
+      !!pOut2nd && Number(pOut2nd.voucher_no.slice(4)) === Number(pOut.voucher_no.slice(4)) + 1, `${pOut && pOut.voucher_no} then ${pOut2nd && pOut2nd.voucher_no}`);
+    r = await rpc(K, A, 'nf_delete_line', { p_line_id: pOut2nd.id, p_version: pOut2nd.version });
+    ok('H-N3c (clean-up: that one deleted)', r.status === 200, JSON.stringify(r.json).slice(0, 200));
+    r = await rpc(K, A, 'nf_save_line', { p_day_id: day2, p_line_id: pIn.id, p_side: 'IN', p_voucher_no: '', p_description: 'amount edited',
+      p_head: '21100', p_floor: 'GF', p_via: 'Cash', p_amount: 600, p_version: pIn.version, p_party_name: 'Golden Day Test Customer' });
+    ok('H-N4 editing a line never changes its system number',
+      r.status === 200 && byId(r, pIn.id).voucher_no === pIn.voucher_no && byId(r, pIn.id).number_pending === true && Number(byId(r, pIn.id).amount) === 600,
+      JSON.stringify(r.json).slice(0, 300));
+    const pIn2 = byId(r, pIn.id);
+    r = await rpc(K, A, 'nf_save_line', { p_day_id: day2, p_line_id: pOut.id, p_side: 'OUT', p_voucher_no: '', p_description: 'moved to cash',
+      p_head: '81300', p_floor: 'P-W', p_via: 'Cash', p_amount: 100, p_version: pOut.version });
+    ok('H-N5 a saved voucher keeps its type: Bank → Cash (BPV → CPV) is refused', code(r) === 'NF:VOUCHER_TYPE_FIXED', JSON.stringify(r.json));
+    let d2 = (await rpc(K, D, 'nf_get_day', { p_company_id: C, p_date: null })).json;
+    r = await rpc(K, D, 'nf_close_day', { p_day_id: day2, p_version: d2.day.version, p_variance_reason: null });
+    let det = null; try { det = JSON.parse(r.json.details); } catch (e) {}
+    ok('H-N6 the day will not close while a manual number is missing — even for a director — and says which',
+      code(r) === 'NF:VOUCHER_NUMBERS_PENDING' && Array.isArray(det) && det.length === 2
+        && det.some(x => x.voucher_no === pIn2.voucher_no) && det.some(x => x.voucher_no === pOut.voucher_no),
+      JSON.stringify(r.json));
+    d2 = (await rpc(K, A, 'nf_get_day', { p_company_id: C, p_date: null })).json;
+    ok('H-N6b …and the refusal changed nothing', d2.day.status === 'OPEN', d2.day.status);
+    r = await rpc(K, A, 'nf_save_line', { p_day_id: day2, p_line_id: pOut.id, p_side: 'OUT', p_voucher_no: '117', p_description: 'bank line',
+      p_head: '81300', p_floor: 'P-W', p_via: 'Bank', p_amount: 100, p_version: pOut.version });
+    ok('H-N7 a manual number can be written any way ("117"), and fills the gap',
+      r.status === 200 && byId(r, pOut.id).manual_no === '117' && byId(r, pOut.id).number_pending === false && byId(r, pOut.id).voucher_no === pOut.voucher_no,
+      JSON.stringify(r.json).slice(0, 300));
+    r = await rpc(K, A, 'nf_save_line', { p_day_id: day2, p_line_id: pIn2.id, p_side: 'IN', p_voucher_no: 'CRV-1101', p_description: 'amount edited',
+      p_head: '21100', p_floor: 'GF', p_via: 'Cash', p_amount: 600, p_version: pIn2.version, p_party_name: 'Golden Day Test Customer' });
+    ok('H-N8 a manual number already used for the same type is refused', code(r) === 'NF:DUPLICATE_VOUCHER', JSON.stringify(r.json));
+    r = await rpc(K, A, 'nf_save_line', { p_day_id: day2, p_line_id: pIn2.id, p_side: 'IN', p_voucher_no: ' 117 ', p_description: 'amount edited',
+      p_head: '21100', p_floor: 'GF', p_via: 'Cash', p_amount: 600, p_version: pIn2.version, p_party_name: 'Golden Day Test Customer' });
+    ok('H-N8b …but the same manual number on a DIFFERENT type is fine (CRV "117" beside BPV "117")',
+      r.status === 200 && byId(r, pIn2.id).manual_no === '117' && pendingOf(r).length === 0, JSON.stringify(r.json).slice(0, 300));
+    const [both] = await q(`select count(*)::int n from nf_vouchers where company_id='${C}' and manual_no='117'`);
+    ok('H-N8c both are stored, each under its own system number', both.n === 2, JSON.stringify(both));
+    d2 = (await rpc(K, A, 'nf_get_day', { p_company_id: C, p_date: null })).json;
+    r = await rpc(K, A, 'nf_close_day', { p_day_id: day2, p_version: d2.day.version, p_variance_reason: null });
+    ok('H-N9 with every manual number in, the accountant closes the day — no count, no variance',
+      r.status === 200 && r.json.day.status === 'CLOSED' && r.json.day.variance === null, JSON.stringify(r.json.day));
+    r = await rpc(K, D, 'nf_list_audit', { p_day_id: day2 });
+    ok('H-N10 the audit trail records a plain CLOSE, not CLOSE_WITH_VARIANCE',
+      r.status === 200 && r.json.some(a => a.action === 'CLOSE') && !r.json.some(a => a.action === 'CLOSE_WITH_VARIANCE'), JSON.stringify(r.json).slice(0, 300));
+    r = await http('GET', `/rest/v1/nf_voucher_counters?company_id=eq.${C}&select=*`, { key: K.anon, jwt: A });
+    ok('H-N11 the number counter cannot be read or written from outside (no grant, RLS on)',
+      r.status !== 200 || (Array.isArray(r.json) && r.json.length === 0), `${r.status} ${JSON.stringify(r.json).slice(0, 200)}`);
     d2 = (await rpc(K, D, 'nf_get_day', { p_company_id: C, p_date: null })).json;
-    r = await rpc(K, D, 'nf_close_day', { p_day_id: day2, p_version: d2.day.version, p_variance_reason: 'Counted twice' });
-    ok('H-R6 director variance close with reason', r.status === 200 && r.json.day.status === 'CLOSED' && Number(r.json.day.variance) !== 0, JSON.stringify(r.json.day));
     r = await line(A, 'IN', 'CRV-902', '21100', 'GF', 'Cash', 1);
     ok('H-R7 lock', code(r) === 'NF:DAY_LOCKED', JSON.stringify(r.json));
     r = await rpc(K, A, 'nf_reopen_day', { p_day_id: day2, p_reason: 'x', p_version: d2.day.version + 1 });
@@ -505,8 +569,9 @@ if (require.main === module) (async () => {
       if (r.status !== 200) throw new Error('cashNow: nf_get_report failed: ' + JSON.stringify(r.json));
       return Number(r.json.accounts.find(a => a.via === 'Cash').closing);
     };
-    const vouchersOnDay2 = async list => (await q(`select coalesce(json_agg(voucher_key order by voucher_key), '[]') j
-        from public.nf_lines where day_id = '${day2}' and voucher_key in (${list.map(v => `'${v}'`).join(',')})`))[0].j;
+    const vouchersOnDay2 = async list => (await q(`select coalesce(json_agg(manual_no order by manual_no), '[]') j
+        from public.nf_vouchers where day_id = '${day2}' and manual_no in (${list.map(v => `'${v}'`).join(',')})`))[0].j;
+    // (the race sides type MANUAL numbers — docs/PLAN.md §44 — so that is what is looked up)
     const describe = x => `side1 HTTP ${x.r1.status} in ${x.r1.ms} ms: ${String(x.r1.msg).slice(0, 120)} | side2 HTTP ${x.r2.status} in ${x.r2.ms} ms: ${String(x.r2.msg).slice(0, 160)} | pid1 ${x.pid1} · side2 blocked by side1: ${x.blockedBy1} · ${x.samples} samples`;
 
     // R1: each payment fits alone; together they would take Cash below zero.
@@ -531,7 +596,7 @@ if (require.main === module) (async () => {
     x = await race({ tag: `nf-race-${run}-r2`, sides: lineSide({ userId: users.A.id, dayId: day2, a: { voucher: 'CPV-R2', amount: 1 }, b: { voucher: 'CPV-R2', amount: 1 } }) });
     ok('RACE-R2 overlap', x.blockedBy1, describe(x));
     ok('RACE-R2 one accepted, one refused', x.r1.status === 201 && x.r2.status !== 201 && /NF:DUPLICATE_VOUCHER/.test(x.r2.msg), describe(x));
-    const [cnt] = await q(`select count(*)::int n from public.nf_lines where company_id = '${C}' and voucher_key = 'CPV-R2'`);
+    const [cnt] = await q(`select count(*)::int n from public.nf_vouchers where company_id = '${C}' and manual_no = 'CPV-R2'`);
     ok('RACE-R2 state', cnt.n === 1, `rows with CPV-R2: ${cnt.n}`);
   } catch (e) {
     ok('RUN', false, e.stack || e.message);
