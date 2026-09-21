@@ -8,27 +8,15 @@
  * css/nf/nf-print.css transfers unchanged. The differences from the
  * reference are the ones the plan records (docs/PLAN.md §4B):
  *
- * REDESIGNED 2026-09-21 (docs/PLAN.md §42) — UI only. Not one RPC, argument,
- * validation rule or NF:* error changed; every mandatory field is still
- * mandatory. What changed is the screen: a day bar with the opening balances
- * as KPI figures, Money In / Money Out / Transfers as sections, a closing
- * summary as the page's anchor, the cash count moved out of the main flow
- * into a collapsed drawer, and — the real complaint — a proper ENTRY PANEL in
- * place of the cramped inline add-row and, for cheques, in place of a chain
- * of browser prompt() boxes. The PRINTED document is deliberately unchanged:
- * the DOM still carries every element and class css/nf/nf-print.css targets,
- * and the whole redesign lives inside @media screen.
- *
  *   - the server is the only source of truth. A line is either SAVED (came
- *     back from nf_get_day) or still in the entry panel, which will not send
- *     until it is complete — so an incomplete line can never become a saved
- *     fact with a hole in it.
+ *     back from nf_get_day) or a DRAFT (typed here, not yet valid to send —
+ *     R3/R8 refuse an incomplete line, so an incomplete row can only ever be
+ *     a draft, never a saved fact with a hole in it).
  *   - a database refusal (NEGATIVE_POSITION, DUPLICATE_VOUCHER, …) is shown
- *     in plain language ON THE FIELD THAT CAUSED IT (js/nf/nf-messages.js),
- *     and the panel stays open with everything typed still in it — nothing is
- *     silently discarded.
+ *     in plain language ON THE ROW THAT CAUSED IT (js/nf/nf-messages.js),
+ *     and the row stays a draft — nothing is silently discarded.
  *   - amounts carry two decimals, shown only when present (js/nf/nf-format.js).
- *   - Submit / Close are gated by the SERVER's checks, nothing else.
+ *   - Submit / Close are disabled while any draft row is incomplete.
  *   - opening is typed only on the very first day; every later day's opening
  *     is read back from the server, never typed here.
  *   - "Start new day" needs the previous day CLOSED.
@@ -40,6 +28,7 @@
   var F = global.NfFmt, Msg = global.NfMsg;
 
   function esc(s) { return F.esc(s); }
+  function uid() { return 'd' + Math.random().toString(36).slice(2, 10); }
 
   function mount(root, ctx) {
     var api = ctx.api;
@@ -52,13 +41,7 @@
       day: null, latest: null, position: null, lines: [], pdcs: [], checks: [], balanced: true,
       settings: ctx.settings || {},
     };
-    // The entry panel is now the only place a NEW line, transfer or cheque is
-    // typed (docs/PLAN.md §42): one focused form instead of a seven-column
-    // strip squeezed into a table row. Its values live HERE rather than in the
-    // DOM, for exactly the reason countDraft/transferDraft do — a render()
-    // triggered by an unrelated save landing mid-typing must have something
-    // true to redraw from. SAVED lines stay inline-editable rows, unchanged.
-    var panel = null;   // {mode:'line'|'transfer'|'pdc', side, dir, v:{…}, error, saving}
+    var drafts = { IN: [], OUT: [] };       // {tmpId, v, d, h, f, m, a, saving, error:{field,message}}
     // Cash count and transfers live only in the DOM once typed, same as a
     // draft line — but unlike a draft line they have nowhere else to be kept.
     // Without an overlay, a render() triggered by an UNRELATED save landing
@@ -69,30 +52,15 @@
     // until its own save clears it back to null.
     var countDraft = null;      // {"5000": "50", "1000": "60", ...} | null
     var transferDraft = null;   // {tBank, tPetty} | null
-    // R6/(f): counting the physical cash is optional and never blocks a close,
-    // so it is collapsed by default and out of the main flow. Kept in local
-    // state (not the DOM) so a render() mid-session does not slam it shut.
-    var countOpen = false;
     var busy = false;
 
-    // Cash and Petty take a C-prefixed voucher, Bank a B-prefixed one — the
-    // pairing nf_save_line enforces as NF:VOUCHER_VIA_MISMATCH. The panel
-    // shows that prefix as a fixed affix next to the field and the person
-    // types only the number, so the shape is right by construction. The RULE
-    // is untouched; this only stops people tripping over it.
-    function voucherAffix(side, via) {
-      return (via === 'Bank' ? 'B' : 'C') + (side === 'IN' ? 'RV-' : 'PV-');
+    function blankDraft() { return { tmpId: uid(), v: '', d: '', h: '', f: '', m: '', a: '', p: '', saving: false, error: null }; }
+    function ensureTrailingBlank(side) {
+      var arr = drafts[side];
+      var last = arr[arr.length - 1];
+      if (!last || last.v || last.d || last.h || last.f || last.m || last.a) arr.push(blankDraft());
     }
-    function blankLinePanel(side) {
-      return { mode: 'line', side: side, error: null, saving: false,
-        v: { amt: '', via: '', head: '', floor: '', party: '', vno: '', desc: '' } };
-    }
-    function openPanel(p) { panel = p; render(); focusPanel(); }
-    function closePanel() { panel = null; render(); }
-    function focusPanel() {
-      var first = sheetEl.querySelector('#nf-p-amt') || sheetEl.querySelector('#nf-p-cheque') || sheetEl.querySelector('#nf-tBank');
-      if (first) { try { first.focus(); first.select && first.select(); } catch (e) {} }
-    }
+    ensureTrailingBlank('IN'); ensureTrailingBlank('OUT');
 
     root.innerHTML =
       '<main class="sheet" id="nf-sheet"></main>' +
@@ -100,9 +68,10 @@
       '<div id="nf-toast-host"></div>';
     var sheetEl = root.querySelector('#nf-sheet');
     var noteEl = root.querySelector('#nf-note');
-    noteEl.textContent = 'Record a receipt or a payment from the button in each section. A refused entry keeps everything you typed ' +
-      'and shows the reason on the field that caused it. Saved lines can still be corrected in place. Counting the physical cash is ' +
-      'optional and sits at the bottom. "Start new day" carries today’s closing forward as tomorrow’s opening.';
+    noteEl.textContent = 'Click any cell to edit. Choose a head under each description, then the floor and whether the money went ' +
+      'through Cash, Petty or Bank. A line is saved automatically once its voucher, head, floor, via and amount are all filled in; ' +
+      'a refused line stays on the sheet with the reason shown underneath it. "Start new day" carries today’s closing forward as ' +
+      'tomorrow’s opening.';
 
     // AUDIT_REPORT.md R-4. #nf-toast-host lives in the shell this module
     // renders, and the shell is replaced wholesale when the person opens the
@@ -144,6 +113,8 @@
         // position comes back nested under day payload for nf_day_json; nf_get_day
         // for an existing day returns the same shape as nf_day_json directly.
         if (res.position) S.position = res.position;
+        drafts.IN = []; drafts.OUT = [];
+        ensureTrailingBlank('IN'); ensureTrailingBlank('OUT');
         return res;
       });
     }
@@ -190,51 +161,12 @@
         '      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7"/></svg>Print</button>' +
         '  </div>' +
         '</header>' +
-        // The screen's day bar. It carries the SAME .status element the print
-        // strip below does and sits BEFORE it in the DOM on purpose, so
-        // querySelector('.status span') always resolves to the one a person
-        // can actually see. The .docmeta strip underneath is the printed
-        // document's own header and is hidden on screen (docs/PLAN.md §42, R4).
-        (d ? '<div class="nf-daybar nf-screen-only">' +
-        '  <div class="nf-daybar-id">' +
-        '    <span class="nf-date">' + F.longDate(dateVal) + '</span>' +
-        '    <span class="nf-dot">·</span><span class="nf-cno">' + esc(closingNo) + '</span>' +
-        '  </div>' +
-        '  <div class="nf-daybar-state">' +
-        '    <span class="status ' + (statusOk ? 'ok' : 'bad') + '"><i></i><span>' + esc(statusText) + '</span></span>' +
-        statePill +
-        '  </div>' +
-        '</div>' + openingKpisHTML() : '') +
-        '<div class="docmeta nf-print-only">' +
+        '<div class="docmeta">' +
         '  <div><label>Closing date</label><span class="v">' + (d ? F.longDate(dateVal) : '–') + '</span></div>' +
         '  <div><label>Day</label><span class="v">' + (d ? F.weekday(dateVal) : '–') + '</span></div>' +
         '  <div><label>Closing no.</label><span class="v">' + esc(closingNo) + '</span></div>' +
         '  <div><label>Prepared by</label><span class="v">' + esc((d && d.prepared_by_name) || ctx.displayName || '') + '</span></div>' +
         '  <div>' + (d ? '<span class="status ' + (statusOk ? 'ok' : 'bad') + '"><i></i><span>' + esc(statusText) + '</span></span>' + statePill : '') + '</div>' +
-        '</div>';
-    }
-
-    // ── KPI figures ────────────────────────────────────────────────────────
-    // One renderer for both KPI rows. `F.fmt` is untouched: it already groups
-    // thousands, shows paisa only when they exist, renders zero as – and
-    // negatives in parentheses. What changes is only that the figure is now
-    // set at 32px in tabular numerals with room around it.
-    function kpiTile(label, value, tone) {
-      var cls = 'nf-kpi' + (tone ? ' ' + tone : '');
-      return '<div class="' + cls + '"><span class="nf-kpi-l">' + esc(label) + '</span>' +
-        '<span class="nf-kpi-v t">' + F.fmt(value) + '</span></div>';
-    }
-    function byVia(which) {
-      var rows = (S.position && S.position.rows) || [];
-      var r = rows.filter(function (x) { return x.via === which; })[0];
-      return r || {};
-    }
-    function openingKpisHTML() {
-      if (!S.position) return '';
-      return '<div class="nf-kpirow nf-screen-only">' +
-        kpiTile('Opening cash', byVia('Cash').opening) +
-        kpiTile('Opening petty cash', byVia('Petty').opening) +
-        kpiTile('Opening bank', byVia('Bank').opening) +
         '</div>';
     }
 
@@ -259,42 +191,15 @@
 
       var net = F.n(S.position.net);
       var receipts = S.position.receipts || 0, payments = S.position.payments || 0;
-      // The screen's anchor: the day's headline, set large, above the
-      // per-account detail. It reuses the .kpis/.kpi/b classes deliberately —
-      // it is the same fact the printed summary box states, and it sits
-      // EARLIER in the DOM so querySelector('.kpis b') resolves to the figure
-      // a person can actually see rather than the print-only one below.
-      var anchor = '<div class="nf-anchor nf-screen-only">' +
-        '  <div class="sh"><h2>Closing</h2><span>Amounts in PKR</span></div>' +
-        '  <div class="nf-kpirow nf-kpirow-4">' +
-        kpiTile('Cash in hand', byVia('Cash').closing) +
-        kpiTile('Petty cash', byVia('Petty').closing) +
-        kpiTile('Bank', byVia('Bank').closing) +
-        '    <div class="nf-kpi nf-kpi-total kpis"><div class="kpi"><span class="nf-kpi-l">Total closing</span>' +
-        '      <b class="nf-kpi-v t">Rs ' + F.fmt(t.closing) + '</b></div></div>' +
-        '  </div>' +
-        '  <div class="nf-flow">' +
-        '    <span class="nf-flow-i">Received <b class="t">' + F.fmt(t.received) + '</b></span>' +
-        '    <span class="nf-flow-o">Paid <b class="t">' + F.fmt(t.paid) + '</b></span>' +
-        '    <span class="nf-flow-n">Net <b class="t" style="color:' + (net < 0 ? 'var(--neg)' : 'var(--pos)') + '">' +
-        (net < 0 ? '−' : '+') + ' ' + F.fmt(Math.abs(net)) + '</b></span>' +
-        '    <span class="nf-flow-c">' + receipts + ' receipt' + (receipts === 1 ? '' : 's') + ' · ' +
-        payments + ' payment' + (payments === 1 ? '' : 's') + '</span>' +
-        '  </div>' +
-        '</div>';
-
       return '' +
-        '<section class="sec sec-pos">' + anchor +
-        '<div class="sh nf-print-only"><h2>Cash and bank position</h2><span>Amounts in PKR</span></div>' +
+        '<section class="sec"><div class="sh"><h2>Cash and bank position</h2><span>Amounts in PKR</span></div>' +
         '<div class="pos-grid">' +
         '  <div class="box"><table class="pos"><thead><tr><th>Account</th><th class="r">Opening</th><th class="r">Received</th><th class="r">Paid</th><th class="r">Transfers</th><th class="r">Closing</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
         '  <div class="kpis">' +
         '    <div class="kpi"><small>Total closing, cash and bank</small><b>Rs ' + F.fmt(t.closing) + '</b></div>' +
         '    <div class="kpi"><small>Net movement today</small><span class="sub t" style="color:' + (net < 0 ? 'var(--neg)' : 'var(--pos)') + '">' + (net < 0 ? '−' : '+') + ' Rs ' + F.fmt(Math.abs(net)) + '</span> <span class="muted">received less paid</span></div>' +
         '    <div class="kpi"><small>Entries</small><span class="sub">' + receipts + ' receipt' + (receipts === 1 ? '' : 's') + ', ' + payments + ' payment' + (payments === 1 ? '' : 's') + '</span></div>' +
-        // R3 (owner-approved): amount-in-words is a paper convention; on
-        // screen it restates a figure already set at 32px. Kept for print.
-        '    <div class="words nf-print-only">Rupees ' + F.words(t.closing) + ' only' + (totClose < 0 ? ' (negative)' : '') + '</div>' +
+        '    <div class="words">Rupees ' + F.words(t.closing) + ' only' + (totClose < 0 ? ' (negative)' : '') + '</div>' +
         '  </div>' +
         '</div></section>';
     }
@@ -338,7 +243,7 @@
     function partyFieldHTML(value, missing) {
       return global.NfPick.html({
         key: 'party', value: value || '', label: value || '',
-        placeholder: '', ariaLabel: 'Party', missing: missing,
+        placeholder: 'Party', ariaLabel: 'Party', missing: missing,
       });
     }
     function savedRowHTML(side, l) {
@@ -353,14 +258,27 @@
         (canWrite ? '<button class="del" type="button" data-del-saved="' + l.id + '" data-version="' + l.version + '" aria-label="Delete line">×</button>' : '<span></span>') +
         '</div>';
     }
+    function draftRowHTML(side, r) {
+      var errField = r.error && r.error.field;
+      return '<div class="grid row draft' + (r.error ? ' err' : '') + '" data-draft="' + r.tmpId + '" data-side="' + side + '">' +
+        '<input class="vno" data-k="v" value="' + esc(r.v) + '" placeholder="' + (side === 'IN' ? 'CRV-' : 'CPV-') + '" aria-label="Voucher number">' +
+        '<div class="desc"><input data-k="d" value="' + esc(r.d) + '" placeholder="Description" aria-label="Description">' +
+        headPick(r.h, errField === 'head') + '</div>' +
+        partyFieldHTML(r.p, errField === 'party') +
+        '<select class="sel" data-k="f" aria-label="Floor">' + floorOpts(r.f) + '</select>' +
+        '<select class="sel" data-k="m" aria-label="Cash, petty or bank">' + viaOpts(r.m) + '</select>' +
+        '<input class="amt" data-k="a" inputmode="decimal" value="' + esc(r.a) + '" placeholder="0" aria-label="Amount">' +
+        '<button class="del" type="button" data-del-draft="' + r.tmpId + '" aria-label="Remove line">×</button>' +
+        (r.error ? '<div class="row-err">' + esc(r.error.message) + '</div>' : '') +
+        '</div>';
+    }
+
     function renderBooks() {
       if (!S.day) return '';
       var savedIn = S.lines.filter(function (l) { return l.side === 'IN'; });
       var savedOut = S.lines.filter(function (l) { return l.side === 'OUT'; });
-      var emptyIn = '<div class="nf-empty nf-screen-only">No receipts yet today.</div>';
-      var emptyOut = '<div class="nf-empty nf-screen-only">No payments yet today.</div>';
-      var rowsIn = savedIn.length ? savedIn.map(function (l) { return savedRowHTML('IN', l); }).join('') : emptyIn;
-      var rowsOut = savedOut.length ? savedOut.map(function (l) { return savedRowHTML('OUT', l); }).join('') : emptyOut;
+      var rowsIn = savedIn.map(function (l) { return savedRowHTML('IN', l); }).join('') + drafts.IN.map(function (r) { return draftRowHTML('IN', r); }).join('');
+      var rowsOut = savedOut.map(function (l) { return savedRowHTML('OUT', l); }).join('') + drafts.OUT.map(function (r) { return draftRowHTML('OUT', r); }).join('');
 
       function footer(side, saved) {
         var byVia = { Cash: 0, Petty: 0, Bank: 0 };
@@ -371,29 +289,20 @@
           '<span class="grand">Total ' + (side === 'IN' ? 'received' : 'paid') + '</span><span class="r grand">' + F.fmt(all) + '</span>';
       }
 
-      function book(side, title, vouchers, saved, rows) {
-        var n = saved.length;
-        return '<div class="book ' + (side === 'IN' ? 'in' : 'out') + '">' +
-          '<div class="bh"><h3><i></i>' + title + ' <small>' + vouchers + '</small></h3>' +
-          '<span class="cnt">' + n + ' ' + (n === 1 ? 'entry' : 'entries') + '</span>' +
-          (canWrite ? '<button class="nf-record nf-screen-only" type="button" data-side="' + side + '">+ Record ' +
-            (side === 'IN' ? 'receipt' : 'payment') + '</button>' : '') + '</div>' +
-          '<div class="grid cols"><span>Voucher</span><span>Description and head</span><span>Party</span>' +
-          '<span class="c">Floor</span><span class="c">Via</span><span class="r">Amount</span><span></span></div>' +
-          '<div id="nf-rows' + (side === 'IN' ? 'In' : 'Out') + '">' + rows + '</div>' +
-          '<div class="bf">' + footer(side, saved) + '</div></div>';
-      }
-
       return '' +
-        '<section class="sec sec-books"><div class="books">' +
-        book('IN', 'Money In', 'CRV / BRV', savedIn, rowsIn) +
-        book('OUT', 'Money Out', 'CPV / BPV', savedOut, rowsOut) +
+        '<section class="sec"><div class="books">' +
+        '  <div class="book in"><div class="bh"><h3><i></i>Receipts <small>CRV / BRV</small></h3><span class="cnt">' + savedIn.length + ' ' + (savedIn.length === 1 ? 'entry' : 'entries') + '</span></div>' +
+        '    <div class="grid cols"><span>Voucher</span><span>Description and head</span><span>Party</span><span class="c">Floor</span><span class="c">Via</span><span class="r">Amount</span><span></span></div>' +
+        '    <div id="nf-rowsIn">' + rowsIn + '</div>' +
+        (canWrite ? '    <button class="add" type="button" data-side="IN">+ Add receipt</button>' : '') +
+        '    <div class="bf">' + footer('IN', savedIn) + '</div></div>' +
+        '  <div class="book out"><div class="bh"><h3><i></i>Payments <small>CPV / BPV</small></h3><span class="cnt">' + savedOut.length + ' ' + (savedOut.length === 1 ? 'entry' : 'entries') + '</span></div>' +
+        '    <div class="grid cols"><span>Voucher</span><span>Description and head</span><span>Party</span><span class="c">Floor</span><span class="c">Via</span><span class="r">Amount</span><span></span></div>' +
+        '    <div id="nf-rowsOut">' + rowsOut + '</div>' +
+        (canWrite ? '    <button class="add" type="button" data-side="OUT">+ Add payment</button>' : '') +
+        '    <div class="bf">' + footer('OUT', savedOut) + '</div></div>' +
         '</div></section>' +
-        // R2 (owner-approved): the payments-by-head breakdown is the Director
-        // Report's and the Floor Summary's job on screen — both one click away
-        // in the Reports menu. It stays in the DOM because the PRINTED closing
-        // still carries it, and print is deliberately unchanged.
-        '<section class="sec sec-heads nf-print-only"><div class="sh"><h2>Payments by head</h2></div><div class="box"><table class="heads"><colgroup><col><col style="width:96px"></colgroup><tbody>' +
+        '<section class="sec"><div class="sh"><h2>Payments by head</h2></div><div class="box"><table class="heads"><colgroup><col><col style="width:96px"></colgroup><tbody>' +
         headsTable(savedOut) + '</tbody><tfoot><tr><td>Total</td><td class="r t">' + F.fmt(savedOut.reduce(function (t, l) { return t + F.n(l.amount); }, 0)) + '</td></tr></tfoot></table></div></section>';
     }
     function headsTable(savedOut) {
@@ -439,41 +348,16 @@
 
       var tb = transferDraft ? transferDraft.tBank : F.grp(d.transfer_to_bank);
       var tp = transferDraft ? transferDraft.tPetty : F.grp(d.transfer_to_petty);
-      var countState = counted === null ? 'Not counted'
-        : diff === 0 ? 'Counted · matches the book'
-        : diff > 0 ? 'Counted · short ' + F.fmt(Math.abs(diff))
-        : 'Counted · over ' + F.fmt(Math.abs(diff));
 
       return '' +
-        // The screen's Transfers section. The editable fields themselves live
-        // in the entry panel; this shows the figures and opens it. The .rec
-        // table below keeps them as static text for the printed document.
-        '<section class="sec sec-xfer nf-screen-only"><div class="sh"><h2>Transfers</h2>' +
-        (canWrite ? '<button class="nf-record" type="button" data-xfer="1">+ Record transfer</button>' : '') +
-        '</div><div class="nf-kpirow nf-kpirow-2">' +
-        kpiTile('Cash → Bank', d.transfer_to_bank) +
-        kpiTile('Cash → Petty cash', d.transfer_to_petty) +
-        '</div></section>' +
-        '<section class="sec sec-tri"><div class="tri">' +
-        '  <div class="tri-count"><div class="sh"><h2>Cash count</h2><span>Cash in hand</span>' +
-        '    <button class="nf-drawer-toggle nf-screen-only" type="button" id="nf-count-toggle" aria-expanded="' + (countOpen ? 'true' : 'false') + '">' +
-        '      <span class="nf-drawer-state">' + esc(countState) + '</span><span class="nf-drawer-caret">' + (countOpen ? '▴' : '▾') + '</span></button>' +
-        '    </div>' +
-        '    <div class="nf-drawer-body' + (countOpen ? '' : ' is-collapsed') + '" id="nf-count-body">' +
+        '<section class="sec"><div class="tri">' +
+        '  <div><div class="sh"><h2>Cash count</h2><span>Cash in hand</span></div>' +
         '    <div class="box"><table class="den"><thead><tr><th>Note</th><th class="r">Pieces</th><th class="r">Amount</th><th class="sep">Note</th><th class="r">Pieces</th><th class="r">Amount</th></tr></thead>' +
-        // …</table> closes the table, </div> the .box, </div> the
-        // .nf-drawer-body, and the last </div> the .tri-count itself. Getting
-        // that last one wrong nests .tri-xfer INSIDE .tri-count, which stacks
-        // the two tables instead of setting them side by side and pushes the
-        // printed closing onto a second page (caught by UI-06, 2026-09-21).
-        '    <tbody>' + denBody + '</tbody><tfoot><tr><td colspan="5">Total cash counted</td><td class="r t">' + (counted === null ? '–' : F.fmt(counted)) + '</td></tr></tfoot></table></div></div></div>' +
-        '  <div class="tri-xfer"><div class="sh"><h2>Transfers and reconciliation</h2></div>' +
+        '    <tbody>' + denBody + '</tbody><tfoot><tr><td colspan="5">Total cash counted</td><td class="r t">' + (counted === null ? '–' : F.fmt(counted)) + '</td></tr></tfoot></table></div></div>' +
+        '  <div><div class="sh"><h2>Transfers and reconciliation</h2></div>' +
         '    <div class="box"><table class="rec">' +
-        // The two transfer figures are static here now: the editable fields
-        // moved into the entry panel. Print is unaffected — it stripped the
-        // input borders anyway and only ever showed the value.
-        '      <tr><td>Cash deposited in bank</td><td class="r t">' + F.fmt(d.transfer_to_bank) + '</td></tr>' +
-        '      <tr><td>Cash given to petty cash</td><td class="r t">' + F.fmt(d.transfer_to_petty) + '</td></tr>' +
+        '      <tr><td>Cash deposited in bank</td><td class="r"><input class="fld" id="nf-tBank" inputmode="decimal" value="' + esc(tb) + '" ' + (canWrite ? '' : 'disabled') + '></td></tr>' +
+        '      <tr><td>Cash given to petty cash</td><td class="r"><input class="fld" id="nf-tPetty" inputmode="decimal" value="' + esc(tp) + '" ' + (canWrite ? '' : 'disabled') + '></td></tr>' +
         '      <tr><td>Cash in hand as per book</td><td class="r t">' + F.fmt(book) + '</td></tr>' +
         '      <tr><td>Cash in hand as counted</td><td class="r t">' + (counted === null ? 'Not counted' : F.fmt(counted)) + '</td></tr>' +
         '      <tr class="hl"><td>' + (diff === null ? 'Difference' : diff === 0 ? 'Difference, cash matches' : diff > 0 ? 'Cash short' : 'Cash over') + '</td>' +
@@ -501,21 +385,38 @@
           '<thead><tr><th>Cheque no.</th><th>Party</th><th>Bank</th><th>Due date</th><th class="r">Amount</th><th></th></tr></thead>' +
           '<tbody>' + rows.map(pdcRow).join('') + '</tbody>' +
           '<tfoot><tr><td colspan="4">Total</td><td class="r t">' + F.fmt(totalAmt) + '</td><td></td></tr></tfoot></table>' +
-          (canWrite ? '<div class="nf-pdc-add"><button class="add" type="button" data-pdc-add="' + (id === 'nf-pdcIn' ? 'RECEIVED' : 'ISSUED') + '">+ Add cheque</button></div>' : '') +
+          (canWrite ? '<div style="padding:8px 12px"><button class="add" type="button" data-pdc-add="' + (id === 'nf-pdcIn' ? 'RECEIVED' : 'ISSUED') + '">+ Add cheque</button></div>' : '') +
           '</div></div>';
       }
-      return '<section class="sec sec-pdcs"><div class="pdcs">' + table('nf-pdcIn', 'Post-dated cheques received', inn) + table('nf-pdcOut', 'Post-dated cheques issued', out) + '</div></section>';
+      return '<section class="sec"><div class="pdcs">' + table('nf-pdcIn', 'Post-dated cheques received', inn) + table('nf-pdcOut', 'Post-dated cheques issued', out) + '</div></section>';
     }
 
     // ── checks / sign-off ───────────────────────────────────────────────────
+    function draftIssues() {
+      var issues = [];
+      function scan(side, list) {
+        list.forEach(function (r) {
+          var any = r.d || r.a;
+          if (!any) return;
+          if (!r.h) issues.push('has no head selected');
+          if (r.h && headRequiresParty(r.h) && !(r.p || '').trim()) issues.push('needs a party — this account always tracks who it is with');
+          if (!r.m) issues.push('is not marked Cash, Petty or Bank, so it is left out of the balances');
+          if (!r.v) issues.push('has no voucher number');
+          if (!r.f) issues.push('has no floor');
+        });
+      }
+      scan('IN', drafts.IN); scan('OUT', drafts.OUT);
+      // group identical messages the way the reference counts them
+      var counts = {};
+      issues.forEach(function (m) { counts[m] = (counts[m] || 0) + 1; });
+      return Object.keys(counts).map(function (m) {
+        var n = counts[m];
+        return (n > 1 ? n + ' lines ' : '1 line ') + m.replace(/^is /, n > 1 ? 'are ' : 'is ') + '.';
+      });
+    }
     function renderChecks() {
       if (!S.day) return '';
-      // The client-side "this draft row is incomplete" warnings are gone with
-      // the draft rows themselves: the entry panel will not save until the
-      // same fields are filled, so an incomplete line can no longer reach the
-      // sheet to be warned about. Every SERVER check is untouched and still
-      // the only thing that gates Submit/Close.
-      var extra = [];
+      var extra = draftIssues();
       var serverTexts = (S.checks || []).map(function (c) { return c.text; });
       var all = serverTexts.concat(extra);
       var ok = all.length === 0;
@@ -526,16 +427,13 @@
       var mismatchOnly = (S.checks || []).length && (S.checks || []).every(function (c) { return c.key === 'count_mismatch'; }) && !extra.length;
 
       return '' +
-        '<section class="sec sec-checks"><div class="sh"><h2>Checks</h2></div>' +
+        '<section class="sec"><div class="sh"><h2>Checks</h2></div>' +
         '<ul class="checks ' + (ok ? 'ok' : 'bad') + '">' + listHtml + '</ul>' +
         (mismatchOnly && role === 'director' ? varianceBoxHTML() : '') +
         '<textarea class="remarks" id="nf-remarks" placeholder="Remarks" ' + (canWrite ? '' : 'disabled') + '>' + esc(S.day.remarks || '') + '</textarea>' +
         '<div class="nf-day-actions">' + actionButtons(ok, mismatchOnly) + '</div>' +
         '</section>' +
-        // R1 (owner-approved): the three signature blocks are a paper
-        // convention and dead pixels on screen. Kept in the DOM because the
-        // PRINTED closing is a signed document.
-        '<div class="signs nf-print-only">' +
+        '<div class="signs">' +
         '  <div><span>Prepared by (Accountant)</span><span>Date</span></div>' +
         '  <div><span>Checked by</span><span>Date</span></div>' +
         '  <div><span>Approved by (Director)</span><span>Date</span></div>' +
@@ -563,89 +461,6 @@
         btns.push('<button class="btn" id="nf-reopen" type="button">Reopen day</button>');
       }
       return btns.join('');
-    }
-
-    // ── the entry panel ────────────────────────────────────────────────────
-    // One focused form for everything that used to be typed into a cramped
-    // row or, worse, a chain of browser prompt() boxes (PDCs). It is the only
-    // place a NEW record is created; saved rows stay inline-editable.
-    //
-    // Error behaviour is deliberately unchanged in substance: the same NF:*
-    // code comes back from the same RPC and is rendered by the same
-    // Msg.forLine/Msg.forDay. What changed is only WHERE it appears — on the
-    // field that caused it, in a panel that stays open with every value the
-    // person typed still in it.
-    function fieldErr(p, field) {
-      return (p.error && p.error.field === field) ? '<div class="nf-fe">' + esc(p.error.message) + '</div>' : '';
-    }
-    function panelHTML() {
-      if (!panel) return '';
-      var p = panel, body = '', title = '', save = 'Save';
-      if (p.mode === 'line') {
-        var needParty = p.v.head && headRequiresParty(p.v.head);
-        title = p.side === 'IN' ? 'Record receipt' : 'Record payment';
-        body =
-          '<label class="nf-f nf-f-amt"><span>Amount</span>' +
-          '  <input id="nf-p-amt" class="nf-in nf-in-amt t" inputmode="decimal" value="' + esc(p.v.amt) + '" placeholder="0" aria-label="Amount">' +
-          fieldErr(p, 'amount') + '</label>' +
-          '<div class="nf-f"><span>Through</span><div class="nf-seg" role="group" aria-label="Cash, petty or bank">' +
-          S.vias.map(function (x) {
-            return '<button type="button" class="nf-seg-b' + (p.v.via === x.via ? ' on' : '') + '" data-p-via="' + esc(x.via) + '">' + esc(x.via) + '</button>';
-          }).join('') + '</div>' + fieldErr(p, 'via') + '</div>' +
-          '<div class="nf-f"><span>Head</span>' + global.NfPick.html({
-            key: 'pane-head', value: p.v.head || '', label: global.NfPick.accountLabel(S.heads, p.v.head),
-            placeholder: 'Search by code or name', ariaLabel: 'Account head', missing: p.error && p.error.field === 'head',
-          }) + fieldErr(p, 'head') + '</div>' +
-          '<div class="nf-f nf-f-half"><span>Floor</span>' +
-          '  <select id="nf-p-floor" class="nf-in" aria-label="Floor">' + floorOpts(p.v.floor) + '</select>' +
-          fieldErr(p, 'floor') + '</div>' +
-          (needParty ? '<div class="nf-f"><span>Party</span>' + global.NfPick.html({
-            key: 'pane-party', value: p.v.party || '', label: p.v.party || '',
-            placeholder: 'Search, or add a new one', ariaLabel: 'Party', missing: p.error && p.error.field === 'party',
-          }) + fieldErr(p, 'party') + '</div>' : '') +
-          '<div class="nf-f nf-f-half"><span>Voucher no.</span>' +
-          '  <div class="nf-affixed"><span class="nf-affix t">' + esc(voucherAffix(p.side, p.v.via)) + '</span>' +
-          '  <input id="nf-p-vno" class="nf-in t" value="' + esc(p.v.vno) + '" placeholder="001" aria-label="Voucher number"></div>' +
-          fieldErr(p, 'voucher') + '</div>' +
-          '<label class="nf-f"><span>Narration</span>' +
-          '  <input id="nf-p-desc" class="nf-in" value="' + esc(p.v.desc) + '" placeholder="What this was for" aria-label="Description"></label>';
-      } else if (p.mode === 'transfer') {
-        title = 'Record transfer';
-        // These two inputs keep their ids, their overlay and their debounced
-        // save path exactly as before — only their location changed. The
-        // serialDebounce that owns them is untouched.
-        body =
-          '<label class="nf-f nf-f-amt"><span>Cash → Bank</span>' +
-          '  <input id="nf-tBank" class="nf-in nf-in-amt t" inputmode="decimal" value="' + esc(p.v.tBank) + '" aria-label="Cash deposited in bank"></label>' +
-          '<label class="nf-f nf-f-amt"><span>Cash → Petty cash</span>' +
-          '  <input id="nf-tPetty" class="nf-in nf-in-amt t" inputmode="decimal" value="' + esc(p.v.tPetty) + '" aria-label="Cash given to petty cash"></label>' +
-          '<p class="nf-hint">Saved as you type. Close when you are done.</p>';
-        save = 'Done';
-      } else {
-        title = p.dir === 'RECEIVED' ? 'Add cheque received' : 'Add cheque issued';
-        body =
-          '<label class="nf-f nf-f-amt"><span>Amount</span>' +
-          '  <input id="nf-p-amt" class="nf-in nf-in-amt t" inputmode="decimal" value="' + esc(p.v.amt) + '" placeholder="0" aria-label="Amount"></label>' +
-          '<label class="nf-f nf-f-half"><span>Cheque no.</span>' +
-          '  <input id="nf-p-cheque" class="nf-in t" value="' + esc(p.v.cheque) + '" aria-label="Cheque number"></label>' +
-          '<label class="nf-f nf-f-half"><span>Due date</span>' +
-          '  <input id="nf-p-due" class="nf-in" type="date" value="' + esc(p.v.due) + '" aria-label="Due date"></label>' +
-          '<label class="nf-f"><span>Party</span>' +
-          '  <input id="nf-p-party" class="nf-in" value="' + esc(p.v.party) + '" aria-label="Party"></label>' +
-          '<label class="nf-f"><span>Bank</span>' +
-          '  <input id="nf-p-bank" class="nf-in" value="' + esc(p.v.bank) + '" aria-label="Bank"></label>';
-      }
-      return '<div class="nf-panel-wrap nf-screen-only" id="nf-panel">' +
-        '<div class="nf-panel-scrim" data-p-close="1"></div>' +
-        '<form class="nf-panel" role="dialog" aria-label="' + esc(title) + '">' +
-        '  <div class="nf-panel-h"><h3>' + esc(title) + '</h3>' +
-        '    <button type="button" class="nf-panel-x" data-p-close="1" aria-label="Close">✕</button></div>' +
-        '  <div class="nf-panel-b">' + body +
-        (p.error && !p.error.field ? '<div class="nf-fe nf-fe-top" id="nf-p-err">' + esc(p.error.message) + '</div>' : '') +
-        '  </div>' +
-        '  <div class="nf-panel-f"><button type="button" class="btn" data-p-close="1">Cancel</button>' +
-        '    <button type="button" class="btn primary" id="nf-p-save"' + (p.saving ? ' disabled' : '') + '>' + esc(save) + '</button></div>' +
-        '</form></div>';
     }
 
     // ── no-day states ─────────────────────────────────────────────────────
@@ -695,7 +510,9 @@
       if (den) return '[data-den="' + den + '"]';
       var k = el.getAttribute('data-k');
       if (k) {
-        var row = el.closest('[data-saved]');
+        var row = el.closest('[data-draft]');
+        if (row) return '[data-draft="' + row.getAttribute('data-draft') + '"] [data-k="' + k + '"]';
+        row = el.closest('[data-saved]');
         if (row) return '[data-id="' + row.getAttribute('data-id') + '"] [data-k="' + k + '"]';
       }
       return null;
@@ -713,7 +530,6 @@
       } else {
         html += renderNoDay();
       }
-      html += panelHTML();
       sheetEl.innerHTML = html;
       wire();
       if (sel) {
@@ -746,68 +562,31 @@
       S.pdcs = res.pdcs || [];
       S.checks = res.checks || [];
       S.balanced = !!res.balanced;
+      drafts.IN = drafts.IN.filter(function (r) { return r.v || r.d || r.h || r.f || r.m || r.a; });
+      drafts.OUT = drafts.OUT.filter(function (r) { return r.v || r.d || r.h || r.f || r.m || r.a; });
+      ensureTrailingBlank('IN'); ensureTrailingBlank('OUT');
       render();
     }
 
-    // Which field a refusal belongs to. The message itself is still whatever
-    // js/nf/nf-messages.js says for that NF:* code — this only decides where
-    // to hang it, and falls back to the top of the panel when a code does not
-    // name one field.
-    var ERR_FIELD = {
-      'NF:PARTY_REQUIRED': 'party',
-      'NF:HEAD_REQUIRED': 'head', 'NF:HEAD_NOT_POSTABLE': 'head',
-      'NF:FLOOR_REQUIRED': 'floor',
-      'NF:VIA_REQUIRED': 'via', 'NF:VIA_UNKNOWN': 'via', 'NF:VIA_NOT_CONFIGURED': 'via',
-      'NF:VOUCHER_REQUIRED': 'voucher', 'NF:VOUCHER_PREFIX': 'voucher',
-      'NF:VOUCHER_VIA_MISMATCH': 'voucher', 'NF:DUPLICATE_VOUCHER': 'voucher',
-      'NF:AMOUNT_NOT_POSITIVE': 'amount', 'NF:AMOUNT_SCALE': 'amount',
-      'NF:AMOUNT_TOO_LARGE': 'amount', 'NF:NEGATIVE_POSITION': 'amount',
-    };
-    function panelComplete() {
-      if (!panel || panel.mode !== 'line') return false;
-      var v = panel.v;
-      var partyOk = !headRequiresParty(v.head) || (v.party || '').trim();
-      return !!((v.vno || '').trim() && v.head && v.floor && v.via && F.n(v.amt) > 0 && partyOk);
-    }
-    function savePanelLine() {
-      if (!panel || panel.mode !== 'line' || panel.saving) return;
-      var p = panel, v = p.v;
-      // Exactly the completeness rule the draft row used, now visible as a
-      // disabled Save rather than a row that quietly never sent.
-      if (!panelComplete()) {
-        p.error = { field: null, message: 'Fill in the amount, how it moved, the head, the floor'
-          + (headRequiresParty(v.head) ? ', the party' : '') + ' and the voucher number.' };
-        render(); return;
-      }
-      var voucher = voucherAffix(p.side, v.via) + v.vno.trim();
-      p.saving = true; p.error = null; render();
-      api.saveLine(S.day.id, null, p.side, voucher, v.desc, v.head, v.floor, v.via, F.n(v.amt), null, v.party)
+    function trySaveDraft(side, tmpId) {
+      var arr = drafts[side];
+      var r = arr.filter(function (x) { return x.tmpId === tmpId; })[0];
+      if (!r || r.saving) return;
+      var partyOk = !headRequiresParty(r.h) || (r.p || '').trim();
+      var complete = r.v.trim() && r.h && r.f && r.m && F.n(r.a) > 0 && partyOk;
+      if (!complete) return;
+      r.saving = true;
+      api.saveLine(S.day.id, null, side, r.v.trim(), r.d, r.h, r.f, r.m, F.n(r.a), null, r.p)
         .then(function (res) {
-          panel = null;
+          // remove THIS draft explicitly — applyDay only clears fully-blank
+          // ones, and this one still has everything typed into it
+          drafts[side] = drafts[side].filter(function (x) { return x.tmpId !== tmpId; });
           applyDay(res);
-          toast((p.side === 'IN' ? 'Receipt' : 'Payment') + ' ' + voucher + ' saved.');
+          toast((side === 'IN' ? 'Receipt' : 'Payment') + ' ' + r.v.trim() + ' saved.');
         })
         .catch(function (err) {
-          // The panel stays open with every value still in it — that is the
-          // whole point of moving entry here.
-          p.saving = false;
-          p.error = { field: ERR_FIELD[Msg.code(err)] || null, message: Msg.forLine(err) };
-          render();
-        });
-    }
-    function savePanelPdc() {
-      if (!panel || panel.mode !== 'pdc' || panel.saving) return;
-      var p = panel, v = p.v;
-      if (!(v.cheque || '').trim() || !v.due || F.n(v.amt) <= 0) {
-        p.error = { field: null, message: 'A cheque needs a number, a due date and an amount.' };
-        render(); return;
-      }
-      p.saving = true; p.error = null; render();
-      api.savePdc(S.day.id, null, p.dir, v.cheque.trim(), v.party, v.bank, v.due, F.n(v.amt), null)
-        .then(function (res) { panel = null; applyDay(res); toast('Cheque ' + v.cheque.trim() + ' added.'); })
-        .catch(function (err) {
-          p.saving = false;
-          p.error = { field: null, message: Msg.forLine(err) };
+          r.saving = false;
+          r.error = { field: Msg.code(err), message: Msg.forLine(err) };
           render();
         });
     }
@@ -950,93 +729,44 @@
 
       if (!S.day) return;
 
-      // ── the entry panel ──────────────────────────────────────────────────
-      // Text fields write to the panel's own values on 'input' and do NOT
-      // re-render — rebuilding mid-keystroke would drop focus and the caret,
-      // exactly as it would have on the old draft row. A redraw happens only
-      // where the FORM changes shape: picking a via (the voucher affix) or a
-      // head (whether a party is required).
-      root.querySelectorAll('.nf-record[data-side]').forEach(function (btn) {
-        btn.addEventListener('click', function () { openPanel(blankLinePanel(btn.getAttribute('data-side'))); });
-      });
-      var xferBtn = root.querySelector('[data-xfer]');
-      if (xferBtn) xferBtn.addEventListener('click', function () {
-        openPanel({ mode: 'transfer', error: null, saving: false,
-          v: { tBank: F.grp(S.day.transfer_to_bank), tPetty: F.grp(S.day.transfer_to_petty) } });
-      });
-      root.querySelectorAll('[data-pdc-add]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          openPanel({ mode: 'pdc', dir: btn.getAttribute('data-pdc-add'), error: null, saving: false,
-            v: { cheque: '', party: '', bank: '', due: '', amt: '' } });
-        });
-      });
-
-      if (panel) {
-        var panelEl = root.querySelector('#nf-panel');
-        root.querySelectorAll('[data-p-close]').forEach(function (b) {
-          b.addEventListener('click', function () { closePanel(); });
-        });
-        // No field re-renders the panel on its own input: rebuilding the DOM
-        // from inside an event still being dispatched on it is the hazard this
-        // file already documents twice (the journal-voucher blur crash, the
-        // head picker's deferred redraw). A <select> needs `change` as well as
-        // `input` because a keyboard-driven selection only fires `change`.
-        var bind = function (id, key) {
-          var el = root.querySelector(id);
-          if (!el) return;
-          var take = function () { panel.v[key] = el.value; panel.error = null; };
-          el.addEventListener('input', take);
-          if (el.tagName === 'SELECT') el.addEventListener('change', take);
-        };
-        bind('#nf-p-amt', 'amt'); bind('#nf-p-desc', 'desc'); bind('#nf-p-vno', 'vno');
-        bind('#nf-p-floor', 'floor');
-        bind('#nf-p-cheque', 'cheque'); bind('#nf-p-party', 'party'); bind('#nf-p-bank', 'bank');
-        bind('#nf-p-due', 'due');
-        // Via changes exactly two visible things — which segment is lit and
-        // the voucher affix — so it patches them IN PLACE instead of
-        // redrawing. A full render here would throw away whatever the person
-        // was in the middle of doing (and, during the redesign, raced a test
-        // that had already started typing into the head picker). Only the
-        // HEAD redraws, because whether a party is required really does
-        // change the shape of the form.
-        root.querySelectorAll('[data-p-via]').forEach(function (b) {
-          b.addEventListener('click', function () {
-            panel.v.via = b.getAttribute('data-p-via'); panel.error = null;
-            root.querySelectorAll('[data-p-via]').forEach(function (o) {
-              o.classList.toggle('on', o === b);
-            });
-            var af = root.querySelector('#nf-panel .nf-affix');
-            if (af) af.textContent = voucherAffix(panel.side, panel.v.via);
+      // draft rows
+      root.querySelectorAll('.row.draft').forEach(function (rowEl) {
+        var side = rowEl.getAttribute('data-side'), tmpId = rowEl.getAttribute('data-draft');
+        var r = drafts[side].filter(function (x) { return x.tmpId === tmpId; })[0];
+        if (!r) return;
+        rowEl.querySelectorAll('[data-k]').forEach(function (inp) {
+          // Text fields only update the in-memory draft on 'input' — NOT a
+          // re-render. Rebuilding the row's DOM mid-keystroke would drop
+          // focus and the caret position on every character typed; a select
+          // change or leaving the field is the point where the sheet redraws.
+          inp.addEventListener('input', function () {
+            r[inp.getAttribute('data-k')] = inp.value;
+            r.error = null;
           });
-        });
-        var saveBtn = root.querySelector('#nf-p-save');
-        if (saveBtn) saveBtn.addEventListener('click', function () {
-          if (panel.mode === 'line') savePanelLine();
-          else if (panel.mode === 'pdc') savePanelPdc();
-          else closePanel();
-        });
-        if (panelEl) {
-          panelEl.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') { e.preventDefault(); closePanel(); return; }
-            // Enter saves from anywhere except the picker inputs, which use it
-            // to choose the highlighted option.
-            if (e.key === 'Enter' && !e.target.classList.contains('nfpick-in')) {
-              e.preventDefault();
-              if (panel.mode === 'line') savePanelLine();
-              else if (panel.mode === 'pdc') savePanelPdc();
-              else closePanel();
+          inp.addEventListener('change', function () {
+            if (inp.tagName === 'SELECT') {
+              ensureTrailingBlank(side);
+              render();
+              trySaveDraft(side, tmpId);
             }
           });
-        }
-        // Transfers keep their original overlay + debounced save path,
-        // untouched: the inputs simply live in the panel now.
-        var tB = root.querySelector('#nf-tBank'), tP = root.querySelector('#nf-tPetty');
-        if (tB) tB.addEventListener('input', function () { touchTransferDraft(); transferDraft.tBank = tB.value; saveTransfers(); });
-        if (tP) tP.addEventListener('input', function () { touchTransferDraft(); transferDraft.tPetty = tP.value; saveTransfers(); });
-      }
-
-      var countToggle = root.querySelector('#nf-count-toggle');
-      if (countToggle) countToggle.addEventListener('click', function () { countOpen = !countOpen; render(); });
+          inp.addEventListener('blur', function () {
+            ensureTrailingBlank(side);
+            trySaveDraft(side, tmpId);
+          });
+          inp.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); ensureTrailingBlank(side); trySaveDraft(side, tmpId); }
+          });
+        });
+      });
+      root.querySelectorAll('[data-del-draft]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var id = btn.getAttribute('data-del-draft'), side = btn.closest('.row').getAttribute('data-side');
+          drafts[side] = drafts[side].filter(function (x) { return x.tmpId !== id; });
+          ensureTrailingBlank(side);
+          render();
+        });
+      });
 
       // saved rows
       root.querySelectorAll('.row[data-saved]').forEach(function (rowEl) {
@@ -1068,6 +798,8 @@
       // straight through saveSavedLine. The head redraws afterwards because
       // whether the party is REQUIRED depends on which head was picked.
       function rowOf(wrap) {
+        var d = wrap.closest('.row.draft');
+        if (d) return { draft: true, side: d.getAttribute('data-side'), tmpId: d.getAttribute('data-draft') };
         var sv = wrap.closest('.row[data-saved]');
         if (sv && canWrite) {
           return { draft: false, side: sv.getAttribute('data-side'), id: sv.getAttribute('data-id'),
@@ -1082,32 +814,24 @@
         onPick: function (wrap, code) {
           var at = rowOf(wrap);
           if (!at) return;
-          saveSavedLine(at.side, at.id, at.version, { head_code: code });
-        },
-      });
-      // The panel's own head picker. Deferred redraw: onPick runs inside the
-      // picker's own mousedown, and rebuilding the DOM from inside the event
-      // still being dispatched on it is the hazard the journal-voucher screen
-      // hit on blur. A redraw IS needed — whether a party is required depends
-      // on the head just chosen — so it happens on the next tick instead.
-      global.NfPick.wire(root, {
-        key: 'pane-head',
-        items: function () { return global.NfPick.accountItems(S.heads); },
-        emptyText: 'No head matches that. Heads are never created here.',
-        onPick: function (wrap, code) {
-          if (!panel || panel.mode !== 'line') return;
-          panel.v.head = code; panel.error = null;
-          setTimeout(render, 0);
-        },
-      });
-      global.NfPick.wire(root, {
-        key: 'pane-party',
-        items: function () { return global.NfPick.partyItems(S.parties); },
-        allowCreate: true,
-        onPick: function (wrap, name) {
-          if (!panel || panel.mode !== 'line') return;
-          panel.v.party = name; panel.error = null;
-          setTimeout(render, 0);
+          if (at.draft) {
+            var r = drafts[at.side].filter(function (x) { return x.tmpId === at.tmpId; })[0];
+            if (!r) return;
+            r.h = code; r.error = null;
+            ensureTrailingBlank(at.side);
+            // Deferred: onPick runs inside the picker's own mousedown, and
+            // rebuilding the row's DOM from inside the event that is still
+            // being dispatched on it is the same hazard the journal-voucher
+            // screen hit on blur. A redraw IS needed here — whether the party
+            // is required depends on the head just chosen — so it happens on
+            // the next tick instead.
+            setTimeout(function () {
+              render();
+              trySaveDraft(at.side, at.tmpId);
+            }, 0);
+          } else {
+            saveSavedLine(at.side, at.id, at.version, { head_code: code });
+          }
         },
       });
       global.NfPick.wire(root, {
@@ -1117,8 +841,27 @@
         onPick: function (wrap, name) {
           var at = rowOf(wrap);
           if (!at) return;
-          saveSavedLine(at.side, at.id, at.version, { party_name: name });
+          if (at.draft) {
+            var r = drafts[at.side].filter(function (x) { return x.tmpId === at.tmpId; })[0];
+            if (!r) return;
+            r.p = name; r.error = null;
+            ensureTrailingBlank(at.side);
+            trySaveDraft(at.side, at.tmpId);
+          } else {
+            saveSavedLine(at.side, at.id, at.version, { party_name: name });
+          }
         },
+      });
+
+      // add-row buttons
+      root.querySelectorAll('.add[data-side]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var side = btn.getAttribute('data-side');
+          drafts[side].push(blankDraft());
+          render();
+          var last = root.querySelectorAll('.row.draft[data-side="' + side + '"] [data-k="d"]');
+          if (last.length) last[last.length - 1].focus();
+        });
       });
 
       // cash count / transfers — every keystroke updates the overlay first
@@ -1131,12 +874,27 @@
           saveCount();
         });
       });
+      var tBank = root.querySelector('#nf-tBank'), tPetty = root.querySelector('#nf-tPetty');
       function touchTransferDraft() {
         if (!transferDraft) transferDraft = { tBank: F.grp(S.day.transfer_to_bank), tPetty: F.grp(S.day.transfer_to_petty) };
       }
+      if (tBank) tBank.addEventListener('input', function () { touchTransferDraft(); transferDraft.tBank = tBank.value; saveTransfers(); });
+      if (tPetty) tPetty.addEventListener('input', function () { touchTransferDraft(); transferDraft.tPetty = tPetty.value; saveTransfers(); });
 
-      // PDCs — the three chained prompt() boxes are gone (owner, D4); adding a
-      // cheque uses the same entry panel as everything else, wired above.
+      // PDCs
+      root.querySelectorAll('[data-pdc-add]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var direction = btn.getAttribute('data-pdc-add');
+          var chequeNo = prompt('Cheque number:'); if (!chequeNo) return;
+          var party = prompt('Party:') || '';
+          var bank = prompt('Bank:') || '';
+          var due = prompt('Due date (YYYY-MM-DD):'); if (!due) return;
+          var amount = F.n(prompt('Amount:'));
+          api.savePdc(S.day.id, null, direction, chequeNo, party, bank, due, amount, null)
+            .then(applyDay)
+            .catch(function (err) { toast(Msg.forLine(err), true); });
+        });
+      });
       root.querySelectorAll('[data-resolve]').forEach(function (btn) {
         btn.addEventListener('click', function () {
           api.resolvePdc(S.day.id, btn.getAttribute('data-resolve'), 'CLEARED', Number(btn.getAttribute('data-version')))
