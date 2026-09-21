@@ -9,7 +9,14 @@
    ═══════════════════════════════════════════════════════════════════════ */
 
 .plsheet{padding-bottom:6px}
-.pos{color:var(--pos)}
+/* SCOPED 2026-09-21. This was a bare `.pos`, and every NexuFinance
+   stylesheet is loaded on the same page — so it also matched the Daily
+   Closing sheet's <table class="pos">, where .pos means POSITION, not
+   "a positive figure". The whole cash-and-bank position table has been
+   rendering green since this file shipped (20260919a), on screen and on
+   paper. Found while redesigning that screen; the P&L is unaffected,
+   its own rows still live inside .plsheet. */
+.plsheet .pos{color:var(--pos)}
 
 .plfilter{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-top:14px}
 .plfilter label{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2)}

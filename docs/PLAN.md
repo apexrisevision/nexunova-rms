@@ -3700,3 +3700,108 @@ functions.
 Housekeeping still open, not a finding and not touched (no instruction to delete live rows): one leftover test
 tenant `ZZTEST-NF-02bed4e9` from an earlier suite run whose cleanup did not complete. `ZZTEST-NF-DEMO` and
 `ZZTEST-NF-SHOT` are deliberate demo tenants, not residue.
+
+---
+
+## 42 · Daily Closing redesign — Phase B (2026-09-21)
+
+UI only. **Not one RPC, argument, validation rule or NF:* error changed**, every mandatory field is still
+mandatory, and `css/nf/nf-print.css` was not touched — the printed closing is the same document it was.
+Approved spec in the owner's Phase A sign-off: D1 Inter globally, D2 saved lines stay inline-editable, D3
+pre-fill the voucher affix, D4 move PDCs into the panel, D5 print untouched, no vetoes on R1–R7.
+
+### What changed on screen
+
+A day bar (date · closing no. · status) with the three **opening balances as 32px KPI figures**; **Money In**
+and **Money Out** as full-width sections; **Transfers** as its own section; post-dated cheques; then the
+**Closing anchor** — cash / petty / bank / total at 32px, the received-paid-net line, the per-account table and
+the checks and actions; and finally the cash count, moved out of the main flow into a **collapsed drawer** that
+never blocks a close.
+
+The real complaint — entry — is now an **entry panel**: amount as the biggest control on the form, via as
+segmented buttons, a type-to-search head showing code and name, floor, party only when the head requires one,
+the voucher number with its `CRV-`/`BRV-`/`CPV-`/`BPV-` prefix shown as a fixed affix (D3) so the
+via/prefix pairing is right by construction, and narration. Focus lands on the amount, Enter saves, Esc closes.
+A refusal renders **on the field that caused it** and the panel stays open with every value still in it.
+PDCs use the same panel, which retires the three chained `prompt()` boxes (D4).
+
+### How print stayed untouched
+
+The whole redesign lives inside **`@media screen`**, and the DOM still carries every element and class
+`nf-print.css` targets. Screen order is done with `order` on a flex column plus `display:contents` on `.tri`,
+so the DOM keeps the order print depends on. R1–R3 (signature blocks, payments-by-head, amount-in-words) are
+hidden on screen with `.nf-print-only` and still print. One rule was added to `nf.css` — not to
+`nf-print.css` — hiding the new screen-only elements from paper; without it the closing ran to two pages.
+
+### Five bugs this pass found, four of them mine
+
+1. **The toast ate the click.** `.nf-toast` sits bottom-right at `z-index:200`; the panel put its Save button
+   in that exact corner. The success toast from one save swallowed the click starting the next one for a full
+   five seconds — a person entering two lines in a row would hit it. Fixed at the root: a transient notice
+   carries no controls, so `.nf-toast` is now `pointer-events:none` on every screen, and the panel sits above
+   it. Found by `page.elementFromPoint` at the button's own centre, after the network log proved no
+   `nf_save_line` request was being made at all.
+2. **A missing `</div>` put `.tri-xfer` inside `.tri-count`**, so the two tables stacked instead of sitting
+   side by side and pushed the printed closing onto a second page. Found by measuring every section's height
+   under real print emulation, not by reading the markup.
+3. **A redraw raced the person typing.** The via buttons redrew the whole panel, which threw away whatever was
+   in progress. Via changes exactly two visible things, so it now patches the lit segment and the affix **in
+   place** — the same `refreshLive` discipline the journal-voucher screen already uses. Only the head redraws,
+   because whether a party is required genuinely changes the form.
+4. **White on light blue in dark mode.** The Total closing tile hard-coded `#fff` on `var(--brand)`, which is a
+   *light* blue in the dark theme. Now `var(--card)`, the same pairing `.btn.primary` has always used, so it
+   contrasts in both themes. Caught by actually looking at the dark screenshot.
+5. **Not mine, and older: `css/nf/nf-pl.css` defined a bare `.pos{color:var(--pos)}`.** Every NexuFinance
+   stylesheet loads on the same page, so it also matched the Daily Closing sheet's `<table class="pos">`, where
+   `.pos` means *position*, not "a positive figure". **The entire cash-and-bank position table has been
+   rendering green since 20260919a — on screen and on paper.** It looked deliberate, which is why nobody
+   caught it. Scoped to `.plsheet .pos`; the P&L is unaffected.
+
+`js/nf/nf-pick.js` now honours an explicitly empty placeholder (`=== undefined` rather than `||`), so the party
+column stops repeating the word "Party" — or, once that was blanked, "Search…" — down every row.
+
+### What was preserved exactly, and checked
+
+`serialDebounce` and the R-4 toast null-guard/queue-drain are **byte-identical**. The transfer fields kept
+their ids, their overlay and their debounced save path — they simply live in the panel now; the Save button
+only closes it. `focusSelector()` still restores focus after every redraw, and the panel participates through
+element ids.
+
+### The test suite: same assertions, new mechanism
+
+All 34 golden-UI checks keep their exact meaning. `fillDraftRow` → `fillPanelLine`, `waitRowError` →
+`waitPanelError`, `lastDraftTmpId` deleted; the transfer and count drivers open the panel and the drawer first.
+Nothing was weakened: `UI-09 nothing was written` and `UI-10 still exactly one row` still query the **database**,
+and `fillPanelLine` now additionally asserts the affix the panel derived is the one the voucher actually needs.
+Two helpers were added and earned their place — `clickStable` (the sheet re-renders when a debounced save
+lands, which detaches the node Puppeteer just resolved; the driver retries rather than the app being made to
+hold still for a test) and `panelDiag`/the print-DOM dump, which are what found bugs 1 and 2.
+
+### Full regression — real output, one suite at a time
+
+| suite | result |
+|---|---|
+| rules | **65/66** — see the note below |
+| **cash-via-day-only** | 39/39 |
+| **golden day (UI)** | **34/34**, including UI-06 one A4 page |
+| **dry run** | 33/33 |
+| jv-harden | 23/23 |
+| journal vouchers | 18/18 |
+| director report | 18/18 |
+| **party field** | 15/15 |
+| General Journal | 14/14 |
+| General Ledger | 12/12 |
+| Trial Balance | 10/10 |
+| race harness | 3/3 |
+| schema rehearsal | SKIPPED, exit 0 |
+| de-migration rehearsal | SKIPPED, exit 0 |
+
+**284 of 285 green.** The one red is `verify-nf-rules.js`'s RACE-* **overlap** check, and it is not this pass's:
+that suite never opens a browser, so a UI-only change cannot reach it. Across three runs it failed a
+*different* race each time (R2, then R1+R2, then OK) and never the same one twice; in every case both sides
+behaved correctly — one HTTP 201, one correct refusal (`NF:NEGATIVE_POSITION` / `NF:DUPLICATE_VOUCHER`) — and
+only the pg_stat_activity sampler missed its window. `verify-nf-race-harness.js`, whose entire job is to prove
+the instrument sees a real overlap and does not invent one, passes standalone. A `57014 statement timeout` on
+`nf_get_report` also appeared once in the same window, which is independent evidence the project was simply
+slow while these ran. Same flake class recorded in §38 and §40, more frequent today. Recorded, not re-rolled
+for a green.

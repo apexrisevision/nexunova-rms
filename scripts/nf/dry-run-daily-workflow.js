@@ -102,12 +102,6 @@ async function setValue(page, selector, text) {
   await page.evaluate(sel => { const el = document.querySelector(sel); el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true })); }, selector);
   await page.type(selector, text);
 }
-async function lastDraftTmpId(page, side) {
-  return page.evaluate(s => {
-    const rows = [...document.querySelectorAll(`.row.draft[data-side="${s}"]`)];
-    return rows.length ? rows[rows.length - 1].getAttribute('data-draft') : null;
-  }, side);
-}
 async function waitSaved(page, voucher, timeout = 9000) {
   await page.waitForFunction(v => [...document.querySelectorAll('.row[data-saved] .vno')].some(el => el.value === v), { timeout }, voucher);
 }
@@ -115,41 +109,57 @@ async function waitSaved(page, voucher, timeout = 9000) {
 // this" has a number behind it rather than an impression.
 let clicks = 0;
 const settle = page => page.evaluate(() => new Promise(r => setTimeout(r, 40)));
-// Head and party are both the shared type-to-search picker now, and a row
-// holds TWO of them — so every query has to be scoped by data-pick, never
-// just by .nfpick-dd, or the party's assertions read the head's dropdown.
-async function enterLine(page, side, v, d, head, floor, via, amount, party) {
-  const tmpId = await lastDraftTmpId(page, side);
-  const row = `.row.draft[data-draft="${tmpId}"]`;
-  const sel = k => `${row} [data-k="${k}"]`;
-  const box = key => `${row} [data-pick="${key}"]`;
-  await setValue(page, sel('v'), v); clicks++;
-  await setValue(page, sel('d'), d); clicks++;
-  // the head: type the code, take it off the list
-  await page.focus(`${box('head')} .nfpick-in`);
-  await page.type(`${box('head')} .nfpick-in`, head); clicks++;
-  await page.waitForSelector(`${box('head')} .nfpick-dd:not([hidden])`, { timeout: 5000 });
-  await page.click(`${box('head')} [data-pick-value="${head}"]`); clicks++;
-  await settle(page);
-  await page.select(sel('f'), floor); clicks++;
-  await page.select(sel('m'), via); clicks++;
-  await setValue(page, sel('a'), String(amount)); clicks++;
-  if (party) {
-    const ps = `${box('party')} .nfpick-in`;
-    await page.focus(ps); await page.type(ps, party); clicks++;
-    await page.waitForSelector(`${box('party')} .nfpick-dd:not([hidden])`, { timeout: 4000 });
-    const shape = await page.evaluate(t => {
-      const dd = document.querySelector(`.row.draft[data-draft="${t}"] [data-pick="party"] .nfpick-dd`);
-      return { add: !!dd.querySelector('[data-pick-add]'), picks: dd.querySelectorAll('[data-pick-value]').length };
-    }, tmpId);
-    const target = shape.picks ? `[data-pick-value="${party}"]` : `[data-pick-add="${party}"]`;
-    await page.click(`${box('party')} ${target}`); clicks++;
-    await settle(page);
-    return { tmpId, partyShape: shape };
+// The sheet re-renders whenever a debounced save lands, which detaches the
+// node Puppeteer resolved a moment earlier. The DRIVER retries; the app is not
+// made to hold still for a test.
+async function clickStable(page, selector, tries = 5) {
+  for (let i = 0; i < tries; i++) {
+    try { await page.click(selector); return; }
+    catch (e) {
+      if (i === tries - 1 || !/detached|not clickable|not visible/i.test(e.message)) throw e;
+      await new Promise(r => setTimeout(r, 250));
+    }
   }
-  await page.focus(sel('a'));
-  await page.keyboard.press('Enter'); clicks++;
-  return { tmpId };
+}
+// A new line is entered in the ENTRY PANEL now (docs/PLAN.md §42), not an
+// inline draft row. Same fields, and still counted the same way — the point of
+// this suite is how many interactions a real day costs, and that number has to
+// keep meaning the same thing before and after the redesign.
+async function enterLine(page, side, v, d, head, floor, via, amount, party) {
+  await clickStable(page, '.nf-record[data-side="' + side + '"]'); clicks++;
+  await page.waitForSelector('#nf-panel #nf-p-amt', { timeout: 5000 });
+  const box = key => '#nf-panel [data-pick="' + key + '"]';
+  await setValue(page, '#nf-p-amt', String(amount)); clicks++;
+  await clickStable(page, '#nf-panel [data-p-via="' + via + '"]'); clicks++;
+  // the head: type the code, take it off the list
+  await page.focus(box('pane-head') + ' .nfpick-in');
+  await page.type(box('pane-head') + ' .nfpick-in', head); clicks++;
+  await page.waitForSelector(box('pane-head') + ' .nfpick-dd:not([hidden])', { timeout: 5000 });
+  await page.click(box('pane-head') + ' [data-pick-value="' + head + '"]'); clicks++;
+  await settle(page);
+  await page.select('#nf-p-floor', floor); clicks++;
+  let shape = null;
+  if (party) {
+    await page.waitForSelector(box('pane-party') + ' .nfpick-in', { timeout: 5000 });
+    const ps = box('pane-party') + ' .nfpick-in';
+    await page.focus(ps); await page.type(ps, party); clicks++;
+    await page.waitForSelector(box('pane-party') + ' .nfpick-dd:not([hidden])', { timeout: 4000 });
+    shape = await page.evaluate(() => {
+      const dd = document.querySelector('#nf-panel [data-pick="pane-party"] .nfpick-dd');
+      return { add: !!dd.querySelector('[data-pick-add]'), picks: dd.querySelectorAll('[data-pick-value]').length };
+    });
+    const target = shape.picks ? '[data-pick-value="' + party + '"]' : '[data-pick-add="' + party + '"]';
+    await page.click(box('pane-party') + ' ' + target); clicks++;
+    await settle(page);
+  }
+  // The voucher prefix is a fixed affix now, so only the number after it is
+  // typed — and the affix the panel derived is asserted, not assumed.
+  const affix = await page.$eval('#nf-panel .nf-affix', el => el.textContent.trim());
+  if (!v.startsWith(affix)) throw new Error('voucher ' + v + ' does not start with the affix ' + affix);
+  await setValue(page, '#nf-p-vno', v.slice(affix.length)); clicks++;
+  await setValue(page, '#nf-p-desc', d); clicks++;
+  await clickStable(page, '#nf-p-save'); clicks++;
+  return { partyShape: shape };
 }
 
 (async () => {
@@ -263,10 +273,15 @@ async function enterLine(page, side, v, d, head, floor, via, amount, party) {
     // No Awami cash or bank moves. This is the shape 100% of the real
     // imported history actually has. Probe the screen honestly: is there any
     // way to express it?
-    const viaChoices = await acc.evaluate(() => {
-      const row = document.querySelector('.row.draft [data-k="m"]');
-      return row ? [...row.options].map(o => o.value).filter(Boolean) : [];
-    });
+    // The via is a segmented control in the entry panel now, not a <select>
+    // in a draft row. Same question, same meaning: what ways of moving money
+    // does the daily sheet offer at all?
+    await clickStable(acc, '.nf-record[data-side="OUT"]');
+    await acc.waitForSelector('#nf-panel #nf-p-amt', { timeout: 5000 });
+    const viaChoices = await acc.evaluate(() =>
+      [...document.querySelectorAll('#nf-panel [data-p-via]')].map(b => b.getAttribute('data-p-via')).filter(Boolean));
+    await clickStable(acc, '#nf-panel .nf-panel-f .btn');   // Cancel
+    await acc.waitForFunction(() => !document.querySelector('#nf-panel'), { timeout: 5000 });
     // This SHOULD stay false: a cash-closing sheet whose lines did not move
     // cash would be a contradiction. What matters is that the shape has an
     // entry path SOMEWHERE — which is what the Journal Voucher screen
@@ -292,8 +307,13 @@ async function enterLine(page, side, v, d, head, floor, via, amount, party) {
 
     // ── STEP 3 · transfer, count, submit ───────────────────────────────────
     console.log('\n── Step 3 · transfer, count the drawer, submit');
-    const tb = await acc.$('#nf-tBank');
-    await tb.click({ clickCount: 3 }); await tb.type('100000'); await tb.press('Tab'); clicks += 2;
+    // The transfer fields live in the entry panel now and the cash count in a
+    // collapsed drawer — both are opened first. By SELECTOR, never a cached
+    // handle: the debounced save re-renders the panel underneath us.
+    await clickStable(acc, '[data-xfer]'); clicks++;
+    await acc.waitForSelector('#nf-tBank', { timeout: 5000 });
+    await setValue(acc, '#nf-tBank', '100000');
+    await acc.focus('#nf-tBank'); await acc.keyboard.press('Tab'); clicks += 2;
     // The transfer save is debounced (500ms) and the position table only
     // repaints once the round trip lands. Waiting a fixed 900ms read a STALE
     // closing figure on the first run of this script, and counting that stale
@@ -324,8 +344,15 @@ async function enterLine(page, side, v, d, head, floor, via, amount, party) {
     const denoms = { 5000: Math.floor(expectN / 5000) };
     const rem = expectN - denoms[5000] * 5000;
     if (rem % 1000 === 0 && rem > 0) denoms[1000] = rem / 1000;
+    // Counting the physical cash is optional now and sits in a collapsed
+    // drawer, out of the main flow — the panel is closed and the drawer
+    // opened first. That is one extra click, and it is counted.
+    await clickStable(acc, '#nf-panel .nf-panel-f .btn'); clicks++;   // close the transfer panel
+    await acc.waitForFunction(() => !document.querySelector('#nf-panel'), { timeout: 5000 });
+    await clickStable(acc, '#nf-count-toggle'); clicks++;
+    await acc.waitForSelector('[data-den="5000"]', { visible: true, timeout: 5000 });
     for (const [k, v] of Object.entries(denoms)) { await setValue(acc, `[data-den="${k}"]`, String(v)); clicks++; }
-    await acc.click('.sh h2');
+    await clickStable(acc, '.sh h2');
     await acc.waitForFunction(() => { const b = document.querySelector('#nf-submit'); return b && !b.disabled; }, { timeout: 15000 }).catch(() => {});
     const submitState = await acc.evaluate(() => {
       const b = document.querySelector('#nf-submit');

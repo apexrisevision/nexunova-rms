@@ -121,12 +121,6 @@ async function injectSession(page, ref, jwt, userId, email) {
 // draft's stable tmpId (data-draft), not by a cached handle — the tmpId
 // survives the redraw because it names the same entry in the drafts array,
 // even though the DOM node under it is new.
-async function lastDraftTmpId(page, side) {
-  return page.evaluate(s => {
-    const rows = [...document.querySelectorAll(`.row.draft[data-side="${s}"]`)];
-    return rows.length ? rows[rows.length - 1].getAttribute('data-draft') : null;
-  }, side);
-}
 // Triple-click was not reliable at clearing a pre-filled numeric input under
 // headless automation: on the fd-cash/petty/bank fields (prefilled "0") the
 // caret landed BEFORE the "0" rather than selecting it, so Backspace deleted
@@ -160,47 +154,84 @@ async function pick(page, scope, key, query, value) {
   await settle(page);
 }
 
-async function fillDraftRow(page, side, v, d, h, f, m, a, party) {
-  // tmpId is captured ONCE, before anything is typed — filling this row's
-  // first field makes ensureTrailingBlank() append a fresh blank row behind
-  // it, so "last draft row" drifts to that new one; the tmpId itself
-  // survives every redraw and still names this exact row throughout
-  // (20260919i/j party-field verify: re-resolving "last" mid-fill picks up
-  // the wrong row and silently no-ops the save).
-  const tmpId = await lastDraftTmpId(page, side);
-  const row = `.row.draft[data-draft="${tmpId}"]`;
-  const sel = k => `${row} [data-k="${k}"]`;
-  await setValue(page, sel('v'), v);
-  await setValue(page, sel('d'), d);
-  await pick(page, row, 'head', h, h);          // search by code; the list matches code OR name
-  await page.select(sel('f'), f);
-  await page.select(sel('m'), m);
-  await setValue(page, sel('a'), String(a));
+// ── driving the entry panel (screen redesign, docs/PLAN.md §42) ────────────
+// A new receipt or payment is no longer typed into an inline draft row; it is
+// typed into the entry panel. These helpers changed their MECHANISM only —
+// every assertion below still asserts exactly what it asserted before: that
+// the line reaches the database, that a refusal is shown to the person, and
+// that a refused line is not written.
+// The sheet re-renders whenever a debounced save lands (transfers, the cash
+// count), which detaches the node Puppeteer resolved a moment earlier and
+// fails the click with "Node is detached from document". That is the app
+// behaving correctly, not a bug — so the DRIVER retries, rather than the
+// app being changed to hold still for a test.
+async function clickStable(page, selector, tries = 5) {
+  for (let i = 0; i < tries; i++) {
+    try { await page.click(selector); return; }
+    catch (e) {
+      if (i === tries - 1 || !/detached|not clickable|not visible/i.test(e.message)) throw e;
+      await new Promise(r => setTimeout(r, 250));
+    }
+  }
+}
+async function openPanel(page, side) {
+  await clickStable(page, `.nf-record[data-side="${side}"]`);
+  await page.waitForSelector('#nf-panel #nf-p-amt', { timeout: 5000 });
+}
+async function closePanelIfOpen(page) {
+  const open = await page.$('#nf-panel');
+  if (!open) return;
+  await clickStable(page, '#nf-panel .nf-panel-f .btn');   // Cancel
+  await page.waitForFunction(() => !document.querySelector('#nf-panel'), { timeout: 5000 });
+}
+// The panel shows the CRV-/CPV-/BRV-/BPV- prefix as a fixed affix and the
+// person types only the number after it, so the test types only that part.
+// The affix the panel derives is asserted rather than assumed.
+async function fillPanelLine(page, side, v, d, h, f, m, a, party) {
+  await openPanel(page, side);
+  await setValue(page, '#nf-p-amt', String(a));
+  await page.click(`#nf-panel [data-p-via="${m}"]`);
+  await page.waitForSelector('#nf-panel [data-pick="pane-head"] .nfpick-in', { timeout: 5000 });
+  await pick(page, '#nf-panel', 'pane-head', h, h);   // search by code; matches code OR name
+  await page.select('#nf-p-floor', f);
   if (party) {
-    // 20260919i/j: the account this golden day posts its token receipt to
-    // (21100) requires an explicit party on the SCREEN, not just a
+    // 20260919i/j: 21100 requires an explicit party on the SCREEN, not just a
     // description the backend can pattern-match — search-first, take the
     // pre-registered match (never "+ Add new", since it already exists).
-    await pick(page, row, 'party', party, party);
-  } else {
-    await page.focus(sel('a'));
-    await page.keyboard.press('Enter');
+    await page.waitForSelector('#nf-panel [data-pick="pane-party"] .nfpick-in', { timeout: 5000 });
+    await pick(page, '#nf-panel', 'pane-party', party, party);
   }
+  const affix = await page.$eval('#nf-panel .nf-affix', el => el.textContent.trim());
+  const expected = (m === 'Bank' ? 'B' : 'C') + (side === 'IN' ? 'RV-' : 'PV-');
+  if (affix !== expected) throw new Error(`voucher affix is "${affix}", expected "${expected}"`);
+  if (!v.startsWith(affix)) throw new Error(`voucher ${v} does not start with the affix ${affix}`);
+  await setValue(page, '#nf-p-vno', v.slice(affix.length));
+  await setValue(page, '#nf-p-desc', d);
+  await clickStable(page, '#nf-p-save');
+}
+async function panelDiag(page) {
+  return page.evaluate(() => {
+    const p = document.querySelector('#nf-panel');
+    if (!p) return 'panel is CLOSED and the line is not saved';
+    const errs = [...p.querySelectorAll('.nf-fe')].map(e => e.textContent.trim());
+    const vals = {};
+    p.querySelectorAll('input,select').forEach(el => { if (el.id) vals[el.id] = el.value; });
+    const via = [...p.querySelectorAll('.nf-seg-b.on')].map(b => b.textContent);
+    p.querySelectorAll('[data-pick]').forEach(w => { vals['pick:' + w.getAttribute('data-pick')] = w.getAttribute('data-value'); });
+    vals['saveDisabled'] = !!(p.querySelector('#nf-p-save')||{}).disabled;
+    return JSON.stringify({ errs, vals, via, affix: (p.querySelector('.nf-affix')||{}).textContent });
+  });
 }
 async function waitSaved(page, voucher, timeout = 8000) {
   await page.waitForFunction(v => [...document.querySelectorAll('.row[data-saved] .vno')].some(el => el.value === v),
     { timeout }, voucher);
 }
-async function waitRowError(page, side, timeout = 6000) {
-  await page.waitForFunction(s => {
-    const rows = [...document.querySelectorAll(`.row.draft[data-side="${s}"]`)];
-    return rows.some(r => r.querySelector('.row-err'));
-  }, { timeout }, side);
-  return page.evaluate(s => {
-    const rows = [...document.querySelectorAll(`.row.draft[data-side="${s}"]`)];
-    const r = rows.find(x => x.querySelector('.row-err'));
-    return r ? r.querySelector('.row-err').textContent : null;
-  }, side);
+// A refusal now lands on the field that caused it, inside a panel that stays
+// open with everything typed still in it. Same NF:* code, same message text
+// from js/nf/nf-messages.js — only the place it is rendered has moved.
+async function waitPanelError(page, timeout = 6000) {
+  await page.waitForFunction(() => !!document.querySelector('#nf-panel .nf-fe'), { timeout });
+  return page.evaluate(() => document.querySelector('#nf-panel .nf-fe').textContent);
 }
 
 (async () => {
@@ -322,14 +353,14 @@ async function waitRowError(page, side, timeout = 6000) {
       // (20260919i/j) — the pre-registered party below matches the token
       // line's own description exactly, so this is the "pick existing" path.
       const party = ['21100', '21200', '21300'].includes(r.h) ? r.d : undefined;
-      await fillDraftRow(accPage, 'IN', r.v, r.d, r.h, r.f, r.m, Number(r.a), party);
+      await fillPanelLine(accPage, 'IN', r.v, r.d, r.h, r.f, r.m, Number(r.a), party);
       try { await waitSaved(accPage, r.v); ok(`UI-02 saved ${r.v}`, true, ''); }
-      catch (e) { ok(`UI-02 saved ${r.v}`, false, await accPage.evaluate(() => document.body.innerText.slice(0, 200))); }
+      catch (e) { ok(`UI-02 saved ${r.v}`, false, await panelDiag(accPage)); }
     }
     for (const r of s.out.filter(r => Number(r.a))) {
-      await fillDraftRow(accPage, 'OUT', r.v, r.d, r.h, r.f, r.m, Number(r.a));
+      await fillPanelLine(accPage, 'OUT', r.v, r.d, r.h, r.f, r.m, Number(r.a));
       try { await waitSaved(accPage, r.v); ok(`UI-02 saved ${r.v}`, true, ''); }
-      catch (e) { ok(`UI-02 saved ${r.v}`, false, await accPage.evaluate(() => document.body.innerText.slice(0, 200))); }
+      catch (e) { ok(`UI-02 saved ${r.v}`, false, await panelDiag(accPage)); }
     }
 
     const t0 = Date.now();
@@ -349,18 +380,33 @@ async function waitRowError(page, side, timeout = 6000) {
       }
     });
 
-    const tBankEl = await accPage.$('#nf-tBank'); await tBankEl.click({ clickCount: 3 }); await tBankEl.type(String(s.tBank));
-    await tBankEl.press('Tab');
+    // The transfer fields moved into the entry panel (docs/PLAN.md §42). They
+    // keep their ids, their overlay and their debounced save path untouched —
+    // the only difference here is that the panel has to be opened first.
+    await clickStable(accPage, '[data-xfer]');
+    await accPage.waitForSelector('#nf-tBank', { timeout: 5000 });
+    // By SELECTOR, never a cached handle: the debounced transfer save lands
+    // applyDay() → render(), which replaces the panel's DOM underneath us and
+    // detaches any ElementHandle taken before it (the same rule this file
+    // already follows for the book rows).
+    await setValue(accPage, '#nf-tBank', String(s.tBank));
+    await accPage.focus('#nf-tBank');
+    await accPage.keyboard.press('Tab');
     await accPage.waitForFunction(() => {
       const el = document.querySelector('#nf-tBank'); return el && el.value.replace(/,/g, '') === '300000';
     }, { timeout: 6000 }).catch(() => {});
     await new Promise(r => setTimeout(r, 700)); // debounced save (500ms)
+    await closePanelIfOpen(accPage);
 
+    // Counting the physical cash is optional and now lives in a collapsed
+    // drawer, out of the main flow — open it before typing into it.
+    await clickStable(accPage, '#nf-count-toggle');
+    await accPage.waitForSelector('[data-den="5000"]', { visible: true, timeout: 5000 });
     const den = { 5000: 50, 1000: 60, 500: 5, 100: 5 };
     for (const [k, v] of Object.entries(den)) {
       await setValue(accPage, `[data-den="${k}"]`, String(v));
     }
-    await accPage.click('.sh h2');   // blur the last count field
+    await clickStable(accPage, '.sh h2');   // blur the last count field
     // The "as counted" cell updates from a LOCAL overlay the instant a digit
     // is typed (so the total feels live, matching the reference) — waiting
     // for the DOM to stop saying "Not counted" was therefore satisfied
@@ -446,6 +492,17 @@ async function waitRowError(page, side, timeout = 6000) {
       await pdfPage.close();
       console.log('  print layout at fault, saved to', path.relative(ROOT, printShot));
     }
+    if (pages !== 1) {
+      await accPage.emulateMediaType('print');
+      const m = await accPage.evaluate(() => {
+        const sheet = document.querySelector('#nf-sheet');
+        const cs = getComputedStyle(sheet);
+        return { zoom: cs.zoom, display: cs.display, total: sheet.scrollHeight,
+          kids: [...sheet.querySelectorAll('#nf-sheet > *, .sec-tri .tri > *, .sec-books .book, .sec-tri table, .sec-books .row, .sec-heads table')].map(k => ({ c: (k.className||k.tagName).toString().slice(0,40), h: k.offsetHeight, d: getComputedStyle(k).display })).filter(k => k.h > 0) };
+      });
+      console.log('    [PRINT-DOM] zoom=' + m.zoom + ' display=' + m.display + ' total=' + m.total);
+      m.kids.forEach(k => console.log('      ' + String(k.h).padStart(5) + 'px  ' + k.d.padEnd(10) + ' ' + k.c));
+    }
     ok('UI-06 print is one A4 page', pages === 1, `counted ${pages} page(s) \u2014 saved to ${path.relative(ROOT, pdfPath)}`);
     await accPage.emulateMediaType('screen');
     await accPage.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
@@ -467,29 +524,27 @@ async function waitRowError(page, side, timeout = 6000) {
     await accPage.click('#nf-theme');   // back to light for what follows
 
     // ── refused: a payment that would take Cash negative ───────────────────
-    await fillDraftRow(accPage, 'OUT', 'CPV-901', 'more than the drawer holds', '81300', 'P-W', 'Cash', 999999999);
+    await fillPanelLine(accPage, 'OUT', 'CPV-901', 'more than the drawer holds', '81300', 'P-W', 'Cash', 999999999);
     let negMsg;
-    try { negMsg = await waitRowError(accPage, 'OUT'); ok('UI-09 negative payment refused', /does not have enough money/.test(negMsg || ''), negMsg); }
-    catch (e) { ok('UI-09 negative payment refused', false, 'no row-err appeared: ' + e.message); }
+    try { negMsg = await waitPanelError(accPage); ok('UI-09 negative payment refused', /does not have enough money/.test(negMsg || ''), negMsg); }
+    catch (e) { ok('UI-09 negative payment refused', false, 'no field error appeared: ' + e.message); }
     const linesAfterNeg = (await q(`select count(*) n from nf_lines where company_id='${C}' and voucher_key='CPV-901'`))[0].n;
     ok('UI-09 nothing was written', Number(linesAfterNeg) === 0, `nf_lines rows for CPV-901: ${linesAfterNeg}`);
 
-    // clear that draft row before the next test (click its delete button)
-    await accPage.evaluate(s => {
-      const row = [...document.querySelectorAll(`.row.draft[data-side="OUT"]`)].find(r => r.querySelector('.row-err'));
-      if (row) row.querySelector('[data-del-draft]').click();
-    });
-    await new Promise(r => setTimeout(r, 200));
+    // The refused entry is still sitting in the panel with everything typed
+    // in it — which is the point. Dismiss it before the next test.
+    await closePanelIfOpen(accPage);
 
     // ── refused: a voucher already used earlier today ───────────────────────
     const reusedVoucher = s.in.filter(r => Number(r.a))[0].v;   // e.g. CRV-001
     // 21100 requires a party on the screen now too — reuse the same
     // pre-registered party so this stays the "pick existing" path and the
     // duplicate-voucher refusal (not a party error) is what's under test.
-    await fillDraftRow(accPage, 'IN', reusedVoucher, 'same voucher again', '21100', 'GF', 'Cash', 1, tokenLine ? tokenLine.d : undefined);
+    await fillPanelLine(accPage, 'IN', reusedVoucher, 'same voucher again', '21100', 'GF', 'Cash', 1, tokenLine ? tokenLine.d : undefined);
     let dupMsg;
-    try { dupMsg = await waitRowError(accPage, 'IN'); ok('UI-10 duplicate voucher refused', /already on the books/.test(dupMsg || ''), dupMsg); }
-    catch (e) { ok('UI-10 duplicate voucher refused', false, 'no row-err appeared: ' + e.message); }
+    try { dupMsg = await waitPanelError(accPage); ok('UI-10 duplicate voucher refused', /already on the books/.test(dupMsg || ''), dupMsg); }
+    catch (e) { ok('UI-10 duplicate voucher refused', false, 'no field error appeared: ' + e.message); }
+    await closePanelIfOpen(accPage);   // the refused entry is still in the panel
     const dupCount = (await q(`select count(*) n from nf_lines where company_id='${C}' and voucher_key='${reusedVoucher.toUpperCase()}'`))[0].n;
     ok('UI-10 still exactly one row for that voucher', Number(dupCount) === 1, `rows: ${dupCount}`);
 
