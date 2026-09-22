@@ -2,7 +2,7 @@
 
 **Found** 2026-09-22 at 01:07 PKT, while running the Stage B regression (`verify-nf-journal-voucher.js`
 timed out at JV-04 because nothing posted).
-**Status** OPEN, recorded rather than fixed. It needs a database change, and that is the owner's call.
+**Status** FIXED 2026-09-22 on the owner's instruction ("fix"), by migration `20260922a_nf_jv_date_in_pakistan_time.sql`. `nf_jv_save` now compares against `(now() AT TIME ZONE 'Asia/Karachi')::date`. New checks in `verify-nf-jv-harden.js`: JVX-05b (tomorrow in Pakistan is still refused) and JVX-05c (today in Pakistan is accepted at any hour).
 
 ## What happens
 
@@ -28,7 +28,7 @@ The suite posted a correct, balanced JV dated 22 Sep through the real screen, an
 - **Not affected:** the JV popup on the closing sheet (docs/PLAN.md §45). It dates the JV with the open
   day's own `business_date`, which cannot be in the future unless the day itself was opened ahead.
 
-## The fix it needs (not applied)
+## The fix (applied: the first option below)
 
 Compare against Pakistan's date, not the server's:
 

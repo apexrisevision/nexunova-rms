@@ -185,6 +185,22 @@ const code = r => (r.json && typeof r.json === 'object' && r.json.message) || nu
       p_legs: [{ account_code: '22100', floor_code: 'P-W', debit: 10 }, { account_code: '70100', floor_code: 'P-W', credit: 10 }],
     });
     ok('JVX-05 a future-dated voucher is refused', code(r) === 'NF:DATE_FUTURE', JSON.stringify(r.json));
+    // Finding Q (20260922a): "today" is Pakistan's date, not the server's UTC
+    // one. Between 00:00 and 05:00 PKT the two differ and today's JV used to be
+    // refused. Tomorrow in Pakistan is still refused; today in Pakistan is
+    // accepted, whatever the hour.
+    const [{ pk }] = await q(`select to_char((now() at time zone 'Asia/Karachi')::date, 'YYYY-MM-DD') pk`);
+    const [{ pk1 }] = await q(`select to_char((now() at time zone 'Asia/Karachi')::date + 1, 'YYYY-MM-DD') pk1`);
+    r = await rpc(K.anon, users.D.jwt, 'nf_jv_save', {
+      p_company_id: C, p_voucher_no: 'JV-PKT-TMRW', p_voucher_date: pk1, p_narration: 'tomorrow in Pakistan',
+      p_legs: [{ account_code: '22100', floor_code: 'P-W', debit: 10 }, { account_code: '70100', floor_code: 'P-W', credit: 10 }],
+    });
+    ok('JVX-05b tomorrow in Pakistan is still a future date', code(r) === 'NF:DATE_FUTURE', JSON.stringify(r.json));
+    r = await rpc(K.anon, users.D.jwt, 'nf_jv_save', {
+      p_company_id: C, p_voucher_no: 'JV-PKT-TODAY', p_voucher_date: pk, p_narration: 'today in Pakistan',
+      p_legs: [{ account_code: '22100', floor_code: 'P-W', debit: 10 }, { account_code: '70100', floor_code: 'P-W', credit: 10 }],
+    });
+    ok('JVX-05c today in Pakistan is accepted at any hour (finding Q)', r.status === 200 && r.json && r.json.voucher_date === pk, JSON.stringify(r.json).slice(0, 200));
 
     // period gate: close a day directly (bypassing the real submit/close
     // workflow, already covered by dry-run-daily-workflow.js), then confirm
