@@ -1995,6 +1995,17 @@ body.splash .fl::before{opacity:0}
 /* Skip is not a second Save. */
 .nm-r button.nm-sk{background:none;color:var(--mut);font-weight:500;padding:0 12px;flex:none}
 .nm-r button.nm-sk:active{background:var(--sunk)}
+/* Names already on this link, offered while typing, so "Waqar" and "Waqar
+   Landlord" do not become two people. Tap targets stay phone-sized. */
+.sg{margin-top:9px}
+.sg[hidden]{display:none}
+.sg-t{font-size:12.5px;color:var(--mut);margin-bottom:7px;line-height:1.45}
+.sg-l{display:flex;flex-wrap:wrap;gap:7px}
+.sg-l button{min-height:40px;padding:0 14px;border:1px solid var(--line);border-radius:var(--r);
+             background:var(--card);color:var(--ink);font-size:14px;
+             transition:transform var(--t-fast) var(--ease)}
+.sg-l button:active{transform:scale(.97)}
+.sg-l button.sg-new{border-style:dashed;color:var(--mut)}
 
 /* ── boot and dead link ─────────────────────────────────────────────────── */
 /* ── THE OPENING ─────────────────────────────────────────────────────────
@@ -3149,6 +3160,83 @@ function markAsked() {
   try { localStorage.setItem('avail.name.asked', '1'); } catch (e) {}
 }
 
+/* ── names already on this link ──────────────────────────────────────────
+   Read from `w` on the units the payload already carries — the names this
+   page already shows beside each hold — so suggesting them puts nothing new
+   on the wire. Deduped without case; the spelling used most often wins. */
+function knownNames() {
+  var by = {};
+  (P && P.floors || []).forEach(function (f) {
+    (f.units || []).forEach(function (u) {
+      var n = String(u.w || '').trim().replace(/\s+/g, ' ');
+      if (!n) return;
+      var k = n.toLowerCase();
+      var e = by[k] || (by[k] = { n: n, c: 0, sp: {} });
+      e.c++; e.sp[n] = (e.sp[n] || 0) + 1;
+      if (e.sp[n] > (e.sp[e.n] || 0)) e.n = n;
+    });
+  });
+  return Object.keys(by).map(function (k) { return by[k]; });
+}
+function exactName(v) {
+  var k = String(v || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  var hit = knownNames().filter(function (e) { return e.n.toLowerCase() === k; })[0];
+  return hit ? hit.n : '';
+}
+/* A known name matches when every word typed begins one of its words:
+   "waqar" finds "Waqar Landlord", "w land" finds it too. */
+function nameMatches(v) {
+  var t = String(v || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (!t.length || t.join('').length < 2) return [];
+  var k = t.join(' ');
+  return knownNames().filter(function (e) {
+    var ws = e.n.toLowerCase().split(' ');
+    return e.n.toLowerCase() !== k && t.every(function (p) {
+      return ws.some(function (w) { return w.indexOf(p) === 0; });
+    });
+  }).sort(function (a, b) { return b.c - a.c; }).slice(0, 5)
+    .map(function (e) { return e.n; });
+}
+/* Chips under the input while typing; a tap fills the exact spelling. */
+function wireSuggest(input, sg) {
+  function paint() {
+    var list = nameMatches(input.value);
+    if (!list.length) { sg.hidden = true; sg.innerHTML = ''; return; }
+    sg.hidden = false;
+    sg.innerHTML = '<div class="sg-t">Already on this link — tap yours:</div>' +
+      '<div class="sg-l">' + list.map(function (n) {
+        return '<button type="button" data-n="' + esc(n) + '">' + esc(n) + '</button>';
+      }).join('') + '</div>';
+  }
+  sg.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-n]'); if (!b) return;
+    input.value = b.getAttribute('data-n');
+    sg.hidden = true; sg.innerHTML = '';
+    try { input.focus(); } catch (x) {}
+  });
+  input.addEventListener('input', paint);
+}
+/* On Save: an exact match takes the known spelling; a new spelling that looks
+   like a known name asks first. done(name) gets the name to keep. */
+function confirmName(v, sg, done) {
+  var ex = exactName(v);
+  if (ex) return done(ex);
+  var list = nameMatches(v);
+  if (!list.length) return done(v);
+  sg.hidden = false;
+  sg.innerHTML = '<div class="sg-t">Is this you? The desk already has:</div>' +
+    '<div class="sg-l">' + list.map(function (n) {
+      return '<button type="button" data-pick="' + esc(n) + '">' + esc(n) + '</button>';
+    }).join('') +
+    '<button type="button" class="sg-new" data-pick="' + esc(v) + '">No, save “' +
+      esc(v) + '”</button></div>';
+  sg.onclick = function (e) {
+    var b = e.target.closest('button[data-pick]'); if (!b) return;
+    e.stopPropagation(); sg.onclick = null;
+    done(b.getAttribute('data-pick'));
+  };
+}
+
 function paintNameAsk() {
   var box = $('name-ask');
   if (NAME || nameAsked()) { box.hidden = true; box.innerHTML = ''; return; }
@@ -3161,11 +3249,18 @@ function paintNameAsk() {
       '<input id="nm-in" type="text" autocomplete="name" placeholder="e.g. Fawad khan">' +
       '<button id="nm-ok">Save</button>' +
       '<button class="nm-sk" id="nm-skip">Skip</button>' +
-    '</div>';
+    '</div>' +
+    '<div class="sg" id="nm-sg" hidden></div>';
+  wireSuggest($('nm-in'), $('nm-sg'));
   $('nm-ok').onclick = function () {
-    NAME = String($('nm-in').value || '').trim();
-    if (NAME) writeName(NAME);
-    markAsked(); paintNameAsk();
+    var v = String($('nm-in').value || '').trim().replace(/\s+/g, ' ');
+    function keep(n) {
+      NAME = n;
+      if (NAME) writeName(NAME);
+      markAsked(); paintNameAsk();
+    }
+    if (!v) return keep('');
+    confirmName(v, $('nm-sg'), keep);
   };
   $('nm-skip').onclick = function () { markAsked(); paintNameAsk(); };
   $('nm-in').addEventListener('keydown', function (e) {
@@ -5613,16 +5708,21 @@ function askNameInSheet(how) {
     '<div class="ask-t">Your name, so the desk knows who asked</div>' +
     '<div class="ask-r"><input id="ask-in" type="text" autocomplete="name" ' +
       'placeholder="e.g. Fawad khan"><button class="go" id="ask-ok" ' +
-      'style="width:auto;margin:0;padding:0 18px;height:42px">Save</button></div>';
+      'style="width:auto;margin:0;padding:0 18px;height:42px">Save</button></div>' +
+    '<div class="sg" id="ask-sg" hidden></div>';
   host.appendChild(box);
   var input = document.getElementById('ask-in');
+  var sg = document.getElementById('ask-sg');
+  wireSuggest(input, sg);
   try { input.focus(); } catch (e) {}
   function save() {
-    var v = String(input.value || '').trim();
+    var v = String(input.value || '').trim().replace(/\s+/g, ' ');
     if (!v) { try { input.focus(); } catch (e) {} return; }
-    NAME = v; writeName(v); markAsked(); paintNameAsk();
-    box.remove();
-    requestAndSend(how);
+    confirmName(v, sg, function (n) {
+      NAME = n; writeName(n); markAsked(); paintNameAsk();
+      box.remove();
+      requestAndSend(how);
+    });
   }
   document.getElementById('ask-ok').onclick = save;
   input.addEventListener('keydown', function (e) {
