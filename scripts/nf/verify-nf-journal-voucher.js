@@ -181,8 +181,10 @@ async function fillLeg(page, i, { account, floor, party, debit, credit, memo }) 
     ok('JV-01 Journal Vouchers is in the Reports menu', hasItem, 'no [data-goto="jv"] item');
     await page.click('[data-goto="jv"]');
     await page.waitForSelector('.jvsheet #nf-jv-post', { timeout: 15000 });
-    const suggested = await page.evaluate(() => document.querySelector('#nf-jv-no').value);
-    ok('JV-02 screen opens and suggests the next voucher number', /^JV-\d{4}$/.test(suggested), suggested);
+    // Since §45 the field is the MANUAL (paper) number, optional; the system
+    // number is given on save, so there is nothing to suggest.
+    const noField = await page.evaluate(() => { const i = document.querySelector('#nf-jv-no'); return { value: i.value, placeholder: i.placeholder }; });
+    ok('JV-02 screen opens with the manual number blank and optional', noField.value === '' && /blank/.test(noField.placeholder), JSON.stringify(noField));
 
     // ── the shape the daily sheet cannot make: no cash leg at all ─────────
     await setValue(page, '#nf-jv-nar', 'FMH paid the architect on our behalf');
@@ -196,12 +198,14 @@ async function fillLeg(page, i, { account, floor, party, debit, credit, memo }) 
     ok('JV-03 the form says Balanced and enables Post', balState.text === 'Balanced' && balState.postDisabled === false, JSON.stringify(balState));
     await settle(page); await page.click('#nf-jv-post');
     await page.waitForFunction(() => document.querySelectorAll('.jvcard').length >= 1, { timeout: 15000 });
-    const [v1] = await q(`select v.voucher_no, v.day_id, (select count(*) from nf_voucher_legs l where l.voucher_id=v.id) legs,
+    const [v1] = await q(`select v.voucher_no, v.manual_no, v.day_id, (select count(*) from nf_voucher_legs l where l.voucher_id=v.id) legs,
                             (select count(*) from nf_voucher_legs l join nf_accounts a on a.company_id=l.company_id and a.code=l.account_code
                               where l.voucher_id=v.id and a.via is not null) cash_legs
                           from nf_vouchers v where v.company_id='${C}' and v.narration like 'FMH paid the architect%'`);
     ok('JV-04 a no-cash inter-company voucher posted', v1 && Number(v1.legs) === 2 && Number(v1.cash_legs) === 0, JSON.stringify(v1));
     ok('JV-04 it is NOT attached to any day', v1 && v1.day_id === null, JSON.stringify(v1));
+    ok('JV-04b posted with no manual number, it still got its SYSTEM number (JV-000001 style)',
+      v1 && /^JV-\d{6}$/.test(v1.voucher_no) && v1.manual_no === null, JSON.stringify(v1));
 
     // ── and it must NOT show up on the daily closing sheet ────────────────
     const inLines = (await q(`select count(*) n from nf_lines where company_id='${C}'`))[0].n;

@@ -166,7 +166,9 @@ const n = s => Number(String(s || '').replace(/[^0-9.\-()]/g, '').replace(/^\((.
     // MANUAL numbers (CPV-001…); ledgers, reports and every drill carry the
     // SYSTEM number NexuFinance gave it. Look that one up.
     const [{ voucher_no: cpvSys }] = await q(`select voucher_no from nf_vouchers where company_id='${C}' and manual_no='${cpv53100.v.toUpperCase()}'`);
-    console.log(`  fixture: golden day (${cpv53100.v} = ${cpvSys} on 53100) + JV-JRN-1 + imported JV-9101, all on 53100\n`);
+    // JV-JRN-1 is that JV's MANUAL number since §45; ledgers and journals carry its system one
+    const [{ voucher_no: jvSys }] = await q(`select voucher_no from nf_vouchers where company_id='${C}' and manual_no='JV-JRN-1'`);
+    console.log(`  fixture: golden day (${cpv53100.v} = ${cpvSys} on 53100) + JV-JRN-1 (= ${jvSys}) + imported JV-9101, all on 53100\n`);
 
     srv = await serve();
     browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox', '--font-render-hinting=none'] });
@@ -210,7 +212,7 @@ const n = s => Number(String(s || '').replace(/[^0-9.\-()]/g, '').replace(/^\((.
     ok('D-02 the ledger\'s Back says it returns to the P&L', /Profit & Loss/.test(lg.back), lg.back);
     ok('D-03 the ledger ties to the exact figure clicked on the P&L', n(lg.closing) === n(plFigure) && n(plFigure) !== 0,
       `P&L ${plFigure} vs ledger closing ${lg.closing}`);
-    ok('D-03b all three kinds of entry are on this ledger', ['JV-JRN-1', 'JV-9101', cpvSys].every(v => lg.vnos.includes(v)), JSON.stringify(lg.vnos));
+    ok('D-03b all three kinds of entry are on this ledger', [jvSys, 'JV-9101', cpvSys].every(v => lg.vnos.includes(v)), JSON.stringify(lg.vnos));
 
     const backToLedger = async () => {
       await page.waitForSelector('.lsheet [data-drill-vno]', { timeout: 15000 });
@@ -237,12 +239,12 @@ const n = s => Number(String(s || '').replace(/[^0-9.\-()]/g, '').replace(/^\((.
       /53100/.test(lg2.foot) && /Profit & Loss/.test(lg2.back), JSON.stringify(lg2));
 
     // ── ledger → a journal voucher ──────────────────────────────────────────
-    await clickStable(page, '.lsheet [data-drill-vno="JV-JRN-1"]', { count: 2 });
+    await clickStable(page, `.lsheet [data-drill-vno="${jvSys}"]`, { count: 2 });
     await page.waitForSelector('.jvsheet [data-drilled]', { timeout: 15000 });
     const jv = await page.evaluate(() => ({ no: document.querySelector('.jvsheet [data-drilled]').getAttribute('data-jv-no'),
       back: (document.querySelector('#nf-jv-back') || {}).textContent || '' }));
     await shot(page, '4-journal-voucher');
-    ok('D-07 double-clicking JV-JRN-1 opens the Journal Vouchers screen with THAT voucher lit', jv.no === 'JV-JRN-1', JSON.stringify(jv));
+    ok('D-07 double-clicking JV-JRN-1 opens the Journal Vouchers screen with THAT voucher lit', jv.no === jvSys, JSON.stringify(jv));
     await clickStable(page, '#nf-jv-back');
     lg2 = await backToLedger();
     ok('D-07b …and Back returns to the ledger', /53100/.test(lg2.foot), JSON.stringify(lg2));
@@ -303,10 +305,10 @@ const n = s => Number(String(s || '').replace(/[^0-9.\-()]/g, '').replace(/^\((.
     let d = await detailView();
     await shot(page, '6-detail-expense');
     ok(`S2-01 P&L "Total ${qb53}" opens Transaction Detail whose lines tie to it`, ties(d, expTotal), `${expTotal} vs ${JSON.stringify(d)}`);
-    await clickStable(page, '.jsheet tr[data-jrn-vno="JV-JRN-1"]', { count: 2 });
+    await clickStable(page, `.jsheet tr[data-jrn-vno="${jvSys}"]`, { count: 2 });
     await page.waitForSelector('.jvsheet [data-drilled]', { timeout: 15000 });
     ok('S2-02 double-clicking a line in Transaction Detail opens its original entry',
-      await page.$eval('.jvsheet [data-drilled]', el => el.getAttribute('data-jv-no')) === 'JV-JRN-1', '');
+      await page.$eval('.jvsheet [data-drilled]', el => el.getAttribute('data-jv-no')) === jvSys, '');
     await clickStable(page, '#nf-jv-back');
     d = await detailView();
     ok('S2-03 …and Back returns to the same Transaction Detail, still tied', ties(d, expTotal) && /Profit & Loss/.test(d.back), JSON.stringify(d));
@@ -428,11 +430,11 @@ const n = s => Number(String(s || '').replace(/[^0-9.\-()]/g, '').replace(/^\((.
     await page.$eval('#nf-jrn-from', (el, v) => { el.value = v; }, s.date);
     await page.$eval('#nf-jrn-to', (el, v) => { el.value = v; }, s.date);
     await clickStable(page, '#nf-jrn-apply');
-    await page.waitForSelector('.jsheet tr.jrnleg[data-jrn-vno="JV-JRN-1"]', { timeout: 15000 });
-    await clickStable(page, '.jsheet tr.jrnleg[data-jrn-vno="JV-JRN-1"]', { count: 2 });
+    await page.waitForSelector(`.jsheet tr.jrnleg[data-jrn-vno="${jvSys}"]`, { timeout: 15000 });
+    await clickStable(page, `.jsheet tr.jrnleg[data-jrn-vno="${jvSys}"]`, { count: 2 });
     await page.waitForSelector('.jvsheet [data-drilled]', { timeout: 15000 });
     ok('S2-14 General Journal: double-clicking even a SECOND line of a voucher opens it',
-      await page.$eval('.jvsheet [data-drilled]', el => el.getAttribute('data-jv-no')) === 'JV-JRN-1', '');
+      await page.$eval('.jvsheet [data-drilled]', el => el.getAttribute('data-jv-no')) === jvSys, '');
     await clickStable(page, '#nf-jv-back');
     await page.waitForSelector('.jsheet tr[data-jrn-vno]', { timeout: 15000 });
     const jBack = await page.evaluate(() => ({ h1: document.querySelector('.jsheet h1').textContent, from: document.querySelector('#nf-jrn-from').value }));

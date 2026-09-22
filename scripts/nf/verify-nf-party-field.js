@@ -107,27 +107,28 @@ async function setValue(page, selector, text) {
   }, selector);
   await page.type(selector, text);
 }
-async function lastDraftTmpId(page, side) {
-  return page.evaluate(s => {
-    const rows = [...document.querySelectorAll(`.row.draft[data-side="${s}"]`)];
-    return rows.length ? rows[rows.length - 1].getAttribute('data-draft') : null;
-  }, side);
-}
+// saved = the popup has closed AND the row is on the sheet under its manual number
 async function waitSaved(page, voucher, timeout = 8000) {
-  await page.waitForFunction(v => [...document.querySelectorAll('.row[data-saved] .vno')].some(el => el.value === v),
-    { timeout }, voucher);
+  await page.waitForFunction(v => !document.querySelector('#nf-vpop') &&
+    [...document.querySelectorAll('.row[data-saved] .vno')].some(el => el.value === v), { timeout }, voucher);
 }
 
-// The head is the shared type-to-search picker now, not a <select>: focus,
-// type the code, take the row. Picking a head redraws the row, so give that
-// redraw a tick before touching the row again.
-async function pickHead(page, tmpId, code) {
-  const box = `.row.draft[data-draft="${tmpId}"] [data-pick="head"]`;
-  await page.focus(box + ' .nfpick-in');
-  await page.type(box + ' .nfpick-in', code);
-  await page.waitForSelector(box + ' .nfpick-dd:not([hidden])', { timeout: 5000 });
-  await page.click(box + ' [data-pick-value="' + code + '"]');
-  await page.evaluate(() => new Promise(r => setTimeout(r, 60)));
+// New receipts are entered through the + CRV popup since docs/PLAN.md §45;
+// its party field is the same search-first picker the draft row had.
+const POP = '#nf-vpop';
+const PARTY = POP + ' [data-pick="nfv-party"]';
+async function openCrv(page, manual, desc, amount) {
+  await page.click('[data-vtype="CRV"]');
+  await page.waitForSelector(POP + ' #nfv-manual', { timeout: 5000 });
+  await setValue(page, '#nfv-manual', manual);
+  await page.select('#nfv-floor', 'GF');
+  const head = POP + ' [data-pick="nfv-head"]';
+  await page.focus(head + ' .nfpick-in');
+  await page.type(head + ' .nfpick-in', '21100');
+  await page.waitForSelector(head + ' .nfpick-dd:not([hidden])', { timeout: 5000 });
+  await page.click(head + ' [data-pick-value="21100"]');
+  await setValue(page, '#nfv-desc', desc);
+  await setValue(page, '#nfv-amt', String(amount));
 }
 
 (async () => {
@@ -230,53 +231,34 @@ async function pickHead(page, tmpId, code) {
       }
     });
 
-    // PF-06: an empty party field on a fresh draft row shows a browse list
-    // (both seeded parties), never "+ Add new" — "add new" only after a
-    // search has visibly returned nothing, never as the easy first action.
-    let tmpId = await lastDraftTmpId(accPage, 'IN');
-    let sel = k => `.row.draft[data-draft="${tmpId}"] [data-k="${k}"]`;
-    await setValue(accPage, sel('v'), 'CRV-PF1');
-    await setValue(accPage, sel('d'), 'party field test — pick existing');
-    await pickHead(accPage, tmpId, '21100');
-    await accPage.select(sel('f'), 'GF');
-    await accPage.select(sel('m'), 'Cash');
-    await setValue(accPage, sel('a'), '5000');
-    // NOT re-resolved here: filling in v/h/f/m already made ensureTrailingBlank
-    // append a fresh blank row behind this one, so "last draft row" now means
-    // THAT one, not ours — the tmpId captured before any of this started is
-    // still this exact row (tmpIds survive a redraw; only "last" drifts).
-    const partySel = `.row.draft[data-draft="${tmpId}"] [data-pick="party"] .nfpick-in`;
+    // PF-06: an empty party field shows a browse list (both seeded parties),
+    // never "+ Add new" — "add new" only after a search has visibly returned
+    // nothing, never as the easy first action.
+    await openCrv(accPage, 'CRV-PF1', 'party field test — pick existing', 5000);
+    const partySel = PARTY + ' .nfpick-in';
     await accPage.focus(partySel);
     await new Promise(r => setTimeout(r, 50));
-    await accPage.waitForSelector(`.row.draft[data-draft="${tmpId}"] [data-pick="party"] .nfpick-dd:not([hidden])`, { timeout: 4000 });
-    const browseState = await accPage.evaluate(t => {
-      const dd = document.querySelector(`.row.draft[data-draft="${t}"] [data-pick="party"] .nfpick-dd`);
+    await accPage.waitForSelector(PARTY + ' .nfpick-dd:not([hidden])', { timeout: 4000 });
+    const browseState = await accPage.evaluate(sel => {
+      const dd = document.querySelector(sel + ' .nfpick-dd');
       return { hasAdd: !!dd.querySelector('.nfpick-add'), optCount: dd.querySelectorAll('.nfpick-opt').length };
-    }, tmpId);
+    }, PARTY);
     ok('PF-06 empty field shows browse list, no add-new', !browseState.hasAdd && browseState.optCount >= 2, JSON.stringify(browseState));
 
     // PF-01/02: type a partial match of the existing party, expect it (and
     // only it — no "add new") in the dropdown, pick it via mousedown.
     await accPage.type(partySel, 'Existing Test Party');
-    await accPage.waitForSelector(`.row.draft[data-draft="${tmpId}"] [data-pick="party"] .nfpick-dd:not([hidden])`, { timeout: 4000 });
-    const matchState = await accPage.evaluate(t => {
-      const dd = document.querySelector(`.row.draft[data-draft="${t}"] [data-pick="party"] .nfpick-dd`);
+    await accPage.waitForSelector(PARTY + ' .nfpick-dd:not([hidden])', { timeout: 4000 });
+    const matchState = await accPage.evaluate(sel => {
+      const dd = document.querySelector(sel + ' .nfpick-dd');
       return { hasAdd: !!dd.querySelector('.nfpick-add'), opts: [...dd.querySelectorAll('[data-pick-value]')].map(e => e.getAttribute('data-pick-value')) };
-    }, tmpId);
+    }, PARTY);
     ok('PF-01 existing party matched, no add-new offered', !matchState.hasAdd && matchState.opts.includes(existingPartyName), JSON.stringify(matchState));
-
-    const pickSel = `.row.draft[data-draft="${tmpId}"] [data-pick="party"] [data-pick-value="${existingPartyName}"]`;
-    await accPage.click(pickSel);
+    await accPage.click(PARTY + ' [data-pick-value="' + existingPartyName + '"]');
     await new Promise(r => setTimeout(r, 100));
-    const postClick = await accPage.evaluate(t => {
-      const wrap = document.querySelector(`.row.draft[data-draft="${t}"] [data-pick="party"]`);
-      const inp = wrap ? wrap.querySelector('.nfpick-in') : null;
-      const dd = wrap ? wrap.querySelector('.nfpick-dd') : null;
-      return { found: !!wrap, inputValue: inp ? inp.value : null, ddHidden: dd ? dd.hidden : null };
-    }, tmpId);
-    console.log('  DEBUG postClick', JSON.stringify(postClick));
+    await accPage.click('#nfv-save');
     try { await waitSaved(accPage, 'CRV-PF1'); ok('PF-02 line with existing party saved', true, ''); }
-    catch (e) { ok('PF-02 line with existing party saved', false, await accPage.evaluate(t => { const row = document.querySelector(`.row.draft[data-draft="${t}"]`); const el = row && row.querySelector('.row-err'); const p = row && row.querySelector('[data-pick="party"] .nfpick-in'); return el ? el.textContent : 'no row-err; row found=' + !!row + ' party value=' + (p ? p.value : null); }, tmpId)); }
+    catch (e) { ok('PF-02 line with existing party saved', false, await accPage.evaluate(() => { const el = document.querySelector('#nfv-err'); return el && !el.hidden ? el.textContent : 'no popup error; popup open=' + !!document.querySelector('#nf-vpop'); })); }
 
     const [row1] = await q(`select vl.party_id, p.name from nf_lines l join public.nf_voucher_legs vl on vl.id = l.id
                               join public.nf_parties p on p.id = vl.party_id where l.company_id='${C}' and l.voucher_key in (select voucher_key from nf_vouchers where company_id='${C}' and manual_no='CRV-PF1')`);
@@ -285,30 +267,20 @@ async function pickHead(page, tmpId, code) {
     ok('PF-02 still exactly one party row with that name', Number(dupCount1) === 1, `rows: ${dupCount1}`);
 
     // PF-03/04: a genuinely new name — no existing match, "+ Add new" only.
-    await accPage.click('button.add[data-side="IN"]');
-    await new Promise(r => setTimeout(r, 100));
-    tmpId = await lastDraftTmpId(accPage, 'IN');
-    sel = k => `.row.draft[data-draft="${tmpId}"] [data-k="${k}"]`;
-    await setValue(accPage, sel('v'), 'CRV-PF2');
-    await setValue(accPage, sel('d'), 'party field test — create new');
-    await pickHead(accPage, tmpId, '21100');
-    await accPage.select(sel('f'), 'GF');
-    await accPage.select(sel('m'), 'Cash');
-    await setValue(accPage, sel('a'), '7500');
-    const partySel2 = `.row.draft[data-draft="${tmpId}"] [data-pick="party"] .nfpick-in`;
-    await accPage.focus(partySel2);
-    await accPage.type(partySel2, newPartyName);
-    await accPage.waitForSelector(`.row.draft[data-draft="${tmpId}"] [data-pick="party"] .nfpick-dd:not([hidden])`, { timeout: 4000 });
-    const newState = await accPage.evaluate(t => {
-      const dd = document.querySelector(`.row.draft[data-draft="${t}"] [data-pick="party"] .nfpick-dd`);
+    await openCrv(accPage, 'CRV-PF2', 'party field test — create new', 7500);
+    await accPage.focus(partySel);
+    await accPage.type(partySel, newPartyName);
+    await accPage.waitForSelector(PARTY + ' .nfpick-dd:not([hidden])', { timeout: 4000 });
+    const newState = await accPage.evaluate(sel => {
+      const dd = document.querySelector(sel + ' .nfpick-dd');
       return { addEl: dd.querySelector('[data-pick-add]') ? dd.querySelector('[data-pick-add]').getAttribute('data-pick-add') : null, pickCount: dd.querySelectorAll('[data-pick-value]').length };
-    }, tmpId);
+    }, PARTY);
     ok('PF-03 unmatched name offers ONLY add-new', newState.pickCount === 0 && newState.addEl === newPartyName, JSON.stringify(newState));
-
-    const addSel = `.row.draft[data-draft="${tmpId}"] [data-pick="party"] [data-pick-add="${newPartyName}"]`;
-    await accPage.click(addSel);
+    await accPage.click(PARTY + ' [data-pick-add="' + newPartyName + '"]');
+    await new Promise(r => setTimeout(r, 100));
+    await accPage.click('#nfv-save');
     try { await waitSaved(accPage, 'CRV-PF2'); ok('PF-04 line with new party saved', true, ''); }
-    catch (e) { ok('PF-04 line with new party saved', false, await accPage.evaluate(() => { const el = document.querySelector('.row-err'); return el ? el.textContent : 'no row-err'; })); }
+    catch (e) { ok('PF-04 line with new party saved', false, await accPage.evaluate(() => { const el = document.querySelector('#nfv-err'); return el && !el.hidden ? el.textContent : 'no popup error'; })); }
 
     const [newParty] = await q(`select id, name, kind from public.nf_parties where company_id='${C}' and name='${newPartyName.replace(/'/g, "''")}'`);
     ok('PF-04 a real nf_parties row was created', !!newParty, JSON.stringify(newParty));

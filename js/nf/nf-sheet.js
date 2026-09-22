@@ -8,15 +8,18 @@
  * css/nf/nf-print.css transfers unchanged. The differences from the
  * reference are the ones the plan records (docs/PLAN.md §4B):
  *
- *   - the server is the only source of truth. A line is either SAVED (came
- *     back from nf_get_day) or a DRAFT (typed here, not yet valid to send —
- *     R3/R8 refuse an incomplete line, so an incomplete row can only ever be
- *     a draft, never a saved fact with a hole in it).
- *   - a database refusal (NEGATIVE_POSITION, DUPLICATE_VOUCHER, …) is shown
- *     in plain language ON THE ROW THAT CAUSED IT (js/nf/nf-messages.js),
- *     and the row stays a draft — nothing is silently discarded.
+ *   - the server is the only source of truth. Every row on the sheet is a
+ *     SAVED line (came back from nf_get_day). A NEW voucher is entered in a
+ *     popup per type — + CRV / + BRV / + CPV / + BPV / + JV —
+ *     (js/nf/nf-voucher-popup.js, docs/PLAN.md §45), which replaced the
+ *     draft rows typed straight into the sheet. A refusal (NEGATIVE_POSITION,
+ *     DUPLICATE_VOUCHER, …) is shown in plain language inside the popup
+ *     (js/nf/nf-messages.js), and the popup stays open with everything
+ *     typed — nothing is silently discarded.
  *   - amounts carry two decimals, shown only when present (js/nf/nf-format.js).
- *   - Submit / Close are disabled while any draft row is incomplete.
+ *   - every voucher carries two numbers: the SYSTEM number given on save,
+ *     and the MANUAL (paper) number, which may wait but is required before
+ *     Close day (docs/PLAN.md §44).
  *   - opening is typed only on the very first day; every later day's opening
  *     is read back from the server, never typed here.
  *   - "Start new day" needs the previous day CLOSED.
@@ -28,7 +31,6 @@
   var F = global.NfFmt, Msg = global.NfMsg;
 
   function esc(s) { return F.esc(s); }
-  function uid() { return 'd' + Math.random().toString(36).slice(2, 10); }
 
   function mount(root, ctx) {
     var api = ctx.api;
@@ -38,13 +40,11 @@
     // ── state ──────────────────────────────────────────────────────────────
     var S = {
       heads: [], floors: [], vias: [],
-      day: null, latest: null, position: null, lines: [], pdcs: [], checks: [], balanced: true,
+      day: null, latest: null, position: null, lines: [], jvs: [], pdcs: [], checks: [], balanced: true,
       settings: ctx.settings || {},
     };
-    var drafts = { IN: [], OUT: [] };       // {tmpId, v, d, h, f, m, a, saving, error:{field,message}}
-    // The transfers live only in the DOM once typed, same as a draft line —
-    // but unlike a draft line they have nowhere else to be kept. Without an
-    // overlay, a render() triggered by an UNRELATED save landing late
+    // The transfers live only in the DOM once typed, and have nowhere else
+    // to be kept until their save lands. Without an overlay, a render() triggered by an UNRELATED save landing late
     // rebuilds these fields from the last server state and silently erases
     // whatever had just been typed. null means "show the server's own value";
     // once set, it's shown instead, until its own save clears it back to null.
@@ -53,13 +53,6 @@
     var transferDraft = null;   // {tBank, tPetty} | null
     var busy = false;
 
-    function blankDraft() { return { tmpId: uid(), v: '', d: '', h: '', f: '', m: '', a: '', p: '', saving: false, error: null }; }
-    function ensureTrailingBlank(side) {
-      var arr = drafts[side];
-      var last = arr[arr.length - 1];
-      if (!last || last.v || last.d || last.h || last.f || last.m || last.a) arr.push(blankDraft());
-    }
-    ensureTrailingBlank('IN'); ensureTrailingBlank('OUT');
 
     root.innerHTML =
       '<main class="sheet" id="nf-sheet"></main>' +
@@ -67,10 +60,9 @@
       '<div id="nf-toast-host"></div>';
     var sheetEl = root.querySelector('#nf-sheet');
     var noteEl = root.querySelector('#nf-note');
-    noteEl.textContent = 'Click any cell to edit. Choose a head under each description, then the floor and whether the money went ' +
-      'through Cash, Petty or Bank. A line is saved automatically once its head, floor, via and amount are filled in — the voucher number can wait until the paper voucher is written, but the day cannot close without it; ' +
-      'a refused line stays on the sheet with the reason shown underneath it. "Start new day" carries today’s closing forward as ' +
-      'tomorrow’s opening.';
+    noteEl.textContent = 'Add a voucher with the + CRV / + BRV / + CPV / + BPV / + JV buttons. A saved line can still be corrected ' +
+      'in place. The manual voucher number can wait until the paper voucher is written, but the day cannot close without it. ' +
+      '"Start new day" carries today’s closing forward as tomorrow’s opening.';
 
     // AUDIT_REPORT.md R-4. #nf-toast-host lives in the shell this module
     // renders, and the shell is replaced wholesale when the person opens the
@@ -106,14 +98,13 @@
         S.latest = res.latest || null;
         S.position = res.day ? (res.position || (res.day && null)) : null;
         S.lines = (res.lines || []);
+        S.jvs = (res.jvs || []);
         S.pdcs = (res.pdcs || []);
         S.checks = (res.checks || []);
         S.balanced = !!res.balanced;
         // position comes back nested under day payload for nf_day_json; nf_get_day
         // for an existing day returns the same shape as nf_day_json directly.
         if (res.position) S.position = res.position;
-        drafts.IN = []; drafts.OUT = [];
-        ensureTrailingBlank('IN'); ensureTrailingBlank('OUT');
         return res;
       });
     }
@@ -122,14 +113,6 @@
       return Promise.all([api.listHeads(companyId), api.listFloors(companyId), api.listVias(companyId), api.listAllParties(companyId)])
         .then(function (r) { S.heads = r[0] || []; S.floors = r[1] || []; S.vias = r[2] || []; S.parties = r[3] || []; });
     }
-    // requires_party comes back per head from nf_list_heads (20260919i) —
-    // look it up by code rather than re-deriving it, the same way headName()
-    // already does.
-    function headRequiresParty(code) {
-      var h = S.heads.filter(function (x) { return x.code === code; })[0];
-      return !!(h && h.requires_party);
-    }
-
     // ── header / docmeta ──────────────────────────────────────────────────
     function renderHeader() {
       var mark = esc((S.settings.mark || 'NF'));
@@ -211,7 +194,9 @@
       }).join('');
     };
     var viaOpts = function (selected) {
-      return '<option value="">–</option>' + S.vias.map(function (v) {
+      // a saved voucher keeps its type (docs/PLAN.md §44): a cash line may
+      // move between Cash and Petty; a bank line stays Bank
+      return S.vias.filter(function (v) { return (v.via === 'Bank') === (selected === 'Bank'); }).map(function (v) {
         return '<option value="' + esc(v.via) + '"' + (v.via === selected ? ' selected' : '') + '>' + esc(v.via) + '</option>';
       }).join('');
     };
@@ -265,27 +250,15 @@
         (canWrite ? '<button class="del" type="button" data-del-saved="' + l.id + '" data-version="' + l.version + '" aria-label="Delete line">×</button>' : '<span></span>') +
         '</div>';
     }
-    function draftRowHTML(side, r) {
-      var errField = r.error && r.error.field;
-      return '<div class="grid row draft' + (r.error ? ' err' : '') + '" data-draft="' + r.tmpId + '" data-side="' + side + '">' +
-        '<input class="vno" data-k="v" value="' + esc(r.v) + '" placeholder="Manual no." aria-label="Manual voucher number" title="The number on the paper voucher — can be added later, needed before Close day">' +
-        '<div class="desc"><input data-k="d" value="' + esc(r.d) + '" placeholder="Description" aria-label="Description">' +
-        headPick(r.h, errField === 'head') + '</div>' +
-        partyFieldHTML(r.p, errField === 'party') +
-        '<select class="sel" data-k="f" aria-label="Floor">' + floorOpts(r.f) + '</select>' +
-        '<select class="sel" data-k="m" aria-label="Cash, petty or bank">' + viaOpts(r.m) + '</select>' +
-        '<input class="amt" data-k="a" inputmode="decimal" value="' + esc(r.a) + '" placeholder="0" aria-label="Amount">' +
-        '<button class="del" type="button" data-del-draft="' + r.tmpId + '" aria-label="Remove line">×</button>' +
-        (r.error ? '<div class="row-err">' + esc(r.error.message) + '</div>' : '') +
-        '</div>';
-    }
-
     function renderBooks() {
       if (!S.day) return '';
       var savedIn = S.lines.filter(function (l) { return l.side === 'IN'; });
       var savedOut = S.lines.filter(function (l) { return l.side === 'OUT'; });
-      var rowsIn = savedIn.map(function (l) { return savedRowHTML('IN', l); }).join('') + drafts.IN.map(function (r) { return draftRowHTML('IN', r); }).join('');
-      var rowsOut = savedOut.map(function (l) { return savedRowHTML('OUT', l); }).join('') + drafts.OUT.map(function (r) { return draftRowHTML('OUT', r); }).join('');
+      function none(what, types) {
+        return '<p class="empty-note nf-book-empty">No ' + what + ' yet' + (canWrite ? ' — press ' + types + ' above.' : '.') + '</p>';
+      }
+      var rowsIn = savedIn.map(function (l) { return savedRowHTML('IN', l); }).join('') || none('receipts', '+ CRV or + BRV');
+      var rowsOut = savedOut.map(function (l) { return savedRowHTML('OUT', l); }).join('') || none('payments', '+ CPV or + BPV');
 
       function footer(side, saved) {
         var byVia = { Cash: 0, Petty: 0, Bank: 0 };
@@ -296,21 +269,43 @@
           '<span class="grand">Total ' + (side === 'IN' ? 'received' : 'paid') + '</span><span class="r grand">' + F.fmt(all) + '</span>';
       }
 
-      return '' +
+      // one button per voucher type, each opening its own popup (owner,
+      // 2026-09-21; mockup approved) — js/nf/nf-voucher-popup.js
+      var typeBar = canWrite
+        ? '<section class="sec nf-vtypes" aria-label="Add a voucher">' +
+          [['CRV', 'Cash receipt'], ['BRV', 'Bank receipt'], ['CPV', 'Cash payment'], ['BPV', 'Bank payment'], ['JV', 'Journal voucher']].map(function (x) {
+            return '<button class="btn nf-vt" type="button" data-vtype="' + x[0] + '"><b>+ ' + x[0] + '</b>&nbsp;' + x[1] + '</button>';
+          }).join('') + '</section>'
+        : '';
+      return typeBar +
         '<section class="sec"><div class="books">' +
         '  <div class="book in"><div class="bh"><h3><i></i>Receipts <small>CRV / BRV</small></h3><span class="cnt">' + savedIn.length + ' ' + (savedIn.length === 1 ? 'entry' : 'entries') + '</span></div>' +
         '    <div class="grid cols"><span>Voucher</span><span>Description and head</span><span>Party</span><span class="c">Floor</span><span class="c">Via</span><span class="r">Amount</span><span></span></div>' +
         '    <div id="nf-rowsIn">' + rowsIn + '</div>' +
-        (canWrite ? '    <button class="add" type="button" data-side="IN">+ Add receipt</button>' : '') +
         '    <div class="bf">' + footer('IN', savedIn) + '</div></div>' +
         '  <div class="book out"><div class="bh"><h3><i></i>Payments <small>CPV / BPV</small></h3><span class="cnt">' + savedOut.length + ' ' + (savedOut.length === 1 ? 'entry' : 'entries') + '</span></div>' +
         '    <div class="grid cols"><span>Voucher</span><span>Description and head</span><span>Party</span><span class="c">Floor</span><span class="c">Via</span><span class="r">Amount</span><span></span></div>' +
         '    <div id="nf-rowsOut">' + rowsOut + '</div>' +
-        (canWrite ? '    <button class="add" type="button" data-side="OUT">+ Add payment</button>' : '') +
         '    <div class="bf">' + footer('OUT', savedOut) + '</div></div>' +
         '</div></section>' +
+        jvSection() +
         '<section class="sec"><div class="sh"><h2>Payments by head</h2></div><div class="box"><table class="heads"><colgroup><col><col style="width:96px"></colgroup><tbody>' +
         headsTable(savedOut) + '</tbody><tfoot><tr><td>Total</td><td class="r t">' + F.fmt(savedOut.reduce(function (t, l) { return t + F.n(l.amount); }, 0)) + '</td></tr></tfoot></table></div></section>';
+    }
+    // Journal vouchers dated this day — entered from + JV here or from the
+    // Journal Vouchers screen. Shown so the day's full set of vouchers is on
+    // one page, and so a missing manual number is visible before Close day.
+    function jvSection() {
+      var list = S.jvs || [];
+      if (!list.length) return '';
+      return '<section class="sec"><div class="sh"><h2>Journal vouchers dated today</h2><span>' + list.length + (list.length === 1 ? ' voucher' : ' vouchers') + '</span></div>' +
+        '<div class="box"><table class="nf-dayjv"><thead><tr><th>Voucher <small class="muted">manual / system</small></th><th>Narration</th><th class="r">Amount</th></tr></thead><tbody>' +
+        list.map(function (v) {
+          return '<tr data-jv-no="' + esc(v.voucher_no) + '"' + (v.number_pending ? ' class="vno-pending"' : '') + '><td>' +
+            (v.manual_no ? esc(v.manual_no) : '<span class="nf-pend-tag">manual no. pending</span>') +
+            '<span class="vno-sys" style="display:block">' + esc(v.voucher_no) + '</span></td>' +
+            '<td>' + esc(v.narration || '') + '</td><td class="r t">' + F.fmt(v.total) + '</td></tr>';
+        }).join('') + '</tbody></table></div></section>';
     }
     function headsTable(savedOut) {
       var by = {};
@@ -369,32 +364,9 @@
     }
 
     // ── checks / sign-off ───────────────────────────────────────────────────
-    function draftIssues() {
-      var issues = [];
-      function scan(side, list) {
-        list.forEach(function (r) {
-          var any = r.d || r.a;
-          if (!any) return;
-          if (!r.h) issues.push('has no head selected');
-          if (r.h && headRequiresParty(r.h) && !(r.p || '').trim()) issues.push('needs a party — this account always tracks who it is with');
-          if (!r.m) issues.push('is not marked Cash, Petty or Bank, so it is left out of the balances');
-          if (!r.f) issues.push('has no floor');
-        });
-      }
-      scan('IN', drafts.IN); scan('OUT', drafts.OUT);
-      // group identical messages the way the reference counts them
-      var counts = {};
-      issues.forEach(function (m) { counts[m] = (counts[m] || 0) + 1; });
-      return Object.keys(counts).map(function (m) {
-        var n = counts[m];
-        return (n > 1 ? n + ' lines ' : '1 line ') + m.replace(/^is /, n > 1 ? 'are ' : 'is ') + '.';
-      });
-    }
     function renderChecks() {
       if (!S.day) return '';
-      var extra = draftIssues();
-      var serverTexts = (S.checks || []).map(function (c) { return c.text; });
-      var all = serverTexts.concat(extra);
+      var all = (S.checks || []).map(function (c) { return c.text; });
       var ok = all.length === 0;
       var listHtml = ok
         ? '<li>All checks passed. Every line has a head, floor and account; no balance is negative.</li>'
@@ -421,7 +393,15 @@
         '</div>' +
         '<div class="docfoot"><span>' + esc(ctx.companyName || '') + ' · Daily Cash &amp; Bank Closing</span><span id="nf-stamp">' + esc(S.day.closing_no || '') + ' · ' + F.ddMonYyyy(S.day.business_date) + '</span></div>';
     }
-    function pendingLines() { return (S.lines || []).filter(function (l) { return l.number_pending; }); }
+    // every voucher of the day still owed its manual number: the cash book's
+    // lines and the JVs dated today (docs/PLAN.md §44/§45)
+    function pendingLines() {
+      return (S.lines || []).filter(function (l) { return l.number_pending; }).map(function (l) {
+        return { voucher_id: l.voucher_id, voucher_no: l.voucher_no, version: l.version, text: l.description || headName(l.head_code) || '', amount: l.amount };
+      }).concat((S.jvs || []).filter(function (v) { return v.number_pending; }).map(function (v) {
+        return { voucher_id: v.id, voucher_no: v.voucher_no, version: v.version, text: v.narration || '', amount: v.total };
+      }));
+    }
     function actionButtons(ok) {
       if (!S.day) return '';
       var btns = [];
@@ -479,16 +459,14 @@
     // the bug it replaced (see serialDebounce above), so every render() finds
     // its way back to whatever was focused, by a selector stable across a
     // redraw: an id, or a data-k field within the same
-    // draft/saved row (identified by its tmpId/line id, not by DOM position).
+    // saved row (identified by its line id, not by DOM position).
     function focusSelector() {
       var el = document.activeElement;
       if (!el || !sheetEl.contains(el)) return null;
       if (el.id) return '#' + el.id;
       var k = el.getAttribute('data-k');
       if (k) {
-        var row = el.closest('[data-draft]');
-        if (row) return '[data-draft="' + row.getAttribute('data-draft') + '"] [data-k="' + k + '"]';
-        row = el.closest('[data-saved]');
+        var row = el.closest('[data-saved]');
         if (row) return '[data-id="' + row.getAttribute('data-id') + '"] [data-k="' + k + '"]';
       }
       return null;
@@ -547,44 +525,31 @@
       S.day = res.day || null;
       S.position = res.position || null;
       S.lines = res.lines || [];
+      S.jvs = res.jvs || [];
       S.pdcs = res.pdcs || [];
       S.checks = res.checks || [];
       S.balanced = !!res.balanced;
-      drafts.IN = drafts.IN.filter(function (r) { return r.v || r.d || r.h || r.f || r.m || r.a; });
-      drafts.OUT = drafts.OUT.filter(function (r) { return r.v || r.d || r.h || r.f || r.m || r.a; });
-      ensureTrailingBlank('IN'); ensureTrailingBlank('OUT');
       render();
     }
 
-    function trySaveDraft(side, tmpId) {
-      var arr = drafts[side];
-      var r = arr.filter(function (x) { return x.tmpId === tmpId; })[0];
-      if (!r || r.saving) return;
-      var partyOk = !headRequiresParty(r.h) || (r.p || '').trim();
-      // The voucher number is NOT required here (docs/PLAN.md §44): saved
-      // without it, the line gets a temporary number and waits for the real
-      // one before Close day.
-      var complete = r.h && r.f && r.m && F.n(r.a) > 0 && partyOk;
-      if (!complete) return;
-      r.saving = true;
-      api.saveLine(S.day.id, null, side, r.v.trim(), r.d, r.h, r.f, r.m, F.n(r.a), null, r.p)
-        .then(function (res) {
-          // remove THIS draft explicitly — applyDay only clears fully-blank
-          // ones, and this one still has everything typed into it
-          drafts[side] = drafts[side].filter(function (x) { return x.tmpId !== tmpId; });
+    // ── the voucher popups (js/nf/nf-voucher-popup.js) ─────────────────────
+    function openVoucher(type) {
+      global.NfVoucherPopup.open({
+        type: type, api: api, companyId: companyId, day: S.day,
+        heads: S.heads, floors: S.floors, vias: S.vias, parties: S.parties,
+        onSaved: function (res, saved) {
+          if (type === 'JV') {
+            toast('Journal voucher ' + saved.voucher_no + (saved.manual_no ? ' saved (manual ' + saved.manual_no + ').' : ' saved — manual voucher number pending.'));
+            refresh();
+            return;
+          }
           applyDay(res);
-          // name it by the system number it was just given — the newest
-          // line of its side — and say whether the manual one is still owed
-          var mine = (res.lines || []).filter(function (l) { return l.side === side; })
-            .sort(function (a, b) { return b.sort - a.sort; })[0];
-          toast((side === 'IN' ? 'Receipt' : 'Payment') + ' ' + (mine ? mine.voucher_no : '') +
-            (mine && mine.manual_no ? ' saved (manual ' + mine.manual_no + ').' : ' saved — manual voucher number pending.'));
-        })
-        .catch(function (err) {
-          r.saving = false;
-          r.error = { field: Msg.code(err), message: Msg.forLine(err) };
-          render();
-        });
+          toast((type.charAt(1) === 'R' ? 'Receipt ' : 'Payment ') + (saved ? saved.voucher_no : '') +
+            (saved && saved.manual_no ? ' saved (manual ' + saved.manual_no + ').' : ' saved — manual voucher number pending.'));
+          // a payee typed new in the popup is a party now — pick it up for the next one
+          api.listAllParties(companyId).then(function (list) { S.parties = list || S.parties; }).catch(function () {});
+        },
+      });
     }
 
     function saveSavedLine(side, id, version, patch) {
@@ -721,45 +686,6 @@
 
       if (!S.day) return;
 
-      // draft rows
-      root.querySelectorAll('.row.draft').forEach(function (rowEl) {
-        var side = rowEl.getAttribute('data-side'), tmpId = rowEl.getAttribute('data-draft');
-        var r = drafts[side].filter(function (x) { return x.tmpId === tmpId; })[0];
-        if (!r) return;
-        rowEl.querySelectorAll('[data-k]').forEach(function (inp) {
-          // Text fields only update the in-memory draft on 'input' — NOT a
-          // re-render. Rebuilding the row's DOM mid-keystroke would drop
-          // focus and the caret position on every character typed; a select
-          // change or leaving the field is the point where the sheet redraws.
-          inp.addEventListener('input', function () {
-            r[inp.getAttribute('data-k')] = inp.value;
-            r.error = null;
-          });
-          inp.addEventListener('change', function () {
-            if (inp.tagName === 'SELECT') {
-              ensureTrailingBlank(side);
-              render();
-              trySaveDraft(side, tmpId);
-            }
-          });
-          inp.addEventListener('blur', function () {
-            ensureTrailingBlank(side);
-            trySaveDraft(side, tmpId);
-          });
-          inp.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') { e.preventDefault(); ensureTrailingBlank(side); trySaveDraft(side, tmpId); }
-          });
-        });
-      });
-      root.querySelectorAll('[data-del-draft]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var id = btn.getAttribute('data-del-draft'), side = btn.closest('.row').getAttribute('data-side');
-          drafts[side] = drafts[side].filter(function (x) { return x.tmpId !== id; });
-          ensureTrailingBlank(side);
-          render();
-        });
-      });
-
       // saved rows
       root.querySelectorAll('.row[data-saved]').forEach(function (rowEl) {
         if (!canWrite) return;
@@ -783,18 +709,13 @@
         });
       });
 
-      // The head and the party are both the shared type-to-search picker
-      // (js/nf/nf-pick.js). Each one routes its choice into the same path
-      // the old <select>'s change handler used for that row type: a draft
-      // row updates its own draft and tries to save, a saved row goes
-      // straight through saveSavedLine. The head redraws afterwards because
-      // whether the party is REQUIRED depends on which head was picked.
+      // The head and the party on a SAVED row are the shared type-to-search
+      // picker (js/nf/nf-pick.js); a choice goes straight through
+      // saveSavedLine. (New vouchers are entered in the popups.)
       function rowOf(wrap) {
-        var d = wrap.closest('.row.draft');
-        if (d) return { draft: true, side: d.getAttribute('data-side'), tmpId: d.getAttribute('data-draft') };
         var sv = wrap.closest('.row[data-saved]');
         if (sv && canWrite) {
-          return { draft: false, side: sv.getAttribute('data-side'), id: sv.getAttribute('data-id'),
+          return { side: sv.getAttribute('data-side'), id: sv.getAttribute('data-id'),
                    version: Number(sv.getAttribute('data-version')) };
         }
         return null;
@@ -802,28 +723,11 @@
       global.NfPick.wire(root, {
         key: 'head',
         items: function () { return global.NfPick.accountItems(S.heads); },
-        emptyText: 'No head matches that. Heads are never created here.',
+        emptyText: 'No head matches that.',
         onPick: function (wrap, code) {
           var at = rowOf(wrap);
           if (!at) return;
-          if (at.draft) {
-            var r = drafts[at.side].filter(function (x) { return x.tmpId === at.tmpId; })[0];
-            if (!r) return;
-            r.h = code; r.error = null;
-            ensureTrailingBlank(at.side);
-            // Deferred: onPick runs inside the picker's own mousedown, and
-            // rebuilding the row's DOM from inside the event that is still
-            // being dispatched on it is the same hazard the journal-voucher
-            // screen hit on blur. A redraw IS needed here — whether the party
-            // is required depends on the head just chosen — so it happens on
-            // the next tick instead.
-            setTimeout(function () {
-              render();
-              trySaveDraft(at.side, at.tmpId);
-            }, 0);
-          } else {
-            saveSavedLine(at.side, at.id, at.version, { head_code: code });
-          }
+          saveSavedLine(at.side, at.id, at.version, { head_code: code });
         },
       });
       global.NfPick.wire(root, {
@@ -833,27 +737,13 @@
         onPick: function (wrap, name) {
           var at = rowOf(wrap);
           if (!at) return;
-          if (at.draft) {
-            var r = drafts[at.side].filter(function (x) { return x.tmpId === at.tmpId; })[0];
-            if (!r) return;
-            r.p = name; r.error = null;
-            ensureTrailingBlank(at.side);
-            trySaveDraft(at.side, at.tmpId);
-          } else {
-            saveSavedLine(at.side, at.id, at.version, { party_name: name });
-          }
+          saveSavedLine(at.side, at.id, at.version, { party_name: name });
         },
       });
 
-      // add-row buttons
-      root.querySelectorAll('.add[data-side]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var side = btn.getAttribute('data-side');
-          drafts[side].push(blankDraft());
-          render();
-          var last = root.querySelectorAll('.row.draft[data-side="' + side + '"] [data-k="d"]');
-          if (last.length) last[last.length - 1].focus();
-        });
+      // + CRV / + BRV / + CPV / + BPV / + JV
+      root.querySelectorAll('[data-vtype]').forEach(function (btn) {
+        btn.addEventListener('click', function () { openVoucher(btn.getAttribute('data-vtype')); });
       });
 
       // transfers — every keystroke updates the overlay first (so a render()
@@ -944,9 +834,9 @@
         '  <div class="nfn-list">' +
         list.map(function (l) {
           var type = String(l.voucher_no || '').split('-')[0];
-          return '<div class="nfn-row" data-line="' + esc(l.id) + '">' +
+          return '<div class="nfn-row" data-voucher="' + esc(l.voucher_id) + '" data-ver="' + esc(l.version) + '">' +
             '<span class="nfn-type" title="System number">' + esc(l.voucher_no) + '</span>' +
-            '<span class="nfn-desc">' + esc(l.description || headName(l.head_code) || '') + '</span>' +
+            '<span class="nfn-desc">' + esc(l.text) + '</span>' +
             '<span class="nfn-amt">' + F.fmt(l.amount) + '</span>' +
             '<input class="nfn-in" data-prefix="' + esc(type + '-') + '" value="" placeholder="' + esc(type) + ' manual no." aria-label="Manual voucher number for ' + esc(l.voucher_no) + '">' +
             '<span class="nfn-err" hidden></span></div>';
@@ -973,14 +863,14 @@
             var v = inp.value.trim();
             errEl.hidden = true;
             if (!v || v.toUpperCase() === inp.getAttribute('data-prefix').toUpperCase()) { failed++; errEl.textContent = 'Number still missing.'; errEl.hidden = false; return; }
-            var l = S.lines.filter(function (x) { return String(x.id) === rowEl.getAttribute('data-line'); })[0];
-            if (!l) return;
-            return api.saveLine(S.day.id, l.id, l.side, v, l.description, l.head_code, l.floor_code, l.via, F.n(l.amount), l.version, l.party_name)
-              .then(function (res) { applyDay(res); rowEl.classList.add('done'); inp.disabled = true; })
+            // nf_set_manual_no sets ONLY the manual number — the same call for
+            // a cash-book line and a JV (docs/PLAN.md §45)
+            return api.setManualNo(rowEl.getAttribute('data-voucher'), v, Number(rowEl.getAttribute('data-ver')))
+              .then(function () { rowEl.classList.add('done'); inp.disabled = true; })
               .catch(function (err) { failed++; errEl.textContent = Msg.forLine(err); errEl.hidden = false; });
           });
         });
-        chain.then(function () {
+        chain.then(refresh).then(function () {
           if (failed || pendingLines().length) { go.disabled = false; return; }
           host.remove();
           return closeNow();

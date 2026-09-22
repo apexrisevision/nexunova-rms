@@ -102,54 +102,51 @@ async function setValue(page, selector, text) {
   await page.evaluate(sel => { const el = document.querySelector(sel); el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true })); }, selector);
   await page.type(selector, text);
 }
-async function lastDraftTmpId(page, side) {
-  return page.evaluate(s => {
-    const rows = [...document.querySelectorAll(`.row.draft[data-side="${s}"]`)];
-    return rows.length ? rows[rows.length - 1].getAttribute('data-draft') : null;
-  }, side);
-}
+// saved = the popup has closed AND the row is on the sheet under its manual number
 async function waitSaved(page, voucher, timeout = 9000) {
-  await page.waitForFunction(v => [...document.querySelectorAll('.row[data-saved] .vno')].some(el => el.value === v), { timeout }, voucher);
+  await page.waitForFunction(v => !document.querySelector('#nf-vpop') &&
+    [...document.querySelectorAll('.row[data-saved] .vno')].some(el => el.value === v), { timeout }, voucher);
 }
 // Counts every interaction a real accountant would make, so "how awkward is
 // this" has a number behind it rather than an impression.
 let clicks = 0;
 const settle = page => page.evaluate(() => new Promise(r => setTimeout(r, 40)));
-// Head and party are both the shared type-to-search picker now, and a row
-// holds TWO of them — so every query has to be scoped by data-pick, never
-// just by .nfpick-dd, or the party's assertions read the head's dropdown.
+// A voucher is entered through its popup (js/nf/nf-voucher-popup.js,
+// docs/PLAN.md §45): + CRV/BRV/CPV/BPV, fill, Save. Head and party are both
+// the shared type-to-search picker, so every query is scoped by data-pick,
+// never just by .nfpick-dd, or the party's assertions read the head's list.
 async function enterLine(page, side, v, d, head, floor, via, amount, party) {
-  const tmpId = await lastDraftTmpId(page, side);
-  const row = `.row.draft[data-draft="${tmpId}"]`;
-  const sel = k => `${row} [data-k="${k}"]`;
-  const box = key => `${row} [data-pick="${key}"]`;
-  await setValue(page, sel('v'), v); clicks++;
-  await setValue(page, sel('d'), d); clicks++;
+  const P = '#nf-vpop';
+  const type = (via === 'Bank' ? 'B' : 'C') + (side === 'IN' ? 'RV' : 'PV');
+  const box = key => `${P} [data-pick="${key}"]`;
+  await page.click(`[data-vtype="${type}"]`); clicks++;
+  await page.waitForSelector(`${P} #nfv-manual`, { timeout: 5000 });
+  await setValue(page, '#nfv-manual', v); clicks++;
+  if (via === 'Petty') { await page.click(`${P} .vp-seg [data-via="Petty"]`); clicks++; }
+  await page.select('#nfv-floor', floor); clicks++;
   // the head: type the code, take it off the list
-  await page.focus(`${box('head')} .nfpick-in`);
-  await page.type(`${box('head')} .nfpick-in`, head); clicks++;
-  await page.waitForSelector(`${box('head')} .nfpick-dd:not([hidden])`, { timeout: 5000 });
-  await page.click(`${box('head')} [data-pick-value="${head}"]`); clicks++;
+  await page.focus(`${box('nfv-head')} .nfpick-in`);
+  await page.type(`${box('nfv-head')} .nfpick-in`, head); clicks++;
+  await page.waitForSelector(`${box('nfv-head')} .nfpick-dd:not([hidden])`, { timeout: 5000 });
+  await page.click(`${box('nfv-head')} [data-pick-value="${head}"]`); clicks++;
   await settle(page);
-  await page.select(sel('f'), floor); clicks++;
-  await page.select(sel('m'), via); clicks++;
-  await setValue(page, sel('a'), String(amount)); clicks++;
+  let shape;
   if (party) {
-    const ps = `${box('party')} .nfpick-in`;
+    const ps = `${box('nfv-party')} .nfpick-in`;
     await page.focus(ps); await page.type(ps, party); clicks++;
-    await page.waitForSelector(`${box('party')} .nfpick-dd:not([hidden])`, { timeout: 4000 });
-    const shape = await page.evaluate(t => {
-      const dd = document.querySelector(`.row.draft[data-draft="${t}"] [data-pick="party"] .nfpick-dd`);
+    await page.waitForSelector(`${box('nfv-party')} .nfpick-dd:not([hidden])`, { timeout: 4000 });
+    shape = await page.evaluate(() => {
+      const dd = document.querySelector('#nf-vpop [data-pick="nfv-party"] .nfpick-dd');
       return { add: !!dd.querySelector('[data-pick-add]'), picks: dd.querySelectorAll('[data-pick-value]').length };
-    }, tmpId);
+    });
     const target = shape.picks ? `[data-pick-value="${party}"]` : `[data-pick-add="${party}"]`;
-    await page.click(`${box('party')} ${target}`); clicks++;
+    await page.click(`${box('nfv-party')} ${target}`); clicks++;
     await settle(page);
-    return { tmpId, partyShape: shape };
   }
-  await page.focus(sel('a'));
-  await page.keyboard.press('Enter'); clicks++;
-  return { tmpId };
+  await setValue(page, '#nfv-desc', d); clicks++;
+  await setValue(page, '#nfv-amt', String(amount)); clicks++;
+  await page.click('#nfv-save'); clicks++;
+  return shape ? { partyShape: shape } : {};
 }
 
 (async () => {
@@ -263,16 +260,12 @@ async function enterLine(page, side, v, d, head, floor, via, amount, party) {
     // No Awami cash or bank moves. This is the shape 100% of the real
     // imported history actually has. Probe the screen honestly: is there any
     // way to express it?
-    const viaChoices = await acc.evaluate(() => {
-      const row = document.querySelector('.row.draft [data-k="m"]');
-      return row ? [...row.options].map(o => o.value).filter(Boolean) : [];
-    });
-    // This SHOULD stay false: a cash-closing sheet whose lines did not move
-    // cash would be a contradiction. What matters is that the shape has an
-    // entry path SOMEWHERE — which is what the Journal Voucher screen
-    // (20260919o, docs/PLAN.md §32.1) was built for, and what is checked next.
-    const onlyCashVias = viaChoices.length > 0 && viaChoices.every(v => ['Cash', 'Petty', 'Bank'].includes(v));
-    ok('S2 the daily sheet stays cash-only, by design', onlyCashVias, JSON.stringify(viaChoices));
+    // Since the voucher popups (docs/PLAN.md §45) the sheet offers one
+    // button per type: the four cash-book types, each of which moves Cash,
+    // Petty or Bank, and + JV for everything that moves none of them.
+    const typeButtons = await acc.$$eval('[data-vtype]', bs => bs.map(b => b.getAttribute('data-vtype')));
+    ok('S2 the sheet offers one popup per voucher type, JV included',
+      JSON.stringify(typeButtons) === JSON.stringify(['CRV', 'BRV', 'CPV', 'BPV', 'JV']), JSON.stringify(typeButtons));
     const jvReachable = await acc.evaluate(async () => {
       const t = document.querySelector('#nf-rpm-toggle');
       if (!t) return { menu: false };
@@ -285,7 +278,7 @@ async function enterLine(page, side, v, d, head, floor, via, amount, party) {
     });
     ok('S2 the no-cash / multi-leg shapes have an entry path (Journal Vouchers)',
       jvReachable.item === true, JSON.stringify(jvReachable));
-    note('Step 2', 'A daily-closing line must always move Cash, Petty or Bank, and always builds exactly two legs — correct for a cash sheet, but it means a cost FMH or a director paid on Awami\'s behalf (100% of the 64 real imported vouchers) and a token split across several units (7 of them) belong on the separate Journal Vouchers screen, not here. Both screens are one click apart in the same Reports menu; knowing WHICH to open is the one thing a new accountant has to be told.');
+    note('Step 2', 'Each voucher type has its own button and popup on the sheet itself now (+ CRV / + BRV / + CPV / + BPV / + JV). A cost FMH or a director paid on Awami\'s behalf (100% of the 64 real imported vouchers) and a token split across several units go through + JV — no separate screen to find first.');
 
     const clicksForDay = clicks - clicksBefore;
     note('Step 2', `three lines took ${clicksForDay} field interactions (~${Math.round(clicksForDay / 3)} per line): voucher, description, head, floor, via, amount, and a party where the head needs one. No keyboard-only path was tested; every head/floor/via is a dropdown.`);
@@ -414,7 +407,7 @@ async function enterLine(page, side, v, d, head, floor, via, amount, party) {
           {"account_code":"22100","floor_code":"GF","credit":40000}]'::jsonb) j`);
     ok('S6 a journal voucher posts between the two days', !!(jvRes[0] && jvRes[0].j && jvRes[0].j.id), JSON.stringify(jvRes[0]));
     const [jvCheck] = await q(`select count(*) n, min(status) status, min(day_id::text) day_id
-      from nf_vouchers where company_id='${C}' and voucher_key='JV-DRY-1'`);
+      from nf_vouchers where company_id='${C}' and manual_no='JV-DRY-1'`);  // its MANUAL number (§45)
     // not vacuous: the voucher really is in the ledger, POSTED, and day-less
     ok('S6 …and it is really in the ledger, POSTED and day-less',
       Number(jvCheck.n) === 1 && jvCheck.status === 'POSTED' && jvCheck.day_id === null, JSON.stringify(jvCheck));

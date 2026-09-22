@@ -161,7 +161,7 @@ const code = r => (r.json && typeof r.json === 'object' && r.json.message) || nu
 
     const screenState = await page.evaluate(() => ({
       cardCount: document.querySelectorAll('.jvcard').length,
-      voucherNos: [...document.querySelectorAll('.jvhead b')].map(b => b.textContent.trim()),
+      voucherNos: [...document.querySelectorAll('.jvcard[data-jv-no]')].map(c => c.getAttribute('data-jv-no')),   // the SYSTEM number (§45)
       bodyHasImportNo: document.body.innerText.includes('JV-9001'),
       deleteButtons: document.querySelectorAll('[data-del-jv]').length,
     }));
@@ -214,7 +214,7 @@ const code = r => (r.json && typeof r.json === 'object' && r.json.message) || nu
     // still IMPORTED_LOCKED takes priority (checked first) — confirms ordering didn't regress
     ok('JVX-06b delete on the import voucher still says IMPORTED_LOCKED, not PERIOD_CLOSED', code(r) === 'NF:IMPORTED_LOCKED', JSON.stringify(r.json));
 
-    const [realOld] = await q(`select id, version from nf_vouchers where company_id='${C}' and voucher_key='JV-0001'`);
+    const [realOld] = await q(`select id, version from nf_vouchers where company_id='${C}' and voucher_key='JV-0001'`);  // posted straight through nf_post_voucher: JV-0001 is its system number
     r = await rpc(K.anon, users.D.jwt, 'nf_jv_delete', { p_voucher_id: realOld.id, p_version: realOld.version });
     ok('JVX-07 nf_jv_delete refuses a REAL (source=JV) voucher dated before a since-closed period',
       code(r) === 'NF:PERIOD_CLOSED', JSON.stringify(r.json));
@@ -225,11 +225,12 @@ const code = r => (r.json && typeof r.json === 'object' && r.json.message) || nu
       p_legs: [{ account_code: '22100', floor_code: 'P-W', debit: 10 }, { account_code: '70100', floor_code: 'P-W', credit: 10 }],
     });
     const afterId = r.json && r.json.id;
+    const afterNo = r.json && r.json.voucher_no;   // its SYSTEM number; JV-AFTER is its manual one (§45)
     ok('JVX-08 setup: a voucher dated after the closed period saves', !!afterId, JSON.stringify(r.json));
     r = await rpc(K.anon, users.D.jwt, 'nf_jv_delete', { p_voucher_id: afterId, p_version: 999 });
     ok('JVX-08 a stale version is refused', code(r) === 'NF:VERSION_CONFLICT', JSON.stringify(r.json));
     r = await rpc(K.anon, users.D.jwt, 'nf_jv_delete', { p_voucher_id: afterId, p_version: 0 });
-    ok('JVX-08 the correct version deletes cleanly', r.status >= 200 && r.status < 300 && r.json && r.json.deleted === 'JV-AFTER', JSON.stringify(r.json));
+    ok('JVX-08 the correct version deletes cleanly', r.status >= 200 && r.status < 300 && r.json && r.json.deleted === afterNo && /^JV-\d{6}$/.test(afterNo), JSON.stringify(r.json));
 
     ok('JVX-09 no console or page errors on the real screen', errors.length === 0, JSON.stringify(errors.slice(0, 3)));
 
@@ -313,7 +314,7 @@ const code = r => (r.json && typeof r.json === 'object' && r.json.message) || nu
         const lst2 = await rpc(K.anon, users.D.jwt, 'nf_jv_list', { p_company_id: C2, p_from: null, p_to: null });
         const listed2 = (lst2.json && lst2.json.vouchers) || [];
         ok('JVX-14b …and the list is not simply always empty: a real JV in the same company IS shown',
-          realJv.status === 200 && listed2.length === 1 && listed2[0].voucher_no === 'JV-REAL-1',
+          realJv.status === 200 && listed2.length === 1 && listed2[0].manual_no === 'JV-REAL-1',
           `${listed2.length}: ${JSON.stringify(listed2.map(v => v.voucher_no))}`);
         const [anImport] = await q(`select id, version from nf_vouchers
           where company_id='${C2}' and created_by='${users.D.id}' and source='IMPORT' limit 1`);

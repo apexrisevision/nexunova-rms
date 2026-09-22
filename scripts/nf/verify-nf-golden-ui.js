@@ -18,7 +18,8 @@
  * incognito browser context so their sessions never share storage. Awami is
  * never touched; cleanup is verified by query, always, even on failure.
  *
- * Covers: the golden day typed into the real form → totals to the rupee →
+ * Covers: the golden day typed into the voucher popups (+ CRV/BRV/CPV/BPV,
+ * docs/PLAN.md §45) → totals to the rupee →
  * print → one A4 page → light and dark screenshots → a payment refused for
  * insufficient cash, shown on the line → a duplicate voucher refused, shown
  * on the line → cleanup.
@@ -121,12 +122,6 @@ async function injectSession(page, ref, jwt, userId, email) {
 // draft's stable tmpId (data-draft), not by a cached handle — the tmpId
 // survives the redraw because it names the same entry in the drafts array,
 // even though the DOM node under it is new.
-async function lastDraftTmpId(page, side) {
-  return page.evaluate(s => {
-    const rows = [...document.querySelectorAll(`.row.draft[data-side="${s}"]`)];
-    return rows.length ? rows[rows.length - 1].getAttribute('data-draft') : null;
-  }, side);
-}
 // Triple-click was not reliable at clearing a pre-filled numeric input under
 // headless automation: on the fd-cash/petty/bank fields (prefilled "0") the
 // caret landed BEFORE the "0" rather than selecting it, so Backspace deleted
@@ -160,47 +155,34 @@ async function pick(page, scope, key, query, value) {
   await settle(page);
 }
 
-async function fillDraftRow(page, side, v, d, h, f, m, a, party) {
-  // tmpId is captured ONCE, before anything is typed — filling this row's
-  // first field makes ensureTrailingBlank() append a fresh blank row behind
-  // it, so "last draft row" drifts to that new one; the tmpId itself
-  // survives every redraw and still names this exact row throughout
-  // (20260919i/j party-field verify: re-resolving "last" mid-fill picks up
-  // the wrong row and silently no-ops the save).
-  const tmpId = await lastDraftTmpId(page, side);
-  const row = `.row.draft[data-draft="${tmpId}"]`;
-  const sel = k => `${row} [data-k="${k}"]`;
-  await setValue(page, sel('v'), v);
-  await setValue(page, sel('d'), d);
-  await pick(page, row, 'head', h, h);          // search by code; the list matches code OR name
-  await page.select(sel('f'), f);
-  await page.select(sel('m'), m);
-  await setValue(page, sel('a'), String(a));
-  if (party) {
-    // 20260919i/j: the account this golden day posts its token receipt to
-    // (21100) requires an explicit party on the SCREEN, not just a
-    // description the backend can pattern-match — search-first, take the
-    // pre-registered match (never "+ Add new", since it already exists).
-    await pick(page, row, 'party', party, party);
-  } else {
-    await page.focus(sel('a'));
-    await page.keyboard.press('Enter');
-  }
+// A voucher is entered through its popup now (js/nf/nf-voucher-popup.js,
+// docs/PLAN.md §45): press + CRV/BRV/CPV/BPV, fill the popup, Save. The type
+// follows from the side and the via, exactly as the server derives it.
+function typeFor(side, via) { return (via === 'Bank' ? 'B' : 'C') + (side === 'IN' ? 'RV' : 'PV'); }
+async function enterVoucher(page, side, v, d, h, f, m, a, party) {
+  const P = '#nf-vpop';
+  await page.click(`[data-vtype="${typeFor(side, m)}"]`);
+  await page.waitForSelector(`${P} #nfv-manual`, { timeout: 5000 });
+  if (v) await setValue(page, '#nfv-manual', v);
+  if (m === 'Petty') await page.click(`${P} .vp-seg [data-via="Petty"]`);
+  await page.select('#nfv-floor', f);
+  await pick(page, P, 'nfv-head', h, h);          // search by code; the list matches code OR name
+  // 20260919i/j: 21100 requires an explicit party — search-first, take the
+  // pre-registered match (never "+ Add new", since it already exists)
+  if (party) await pick(page, P, 'nfv-party', party, party);
+  await setValue(page, '#nfv-desc', d);
+  await setValue(page, '#nfv-amt', String(a));
+  await page.click('#nfv-save');
 }
+// saved = the popup has closed AND the row is on the sheet under its manual number
 async function waitSaved(page, voucher, timeout = 8000) {
-  await page.waitForFunction(v => [...document.querySelectorAll('.row[data-saved] .vno')].some(el => el.value === v),
-    { timeout }, voucher);
+  await page.waitForFunction(v => !document.querySelector('#nf-vpop') &&
+    [...document.querySelectorAll('.row[data-saved] .vno')].some(el => el.value === v), { timeout }, voucher);
 }
-async function waitRowError(page, side, timeout = 6000) {
-  await page.waitForFunction(s => {
-    const rows = [...document.querySelectorAll(`.row.draft[data-side="${s}"]`)];
-    return rows.some(r => r.querySelector('.row-err'));
-  }, { timeout }, side);
-  return page.evaluate(s => {
-    const rows = [...document.querySelectorAll(`.row.draft[data-side="${s}"]`)];
-    const r = rows.find(x => x.querySelector('.row-err'));
-    return r ? r.querySelector('.row-err').textContent : null;
-  }, side);
+// refused = the popup stays open, with the reason shown in it
+async function waitPopupError(page, timeout = 6000) {
+  await page.waitForSelector('#nf-vpop #nfv-err:not([hidden])', { timeout });
+  return page.$eval('#nf-vpop #nfv-err', el => el.textContent);
 }
 
 (async () => {
@@ -322,12 +304,12 @@ async function waitRowError(page, side, timeout = 6000) {
       // (20260919i/j) — the pre-registered party below matches the token
       // line's own description exactly, so this is the "pick existing" path.
       const party = ['21100', '21200', '21300'].includes(r.h) ? r.d : undefined;
-      await fillDraftRow(accPage, 'IN', r.v, r.d, r.h, r.f, r.m, Number(r.a), party);
+      await enterVoucher(accPage, 'IN', r.v, r.d, r.h, r.f, r.m, Number(r.a), party);
       try { await waitSaved(accPage, r.v); ok(`UI-02 saved ${r.v}`, true, ''); }
       catch (e) { ok(`UI-02 saved ${r.v}`, false, await accPage.evaluate(() => document.body.innerText.slice(0, 200))); }
     }
     for (const r of s.out.filter(r => Number(r.a))) {
-      await fillDraftRow(accPage, 'OUT', r.v, r.d, r.h, r.f, r.m, Number(r.a));
+      await enterVoucher(accPage, 'OUT', r.v, r.d, r.h, r.f, r.m, Number(r.a));
       try { await waitSaved(accPage, r.v); ok(`UI-02 saved ${r.v}`, true, ''); }
       catch (e) { ok(`UI-02 saved ${r.v}`, false, await accPage.evaluate(() => document.body.innerText.slice(0, 200))); }
     }
@@ -468,29 +450,31 @@ async function waitRowError(page, side, timeout = 6000) {
     await accPage.click('#nf-theme');   // back to light for what follows
 
     // ── refused: a payment that would take Cash negative ───────────────────
-    await fillDraftRow(accPage, 'OUT', 'CPV-901', 'more than the drawer holds', '81300', 'P-W', 'Cash', 999999999);
+    await enterVoucher(accPage, 'OUT', 'CPV-901', 'more than the drawer holds', '81300', 'P-W', 'Cash', 999999999);
     let negMsg;
-    try { negMsg = await waitRowError(accPage, 'OUT'); ok('UI-09 negative payment refused', /does not have enough money/.test(negMsg || ''), negMsg); }
-    catch (e) { ok('UI-09 negative payment refused', false, 'no row-err appeared: ' + e.message); }
+    try { negMsg = await waitPopupError(accPage); ok('UI-09 negative payment refused, the reason shown in the popup', /does not have enough money/.test(negMsg || ''), negMsg); }
+    catch (e) { ok('UI-09 negative payment refused, the reason shown in the popup', false, 'no popup error appeared: ' + e.message); }
     const linesAfterNeg = (await q(`select count(*) n from nf_vouchers where company_id='${C}' and manual_no='CPV-901'`))[0].n;
     ok('UI-09 nothing was written', Number(linesAfterNeg) === 0, `nf_lines rows for CPV-901: ${linesAfterNeg}`);
 
-    // clear that draft row before the next test (click its delete button)
-    await accPage.evaluate(s => {
-      const row = [...document.querySelectorAll(`.row.draft[data-side="OUT"]`)].find(r => r.querySelector('.row-err'));
-      if (row) row.querySelector('[data-del-draft]').click();
-    });
-    await new Promise(r => setTimeout(r, 200));
+    // the refused voucher stays in its popup, everything typed still there;
+    // Cancel before the next test
+    const keptTyped = await accPage.$eval('#nfv-manual', el => el.value).catch(() => null);
+    ok('UI-09 …and the popup kept what was typed', keptTyped === 'CPV-901', String(keptTyped));
+    await accPage.click('#nfv-cancel');
+    await accPage.waitForFunction(() => !document.querySelector('#nf-vpop'), { timeout: 3000 });
 
     // ── refused: a voucher already used earlier today ───────────────────────
     const reusedVoucher = s.in.filter(r => Number(r.a))[0].v;   // e.g. CRV-001
     // 21100 requires a party on the screen now too — reuse the same
     // pre-registered party so this stays the "pick existing" path and the
     // duplicate-voucher refusal (not a party error) is what's under test.
-    await fillDraftRow(accPage, 'IN', reusedVoucher, 'same voucher again', '21100', 'GF', 'Cash', 1, tokenLine ? tokenLine.d : undefined);
+    await enterVoucher(accPage, 'IN', reusedVoucher, 'same voucher again', '21100', 'GF', 'Cash', 1, tokenLine ? tokenLine.d : undefined);
     let dupMsg;
-    try { dupMsg = await waitRowError(accPage, 'IN'); ok('UI-10 duplicate voucher refused', /already on the books/.test(dupMsg || ''), dupMsg); }
-    catch (e) { ok('UI-10 duplicate voucher refused', false, 'no row-err appeared: ' + e.message); }
+    try { dupMsg = await waitPopupError(accPage); ok('UI-10 duplicate manual number refused', /already on the books/.test(dupMsg || ''), dupMsg); }
+    catch (e) { ok('UI-10 duplicate manual number refused', false, 'no popup error appeared: ' + e.message); }
+    await accPage.click('#nfv-cancel');
+    await accPage.waitForFunction(() => !document.querySelector('#nf-vpop'), { timeout: 3000 });
     const dupCount = (await q(`select count(*) n from nf_vouchers where company_id='${C}' and manual_no='${reusedVoucher.toUpperCase()}'`))[0].n;
     ok('UI-10 still exactly one row for that voucher', Number(dupCount) === 1, `rows: ${dupCount}`);
 
@@ -557,7 +541,7 @@ async function waitRowError(page, side, timeout = 6000) {
     // does not close until every number is in, and Close day brings those
     // vouchers up to be filled in on the spot.
     const pendRow = s.in.filter(r => Number(r.a)).find(r => r.h !== '21100') || s.in[1];
-    await fillDraftRow(accPage, 'IN', '', 'Receipt before its paper voucher', pendRow.h, pendRow.f, 'Cash', 1000);
+    await enterVoucher(accPage, 'IN', '', 'Receipt before its paper voucher', pendRow.h, pendRow.f, 'Cash', 1000);
     let pendingShown = null;
     try {
       await accPage.waitForSelector('.row.vno-pending[data-saved]', { timeout: 8000 });
@@ -574,6 +558,30 @@ async function waitRowError(page, side, timeout = 6000) {
       pendingShown && pendingShown.value === '' && pendingShown.placeholder === 'Manual no.' && /^CRV-\d{6}$/.test(pendingShown.stored || '')
         && pendingShown.sys === pendingShown.stored && pendingShown.note,
       JSON.stringify(pendingShown));
+    // ── + JV: the journal-voucher popup, lines that must balance ──────────
+    await accPage.click('[data-vtype="JV"]');
+    await accPage.waitForSelector('#nf-vpop #nfv-lines tr', { timeout: 5000 });
+    const jvIds = await accPage.$$eval('#nfv-lines tr[data-line]', trs => trs.map(t => t.getAttribute('data-line')));
+    await setValue(accPage, '#nfv-nar', 'FMH paid the architect directly');
+    await pick(accPage, '#nf-vpop', 'nfv-acct-' + jvIds[0], '53100', '53100');
+    await accPage.select(`tr[data-line="${jvIds[0]}"] [data-f="floor"]`, 'P-W');
+    await setValue(accPage, `tr[data-line="${jvIds[0]}"] [data-f="debit"]`, '5000');
+    await pick(accPage, '#nf-vpop', 'nfv-acct-' + jvIds[1], '22100', '22100');
+    await accPage.select(`tr[data-line="${jvIds[1]}"] [data-f="floor"]`, 'P-W');
+    await setValue(accPage, `tr[data-line="${jvIds[1]}"] [data-f="credit"]`, '4000');
+    await accPage.click('#nfv-save');
+    const unbalanced = await waitPopupError(accPage).catch(e => 'no error: ' + e.message);
+    ok('UI-17 + JV refuses lines that do not balance', /balance/.test(unbalanced), unbalanced);
+    await setValue(accPage, `tr[data-line="${jvIds[1]}"] [data-f="credit"]`, '5000');
+    await accPage.click('#nfv-save');
+    let jvShown = null;
+    try {
+      await accPage.waitForSelector('.nf-dayjv tr[data-jv-no]', { timeout: 8000 });
+      jvShown = await accPage.$eval('.nf-dayjv tr[data-jv-no]', tr => ({ sys: tr.getAttribute('data-jv-no'), pending: tr.classList.contains('vno-pending') }));
+    } catch (e) { jvShown = { error: e.message }; }
+    ok('UI-17b once balanced it saves as a JV with its system number, listed under the day, manual number pending',
+      jvShown && /^JV-\d{6}$/.test(jvShown.sys || '') && jvShown.pending === true, JSON.stringify(jvShown));
+
     await accPage.click('#nf-close');
     let dlg = null;
     try {
@@ -582,18 +590,21 @@ async function waitRowError(page, side, timeout = 6000) {
         prefill: document.querySelector('#nf-numbers-dialog .nfn-in').value }));
     } catch (e) { dlg = { error: e.message }; }
     const stillOpen = (await q(`select status from nf_days where company_id='${C}' order by business_date desc limit 1`))[0].status;
-    ok('UI-15 Close day does not close; it brings up the voucher still missing its manual number', dlg && dlg.rows === 1 && dlg.prefill === '' && stillOpen === 'OPEN',
+    ok('UI-15 Close day does not close; it brings up BOTH vouchers still missing their manual number (the receipt and the JV)', dlg && dlg.rows === 2 && dlg.prefill === '' && stillOpen === 'OPEN',
       JSON.stringify({ dlg, stillOpen }));
-    await setValue(accPage, '#nf-numbers-dialog .nfn-in', 'CRV-0777');
+    const nIds = await accPage.$$eval('#nf-numbers-dialog .nfn-row', rs => rs.map(r => r.querySelector('.nfn-type').textContent));
+    for (const sys of nIds) {
+      await setValue(accPage, `#nf-numbers-dialog .nfn-row:nth-child(${nIds.indexOf(sys) + 1}) .nfn-in`, sys.startsWith('JV') ? 'JV-0777' : 'CRV-0777');
+    }
     await accPage.click('#nf-numbers-go');
     let closedRow = null;
     for (let i = 0; i < 40; i++) {
-      [closedRow] = await q(`select d.status, (select count(*)::int from nf_vouchers v where v.company_id=d.company_id and v.manual_no='CRV-0777') pend
+      [closedRow] = await q(`select d.status, (select count(*)::int from nf_vouchers v where v.company_id=d.company_id and v.manual_no in ('CRV-0777','JV-0777')) pend
                               from nf_days d where d.company_id='${C}' order by d.business_date desc limit 1`);
       if (closedRow && closedRow.status === 'CLOSED') break;
       await new Promise(r => setTimeout(r, 250));
     }
-    ok('UI-16 typing the number there saves it and closes the day', closedRow && closedRow.status === 'CLOSED' && closedRow.pend === 1,
+    ok('UI-16 typing the numbers there saves both and closes the day', closedRow && closedRow.status === 'CLOSED' && closedRow.pend === 2,
       JSON.stringify(closedRow));
 
     ok('UI-11 no console/page errors', dirPage.__errors.length === 0 && accPage.__errors.length === 0,

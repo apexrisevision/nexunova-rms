@@ -3880,3 +3880,86 @@ was impossible on live. Awami closed nothing in that window: its only day is ope
 | schema / de-migration rehearsals | SKIPPED, exit 0 |
 
 **352 checks, nothing red.**
+
+## 45 · Voucher popups, Stage B: one popup per type, and JVs join the two-number rule (2026-09-21/22)
+
+Built from the mockup the owner approved (`D:\Claude Cowork\Voucher popup mockup\`).
+
+**The sheet.**
+- The draft rows typed straight into the Receipts and Payments books are gone.
+- A row of buttons, **+ CRV / + BRV / + CPV / + BPV / + JV**, opens one popup per type
+  (`js/nf/nf-voucher-popup.js`).
+- A saved line can still be corrected in place. Its via select offers only the vias its type allows
+  (Cash↔Petty, or Bank), because a saved voucher keeps its type (§44).
+- A new section, "Journal vouchers dated today", lists the day's JVs with both numbers.
+
+**The popups.**
+
+CRV/CPV:
+- ask Cash or Petty cash;
+- ask the floor, head, payee, description and amount, and show the amount in words;
+- let the manual number wait.
+
+BRV/BPV: the same, with the via fixed to Bank.
+
+All four:
+- **Save & new** keeps the via and the floor for the next one;
+- a refusal is shown inside the popup, with everything typed kept;
+- nothing redraws while a field has focus (the class recorded in `nf_lookup_shapes_and_blur_redraw`).
+
++ JV:
+- takes any number of lines;
+- saves only once they balance;
+- dates the JV with the open day's own date.
+
+**JVs get the same two numbers (`20260921o`).**
+- `nf_jv_save`'s voucher argument is now the manual number, and may be blank. The system number
+  `JV-000001` comes from the same counter as the other types.
+- Existing JVs (test tenants only; Awami has none) took their typed number as their manual number.
+- The Close day guard now also refuses while a JV **dated that day** lacks its manual number.
+- New `nf_set_manual_no(voucher, manual, version)` sets only the manual number, on a cash-book line or
+  a JV. The Close day dialog fills the missing numbers through it.
+  - It is gated like the edit paths: accountant or director, not exported, day open or period not
+    closed, version-checked.
+  - It is granted to `authenticated` only.
+- `nf_day_json` returns the day's `jvs`.
+- The Journal Vouchers screen's field is now "Manual voucher no." (optional), and its cards show both
+  numbers.
+
+**Found on the way — recorded, not fixed:** `docs/findings/2026-09-22-Q-jv-future-date-uses-utc.md`.
+Between 00:00 and 05:00 Pakistan time, a JV dated "today" on the Journal Vouchers screen is refused as a
+future date, because `nf_jv_save` compares against the database's UTC date. The JV popup on the sheet is
+not affected, since it uses the day's own date.
+
+### Full regression — real output, one suite at a time
+
+The first background run was killed by the machine running low on memory, during rules. Its leftover
+tenant `ZZTEST-NF-7aef1980` and its 4 test logins were purged and verified gone. The suites were then
+re-run one per call:
+
+| suite | result |
+|---|---|
+| rules | 80/80 |
+| cash-via-day-only | 39/39 |
+| golden day (UI) | **41/41**: the day entered through the popups; UI-09/10 refusals shown in the popup; UI-17 the JV popup; UI-15/16 Close day lists the receipt AND the JV |
+| dry run | 33/33 (typed through the popups; the sheet offers exactly CRV/BRV/CPV/BPV/JV) |
+| jv-harden | 23/23 |
+| journal vouchers (screen) | 19/19 (JV-02 rewritten: the field is the optional manual number; JV-04b system number on a JV posted without one) |
+| director report | 18/18 |
+| party field | 15/15 (PF-01…06 now through the popup's party field) |
+| General Journal | 14/14 |
+| General Ledger | 12/12 |
+| Trial Balance | 10/10 |
+| race harness | 3/3 |
+| drill-down | 49/49 |
+| schema / de-migration rehearsals | SKIPPED, exit 0 |
+
+**356 checks, nothing red.**
+
+The journal-voucher screen suite failed once, at 01:07 PKT. That was finding Q, not a regression: the
+screen's "today" was already 22 Sep while the database's UTC date was still 21 Sep. It passed at 12:46
+PKT, and the bug stays open until the owner decides the fix.
+
+Test lookups moved from a JV's typed number to its manual or system number, as §44 did for the cash book.
+One of those moves was reverted: jv-harden's fixture JV-0001 is posted straight through `nf_post_voucher`,
+so `JV-0001` is its *system* number there.

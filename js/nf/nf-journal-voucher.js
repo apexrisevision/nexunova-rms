@@ -62,8 +62,9 @@
     function issues() {
       var out = [];
       var t = totals();
-      if (!draft.no.trim()) out.push('give it a voucher number');
-      if (/^(CRV|BRV|CPV|BPV)-/i.test(draft.no.trim())) out.push('CRV/BRV/CPV/BPV belong to the daily closing sheet — use JV- here');
+      // the manual (paper) number may wait (docs/PLAN.md §45) — only its
+      // shape is checked here; the system number is given on save
+      if (/^(CRV|BRV|CPV|BPV)-/i.test(draft.no.trim())) out.push('CRV/BRV/CPV/BPV belong to the daily closing sheet — use a JV number here');
       if (!draft.date) out.push('give it a date');
       var filled = draft.legs.filter(function (l) { return l.account || F.n(l.debit) || F.n(l.credit); });
       if (filled.length < 2) out.push('a voucher needs at least two lines');
@@ -89,7 +90,6 @@
     function loadList() {
       return ctx.api.jvList(ctx.companyId, null, null).then(function (r) {
         S.list = r;
-        if (!draft.no.trim() && r && r.next_voucher_no) draft.no = r.next_voucher_no;
       });
     }
 
@@ -145,7 +145,9 @@
     function savedVoucher(v) {
       return '<div class="jvcard' + (v.exported ? ' exported' : '') + '" data-jv-no="' + esc(v.voucher_no) + '">' +
         '<div class="jvhead">' +
-        '  <b>' + esc(v.voucher_no) + '</b><span class="d">' + F.ddMonYyyy(v.voucher_date) + '</span>' +
+        // manual (paper) number first, the SYSTEM number under it (§44/§45)
+        '  <b>' + (v.manual_no ? esc(v.manual_no) : '<span class="nf-pend-tag">manual no. pending</span>') +
+        '<span class="vno-sys" style="display:block">' + esc(v.voucher_no) + '</span></b><span class="d">' + F.ddMonYyyy(v.voucher_date) + '</span>' +
         '  <span class="nar">' + esc(v.narration || '') + '</span>' +
         '  <span class="r amt">Rs ' + F.fmt(v.total) + '</span>' +
         (v.exported ? '<span class="lockpill" title="Already sent to QuickBooks — correct it with a new voucher">In QuickBooks</span>'
@@ -187,7 +189,7 @@
         (canWrite ? (
           '<section class="rsec jvnew">' +
           '  <div class="jvtop">' +
-          '    <label>Voucher no <input id="nf-jv-no" value="' + esc(draft.no) + '" placeholder="JV-0065"></label>' +
+          '    <label>Manual voucher no. <input id="nf-jv-no" value="' + esc(draft.no) + '" placeholder="blank if not written yet" title="The number on the paper voucher. It can wait; the day this JV is dated cannot close without it."></label>' +
           '    <label>Date <input type="date" id="nf-jv-date" value="' + esc(draft.date) + '"></label>' +
           '    <label class="grow">Narration <input id="nf-jv-nar" value="' + esc(draft.narration) + '" placeholder="What this voucher is for"></label>' +
           '  </div>' +

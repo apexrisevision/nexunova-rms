@@ -279,3 +279,51 @@ td{padding:7px 10px;border-bottom:1px solid var(--line)}
 /* the SYSTEM number under the manual one in each saved row (§44) */
 .vnocell{display:flex;flex-direction:column;gap:1px;min-width:0}
 .vno-sys{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:2px}
+
+/* ── voucher popups, docs/PLAN.md §45 (mockup approved 2026-09-21) ──────────
+   js/nf/nf-voucher-popup.js. Class names checked unused before adding
+   (nf-vpop, vp-*, nf-vtypes, nf-vt, nf-book-empty, nf-dayjv, nf-pend-tag). */
+.nf-vtypes{display:flex;flex-wrap:wrap;gap:8px;padding-top:4px;padding-bottom:0}
+.nf-vt b{font-weight:600}
+.nf-book-empty{padding:14px 12px;margin:0;color:var(--muted);font-size:12.5px}
+.nf-vpop{background:var(--card);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.25);width:min(620px,94vw);max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
+.nf-vpop.wide{width:min(880px,96vw)}
+.vp-h{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--line)}
+.vp-h h3{margin:0;font-size:15px;font-weight:600}
+.vp-tag{font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px}
+.vp-tag.out{background:#FDECEC;color:#B42318}
+.vp-tag.in{background:#E7F6EC;color:#11723A}
+.vp-tag.jv{background:#EAF0FA;color:#1B365D}
+.vp-x{margin-left:auto;border:0;background:none;font-size:20px;line-height:1;color:var(--muted);cursor:pointer;padding:2px 6px}
+.vp-b{padding:16px 20px;overflow:auto}
+.vp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+.vp-fld{min-width:0}
+.vp-fld.full{grid-column:1/-1}
+.vp-fld label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}
+.vp-fld label .opt{font-size:10.5px}
+.vp-fld>input,.vp-fld select,.vp-fld .nfpick-in{width:100%;border:1px solid var(--field-b);background:var(--field);border-radius:7px;padding:8px 10px;font:inherit;color:var(--ink)}
+.vp-fld small{display:block;font-size:11px;margin-top:4px;color:var(--muted)}
+.vp-fld small.warn{color:#B54708}
+.vp-ro{border:1px solid var(--line);background:var(--soft);border-radius:7px;padding:8px 10px;color:var(--ink2);font-size:13px}
+.vp-seg{display:flex;gap:6px}
+.vp-seg button{border:1px solid var(--line2);background:var(--card);border-radius:7px;padding:7px 14px;font:inherit;font-size:12.5px;cursor:pointer;color:var(--ink)}
+.vp-seg button.on{background:var(--brand);border-color:var(--brand);color:var(--card)}
+.vp-amt{text-align:right;font-weight:600;font-size:15px;font-variant-numeric:tabular-nums}
+.vp-words{grid-column:1/-1;font-size:11.5px;color:var(--muted);margin-top:-4px;min-height:14px}
+.vp-err{margin:0 20px 10px;padding:8px 12px;border-radius:8px;background:#FEF3F2;border:1px solid #FECDCA;color:#B42318;font-size:12.5px}
+.vp-f{display:flex;align-items:center;gap:8px;padding:12px 20px;border-top:1px solid var(--line);background:var(--soft)}
+.vp-hint{margin-right:auto;font-size:11.5px;color:var(--muted)}
+.vp-jv{width:100%;margin-top:14px;border-collapse:collapse}
+.vp-jv td{padding:4px 4px;border-bottom:0;vertical-align:top}
+.vp-jv td .nfpick-in,.vp-jv select,.vp-jv input{width:100%;border:1px solid var(--field-b);background:var(--field);border-radius:6px;padding:6px 8px;font:inherit;color:var(--ink)}
+.vp-jv .vp-num{text-align:right;font-variant-numeric:tabular-nums}
+.vp-jv td:nth-child(3){width:90px}.vp-jv td:nth-child(4),.vp-jv td:nth-child(5){width:110px}.vp-jv td:nth-child(6){width:28px}
+.vp-del{border:0;background:none;color:var(--muted);font-size:16px;cursor:pointer;padding:6px 4px}
+.vp-jvfoot{display:flex;align-items:center;gap:12px;margin-top:10px}
+.vp-tie{margin-left:auto;font-size:12.5px;font-variant-numeric:tabular-nums}
+.vp-tie b{font-weight:600}
+.vp-tie .ok{color:var(--pos)}.vp-tie .neg{color:var(--neg)}
+.nf-dayjv td,.nf-dayjv th{font-size:12.5px}
+.nf-pend-tag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;background:#FEF0C7;color:#93370D}
+@media (max-width:560px){.vp-grid{grid-template-columns:1fr}}
+@media print{.nf-vtypes,.nf-book-empty{display:none}}

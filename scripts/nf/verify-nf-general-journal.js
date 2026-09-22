@@ -195,8 +195,10 @@ async function http_(method, urlPath, { key, jwt, body } = {}) {
 
     // the no-via FMH voucher must appear here (it is deliberately invisible
     // on the daily closing / director report screens)
-    ok('J-05 no-via-leg voucher included', Number(truth.no_via_vouchers) >= 1 && bodyText.includes('JV-JRN-1'),
-      `no_via_vouchers=${truth.no_via_vouchers}, JV-JRN-1 present=${bodyText.includes('JV-JRN-1')}`);
+    // JV-JRN-1 is its MANUAL number since §45; the journal lists the SYSTEM one
+    const [{ voucher_no: jvSys }] = await q(`select voucher_no from nf_vouchers where company_id='${C}' and manual_no='JV-JRN-1'`);
+    ok('J-05 no-via-leg voucher included', Number(truth.no_via_vouchers) >= 1 && bodyText.includes(jvSys),
+      `no_via_vouchers=${truth.no_via_vouchers}, ${jvSys} (JV-JRN-1) present=${bodyText.includes(jvSys)}`);
 
     // date filter: a range that excludes everything (a day with no vouchers) must show zero
     await page.evaluate(() => { document.querySelector('#nf-jrn-from').value = '2000-01-01'; document.querySelector('#nf-jrn-to').value = '2000-01-02'; });
