@@ -1648,7 +1648,11 @@ function serve() {
       const arrival = ['spIn', 'spLeft', 'spRight', 'spWord', 'spRing', 'flbeam',
                        'qaBlink',
                        'aspDraw', 'aspInk', 'aspGlow', 'aspRing', 'aspLtr', 'aspUp',
-                       'aspTilt', 'mkSpin', 'aspNib', 'aspNibOn'];
+                       'aspTilt', 'mkSpin', 'aspNib', 'aspNibOn',
+                       /* the Price list card breathing, named: dealers were not
+                          opening it and a stale rate reached the director.
+                          Rashid: "Price list ko attention grab banao". */
+                       'prcGlow'];
       [...document.querySelectorAll('*')].forEach(el => {
         [null, '::before', '::after'].forEach(pseudo => {
           const c = getComputedStyle(el, pseudo);
@@ -2061,7 +2065,7 @@ function serve() {
         b.click();
         return read();
       };
-      return { first, sold: press('Sold'), pagri: press('Sold (P)'), hold: press('Hold') };
+      return { first, sold: press('Sold'), pagri: press('Sold (P)'), hold: press('V.Hold') };
     });
 
     /* A LOCK, NOT A DESCRIPTION. Whatever a tenant flags public_choice appears
@@ -2071,8 +2075,10 @@ function serve() {
        itself "Sold (P)" on this link \u2014 his directors' wording. The STATUS is
        still Pagri: only the label the public sees was changed, on the status's
        own public_label, which is what the 29 units whose status is really
-       "Sold - Entry Pending" have been doing here all along. */
-    JSON.stringify(kinds.first.labels) === JSON.stringify(['Reserve', 'Hold', 'Sold (P)', 'Sold'])
+       "Sold - Entry Pending" have been doing here all along. On 2026-09-22
+       Hold became "V.Hold", at Rashid's asking, on the status's own name and
+       its public_label both. */
+    JSON.stringify(kinds.first.labels) === JSON.stringify(['Reserve', 'V.Hold', 'Sold (P)', 'Sold'])
       ? ok('the sheet offers what this project publishes: ' + kinds.first.labels.join(' / '))
       : bad('the choices are ' + JSON.stringify(kinds.first.labels));
     (kinds.first.on === 'Reserve' && kinds.first.days)
@@ -2089,9 +2095,9 @@ function serve() {
      kinds.pagri.msg.indexOf('Sold (P)') >= 0)
       ? ok('Sold (P) asks for no duration either, and the message says what was asked')
       : bad('Sold (P) is not behaving as a permanent choice: ' + JSON.stringify(kinds.pagri));
-    (kinds.hold && kinds.hold.days && kinds.hold.on === 'Hold')
-      ? ok('and going back to Hold brings the days question back')
-      : bad('Hold did not restore the duration: ' + JSON.stringify(kinds.hold));
+    (kinds.hold && kinds.hold.days && kinds.hold.on === 'V.Hold')
+      ? ok('and going back to V.Hold brings the days question back')
+      : bad('V.Hold did not restore the duration: ' + JSON.stringify(kinds.hold));
 
     /* The message has to say the same thing the desk will read. */
     (kinds.sold && /^Asking for: Sold$/m.test(kinds.sold.msg) &&
@@ -2099,7 +2105,7 @@ function serve() {
       ? ok('the WhatsApp message says \u201cAsking for: Sold\u201d and carries no duration')
       : bad('the message for a permanent ask is wrong: ' +
             JSON.stringify(String(kinds.sold && kinds.sold.msg).slice(0, 120)));
-    (kinds.hold && /^Asking for: Hold$/m.test(kinds.hold.msg) &&
+    (kinds.hold && /^Asking for: V\.Hold$/m.test(kinds.hold.msg) &&
      /^Duration: \d+ days?$/m.test(kinds.hold.msg))
       ? ok('and a timed ask carries both the word and the number')
       : bad('the message for a timed ask is wrong');
