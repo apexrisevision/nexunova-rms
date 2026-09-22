@@ -1,7 +1,13 @@
 # R — The Projects page "Price revision" would flatten Awami's per-sq-ft prices
 
 **Found:** 2026-09-22, during a check that every screen reads Awami prices from one place.
-**Status:** recorded, not fixed.
+**Status:** the trap is FIXED the same day (Rashid: "per sq ft wala bana do"). Migration
+`20260922a_price_revision_per_sqft.sql` adds `add_price_revision_rate`. It computes area × rate and can be
+narrowed by type, floor and unit range, to Available only or every status. It previews before saving.
+The old flat-total `add_price_revision` now only refuses. The modal on the Projects page sends a rate and
+shows the preview first. Also found and gone: the modal's label said "PKR/sqft" while the old function
+wrote that number as the TOTAL, and it picked "Available" from the company's first status row. The
+open-tab staleness below is still open.
 
 ## The one source (checked, fine)
 

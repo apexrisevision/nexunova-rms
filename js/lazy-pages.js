@@ -31,7 +31,7 @@
 
   // ── shared bundle arrays (deduped; versions match the former eager tags) ──
   var SALES        = ['js/pages/sales.js?v=20260907desk'];
-  var PROJECTS     = ['js/pages/projects.js?v=20260613ps'];
+  var PROJECTS     = ['js/pages/projects.js?v=20260922pr'];
   var UNITS        = ['js/pages/units.js?v=20260616a'];
   var AGENTS       = ['js/pages/agents.js?v=20260828priv'];
   var REPORTS      = ['js/pages/reports.js?v=20260902manual'];

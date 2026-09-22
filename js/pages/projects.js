@@ -1350,9 +1350,9 @@ async function _prjLoadRevisions(projectId) {
     : `<div class="tw"><table class="t">
         <thead><tr>
           <th>Date</th>
-          <th>Unit Type</th>
-          <th class="r">Old Price</th>
-          <th class="r">New Price</th>
+          <th>Applied to</th>
+          <th class="r">Old Rate</th>
+          <th class="r">New Rate</th>
           <th class="r">Change</th>
           <th class="r">%</th>
           <th>Reason</th>
@@ -1365,9 +1365,14 @@ async function _prjLoadRevisions(projectId) {
           const arrow = up ? '↑' : '↓';
           const color = up ? 'var(--ok)' : 'var(--err)';
           const pct   = Number(r.change_percent || 0).toFixed(2);
+          // what the revision touched: type · floor · range · which statuses
+          const scope = [r.unit_type_name || 'All types', r.floor_label || (r.per_sqft ? 'All floors' : ''),
+                         r.unit_from && r.unit_to ? r.unit_from + ' – ' + r.unit_to : '']
+                        .filter(Boolean).join(' · ');
           return `<tr>
             <td style="white-space:nowrap;font-size:12px">${fD(r.effective_date)}</td>
-            <td style="font-weight:600">${esc(r.unit_type_name || 'All Types')}</td>
+            <td style="font-weight:600">${esc(scope)}${r.per_sqft
+              ? `<div style="font-size:11px;font-weight:500;color:var(--t3)">${r.all_statuses ? 'Every status' : 'Available only'} · per sq ft</div>` : ''}</td>
             <td class="r mono">${fM(r.old_price)}</td>
             <td class="r mono" style="font-weight:700">${fM(r.new_price)}</td>
             <td class="r mono" style="color:${color};font-weight:700">${arrow} ${fM(Math.abs(r.change_amount))}</td>
@@ -1399,31 +1404,30 @@ async function _prjLoadRevisions(projectId) {
   if (tabBtn) tabBtn.textContent = `Price Revisions${revs.length ? ' ('+revs.length+')' : ''}`;
 }
 
+// A PRICE REVISION IS A RATE, NOT A TOTAL (2026-09-22). This modal used to ask
+// for "New Price (PKR/sqft)" and write that number as the total price of every
+// Available unit of a type, on every floor. On Awami that would have priced 574
+// shops alike. Now it sends a rate, narrowed by type, floor and unit range, and
+// add_price_revision_rate works out area × rate unit by unit. Nothing is saved
+// until the preview has said how many units will change and by how much.
 function openPriceRevisionModal(projectId) {
-  // Gather unit types present in this project
   const pUnits    = (gunits() || []).filter(u => u.projectId === projectId);
   const typeIds   = [...new Set(pUnits.map(u => u.unitTypeId).filter(Boolean))];
-  const allTypes  = (window._typesCache || []);
-  const projTypes = typeIds.length
-    ? allTypes.filter(t => typeIds.includes(t.id))
-    : allTypes;
+  const projTypes = (window._typesCache || []).filter(t => typeIds.includes(t.id));
 
-  // Build unit type → current base_price map from unit cache
-  const priceMap = {};
-  pUnits.forEach(u => {
-    if (u.unitTypeId && u.basePrice != null) priceMap[u.unitTypeId] = u.basePrice;
-  });
+  const floorNo = {};
+  pUnits.forEach(u => { if (u.floorLabel && !(u.floorLabel in floorNo)) floorNo[u.floorLabel] = u.floorNo ?? 0; });
+  const floors = Object.keys(floorNo).sort((a, b) => floorNo[a] - floorNo[b]);
 
-  const typeOpts = projTypes.map(t =>
-    `<option value="${t.id}" data-price="${priceMap[t.id] ?? ''}">${esc(t.typeName || t.name)}</option>`
-  ).join('');
+  const typeOpts  = projTypes.map(t => `<option value="${t.id}">${esc(t.typeName || t.name)}</option>`).join('');
+  const floorOpts = floors.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
 
   const today = td();
   const userName = S.name || '';
 
   const html = `
 <div id="m-price-rev" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(4px)">
-  <div style="background:var(--card);border-radius:14px;width:min(480px,96vw);box-shadow:0 24px 64px rgba(0,0,0,.4);overflow:hidden">
+  <div style="background:var(--card);border-radius:14px;width:min(520px,96vw);max-height:94vh;overflow:auto;box-shadow:0 24px 64px rgba(0,0,0,.4)">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line)">
       <div style="font-weight:800;font-size:15px">Add Price Revision</div>
       <button onclick="closePriceRevisionModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--t3);line-height:1">×</button>
@@ -1431,29 +1435,50 @@ function openPriceRevisionModal(projectId) {
     <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
       <input type="hidden" id="pr-project-id" value="${projectId}">
 
-      <div>
-        <label class="fl">Unit Type <span style="color:var(--err)">*</span></label>
-        <select id="pr-unit-type" class="inp-light" onchange="_prjRevUnitTypeChange()" style="width:100%">
-          <option value="">— Select unit type —</option>
-          ${typeOpts}
-        </select>
-        <div id="e-pr-unit-type" class="pf-err"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label class="fl">Unit Type</label>
+          <select id="pr-unit-type" class="inp-light" onchange="_prjRevPreview()" style="width:100%">
+            <option value="">All types</option>
+            ${typeOpts}
+          </select>
+        </div>
+        <div>
+          <label class="fl">Floor</label>
+          <select id="pr-floor" class="inp-light" onchange="_prjRevPreview()" style="width:100%">
+            <option value="">All floors</option>
+            ${floorOpts}
+          </select>
+        </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
-          <label class="fl">Current Price (PKR/sqft)</label>
-          <input id="pr-old-price" class="inp-light" type="text" disabled placeholder="Auto-filled" style="width:100%;background:var(--canvas);color:var(--t3)">
+          <label class="fl">From unit</label>
+          <input id="pr-from" class="inp-light" type="text" placeholder="e.g. FF-27" oninput="_prjRevPreview()" style="width:100%">
         </div>
         <div>
-          <label class="fl">New Price (PKR/sqft) <span style="color:var(--err)">*</span></label>
-          <input id="pr-new-price" class="inp-light" type="number" min="0" step="1" placeholder="Enter new price" oninput="_prjRevPreview()" style="width:100%">
-          <div id="e-pr-new-price" class="pf-err"></div>
+          <label class="fl">To unit</label>
+          <input id="pr-to" class="inp-light" type="text" placeholder="e.g. FF-46" oninput="_prjRevPreview()" style="width:100%">
         </div>
       </div>
 
-      <!-- Change preview -->
-      <div id="pr-preview" style="display:none;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;border:1px solid var(--line);background:var(--canvas)"></div>
+      <div>
+        <label class="fl">New rate (PKR per sq ft) <span style="color:var(--err)">*</span></label>
+        <input id="pr-new-price" class="inp-light" type="number" min="1" step="1" placeholder="e.g. 40000" oninput="_prjRevPreview()" style="width:100%">
+        <div id="e-pr-new-price" class="pf-err"></div>
+      </div>
+
+      <div>
+        <label class="fl">Which units</label>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="pr-scope" value="avail" checked onchange="_prjRevPreview()"> Available only</label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="pr-scope" value="all" onchange="_prjRevPreview()"> Every status (Sold, Reserved, Hold too)</label>
+        </div>
+      </div>
+
+      <!-- what WILL change, asked of the server, before anything is saved -->
+      <div id="pr-preview" style="display:none;padding:10px 14px;border-radius:8px;font-size:13px;line-height:1.55;border:1px solid var(--line);background:var(--canvas)"></div>
 
       <div>
         <label class="fl">Effective Date <span style="color:var(--err)">*</span></label>
@@ -1475,7 +1500,7 @@ function openPriceRevisionModal(projectId) {
 
       <div style="display:flex;gap:10px;padding-top:4px">
         <button class="btn btn-gh" onclick="closePriceRevisionModal()" style="flex:1">Cancel</button>
-        <button id="pr-save-btn" class="btn-primary" onclick="savePriceRevision()" style="flex:1;padding:9px;border-radius:8px;font-weight:700;cursor:pointer">Save Revision</button>
+        <button id="pr-save-btn" class="btn-primary" onclick="savePriceRevision()" disabled style="flex:1;padding:9px;border-radius:8px;font-weight:700;cursor:pointer">Save Revision</button>
       </div>
     </div>
   </div>
@@ -1484,79 +1509,111 @@ function openPriceRevisionModal(projectId) {
 }
 
 function closePriceRevisionModal() {
+  clearTimeout(_prjRevTimer);
+  _prjRevSeq++;
+  _prjRevLast = null;
   document.getElementById('m-price-rev')?.remove();
 }
 
-function _prjRevUnitTypeChange() {
-  const sel  = document.getElementById('pr-unit-type');
-  const opt  = sel?.selectedOptions?.[0];
-  const price = opt?.dataset?.price ?? '';
-  const oldEl = document.getElementById('pr-old-price');
-  if (oldEl) oldEl.value = price ? Number(price).toLocaleString() : '';
-  _prjRevPreview();
+function _prjRevArgs(preview) {
+  const v = id => (document.getElementById(id)?.value || '').trim();
+  return {
+    p_project_id:     v('pr-project-id'),
+    p_rate:           parseFloat(v('pr-new-price')) || 0,
+    p_unit_type_id:   v('pr-unit-type') || null,
+    p_floor:          v('pr-floor') || null,
+    p_from:           v('pr-from') || null,
+    p_to:             v('pr-to') || null,
+    p_all_statuses:   document.querySelector('input[name="pr-scope"]:checked')?.value === 'all',
+    p_effective_date: v('pr-eff-date') || null,
+    p_reason:         preview ? null : v('pr-reason'),
+    p_revised_by:     preview ? null : v('pr-revised-by'),
+    p_preview:        preview
+  };
 }
 
+let _prjRevTimer = null, _prjRevSeq = 0, _prjRevLast = null;
+// The preview is asked of the server, not guessed from the cache: the server is
+// what will write, and it alone knows which units are really free.
 function _prjRevPreview() {
-  const oldEl  = document.getElementById('pr-old-price');
-  const newEl  = document.getElementById('pr-new-price');
   const prevEl = document.getElementById('pr-preview');
+  const btn    = document.getElementById('pr-save-btn');
   if (!prevEl) return;
-  const oldRaw = (oldEl?.value || '').replace(/,/g, '');
-  const oldP   = parseFloat(oldRaw) || 0;
-  const newP   = parseFloat(newEl?.value) || 0;
-  if (!newP) { prevEl.style.display = 'none'; return; }
-  const diff   = newP - oldP;
-  const pct    = oldP > 0 ? ((diff / oldP) * 100).toFixed(2) : '—';
-  const up     = diff >= 0;
-  const color  = up ? 'var(--ok)' : 'var(--err)';
-  const arrow  = up ? '↑' : '↓';
+  _prjRevLast = null;
+  if (btn) btn.disabled = true;
+  clearTimeout(_prjRevTimer);
+  const args = _prjRevArgs(true);
+  if (!(args.p_rate > 0)) { prevEl.style.display = 'none'; return; }
   prevEl.style.display = '';
-  prevEl.style.color   = color;
-  prevEl.style.borderColor = up ? 'rgba(34,197,94,.3)' : 'rgba(239,68,68,.3)';
-  prevEl.style.background  = up ? 'rgba(34,197,94,.06)' : 'rgba(239,68,68,.06)';
-  prevEl.innerHTML = `Change: PKR ${fM(Math.abs(diff))} ${arrow} (${pct === '—' ? 'n/a' : Math.abs(pct)+'%'}) &nbsp;|&nbsp; New: PKR ${fM(newP)}`;
+  prevEl.style.color = 'var(--t3)';
+  prevEl.innerHTML = 'Checking which units this changes…';
+  const seq = ++_prjRevSeq;
+  _prjRevTimer = setTimeout(async () => {
+    let data, error;
+    try { ({ data, error } = await supabase.rpc('add_price_revision_rate', args)); }
+    catch (e) { error = e; }
+    if (seq !== _prjRevSeq || !document.getElementById('pr-preview')) return;
+    const warn = (msg) => {
+      prevEl.style.color = 'var(--err)';
+      prevEl.style.borderColor = 'rgba(239,68,68,.3)';
+      prevEl.style.background = 'rgba(239,68,68,.06)';
+      prevEl.innerHTML = esc(msg);
+    };
+    if (error) return warn('Could not check: ' + (error.message || 'error'));
+    if (!data?.success) return warn(data?.message || 'Could not check this revision.');
+    if (!data.units_changed) {
+      return warn('No units match. Check the type, floor, range and which units.' +
+        (data.units_skipped ? ' (' + data.units_skipped + ' matched but have no area.)' : ''));
+    }
+    const diff = Number(data.value_after) - Number(data.value_before);
+    const up = diff >= 0;
+    prevEl.style.color = 'var(--t1)';
+    prevEl.style.borderColor = up ? 'rgba(34,197,94,.3)' : 'rgba(239,68,68,.3)';
+    prevEl.style.background = up ? 'rgba(34,197,94,.06)' : 'rgba(239,68,68,.06)';
+    const sample = (data.sample || []).map(s =>
+      `${esc(s.n)}: ${fM(s.was)} → <b>${fM(s.now)}</b>`).join('<br>');
+    prevEl.innerHTML =
+      `<div style="font-weight:700">${data.units_changed} unit${data.units_changed !== 1 ? 's' : ''} will change` +
+      ` · average rate ${fM(data.old_rate)} → ${fM(data.new_rate)} per sq ft</div>` +
+      `<div>Total value PKR ${fM(data.value_before)} → <b>PKR ${fM(data.value_after)}</b>` +
+      ` <span style="color:${up ? 'var(--ok)' : 'var(--err)'};font-weight:700">(${up ? '+' : '−'}${fM(Math.abs(diff))})</span></div>` +
+      (data.units_skipped ? `<div style="color:var(--warn,#b45309)">${data.units_skipped} matched unit${data.units_skipped !== 1 ? 's have' : ' has'} no area and will be left alone.</div>` : '') +
+      (sample ? `<div style="margin-top:6px;font-size:12px;color:var(--t3)">${sample}${data.units_changed > 5 ? '<br>…' : ''}</div>` : '');
+    _prjRevLast = data;
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = `Update ${data.units_changed} unit${data.units_changed !== 1 ? 's' : ''}`;
+    }
+  }, 350);
 }
 
 async function savePriceRevision() {
-  const projectId  = document.getElementById('pr-project-id')?.value;
-  const unitTypeId = document.getElementById('pr-unit-type')?.value;
-  const newPriceV  = parseFloat(document.getElementById('pr-new-price')?.value);
-  const effDate    = document.getElementById('pr-eff-date')?.value;
-  const reason     = document.getElementById('pr-reason')?.value?.trim();
-  const revisedBy  = document.getElementById('pr-revised-by')?.value?.trim();
+  const args = _prjRevArgs(false);
 
   let ok = true;
   const setE = (id, msg) => {
     const el = document.getElementById(id); if (el) el.textContent = msg;
     if (msg) ok = false;
   };
-  setE('e-pr-unit-type', unitTypeId ? '' : 'Select a unit type');
-  setE('e-pr-new-price', (!newPriceV || newPriceV <= 0) ? 'Enter a valid price' : '');
-  setE('e-pr-eff-date',  effDate    ? '' : 'Required');
-  setE('e-pr-reason',    reason     ? '' : 'Required');
-  setE('e-pr-revised-by',revisedBy  ? '' : 'Required');
+  setE('e-pr-new-price', args.p_rate > 0 ? '' : 'Enter a rate per sq ft');
+  setE('e-pr-eff-date',  args.p_effective_date ? '' : 'Required');
+  setE('e-pr-reason',    args.p_reason         ? '' : 'Required');
+  setE('e-pr-revised-by',args.p_revised_by     ? '' : 'Required');
   if (!ok) return;
+  if (!_prjRevLast) { toast('Wait for the preview to show what will change.', 'warn'); return; }
 
   const btn = document.getElementById('pr-save-btn');
+  const was = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
 
   try {
-    const { data, error } = await supabase.rpc('add_price_revision', {
-      p_company_id:     S.cid,
-      p_project_id:     projectId,
-      p_unit_type_id:   unitTypeId,
-      p_new_price:      newPriceV,
-      p_effective_date: effDate,
-      p_reason:         reason,
-      p_revised_by:     revisedBy
-    });
-
+    const { data, error } = await supabase.rpc('add_price_revision_rate', args);
     if (error) throw error;
-    if (!data?.success) throw new Error('Revision save failed');
+    if (!data?.success) throw new Error(data?.message || 'Revision save failed');
 
-    const updated = data.units_updated ?? 0;
+    const updated = data.units_changed ?? 0;
     closePriceRevisionModal();
-    toast(`Price revision saved — ${updated} Available unit${updated !== 1 ? 's' : ''} updated`, 'ok');
+    toast(`Price revision saved — ${updated} unit${updated !== 1 ? 's' : ''} now at PKR ${fM(data.new_rate)} per sq ft`, 'ok');
 
     // Reload units cache so new base_price reflects everywhere
     await loadUnitsCache(S.cid);
@@ -1564,10 +1621,10 @@ async function savePriceRevision() {
     // Reload the revisions tab (force reload)
     const body = document.getElementById('prj-revisions-body');
     if (body) { delete body.dataset.loaded; }
-    _prjLoadRevisions(projectId);
+    _prjLoadRevisions(args.p_project_id);
   } catch (err) {
     toast('Save failed: ' + err.message, 'err');
-    if (btn) { btn.disabled = false; btn.textContent = 'Save Revision'; }
+    if (btn) { btn.disabled = false; btn.textContent = was || 'Save Revision'; }
   }
 }
 
