@@ -253,6 +253,17 @@
       ".rq-a button{flex:1;height:40px;border-radius:9px;font:inherit;font-size:var(--fs-secondary);font-weight:650;border:1px solid var(--fk-border);background:var(--fk-bg-card);color:var(--fk-text);cursor:pointer}" +
       ".rq-a .ok{border-color:transparent;background:var(--fk-primary);color:#fff}" +
       ".rq-a button:disabled{opacity:.45;cursor:default}" +
+      /* What the dealer asked for, said on the card before anything is tapped,
+         and the one-tap Approve that applies exactly that. */
+      ".rq-ask{display:inline-flex;align-items:center;gap:6px;margin-top:7px;padding:4px 10px;" +
+      "  border-radius:999px;background:rgba(37,99,235,.10);color:var(--fk-primary);" +
+      "  font-size:12.5px;font-weight:700;line-height:1.3}" +
+      ".rq-ask .l{font-weight:600;opacity:.8}" +
+      ".rq-ask.perm{background:rgba(124,58,237,.10);color:#7C3AED}" +
+      ".rq-a .alt{flex:0 0 auto;padding:0 12px;color:var(--fk-text-muted)}" +
+      ".rq-a [data-act=approveask]{flex:2.4;padding:0 10px;line-height:1.2}" +
+      ".rq-a [data-act=approveask] ~ [data-act=decline]{flex:0 0 auto;padding:0 14px}" +
+      ".rq-t.asked{border-color:var(--fk-primary);background:var(--fk-primary);color:#fff}" +
       /* A dealer who asked for eight units in one breath is answered in one
          tap. The card carries every unit it speaks for, and the tick beside
          it lets several unrelated cards be answered together. */
@@ -2010,6 +2021,29 @@
     return ids;
   }
 
+  /* WHAT THE DEALER ASKED FOR, IF IT CAN BE APPLIED AS ASKED. The link has
+     always sent the status and the days with the request, and the server has
+     always handed them to this queue, but the card never read them, so every
+     Approve asked the question again. Rashid: "pending pe just approval mangay
+     aur by default wohi status select ho wohi time select ho jo user ne khud
+     kia hai". A card speaks for several units only when they all asked for the
+     same status; and the status has to be one this desk may apply, or the one
+     tap would be a tap that fails. */
+  function _askOf(rows) {
+    var id = rows[0] && rows[0].asked_status_id;
+    if (!id) return null;
+    for (var i = 1; i < rows.length; i++) if (rows[i].asked_status_id !== id) return null;
+    var t = _tags().filter(function (x) { return x.id === id; })[0];
+    if (!t) return null;
+    var perm = (rows[0].asked_nature || t.nature) === 'permanent';
+    var days = rows[0].days;
+    for (var j = 1; j < rows.length; j++) if (rows[j].days !== days) days = 'mixed';
+    var when = perm ? 'no expiry'
+             : days === 'mixed' ? 'days as asked'
+             : days == null ? '' : days + ' day' + (Number(days) === 1 ? '' : 's');
+    return { id: id, tag: rows[0].asked_tag || t.name, perm: perm, when: when };
+  }
+
   function _paintReqs() {
     var box = _q('#rd-reqs'); if (!box) return;
     var rows = DESK.reqs || [];
@@ -2046,6 +2080,8 @@
         var ids = g.rows.map(function (x) { return x.id; }).join(',');
         var tick = '<input type="checkbox" class="rq-ck" data-k="' + esc(g.key) + '"' +
                    (DESK.reqSel[g.key] ? ' checked' : '') + '>';
+        var ask = _askOf(g.rows);
+        var askTxt = ask ? ask.tag + (ask.when ? ' · ' + ask.when : '') : '';
 
         return '<div class="rq-c' + (isChg ? ' chg' : '') +
                (DESK.reqSel[g.key] ? ' sel' : '') + '" data-r="' + esc(ids) +
@@ -2063,13 +2099,15 @@
           '<div class="rq-by">' +
             (r.requested_by ? '<b>' + esc(r.requested_by) + '</b>' :
               '<span class="rq-m">no name given</span>') +
-            /* A permanent ask has no duration, and " ·  day" is not a
-               sentence. It names what was asked for instead. */
-            (r.days == null
+            /* When the ask can be applied as asked, the status and days have
+               their own line below. Otherwise they stay here, as they were. */
+            (ask ? '' : (r.days == null
               ? (r.asked_tag ? ' · ' + esc(r.asked_tag) : '')
-              : ' · ' + esc(r.days) + ' day' + (Number(r.days) === 1 ? '' : 's')) +
+              : ' · ' + esc(r.days) + ' day' + (Number(r.days) === 1 ? '' : 's'))) +
             ' \u00b7 <span class="rq-m">' + esc(many ? r.batch_ref : r.ref) + '</span>' +
           '</div>' +
+          (ask ? '<div><span class="rq-ask' + (ask.perm ? ' perm' : '') + '">' +
+                   '<span class="l">Asked for</span> ' + esc(askTxt) + '</span></div>' : '') +
           /* The units themselves, because "8 units" is not something anybody
              can answer. The ones that have gone since are struck through, and
              the count under the button counts only the rest. */
@@ -2096,9 +2134,19 @@
              armed on the desk behind this queue — invisible from here, and
              wrong the moment the last booking was a Pagri and this one is not.
              The question is asked where the decision is made. */
+          /* ONE TAP, AS ASKED. The status and the days are the dealer's; the
+             director's only decision is yes or no. "Other\u2026" still opens the
+             full list for the rare time the answer is "yes, but as something
+             else". */
           '<div class="rq-a">' +
-            '<button class="ok" data-act="approve"' + ((isChg || free) ? '' : ' disabled') +
-              '>Approve' + (many ? ' ' + free : '') + '\u2026</button>' +
+            (ask
+              ? '<button class="ok" data-act="approveask" data-tag="' + esc(ask.id) + '"' +
+                  ((isChg || free) ? '' : ' disabled') + '>Approve' + (many ? ' ' + free : '') +
+                  ' as ' + esc(askTxt) + '</button>' +
+                '<button class="alt" data-act="approve"' + ((isChg || free) ? '' : ' disabled') +
+                  ' title="Approve as a different status">Other\u2026</button>'
+              : '<button class="ok" data-act="approve"' + ((isChg || free) ? '' : ' disabled') +
+                  '>Approve' + (many ? ' ' + free : '') + '\u2026</button>') +
             '<button data-act="decline">Decline' + (many ? ' all' : '') + '</button>' +
           '</div>' +
           '<div class="rq-pick" hidden>' +
@@ -2106,6 +2154,7 @@
             '<div class="rq-pc">' +
               _tags().map(function (t) {
                 return '<button class="rq-t' + (t.nature === 'permanent' ? ' perm' : '') +
+                       (ask && t.id === ask.id ? ' asked' : '') +
                        '" data-tag="' + esc(t.id) + '" data-nature="' + esc(t.nature || '') + '">' +
                        esc(t.name) + (t.nature === 'permanent' ? ' \u221e' : '') + '</button>';
               }).join('') +
@@ -2131,12 +2180,19 @@
      something never disturbs the list under it. */
   function _paintBar() {
     var host = _q('#rq-bar-host'); if (!host) return;
-    var picked = _reqSelected(_reqGroups());
+    var groups = _reqGroups();
+    var picked = _reqSelected(groups);
     if (!picked.length) { host.innerHTML = ''; return; }
+    /* "As asked" only when every ticked card carries an ask this desk can
+       apply; otherwise one of them would have nothing to be approved as. */
+    var sel = groups.filter(function (g) { return DESK.reqSel[g.key]; });
+    var allAsk = sel.length && sel.every(function (g) { return !!_askOf(g.rows); });
     host.innerHTML =
       '<div class="rq-bar">' +
         '<span class="c">' + picked.length + ' selected</span>' +
-        '<button class="ok" data-act="bulkapprove">Approve\u2026</button>' +
+        (allAsk ? '<button class="ok" data-act="bulkasked">Approve as asked</button>' +
+                  '<button data-act="bulkapprove">Other\u2026</button>'
+                : '<button class="ok" data-act="bulkapprove">Approve\u2026</button>') +
         '<button data-act="bulkdecline">Decline</button>' +
         '<button data-act="bulkclear">Clear</button>' +
       '</div>' +
@@ -2224,6 +2280,52 @@
     }
     if (act === 'approve') {
       var c2 = b.closest('.rq-c'); if (c2) _reqPick(c2, true);
+      return;
+    }
+    /* One tap, the dealer's own status and days. */
+    if (act === 'approveask') {
+      var c3 = b.closest('.rq-c'); if (!c3) return;
+      return _reqGo(c3, 'approve', b.getAttribute('data-tag'), b);
+    }
+    /* Everything ticked, each as its own dealer asked. Several statuses can be
+       in one selection, so it goes as one call per status. */
+    if (act === 'bulkasked') {
+      var gs = _reqGroups().filter(function (g) { return DESK.reqSel[g.key]; });
+      var byTag = {}, order = [];
+      gs.forEach(function (g) {
+        var a = _askOf(g.rows); if (!a) return;
+        if (!byTag[a.id]) { byTag[a.id] = []; order.push(a.id); }
+        g.rows.forEach(function (x) { byTag[a.id].push(x.id); });
+      });
+      /* Every call first, then ONE reload. Reloading between them repainted
+         the queue under the loop and the second status was never sent. */
+      if (DESK.reqBusy || !order.length) return;
+      DESK.reqBusy = 'bulkasked';
+      b.disabled = true; b.textContent = 'Approving…';
+      var done = 0, bad = [], gone = false;
+      for (var oi = 0; oi < order.length; oi++) {
+        var rr;
+        try {
+          rr = await sb.rpc('decide_reservation_requests',
+            { p_session_token: TOKEN, p_request_ids: byTag[order[oi]], p_action: 'approve',
+              p_unit_status_id: order[oi] });
+        } catch (e3) { rr = null; }
+        var dd = rr && rr.data;
+        if (dd && dd.error === 'session_expired') { gone = true; break; }
+        if (!dd) { bad.push('(no answer)'); continue; }
+        done += Number(dd.done || 0);
+        (dd.results || []).forEach(function (x) { if (!x.success) bad.push(x.unit_no || '?'); });
+      }
+      DESK.reqBusy = null;
+      if (gone) return sessionGone();
+      if (bad.length) {
+        toast(done + ' done, ' + bad.length + ' not: ' + bad.slice(0, 6).join(', ') +
+              (bad.length > 6 ? '…' : ''), done ? 'warn' : 'err');
+      } else {
+        toast(done + ' request' + (done === 1 ? '' : 's') + ' approved as asked.', 'ok');
+      }
+      DESK.reqSel = {};
+      await _refreshReqs(true);
       return;
     }
     var card = b.closest('.rq-c'); if (!card) return;
