@@ -388,6 +388,7 @@ body.splash .chart-r{animation:spRing 420ms var(--pop) both;animation-delay:400m
 body.splash .ck     {animation:spRight 350ms var(--settle) both;
                      animation-delay:calc(520ms + var(--i) * 55ms)}
 /* the news band fades up, after the last line of the legend above it */
+body.splash .al     {animation:spIn 340ms var(--settle) both;animation-delay:780ms}
 body.splash .hero-f {animation:spIn 360ms var(--settle) both;animation-delay:800ms}
 /* the field a dealer types into */
 body.splash .sec    {animation:spIn 320ms var(--settle) both;animation-delay:830ms}
@@ -424,7 +425,10 @@ body.splash .fl button{animation:spRight 350ms var(--settle) both;
    full width of the legend, a chevron at the end, and a tint under the finger.
    The gap between them is gone and given to their own height instead, which
    makes each one a bigger target for the same hundred pixels. */
-.ck{display:flex;align-items:center;gap:7px;width:100%;padding:5px 5px 5px 0;
+/* TWO PIXELS, NOT FIVE. The rows were pulled closer so the Attention strip
+   under them could have their room — "osay qareeb qareeb karke wahan jaghan
+   bana k" — without screen one starting to scroll. */
+.ck{display:flex;align-items:center;gap:7px;width:100%;padding:2px 5px 2px 0;
     border:0;background:none;text-align:left;border-radius:7px;
     font-size:11.5px;line-height:1.2;color:inherit;font-family:inherit;
     transition:background var(--t-fast) var(--ease)}
@@ -474,6 +478,37 @@ body.splash .fl button{animation:spRight 350ms var(--settle) both;
 .ck-l{flex:1;min-width:0;color:var(--soft);overflow:hidden;
       text-overflow:ellipsis;white-space:nowrap}
 .ck-p{color:var(--mut);font-size:11px;white-space:nowrap}
+/* ── ATTENTION: THE HOLDS ABOUT TO LAPSE ──────────────────────────────────
+   Rashid: a hold with two days or less left has to say so on the dashboard,
+   to the person whose word it is on — "attention xyz k unit# LG112 will be
+   release tomorrow kindly isay sale mai convert karo" — and since it will
+   never be one unit, one line at a time, "jaisay news channels pe hota":
+   it comes in, holds, goes, and the next one comes in.
+
+   A FIXED HEIGHT, two lines of it. The messages are different lengths and a
+   strip that grows and shrinks with each one moves everything under it —
+   the search field and seven floors — under a thumb. So every message is
+   given the same two lines, and a longer name is clamped rather than let
+   through. The red is the band's own red, so "look at this" is one colour
+   on this page, not two. */
+.al{position:relative;overflow:hidden;margin-top:6px;height:40px;
+    padding:5px 40px 5px 11px;border-radius:9px;
+    background:rgba(179,18,60,.07);box-shadow:inset 3px 0 0 #B3123C;
+    font-size:11.5px;line-height:1.3;color:var(--soft)}
+:root[data-theme="dark"] .al{background:rgba(240,90,120,.12);box-shadow:inset 3px 0 0 #F05A78}
+.al-m{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.al-m b{font-weight:700;color:var(--ink)}
+.al-t{display:inline-block;margin-right:6px;padding:1px 6px;border-radius:4px;
+      background:#B3123C;color:#fff;font-size:9.5px;font-weight:750;
+      letter-spacing:.09em;text-transform:uppercase;vertical-align:1px}
+.al-c{position:absolute;right:9px;top:6px;font-size:10.5px;color:var(--mut);
+      font-variant-numeric:tabular-nums}
+/* in from below, out through the top: the way a channel's strap turns over */
+.al-m.in {animation:alIn 320ms var(--settle,ease) both}
+.al-m.out{animation:alOut 260ms var(--ease,ease) both}
+@keyframes alIn {from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes alOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(-12px)}}
+@media (prefers-reduced-motion:reduce){ .al-m.in,.al-m.out{animation:none} }
 /* Ink at two strengths, not two hues. Availability is contrast here. */
 .bar{display:flex;height:3px;border-radius:999px;overflow:hidden;background:var(--sunk);
      margin:8px 0 0}
@@ -4623,7 +4658,8 @@ function paintHero(av, tot) {
           '</button>';
         }).join('') +
       '</div>' +
-    '</div>';
+    '</div>' +
+    '<div class="al" id="al" hidden aria-live="polite"></div>';
   void fw; void held; void pct;
   /* the entrance is a class, not a timer: the stylesheet holds the timing and
      the page only says when it is the first time */
@@ -4655,6 +4691,80 @@ function paintHero(av, tot) {
      wiped by the very next line. */
   paintUpdated();
   paintTicker(av, tot);
+  paintAlerts();
+}
+
+/* ── ATTENTION, one hold at a time ─────────────────────────────────────────
+   P.lapsing is every active hold on the project that lapses inside two days,
+   as the server sent it: n (unit), w (on whose word) and x (when). The clock
+   is read again on every turn, so a hold that lapses while the page sits open
+   drops out at the next turn rather than at the next reread. */
+var ALERT = { at: 0, timer: null };
+var AL_HOLD = 4500;     // how long each one stays up
+
+function lapsingNow() {
+  var now = Date.now();
+  return ((P && P.lapsing) || []).filter(function (x) {
+    var t = Date.parse(x.x); return t > now;
+  });
+}
+
+/* TODAY AND TOMORROW ARE PAKISTAN'S, not the phone's. A dealer abroad with
+   the link open would otherwise be told "tomorrow" about a hold that goes
+   this afternoon in Peshawar. */
+var AL_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi' });
+var AL_TIME = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Karachi',
+                                                 hour: 'numeric', minute: '2-digit' });
+var AL_WDAY = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Karachi', weekday: 'long' });
+function lapseWhen(iso) {
+  var d = new Date(iso);
+  var gap = Math.round((Date.parse(AL_DAY.format(d)) - Date.parse(AL_DAY.format(new Date()))) / 864e5);
+  var day = gap <= 0 ? 'today' : gap === 1 ? 'tomorrow' : 'on ' + AL_WDAY.format(d);
+  return day + ' at ' + AL_TIME.format(d);
+}
+
+function alertHtml(x, i, n) {
+  return '<div class="al-m">' +
+      '<span class="al-t">Attention</span>' +
+      (x.w ? '<b>' + esc(x.w) + '</b> · ' : '') +
+      '<b>' + esc(x.n) + '</b> will be released <b>' + esc(lapseWhen(x.x)) +
+      '</b>. Kindly convert it to a sale.' +
+    '</div>' +
+    (n > 1 ? '<span class="al-c">' + (i + 1) + '/' + n + '</span>' : '');
+}
+
+/* Called on every paint of the hero, which rewrites the strip's element. The
+   one on screen is put back as it was, with no entrance, so a reread every
+   two minutes does not make the strip flinch at somebody reading it. */
+function paintAlerts() {
+  var el = $('al'); if (!el) return;
+  var list = lapsingNow();
+  clearInterval(ALERT.timer); ALERT.timer = null;
+  if (!list.length) { el.hidden = true; el.innerHTML = ''; return; }
+  if (ALERT.at >= list.length) ALERT.at = 0;
+  el.hidden = false;
+  el.innerHTML = alertHtml(list[ALERT.at], ALERT.at, list.length);
+  if (list.length < 2) return;
+  ALERT.timer = setInterval(turnAlert, AL_HOLD);
+}
+
+function turnAlert() {
+  /* held still while nobody can see it: a hidden tab, or another screen open */
+  if (document.hidden || REPV || ALLV || MINEV || FLOOR != null) return;
+  var el = $('al'); if (!el) { clearInterval(ALERT.timer); return; }
+  var list = lapsingNow();
+  if (list.length < 2) { paintAlerts(); return; }
+  ALERT.at = (ALERT.at + 1) % list.length;
+  var next = alertHtml(list[ALERT.at], ALERT.at, list.length);
+  var still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var cur = el.querySelector('.al-m');
+  if (still || !cur) { el.innerHTML = next; return; }
+  cur.classList.add('out');
+  setTimeout(function () {
+    var box = $('al'); if (!box) return;
+    box.innerHTML = next;
+    var m = box.querySelector('.al-m'); if (m) m.classList.add('in');
+  }, 260);
 }
 
 /* ── THE WHOLE BUILDING ───────────────────────────────────────────────────
