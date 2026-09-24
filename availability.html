@@ -3091,13 +3091,19 @@ function short(v) {
    stable colour from its own letters — never the next one out of a queue,
    which would repaint every status already on screen the day a new one
    appears. */
+/* V.HOLD IS A HOLD, AND IS DRAWN AS ONE. It had no entry here, so it fell to
+   the spare list and hashed to #6d28d9 -- a violet one step from Sold (P)'s,
+   and the legend read as two blues side by side: "Sold aur Sold (p) dono k
+   colors blue hain. alag alag colors do inhe". */
 var TINT = {
   sold: '#b3123c', pagri: '#7c3aed', 'sold-p': '#7c3aed', hold: '#c2760a', 'on-hold': '#c2760a',
+  'v-hold': '#c2760a',
   reserved: '#0f766e', reserve: '#0f766e', booked: '#b45309', landowner: '#4d7c0f'
 };
 var SPARE = ['#0369a1', '#9d174d', '#4d7c0f', '#a16207', '#6d28d9', '#0e7490'];
 /* the mark, as a shape — see .pv .x above for why colour cannot carry alone */
 var DASH = { sold: '', pagri: 'd-dot', 'sold-p': 'd-dot', hold: 'd-dash', 'on-hold': 'd-dash',
+             'v-hold': 'd-dash',
              reserved: 'd-dash', reserve: 'd-dash', booked: 'd-dash' };
 function skey(label) {
   return String(label || '').toLowerCase()
