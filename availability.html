@@ -1298,6 +1298,58 @@ body.splash .fl::before{opacity:0}
 .rp .say b{color:var(--soft);font-weight:650}
 .rp .p-h{font-size:13.5px;line-height:1.45}
 .rp .p-h b{font-weight:700}
+/* ── HOLDS THAT WAIT FOR A DIRECTOR ───────────────────────────────────────
+   Rashid's directors: a hold whose time is over does not open by itself any
+   more. It waits here until one of them presses Release or Extend, and each
+   press can tell the holder on WhatsApp. One card per person, because holds
+   arrive in batches — twelve of Waqar's end on the same afternoon.
+   Red is the page's own red for "look at this"; nothing new is invented. */
+.dc{margin-top:4px}
+.dc-by{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mut);margin:0 0 8px}
+.dc-by input{flex:1;min-width:0;height:34px;padding:0 10px;border:1px solid var(--line);
+  border-radius:8px;background:var(--card);color:var(--ink);font:inherit;font-size:13.5px}
+.dc-c{background:var(--card);border-radius:var(--r);padding:11px 12px;margin-bottom:6px;
+  box-shadow:inset 3px 0 0 var(--dc,#B3123C)}
+.dc-c.soon{--dc:#c2760a}
+.dc-h{display:flex;align-items:baseline;gap:8px}
+.dc-w{font-size:14.5px;font-weight:700;letter-spacing:-.015em;flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dc-t{font-size:11.5px;font-weight:650;color:var(--dc,#B3123C);white-space:nowrap}
+.dc-p{font-size:11.5px;color:var(--mut);margin-top:2px}
+.dc-p button{border:0;background:none;padding:0;color:var(--accent,#1d4ed8);
+  font:inherit;font-weight:650;text-decoration:underline;cursor:pointer}
+.dc-u{display:flex;flex-wrap:wrap;gap:5px;margin:9px 0 10px}
+.dc-u button{border:1px solid var(--line);background:var(--sunk);color:var(--mut);
+  border-radius:7px;padding:5px 8px;font:inherit;font-size:12px;font-weight:650;
+  text-decoration:line-through;opacity:.7}
+.dc-u button.on{background:var(--card);color:var(--ink);text-decoration:none;opacity:1;
+  border-color:var(--dc,#B3123C)}
+.dc-a{display:flex;gap:6px;flex-wrap:wrap}
+.dc-a button, .dc-a a{flex:1;min-width:0;height:38px;border-radius:9px;border:0;
+  font:inherit;font-size:13px;font-weight:700;display:flex;align-items:center;
+  justify-content:center;text-decoration:none;cursor:pointer;white-space:nowrap;padding:0 10px;
+  overflow:hidden;text-overflow:ellipsis}
+.dc-a .rel{background:#B3123C;color:#fff}
+.dc-a .ext{background:var(--ink);color:var(--bg,#fff)}
+.dc-a .wa{background:#1FA855;color:#fff}
+.dc-a .no{background:var(--sunk);color:var(--ink)}
+.dc-a button:disabled{opacity:.5}
+.dc-q{font-size:12.5px;line-height:1.45;margin:0 0 8px;color:var(--soft)}
+.dc-d{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.dc-d button{flex:1 1 0;min-width:0;white-space:nowrap;padding:0 4px;height:36px;border-radius:8px;border:1px solid var(--line);
+  background:var(--card);color:var(--ink);font:inherit;font-size:13px;font-weight:700}
+.dc-d button.on{background:var(--ink);color:var(--bg,#fff);border-color:var(--ink)}
+.dc-d input{width:74px;height:36px;border-radius:8px;border:1px solid var(--line);
+  background:var(--card);color:var(--ink);font:inherit;font-size:13px;text-align:center}
+.dc-f{display:flex;gap:6px;margin:8px 0}
+.dc-f input{flex:1;min-width:0;height:36px;padding:0 10px;border:1px solid var(--line);
+  border-radius:8px;background:var(--card);color:var(--ink);font:inherit;font-size:14px}
+.dc-e{font-size:12px;color:#B3123C;margin-top:6px}
+.dc-ok{background:var(--card);border-radius:var(--r);padding:11px 12px;margin-bottom:6px;
+  box-shadow:inset 3px 0 0 #1FA855;font-size:13px;line-height:1.45}
+.dc-ok .dc-a{margin-top:8px}
+.dc-none{font-size:12.5px;color:var(--mut);background:var(--card);border-radius:var(--r);
+  padding:11px 12px}
 .rp .p-p{margin-top:5px}
 
 /* ── THE UNIT TABLE ───────────────────────────────────────────────────────
@@ -1427,7 +1479,7 @@ body.splash .fl::before{opacity:0}
   @page{margin:11mm 10mm}
   body{background:#fff}
   .hd, .ft, #home, #all, #mine, #floor, #rep-gate, .rp-x, .toast, #sheet, #boot,
-  #desk, #price, #name-ask, #vask, #relask, #prc-gate{display:none !important}
+  #desk, #price, #name-ask, #vask, #relask, #prc-gate, .dc{display:none !important}
   .wrap{max-width:none;padding:0}
   #rep{display:block !important}
   .fh{margin:0 0 4px}
@@ -6447,7 +6499,7 @@ function showRep() {
       $('dir-go').disabled = false;
       $('dir-pw').placeholder = 'Password';
       if (!got || !REPV || REP) { if (REPV && !REP) $('dir-pw').focus(); return; }
-      REP = got.data; REPP = { view: 'home', key: '' }; REPPW = got.key;
+      REP = got.data; REPP = { view: 'home', key: '' }; REPPW = got.key; DEC.holds = null;
       showRep(); window.scrollTo(0, 0);
     });
     return;
@@ -6470,7 +6522,7 @@ async function repOpen() {
       $('dir-pw').value = '';
       return;
     }
-    REP = d; REPP = { view: 'home', key: '' }; REPPW = pw;
+    REP = d; REPP = { view: 'home', key: '' }; REPPW = pw; DEC.holds = null;
     $('dir-pw').value = ''; err.hidden = true;
     showRep(); window.scrollTo(0, 0);
     /* and if this phone is to be remembered, the word is swapped for a key the
@@ -6854,6 +6906,292 @@ $('rel-ok').onclick = async function () {
   }
 };
 
+/* ── HOLDS THAT WAIT FOR A DIRECTOR ───────────────────────────────────────
+   A hold whose time is over no longer opens by itself on this project. It
+   waits in this room until a director presses Release or Extend, and if
+   nobody does, nothing about the unit changes. Directors: "ye units auto
+   available na hun ... approve ya extend time".
+
+   Everything here is asked of the server with the room's own password
+   (get_hold_decisions / decide_holds / set_hold_contact); the page decides
+   nothing. After each decision the holder can be told on WhatsApp — the
+   message is written for the director and opened in WhatsApp, one tap to
+   send. There is no gateway that sends it behind anybody's back.
+
+   DEC.holds  every dated hold that is over, or ends within 24 hours
+   DEC.pick   per card, which units are ticked (all of them to begin with)
+   DEC.open   per card, which question is open: 'rel' | 'ext' | 'ph'
+   DEC.done   the decisions made this visit, each with its message */
+var DEC = { holds: null, busy: false, pick: {}, open: {}, days: {}, done: [], err: {} };
+
+function decKey(who) { return String(who || '').trim().toLowerCase().replace(/\s+/g, ' ') || '—'; }
+
+function decGroups() {
+  var by = {}, out = [];
+  (DEC.holds || []).forEach(function (h) {
+    var g = (h.due ? 'due|' : 'soon|') + decKey(h.w);
+    if (!by[g]) {
+      by[g] = { g: g, due: !!h.due, who: h.w || '', phone: h.phone || '', units: [] };
+      out.push(by[g]);
+    }
+    if (!by[g].phone && h.phone) by[g].phone = h.phone;
+    by[g].units.push(h);
+  });
+  return out;
+}
+
+async function loadDecisions() {
+  if (DEC.busy || !REPPW) return;
+  DEC.busy = true;
+  try {
+    var r = await sb.rpc('get_hold_decisions', { p_token: LINK, p_password: REPPW });
+    var d = r && r.data;
+    DEC.holds = (d && d.success) ? (d.holds || []) : [];
+    /* a card keeps what was ticked on it; a card seen for the first time has
+       every unit ticked */
+    var keep = {};
+    decGroups().forEach(function (g) {
+      var was = DEC.pick[g.g] || null;
+      keep[g.g] = {};
+      g.units.forEach(function (u) { keep[g.g][u.id] = was && (u.id in was) ? was[u.id] : true; });
+    });
+    DEC.pick = keep;
+  } catch (e) {
+    DEC.holds = DEC.holds || [];
+  }
+  DEC.busy = false;
+  if (REPV && REP && REPP.view === 'home') $('rep-body').innerHTML = repRender();
+}
+
+var DC_DAY = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Karachi',
+  weekday: 'short', day: 'numeric', month: 'short' });
+function decWhen(iso) {
+  var t = Date.parse(iso), now = Date.now();
+  if (t <= now) {
+    var h = Math.floor((now - t) / 36e5);
+    return 'Time over ' + (h < 1 ? 'just now' : h < 48 ? h + 'h ago' : Math.floor(h / 24) + ' days ago');
+  }
+  return 'Ends ' + lapseWhen(iso);
+}
+function decUntil(iso) {
+  return DC_DAY.format(new Date(iso)) + ', ' + AL_TIME.format(new Date(iso));
+}
+
+/* the phone as WhatsApp wants it: 92 and ten digits, or nothing */
+function decPhone(p) {
+  var d = String(p || '').replace(/\D/g, '');
+  if (/^03\d{9}$/.test(d)) d = '92' + d.slice(1);
+  return /^923\d{9}$/.test(d) ? d : '';
+}
+function decShowPhone(p) {
+  var d = decPhone(p); return d ? '0' + d.slice(2, 5) + '-' + d.slice(5) : '';
+}
+function decWa(phone, text) {
+  var d = decPhone(phone);
+  return 'https://wa.me/' + (d || '') + '?text=' + encodeURIComponent(text);
+}
+function decList(ns) {
+  return ns.length === 1 ? 'unit ' + ns[0] : 'units ' + ns.slice(0, -1).join(', ') + ' and ' + ns[ns.length - 1];
+}
+/* THE MESSAGE, in the three shapes a holder can be told something */
+function decMsg(kind, who, ns, until) {
+  var hi = 'Dear ' + (who || 'Sir') + ',\n';
+  var by = '\n\n' + ((P && P.project) || 'The office') + ' – sales office';
+  if (kind === 'remind')
+    return hi + 'Your hold on ' + decList(ns) + ' ends ' + until + '. ' +
+           'Kindly convert ' + (ns.length === 1 ? 'it' : 'them') + ' to a sale, ' +
+           'or ask the office for more time.' + by;
+  if (kind === 'extend')
+    return hi + 'Your hold on ' + decList(ns) + ' has been extended until ' + until + '. ' +
+           'Kindly convert ' + (ns.length === 1 ? 'it' : 'them') + ' to a sale before then.' + by;
+  return hi + 'Your hold on ' + decList(ns) + ' has ended, and ' +
+         (ns.length === 1 ? 'the unit is' : 'the units are') + ' open for sale again.' + by;
+}
+
+function decBy() { try { return localStorage.getItem('avail.dirname') || ''; } catch (e) { return ''; } }
+function decSetBy(v) { try { localStorage.setItem('avail.dirname', v); } catch (e) {} }
+
+function decCard(g) {
+  var pick = DEC.pick[g.g] || {};
+  var ticked = g.units.filter(function (u) { return pick[u.id]; });
+  var first = g.units[0];
+  var open = DEC.open[g.g] || '';
+  var H = ['<div class="dc-c' + (g.due ? '' : ' soon') + '" data-g="' + esc(g.g) + '">'];
+  H.push('<div class="dc-h"><span class="dc-w">' + esc(g.who || 'No name on the hold') + '</span>' +
+         '<span class="dc-t">' + esc(decWhen(first.x)) + '</span></div>');
+  H.push('<div class="dc-p">' + g.units.length + ' unit' + (g.units.length === 1 ? '' : 's') +
+         ' · ' + esc(first.k || 'Hold') + ' · ' +
+         (decPhone(g.phone)
+           ? 'WhatsApp ' + esc(decShowPhone(g.phone)) + ' <button data-dc="ph">change</button>'
+           : '<button data-dc="ph">Add WhatsApp number</button>') + '</div>');
+  if (open === 'ph') {
+    H.push('<div class="dc-f"><input id="dc-ph" type="tel" inputmode="tel" ' +
+      'placeholder="03xx-xxxxxxx" value="' + esc(decShowPhone(g.phone)) + '"></div>' +
+      '<div class="dc-a" style="margin-bottom:8px"><button class="ext" data-dc="ph-save">Save number</button>' +
+      '<button class="no" data-dc="close">Cancel</button></div>');
+  }
+  H.push('<div class="dc-u">' + g.units.map(function (u) {
+    return '<button class="' + (pick[u.id] ? 'on' : '') + '" data-dc="tick" data-id="' + esc(u.id) + '">' +
+           esc(u.n) + '</button>';
+  }).join('') + '</div>');
+
+  var ns = ticked.map(function (u) { return u.n; });
+  if (open === 'rel') {
+    H.push('<div class="dc-q">Release <b>' + esc(ns.join(', ')) + '</b>? ' +
+           (ns.length === 1 ? 'It goes' : 'They go') + ' back to Available for anybody to ask for.</div>' +
+           '<div class="dc-a"><button class="rel" data-dc="rel-go">Yes, release ' + ns.length + '</button>' +
+           '<button class="no" data-dc="close">Cancel</button></div>');
+  } else if (open === 'ext') {
+    var d = DEC.days[g.g] || 7;
+    H.push('<div class="dc-q">Extend <b>' + esc(ns.join(', ')) + '</b> by how many days?</div>' +
+           '<div class="dc-d">' + [1, 3, 7, 15].map(function (n) {
+             return '<button class="' + (d === n ? 'on' : '') + '" data-dc="days" data-n="' + n + '">' +
+                    n + (n === 1 ? ' day' : ' days') + '</button>';
+           }).join('') +
+           '<input id="dc-days" type="number" min="1" max="90" inputmode="numeric" placeholder="Other"' +
+             ([1, 3, 7, 15].indexOf(d) < 0 ? ' value="' + d + '"' : '') + '></div>' +
+           '<div class="dc-a"><button class="ext" data-dc="ext-go">Extend ' + ns.length + ' by ' +
+             d + (d === 1 ? ' day' : ' days') + '</button>' +
+           '<button class="no" data-dc="close">Cancel</button></div>');
+  } else if (open !== 'ph') {
+    var remind = decMsg('remind', g.who, ns, lapseWhen(first.x));
+    H.push('<div class="dc-a">' +
+      (g.due ? '<button class="rel" data-dc="rel"' + (ns.length ? '' : ' disabled') + '>Release</button>'
+             : '<a class="wa" target="_blank" rel="noopener" href="' + esc(decWa(g.phone, remind)) + '">Remind on WhatsApp</a>') +
+      '<button class="ext" data-dc="ext"' + (ns.length ? '' : ' disabled') + '>Extend</button></div>');
+  }
+  if (DEC.err[g.g]) H.push('<div class="dc-e">' + esc(DEC.err[g.g]) + '</div>');
+  H.push('</div>');
+  return H.join('');
+}
+
+function decPanel() {
+  if (DEC.holds === null) { loadDecisions(); return '<div class="dc"></div>'; }
+  var gs = decGroups();
+  var due = gs.filter(function (g) { return g.due; });
+  var soon = gs.filter(function (g) { return !g.due; });
+  var nDue = due.reduce(function (a, g) { return a + g.units.length; }, 0);
+  var H = ['<div class="dc">'];
+  H.push('<h2>' + (nDue ? nDue + (nDue === 1 ? ' hold needs' : ' holds need') + ' your decision'
+                        : 'Holds waiting for a decision') + '</h2>');
+  H.push('<div class="dc-by">Deciding as <input id="dc-by" type="text" maxlength="60" ' +
+         'autocomplete="name" placeholder="Your name" value="' + esc(decBy()) + '"></div>');
+  DEC.done.forEach(function (x, i) {
+    H.push('<div class="dc-ok">' + x.say + (x.who ? ' Tell <b>' + esc(x.who) + '</b>:' : '') +
+      '<div class="dc-a"><a class="wa" target="_blank" rel="noopener" href="' + esc(x.wa) + '">' +
+      'Send on WhatsApp</a>' +
+      '<button class="no" data-dc="dismiss" data-i="' + i + '">Done</button></div></div>');
+  });
+  if (due.length) H.push(due.map(decCard).join(''));
+  else H.push('<div class="dc-none">No hold is waiting. When a hold’s time is over it stays held and ' +
+              'appears here for Release or Extend.</div>');
+  if (soon.length) {
+    H.push('<h2>Ending within 24 hours</h2>');
+    H.push(soon.map(decCard).join(''));
+  }
+  H.push('</div>');
+  return H.join('');
+}
+
+function decPaint() { if (REPV && REP && REPP.view === 'home') $('rep-body').innerHTML = repRender(); }
+
+async function decAct(g, action) {
+  var by = (($('dc-by') || {}).value || decBy()).trim();
+  if (!by) { DEC.err[g.g] = 'Write your name in "Deciding as" first.'; decPaint(); return; }
+  decSetBy(by);
+  var pick = DEC.pick[g.g] || {};
+  var ids = g.units.filter(function (u) { return pick[u.id]; }).map(function (u) { return u.id; });
+  if (!ids.length) return;
+  var days = action === 'extend' ? (DEC.days[g.g] || 7) : null;
+  DEC.err[g.g] = '';
+  var btn = document.querySelector('[data-g="' + g.g.replace(/"/g, '') + '"] [data-dc$="-go"]');
+  if (btn) { btn.disabled = true; btn.textContent = action === 'extend' ? 'Extending…' : 'Releasing…'; }
+  try {
+    var r = await sb.rpc('decide_holds', { p_token: LINK, p_password: REPPW, p_ids: ids,
+                                          p_action: action, p_days: days, p_by: by });
+    var d = r && r.data;
+    if (!d || !d.success) {
+      DEC.err[g.g] = (d && d.error === 'too_many') ? 'Too many wrong tries on this link. It opens again in an hour.'
+        : (d && d.error === 'no') ? 'The password has changed. Open the room again.'
+        : 'That did not go through. Nothing was changed.';
+      decPaint(); return;
+    }
+    var ns = (d.done || []).map(function (x) { return x.n; });
+    var skipped = (d.skipped || []).map(function (x) { return x.n; }).filter(Boolean);
+    if (ns.length) {
+      var until = action === 'extend' && d.done[0].x ? decUntil(d.done[0].x) : '';
+      var msg = decMsg(action === 'extend' ? 'extend' : 'release', g.who, ns, until);
+      DEC.done.unshift({
+        who: g.who,
+        wa: decWa(g.phone, msg),
+        say: action === 'extend'
+          ? '<b>' + esc(ns.join(', ')) + '</b> extended until <b>' + esc(until) + '</b>.'
+          : '<b>' + esc(ns.join(', ')) + '</b> released — back to Available.'
+      });
+    }
+    if (skipped.length) toast(skipped.join(', ') + ' had already changed, so ' +
+                              (skipped.length === 1 ? 'it was' : 'they were') + ' left alone.', 'err');
+    DEC.open[g.g] = '';
+    await loadDecisions();
+    var rep = await sb.rpc('get_availability_report', { p_token: LINK, p_password: REPPW });
+    if (rep && rep.data && rep.data.success) { REP = rep.data; decPaint(); }
+    load(false);
+  } catch (e) {
+    DEC.err[g.g] = 'Could not reach the office. Nothing was changed.';
+    decPaint();
+  }
+}
+
+async function decSavePhone(g) {
+  var raw = (($('dc-ph') || {}).value || '').trim();
+  if (raw && !decPhone(raw)) { DEC.err[g.g] = 'A mobile number like 0300-1234567.'; decPaint(); return; }
+  try {
+    var r = await sb.rpc('set_hold_contact', { p_token: LINK, p_password: REPPW,
+                                              p_name: g.who, p_phone: raw });
+    var d = r && r.data;
+    if (!d || !d.success) {
+      DEC.err[g.g] = (d && d.error === 'name') ? 'This hold has no name to keep a number against.'
+                                               : 'The number was not saved.';
+      decPaint(); return;
+    }
+    DEC.err[g.g] = ''; DEC.open[g.g] = '';
+    toast(raw ? 'Number saved for ' + g.who + '.' : 'Number removed.', 'ok');
+    await loadDecisions();
+  } catch (e) { DEC.err[g.g] = 'Could not reach the office. The number was not saved.'; decPaint(); }
+}
+
+$('rep-body').addEventListener('input', function (e) {
+  if (e.target.id === 'dc-by') decSetBy(e.target.value.trim());
+  if (e.target.id === 'dc-days') {
+    var card = e.target.closest('[data-g]'); if (!card) return;
+    var n = parseInt(e.target.value, 10);
+    if (n >= 1 && n <= 90) {
+      DEC.days[card.getAttribute('data-g')] = n;
+      var go = card.querySelector('[data-dc="ext-go"]');
+      if (go) go.textContent = go.textContent.replace(/by \d+ days?$/, 'by ' + n + (n === 1 ? ' day' : ' days'));
+      card.querySelectorAll('.dc-d button').forEach(function (b) { b.classList.remove('on'); });
+    }
+  }
+});
+$('rep-body').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-dc]'); if (!b) return;
+  var what = b.getAttribute('data-dc');
+  if (what === 'dismiss') { DEC.done.splice(Number(b.getAttribute('data-i')), 1); decPaint(); return; }
+  var card = b.closest('[data-g]'); if (!card) return;
+  var key = card.getAttribute('data-g');
+  var g = decGroups().filter(function (x) { return x.g === key; })[0]; if (!g) return;
+  DEC.err[key] = '';
+  if (what === 'tick') { var id = b.getAttribute('data-id'); DEC.pick[key][id] = !DEC.pick[key][id]; }
+  else if (what === 'rel' || what === 'ext' || what === 'ph') DEC.open[key] = what;
+  else if (what === 'close') DEC.open[key] = '';
+  else if (what === 'days') DEC.days[key] = Number(b.getAttribute('data-n'));
+  else if (what === 'rel-go') { decAct(g, 'release'); return; }
+  else if (what === 'ext-go') { decAct(g, 'extend'); return; }
+  else if (what === 'ph-save') { decSavePhone(g); return; }
+  decPaint();
+  if (what === 'ph') setTimeout(function () { var i = $('dc-ph'); if (i) i.focus(); }, 30);
+});
+
 $('rep-back').onclick = function () {
   /* one step back inside the room before leaving it */
   if (REP && REPP.view !== 'home') {
@@ -6925,6 +7263,8 @@ function repHome(d) {
   var H = ['<div class="rp">'];
 
   H.push(printHead(d, 'Position summary'));
+  /* first, what is waiting for a director; the rest of the room is reading */
+  H.push(decPanel());
   H.push('<h2>Where the building stands</h2><div class="big">' +
     '<div class="b"><div class="bn">' + num(t.available) + '</div>' +
       '<div class="bl">still available, of ' + num(t.units) + '</div>' +
