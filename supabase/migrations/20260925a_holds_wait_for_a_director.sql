@@ -22,6 +22,13 @@
 --    availability_releases so the room's "given back" keeps one story.
 -- 5. Waqar = Waqar Landlord (Rashid, 2026-09-25): the four spellings merged
 --    onto the one agent row, so he gets one card and one message.
+-- 6. THE PAGRI LEAK (found 2026-09-25): FF-89 and GF-176 were booked V.Hold,
+--    re-tagged Pagri at the desk, and the sweep opened them on 24 Sep because
+--    the hold row still carried the V.Hold tag and expiry. Two layers now:
+--    the unit-status trigger moves an active hold onto the unit's new tag and
+--    clears its expiry when that tag never lapses; and the sweep, for every
+--    tenant, only puts a unit back on the shelf if it is still on a temporary
+--    tag. The two units themselves are restored in 20260925b.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 ALTER TABLE public.projects
@@ -98,11 +105,61 @@ BEGIN
      ORDER BY sort_order LIMIT 1;
     IF v_avail IS NOT NULL THEN
       UPDATE public.units SET status_id=v_avail, updated_at=now()
-       WHERE id=v_res.unit_id AND company_id=v_res.company_id;
+       WHERE id=v_res.unit_id AND company_id=v_res.company_id
+         /* ONLY A UNIT STILL ON A TEMPORARY TAG IS PUT BACK ON THE SHELF.
+            FF-89 and GF-176 were booked V.Hold, re-tagged Pagri, and this
+            sweep opened them anyway because the hold still carried the V.Hold
+            expiry. A unit now on Pagri, Landowner, Sold or any sale status is
+            left exactly where it is; only the lapsed hold row is closed. */
+         AND EXISTS (SELECT 1 FROM public.category_unit_statuses ks
+                      WHERE ks.id = units.status_id AND ks.nature = 'temporary');
     END IF;
     v_count := v_count + 1;
   END LOOP;
   RETURN jsonb_build_object('success',true,'expired_count',v_count,'ran_at',now());
+END; $function$;
+
+CREATE OR REPLACE FUNCTION public._sync_reservation_on_unit_status()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE v_st public.category_unit_statuses;
+BEGIN
+  IF NEW.status_id IS DISTINCT FROM OLD.status_id THEN
+    SELECT * INTO v_st FROM public.category_unit_statuses WHERE id = NEW.status_id;
+    /* THIS WAS A LIST OF FIVE STATUS CODES, and it had to be edited in step
+       with reserve_unit_desk every time a tag was added — which is exactly
+       the bug that cancelled a booking inside its own transaction when HOLD
+       and BOOKED were introduced. It asks a question about the new status
+       instead: is this unit back on the market, or retired? Then, and only
+       then, does nobody hold it any more. Every other status — including any
+       a tenant invents — leaves the hold standing.
+
+       A unit with no status at all counts as back on the market: nothing is
+       claiming it. */
+    IF COALESCE(v_st.is_available, true)
+       OR upper(COALESCE(v_st.status_code,'')) = 'DEAD' THEN
+      UPDATE public.reservations SET status='cancelled', cancelled_at=now(), updated_at=now()
+      WHERE unit_id=NEW.id AND status='active';
+    ELSE
+      /* THE HOLD FOLLOWS THE UNIT'S TAG. A unit re-tagged at the desk (V.Hold
+         to Pagri, say) kept its hold row on the old tag and the old expiry,
+         so the sweep later lapsed a Pagri unit back onto the shelf. Now the
+         hold takes the new tag, and a tag that never lapses (permanent, or a
+         sale status with no nature at all) takes the expiry away with it. */
+      UPDATE public.reservations
+         SET unit_status_id = NEW.status_id,
+             expiry_date = CASE WHEN COALESCE(v_st.nature, 'permanent') = 'permanent'
+                                THEN NULL ELSE expiry_date END,
+             updated_at = now()
+       WHERE unit_id = NEW.id AND status = 'active'
+         AND (unit_status_id IS DISTINCT FROM NEW.status_id
+              OR (COALESCE(v_st.nature, 'permanent') = 'permanent' AND expiry_date IS NOT NULL));
+    END IF;
+  END IF;
+  RETURN NEW;
 END; $function$;
 
 CREATE OR REPLACE FUNCTION public._map_unit_state(p_unit_id uuid)
