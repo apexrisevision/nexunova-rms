@@ -21,6 +21,9 @@
  *     kept reading inter-company and director money as if it were the
  *     company's own cash — kept visually separate on purpose, in plain
  *     sentences, never merged into the Cash & Bank table above it.
+ *   - The Director Summary, below Other Balances, is the running picture up
+ *     to this day (project spend, token money, this month, where we stand),
+ *     from nf_director_summary via nf_get_report's 'director' key.
  *   - One plain-language banner, not a checks table — nf_checks() already
  *     produces human-readable text; this report shows that text, or
  *     "Everything Matches" when there is none of it.
@@ -135,6 +138,36 @@
     return '<section class="rsec otherbal"><h2>Other Balances <small>(Not Awami&rsquo;s Own Cash)</small></h2><ul class="obl">' + items + '</ul></section>';
   }
 
+  // The director's running picture, everything up to this day
+  // (nf_director_summary, carried on the report as r.director). Reuses the
+  // .rtab table and its .tot row for the four group headings.
+  function directorPanel(d) {
+    if (!d) return '';
+    function amt(v) { return '<td class="r' + (F.n(v) < 0 ? ' neg' : '') + '">' + F.fmt(v) + '</td>'; }
+    function head(label, v) { return '<tr class="tot"><td>' + label + '</td>' + (v == null ? '<td></td>' : amt(v)) + '</tr>'; }
+    function row(label, v) { return '<tr><td style="padding-left:22px">' + esc(label) + '</td>' + amt(v) + '</tr>'; }
+    var tk = d.tokens || {}, mo = d.month || {};
+    var spent = (d.spent_breakdown || []).map(function (b) { return row(b.label, b.amount); }).join('');
+    var buyers = F.n(tk.buyers), bookings = F.n(tk.unit_bookings);
+    var rows =
+      head('Project so far — spent on the project', d.spent_on_project) + spent +
+      // Running cost is not project cost: its own row, outside the total above.
+      head('Office and running expenses', d.office_expenses) +
+      head('Sales — customer token money held <small class="muted" style="font-weight:400">· ' +
+           buyers + (buyers === 1 ? ' buyer' : ' buyers') + ' · ' +
+           bookings + (bookings === 1 ? ' unit booking' : ' unit bookings') + '</small>', tk.held) +
+      row('Refunded', tk.refunded) +
+      head('This month <small class="muted" style="font-weight:400">(' + F.ddMonYyyy(mo.from) + ' to ' + F.ddMonYyyy(mo.to) + ')</small>') +
+      row('Money received', mo.received) +
+      row('Money paid', mo.paid) +
+      head('Where we stand') +
+      row('Cash and bank with us', d.money_with_us) +
+      row('Owed to group companies', d.owed_to_group) +
+      row('Due from directors — to be recovered', d.due_from_directors);
+    return '<section class="rsec"><h2>Director Summary <small>(everything up to ' + F.longDate(d.as_of) + ')</small></h2>' +
+      '<table class="rtab"><thead><tr><th></th><th class="r">Amount (Rs)</th></tr></thead><tbody>' + rows + '</tbody></table></section>';
+  }
+
   function banner(balanced, checks) {
     if (balanced) {
       return '<div class="rbanner ok">✓ Everything Matches — Closing is Correct</div>';
@@ -178,6 +211,7 @@
       entriesTable('Money Received', 'Received', 'IN', lines) +
       entriesTable('Money Paid', 'Paid', 'OUT', lines) +
       otherBalances(r.other_balances) +
+      directorPanel(r.director) +
       '<section class="rsec rsig">' +
       '  <div><span>Prepared by (Accountant)</span><i></i></div>' +
       '  <div><span>Checked by</span><i></i></div>' +
