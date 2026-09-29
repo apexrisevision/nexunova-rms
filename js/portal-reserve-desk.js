@@ -211,6 +211,9 @@
       ".rd-row .u{font-weight:700;min-width:74px}" +
       ".rd-row .w{flex:1;min-width:0;font-size:var(--fs-secondary);color:var(--fk-text-muted);" +
         "overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+      /* the reason IS the point of a not-allocated row: it wraps, never "…" */
+      "#rd-unalloc .rd-row .w{white-space:normal}" +
+      "#rd-unalloc .rd-row .u{max-width:38%}" +
       ".rd-row .t{font-size:var(--fs-caption);color:var(--fk-text-muted);flex:none}" +
       /* One chip, three tags. Colour carries the difference in commitment, not
          the wording alone, because these are read at a glance in a list. */
@@ -886,6 +889,7 @@
         '<div class="rd-h">Booked today ' +
           '<span class="n" id="rd-count">' + ((d.today || []).length) + '</span></div>' +
         '<div id="rd-today"></div>' +
+        '<div id="rd-unalloc"></div>' +
       '</div>';
 
     _wire();
@@ -895,6 +899,7 @@
     _paintCart();
     _paintReqs();
     _paintToday();
+    _paintUnalloc();
     var u = _q('#rd-unit'); if (u) { try { u.focus(); } catch (e) {} }
   }
 
@@ -1963,6 +1968,39 @@
     // several units in a row, and retyping the same name each time is the thing
     // this screen exists to avoid.
     var u = _q('#rd-unit'); if (u) { try { u.focus(); } catch (e) {} }
+  }
+
+  /* ── OTHER — NOT ALLOCATED ────────────────────────────────────────────────
+     Token money that is deliberately NOT against a unit: NexuFinance account
+     21150 (a resale whose first buyer is unsettled, units missing from the
+     list, a buyer not yet named). Read-only, straight from the ledger legs —
+     never a placeholder unit and never put on a reservation, so the booked
+     units above keep summing to 21100.
+
+     get_unallocated_tokens_desk answers Rashid only; anyone else gets
+     'forbidden' and this block stays empty. It is fetched on its own and never
+     enters the cached unit index. Not on the Units board, not on the public
+     link. */
+  async function _paintUnalloc() {
+    var box = _q('#rd-unalloc'); if (!box) return;
+    var r;
+    try { r = await sb.rpc('get_unallocated_tokens_desk', { p_session_token: TOKEN }); }
+    catch (e) { return; }
+    box = _q('#rd-unalloc'); if (!box) return;       // the screen may have moved on
+    var d = r && r.data;
+    if (!d || d.success !== true || !(d.parties || []).length) { box.innerHTML = ''; return; }
+    box.innerHTML =
+      '<div class="rd-h">Other — not allocated ' +
+        '<span class="n">' + pkrFull(d.total) + '</span></div>' +
+      '<div class="card">' +
+        d.parties.map(function (p) {
+          return '<div class="rd-row">' +
+            '<span class="u">' + esc(p.name) + '</span>' +
+            '<span class="w">' + esc(String(p.reason || '').replace(/^Not allocated\s*[—-]\s*/i, '')) + '</span>' +
+            '<span class="t">' + pkrFull(p.amount) + '</span>' +
+          '</div>';
+        }).join('') +
+      '</div>';
   }
 
   function _paintToday() {
