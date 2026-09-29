@@ -1296,6 +1296,22 @@ body.splash .fl::before{opacity:0}
 /* one plain sentence under a block, where a sentence says it better than a table */
 .rp .say{font-size:12px;color:var(--mut);line-height:1.45;margin-top:7px}
 .rp .say b{color:var(--soft);font-weight:650}
+/* TOKEN RECEIVED — the one page read from the books. Seven columns do not fit a
+   phone, so the table scrolls sideways inside its card; on paper it fits. */
+.rp .tk-w{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.rp table.tk{table-layout:auto;min-width:640px;font-size:12px}
+.rp table.tk th{text-align:left;padding-left:10px}
+.rp table.tk th:first-child{padding-left:0}
+.rp table.tk th.n{text-align:right}
+.rp table.tk td.w{text-overflow:clip}
+.rp table.tk tr.tot td,.rp table.tk-kv tr.tot td{font-weight:750}
+.rp table.tk-kv{table-layout:auto}
+.rp table.tk-kv td.w{white-space:normal;font-size:12.5px}
+.rp table.tk-kv tr:first-child td{border-top:0}
+.rp table.tk-kv tr.zero td:last-child{color:var(--mut)}
+.rp table.tk-kv tr.bad td{color:#E11D48;font-weight:750}
+.rp .tk-bad{color:#E11D48;background:rgba(225,29,72,.10);border:1px solid rgba(225,29,72,.35);
+           border-radius:var(--r);padding:9px 12px;margin:0 0 6px;font-weight:700;font-size:13px}
 .rp .p-h{font-size:13.5px;line-height:1.45}
 .rp .p-h b{font-weight:700}
 /* ── HOLDS THAT WAIT FOR A DIRECTOR ───────────────────────────────────────
@@ -1498,6 +1514,11 @@ body.splash .fl::before{opacity:0}
              columns:2;column-gap:7mm}
   /* the rule between them, so the eye does not read across the gutter */
   .rp .ut-w{column-rule:1px solid #e6e6e6}
+  /* the token tables run across pages at their natural width */
+  .rp .tk-w{break-inside:auto;page-break-inside:auto;overflow:visible}
+  .rp table.tk{min-width:0;font-size:9px}
+  .rp table.tk tr{break-inside:avoid}
+  .rp .tk-bad{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .rp .ut-w table{break-inside:auto;page-break-inside:auto;width:100%}
   /* every column gets the head row, not just the first */
   .rp .ut-w thead{display:table-header-group}
@@ -6485,17 +6506,24 @@ function disclaimer(d) {
     '<ul>' +
       '<li>This is <b>not a confirmation, an allotment, a receipt or an agreement</b>. ' +
         'It confirms nothing to anybody and creates no right over any unit.</li>' +
-      '<li><b>It is not a record of money.</b> No amount shown here has been received, ' +
-        'verified, reconciled or banked. The figures are the register’s asking values, ' +
-        'not payments, not dues, and not a statement of account.</li>' +
+      /* AMENDED, NOT DELETED (2026-09-29). The Token received page is the one
+         part of this room that IS taken from the books — reservations matched
+         to NexuFinance 21100 to the rupee — so the old "no amount here has been
+         reconciled" had become false the moment that page arrived. */
+      '<li><b>The token figures come from the books.</b> The “Token received” page is read ' +
+        'from the company’s accounts and checked against the unit list, to the rupee, as at ' +
+        'the snapshot time below. <b>Everything else here is a working register, not a record ' +
+        'of money:</b> those figures are the register’s asking values, not payments, not dues, ' +
+        'and not a statement of account.</li>' +
       '<li><b>“Sold” here does not mean paid.</b> It is a working label the desk puts on a ' +
         'unit that is off the market. It does not mean a sale is complete, that any ' +
         'instalment has come in, or that any document has been signed.</li>' +
       '<li><b>“Hold”, “Pagri”, “Reserve” carry no guarantee.</b> A hold can lapse, be ' +
         'released or be cancelled at any time, with or without notice, and a unit shown ' +
         'against a name may be given to somebody else.</li>' +
-      '<li>The names shown are only <b>who asked for the unit</b> — they are not owners, ' +
-        'buyers, or parties to anything.</li>' +
+      '<li>The names shown against a hold are only <b>who asked for the unit</b> — they are ' +
+        'not owners, buyers, or parties to anything. A buyer named on the “Token received” page ' +
+        'is the name the desk wrote down with the token, not an owner or an allottee.</li>' +
       '<li>This page is a <b>working snapshot taken at the moment it was opened</b> and may ' +
         'already be out of date. Nothing here supersedes the company’s own books, ' +
         'agreements or receipts, which are the only record that counts.</li>' +
@@ -6614,7 +6642,7 @@ async function repOpen() {
 var TOKEN = '';           // the SALES SESSION. The link is LINK, up above.
 var ME = null;
 var TAB = 'desk';
-var DESK_SRC = '/js/portal-reserve-desk.js?v=20260929phone';
+var DESK_SRC = '/js/portal-reserve-desk.js?v=20260929room';
 var DESK_UP = false, DESKV = false;
 /* the portal's own key, on purpose: same origin, same phone, so a director
    already signed into the CRM here is not asked twice */
@@ -7288,6 +7316,7 @@ function repSubject() {
   if (REPP.view === 'kind')   return REPP.key || 'Held';
   if (REPP.view === 'ending') return 'Ending within seven days';
   if (REPP.view === 'floors') return 'What each floor is worth';
+  if (REPP.view === 'tokens') return 'Token received';
   return 'Director Level Report';
 }
 function repRender() {
@@ -7298,6 +7327,7 @@ function repRender() {
   if (REPP.view === 'kind')   return repKindPage(d, REPP.key);
   if (REPP.view === 'ending') return repEndingPage(d);
   if (REPP.view === 'floors') return repFloorPage(d);
+  if (REPP.view === 'tokens') return repTokenPage(d);
   return repHome(d);
 }
 
@@ -7359,7 +7389,12 @@ function repHome(d) {
       '<span class="r-m"><span class="r-t">What each floor is worth</span>' +
         '<span class="r-s">floor by floor: worth, what is on the shelf, what is committed</span></span>' +
       '<span class="r-a"></span></button>' +
+    '<button class="row" data-go="tokens">' +
+      '<span class="r-m"><span class="r-t">Token received</span>' +
+        '<span class="r-s">token money from the books, checked against the unit list</span></span>' +
+      '<span class="r-a"></span></button>' +
     '</div>');
+  TOKR = { room: null, money: null, busy: false, err: '' };   // the page reads fresh each time it is opened
 
   /* ── AND THE DESK, FOR WHOEVER ALSO TAKES THE BOOKINGS ──────────────────
      "Ye Reservation link aur reservation desk muje aik jaghan chahiye q k ye
@@ -7663,6 +7698,123 @@ function repFloorPage(d) {
       'floor at the price the register carries for it. It is not money received, ' +
       'and no discount, instalment or adjustment is in it.</div>' +
     repTools('What each floor is worth') + disclaimer(d) + '</div>';
+}
+
+/* ── TOKEN RECEIVED ───────────────────────────────────────────────────────
+   Rashid asked for this inside the Director Level Report. It is the one page
+   in this room read from the BOOKS rather than the register: reservations
+   matched to NexuFinance 21100 to the rupee.
+
+   TWO LOCKS, ON PURPOSE. Blocks 1-3 (does the unit list agree with the books,
+   token received, off the market with no token) open with the room password,
+   like everything else here — get_token_report_room. Block 4, the money
+   position (cash, bank, received, paid), does NOT: it is asked of
+   get_token_report_desk with the Reserve Desk sign-in on this phone, and that
+   answers one user id only. A director reading the room on the shared
+   password sees blocks 1-3 and never the cash. Both server doors build blocks
+   1-3 through one function, so the two can never disagree. */
+var TOKR = { room: null, money: null, busy: false, err: '' };
+
+async function tokLoad() {
+  if (TOKR.busy) return;
+  TOKR.busy = true; TOKR.err = '';
+  var sess = TOKEN;
+  if (!sess) { try { sess = localStorage.getItem(DESK_TOK_KEY) || ''; } catch (e) {} }
+  try {
+    var calls = [sb.rpc('get_token_report_room', { p_token: LINK, p_password: REPPW })];
+    if (sess) calls.push(sb.rpc('get_token_report_desk', { p_session_token: sess }));
+    var got = await Promise.all(calls);
+    var room = got[0] && got[0].data;
+    if (room && room.success) TOKR.room = room;
+    else TOKR.err = (room && room.error === 'too_many')
+      ? 'Too many tries on this link. It opens again in an hour.'
+      : 'Could not open the token report.';
+    var desk = got[1] && got[1].data;
+    TOKR.money = (desk && desk.success && desk.money) ? desk.money : null;
+    TOKR.signedIn = !!sess;
+  } catch (e) {
+    TOKR.err = 'Could not reach the office. Try again.';
+  } finally { TOKR.busy = false; }
+  if (REPV && REP && REPP.view === 'tokens') $('rep-body').innerHTML = repRender();
+}
+
+function repTokenPage(d) {
+  var head = '<div class="rp">' + printHead(d, 'Token received') + '<h2>Director Level Report</h2>';
+  if (!TOKR.room) {
+    if (!TOKR.busy && !TOKR.err) setTimeout(tokLoad, 0);
+    return head + '<div class="card"><div class="say" style="margin:0">' +
+      esc(TOKR.err || 'Reading the books…') + '</div></div></div>';
+  }
+  var T = TOKR.room, A = T.agree, R = T.received, S = T.missing, M = TOKR.money;
+  var diff = Number(A.difference) || 0;
+  var P = function (n) { return 'PKR ' + num(Math.round(Number(n) || 0)); };
+  var line = function (k, v, cls) {
+    return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td class="w">' + k + '</td><td>' + v + '</td></tr>';
+  };
+  var H = [head];
+
+  H.push('<h2>1 · Does the unit list agree with the books</h2>');
+  if (diff !== 0) H.push('<div class="tk-bad">Unit list and books disagree — check before relying on this</div>');
+  H.push('<div class="card"><table class="tk-kv"><tbody>' +
+    line('Token on units — reservations (active, received)', P(A.reservations)) +
+    line('Token on units — NexuFinance 21100', P(A.nf_21100)) +
+    line('Difference', P(diff), diff !== 0 ? 'bad' : 'zero') +
+    line('Token not against any unit — NexuFinance 21150', P(A.nf_21150)) +
+    line('Total token money held', P(A.total_held), 'tot') +
+  '</tbody></table></div>');
+  if (Number(T.company_projects) > 1) {
+    H.push('<div class="say">The books are kept for the whole company; the unit list is this project.</div>');
+  }
+
+  H.push('<h2>2 · Token received — ' + units(R.count) + ' · ' + P(R.total) + '</h2>');
+  H.push('<div class="card tk-w"><table class="tk"><thead><tr>' +
+    '<th>Unit</th><th>Floor</th><th>Status</th><th>Buyer</th><th>Sold by</th><th class="n">Token</th><th class="n">List price</th>' +
+    '</tr></thead><tbody>' +
+    R.rows.map(function (x) {
+      return '<tr><td class="nm">' + esc(x.unit) + '</td><td class="w">' + esc(x.floor) + '</td><td class="w">' +
+        esc(x.status || '—') + '</td><td class="w">' + esc(x.buyer || '—') + '</td><td class="w">' +
+        esc(x.sold_by || '—') + '</td><td>' + num(Math.round(x.token)) + '</td><td>' +
+        (x.price != null ? num(Math.round(x.price)) : '—') + '</td></tr>';
+    }).join('') +
+    '<tr class="tot"><td colspan="5" class="w">Total</td><td>' + num(Math.round(R.total)) + '</td><td></td></tr>' +
+    '</tbody></table></div>');
+
+  var RES = { active: 'Active', ended: 'Ended', none: 'None' };
+  H.push('<h2>3 · Off the market, no token — ' + units(S.count) + '</h2>');
+  H.push('<div class="big">' +
+    '<div class="b"><div class="bn">' + num(S.no_active_reservation) + '</div>' +
+      '<div class="bl">no active reservation</div></div>' +
+    '<div class="b"><div class="bn">' + num(S.never_reserved) + '</div>' +
+      '<div class="bl">never reserved at all</div></div></div>');
+  H.push('<div class="card tk-w" style="margin-top:5px"><table class="tk"><thead><tr>' +
+    '<th>Unit</th><th>Floor</th><th>Status</th><th>Sold by</th><th class="n">List price</th><th>Reservation</th>' +
+    '</tr></thead><tbody>' +
+    S.rows.map(function (x) {
+      return '<tr><td class="nm">' + esc(x.unit) + '</td><td class="w">' + esc(x.floor) + '</td><td class="w">' +
+        esc(x.status || '—') + '</td><td class="w">' + esc(x.sold_by || '—') + '</td><td>' +
+        (x.price != null ? num(Math.round(x.price)) : '—') + '</td><td class="w">' +
+        esc(RES[x.reservation] || x.reservation) + '</td></tr>';
+    }).join('') + '</tbody></table></div>');
+
+  /* block 4 only with Rashid's own sign-in; the room password never reaches it */
+  if (M) {
+    H.push('<h2>4 · Money position — NexuFinance</h2>');
+    H.push('<div class="card"><table class="tk-kv"><tbody>' +
+      line('Cash in hand', P(M.cash)) + line('Bank', P(M.bank)) +
+      line('Total in hand', P(M.in_hand), 'tot') +
+      line('Received to date', P(M.received)) + line('Paid to date', P(M.paid)) +
+    '</tbody></table></div>' +
+    '<div class="say">Received and paid leave out our own transfers between cash and bank' +
+      (Number(M.own_transfers) ? ' (' + num(M.own_transfers) + ' vouchers)' : '') + '.</div>');
+  } else if (!TOKR.signedIn) {
+    H.push('<div class="say">The money position (cash and bank) shows here only when you are ' +
+      'signed in on the Reserve Desk.</div>');
+  }
+
+  H.push(repTools('Token received'));
+  H.push(disclaimer(d));
+  H.push('</div>');
+  return H.join('');
 }
 
 $('all-filter').addEventListener('click', function (e) {

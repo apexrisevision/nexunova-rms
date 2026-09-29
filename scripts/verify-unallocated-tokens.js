@@ -129,6 +129,22 @@ function sql(query) {
     INSERT INTO _vut SELECT 'rep_expired',   public.get_token_report_desk('vut_rashid_expired');
     RESET ROLE;
 
+    -- the Director Level Report door: a throwaway link and room password,
+    -- set inside this transaction and rolled back with it
+    INSERT INTO public.availability_links (token_hash, company_id, project_id, label)
+    VALUES (public._availability_token_hash('vut_link'), '${AWAMI_CO}',
+            (SELECT id FROM public.projects WHERE company_id = '${AWAMI_CO}' ORDER BY project_name LIMIT 1),
+            'verify-unallocated (rolled back)');
+    UPDATE public.projects SET report_password_hash =
+             public._availability_secret_hash(id, 'vut-room-password')
+     WHERE company_id = '${AWAMI_CO}';
+    SET LOCAL ROLE anon;
+    INSERT INTO _vut SELECT 'room_ok',    public.get_token_report_room('vut_link', 'vut-room-password');
+    INSERT INTO _vut SELECT 'room_wrong', public.get_token_report_room('vut_link', 'not-the-password');
+    INSERT INTO _vut SELECT 'room_null',  public.get_token_report_room('vut_link', NULL);
+    INSERT INTO _vut SELECT 'room_nolink',public.get_token_report_room('no-such-link', 'vut-room-password');
+    RESET ROLE;
+
     -- the report's figures, recomputed here by independent SQL (not by the
     -- function under test), so a wrong join in the function cannot agree with itself
     INSERT INTO _vut SELECT 'indep', jsonb_build_object(
@@ -208,6 +224,24 @@ function sql(query) {
            'block 4: own transfers (' + M.own_transfers + ') are excluded from received (' + M.received +
            ' vs ' + I.recv_incl_own + ' if counted)');
   }
+
+  console.log('\n── Director Level Report door — blocks 1-3 on the room password, never money');
+  const RO = R.room_ok;
+  if (assert(RO && RO.success === true, 'the room password opens blocks 1-3')) {
+    assert(!('money' in RO) && !/cash|bank|in_hand|received_to|paid/.test(JSON.stringify(Object.keys(RO))),
+           'the room answer carries NO cash / bank / received / paid');
+    assert(JSON.stringify(RO.agree) === JSON.stringify(T.agree), 'room block 1 = desk block 1, figure for figure');
+    assert(JSON.stringify(RO.received) === JSON.stringify(T.received), 'room block 2 = desk block 2, row for row');
+    assert(JSON.stringify(RO.missing) === JSON.stringify(T.missing), 'room block 3 = desk block 3, row for row');
+  }
+  for (const k of ['room_wrong', 'room_null', 'room_nolink']) {
+    const x = R[k];
+    assert(x && x.success === false && !/agree|received|missing|money|rows/.test(JSON.stringify(x || {})),
+           k + ' is refused with nothing in it: ' + JSON.stringify(x));
+  }
+  const linkLeft = (await sql(`SELECT count(*)::int n FROM public.availability_links
+                                WHERE token_hash = public._availability_token_hash('vut_link');`))[0].n;
+  assert(linkLeft === 0, 'the throwaway link and room password did not persist');
 
   console.log('\n── The invariant 21150 exists to protect');
   assert(Number(R.invariant.reservations) === Number(R.invariant.nf_21100),
