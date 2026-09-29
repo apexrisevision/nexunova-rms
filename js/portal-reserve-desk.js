@@ -1256,13 +1256,22 @@
     if (u.h) {
       hit.className = 'rd-hit warn';
       hit.innerHTML = '<b>' + esc(u.n) + '</b> — ' + esc(u.sn || 'Reserved') +
-        '<div class="rd-meta">by <b style="font-size:inherit">' + esc(u.h.by || '—') + '</b>' +
+        /* "sold by" for a tag that does not lapse (Sold - Entry Pending,
+           Resale - Under Review…); a hold that runs out in days was never
+           sold, so it says "held by". */
+        '<div class="rd-meta">' + (u.h.exp ? 'held' : 'sold') +
+        ' by <b style="font-size:inherit">' + esc(u.h.by || '—') + '</b>' +
         (u.h.code ? ' (' + esc(u.h.code) + ')' : '') +
         /* A permanent hold arrives with exp null. The old test hid the whole
            clause, so the one kind of hold that never lets go was also the one
            that said nothing about how long it lasts. */
         (u.h.exp ? ' · ' + esc(_left(u.h.exp)) + ', to ' + esc(_pkDate(u.h.exp))
                  : ' · no expiry') +
+        /* buyer and token arrive only for a session that may authorise a
+           reservation; for anyone else they are null and nothing is drawn.
+           101 of Awami's active holds carry a token of 0 — no token line. */
+        (u.h.client ? '<br>buyer ' + esc(u.h.client) : '') +
+        (Number(u.h.token) > 0 ? '<br>token ' + pkrFull(u.h.token) : '') +
         (u.h.booked ? '<br>booked by ' + esc(u.h.booked) : '') + '</div>' +
         '<div class="rd-meta">' + meta + '</div>' +
         /* ── LET IT GO FROM HERE ────────────────────────────────────────
@@ -1927,7 +1936,8 @@
     u.s = tcode === 'HOLD' ? 'hold' : tcode === 'BOOKED' ? 'booked' : 'reserved';
     u.sn = d.tag || u.sn || 'Reserved';
     u.h = { by: d.requested_by, code: r.kind === 'agent' ? r.code : null,
-            booked: (ME && ME.sales_user_name) || null, exp: d.expiry_date };
+            booked: (ME && ME.sales_user_name) || null, exp: d.expiry_date,
+            client: clientName || null };
     DESK.data.today = DESK.data.today || [];
     DESK.data.today.unshift({
       id: d.reservation_id, unit_id: u.id, unit_no: d.unit_no || u.n,
