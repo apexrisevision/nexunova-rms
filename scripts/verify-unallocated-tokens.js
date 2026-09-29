@@ -61,6 +61,11 @@ function sql(query) {
   assert(g.nf_auth === true, 'authenticated can execute nf_unallocated_tokens');
   assert(g.body_anon === false && g.body_auth === false, 'the shared body is callable by neither anon nor authenticated');
   assert(g.desk_anon === true, 'the portal (anon) can reach the desk reader — its session check is the gate');
+  /* the pin is written where the next reader will look: on the live function */
+  const cm = (await sql(`SELECT obj_description('public.get_unallocated_tokens_desk(text)'::regprocedure, 'pg_proc') AS c,
+                                pg_get_functiondef('public.get_unallocated_tokens_desk(text)'::regprocedure) AS d;`))[0];
+  assert(/PINNED TO ONE USER ID/.test(cm.c || '') && /PINNED TO ONE USER ID/.test(cm.d || ''),
+         'the live function says, in its comment and its body, that access is pinned to one user id');
 
   console.log('\n── Both readers, as the roles that really call them (rolled back)');
   const rows = await sql(`
@@ -70,6 +75,9 @@ function sql(query) {
 
     INSERT INTO public.sales_sessions (company_id, sales_user_id, session_token, expires_at)
     VALUES ('${AWAMI_CO}', '${RASHID_SU}', 'vut_rashid', now() + interval '5 minutes');
+    -- Rashid's OWN session, but expired: the right person on a dead session
+    INSERT INTO public.sales_sessions (company_id, sales_user_id, session_token, expires_at)
+    VALUES ('${AWAMI_CO}', '${RASHID_SU}', 'vut_rashid_expired', now() - interval '1 minute');
     INSERT INTO public.sales_sessions (company_id, sales_user_id, session_token, expires_at)
     SELECT s.company_id, s.id, 'vut_rep', now() + interval '5 minutes'
       FROM public.sales_users s JOIN public.lead_role_config l ON l.role = s.role
@@ -110,6 +118,8 @@ function sql(query) {
     INSERT INTO _vut SELECT 'desk_rep',      public.get_unallocated_tokens_desk('vut_rep');
     INSERT INTO _vut SELECT 'desk_otherdir', public.get_unallocated_tokens_desk('vut_otherdir');
     INSERT INTO _vut SELECT 'desk_bogus',    public.get_unallocated_tokens_desk('not-a-session');
+    INSERT INTO _vut SELECT 'desk_null',     public.get_unallocated_tokens_desk(NULL);
+    INSERT INTO _vut SELECT 'desk_expired',  public.get_unallocated_tokens_desk('vut_rashid_expired');
     RESET ROLE;
 
     SELECT jsonb_object_agg(k, v)::text AS r FROM _vut;
@@ -129,9 +139,11 @@ function sql(query) {
 
   console.log('\n── Nobody else gets the money (as ' + JSON.stringify(R.who) + ')');
   const leaks = (x) => { const t = JSON.stringify(x || {}); return /total|parties|amount|name|reason/.test(t); };
-  for (const k of ['desk_rep', 'desk_otherdir', 'desk_bogus']) {
+  /* bogus = a token that was never a session; null = no token at all;
+     expired = Rashid's own session after it has lapsed. Three different paths. */
+  for (const k of ['desk_rep', 'desk_otherdir', 'desk_bogus', 'desk_null', 'desk_expired']) {
     const x = R[k];
-    if (k !== 'desk_bogus' && !R.who[k === 'desk_rep' ? 'rep' : 'otherdir']) { bad(k + ': no such session could be made — not proven'); continue; }
+    if ((k === 'desk_rep' || k === 'desk_otherdir') && !R.who[k === 'desk_rep' ? 'rep' : 'otherdir']) { bad(k + ': no such session could be made — not proven'); continue; }
     assert(x && x.success === false && x.error === 'forbidden' && !leaks(x),
            k + ' is refused with no amounts and no names: ' + JSON.stringify(x));
   }
