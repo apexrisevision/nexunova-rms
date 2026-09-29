@@ -2423,6 +2423,16 @@ function fmtPhone(v){
 }
 
 // ════ state ════
+/* WHO MAY AUTHORISE A RESERVATION. Only Rashid; everyone else previews. The
+   server enforces it in every booking RPC (_may_authorize_reservation) — this
+   flag only hides the buttons so nobody fills a form that will be refused.
+   Fails CLOSED: until the server says yes, nothing bookable is shown. */
+let CAN_AUTH=false;
+async function _loadCanAuth(){
+  try{ const r=await sb.rpc('can_authorize_reservation',{p_session_token:TOKEN}); CAN_AUTH=(r&&r.data===true); }
+  catch(e){ CAN_AUTH=false; }
+  document.querySelectorAll('.ni[data-tab="desk"]').forEach(a=>{ a.style.display=CAN_AUTH?'':'none'; });
+}
 let TOKEN=null, ME=null, BOARD=null, TAB='board', RESERVE_UNIT=null, RESERVE_DAYS=7, RESERVE_TOKEN=false, SIGNUP_TOKEN=null, UPLOAD_TOKEN=null, SALES_CO=null, SALES_CO_NAME=null;
 let ANN={list:[], unread:0, unreadAnn:0, loaded:false, open:null, tab:'announcement', scheduled:[], schedLoaded:false};
 // board view: mode (detailed=expanded all floors [default] | floors=summary directory),
@@ -3276,6 +3286,7 @@ function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); try{ _maybeSh
   setTab(_bootTab('home')); NAV.bootSeq=NAV.seq; PENDING_TAB=null; try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){}
   try{ _notifLoad(); }catch(e){} try{ window.AlertBell&&AlertBell.refresh(); }catch(e){} try{ _consumePendingLead(); }catch(e){} try{ _consumePendingAnn(); }catch(e){} try{ _consumePendingBrief(); }catch(e){} try{ _maybePushPrompt(); }catch(e){} }
 async function enterApp(){
+  await _loadCanAuth();
   // on a session restore (page refresh) ME is empty — repopulate name/role/company so "Welcome <name>" + sidebar show correctly
   if(!ME || !ME.sales_user_name){
     try{ const r=await sb.rpc('get_my_profile',{p_session_token:TOKEN});
@@ -3354,6 +3365,7 @@ function setTab(t,_back){
   // an office boy is not a lesser app, it is the whole one.
   if(ME && _isOfficeRole(ME.role) && !['myrecord','ess-att','ess-leave','ess-visit','ess-pay','ess-docs','ess-file','project','board','unitmap','home','updates','profile','torecover','collection','site'].includes(t)) t='myrecord';
   if(ESS_HIDDEN && _ESS_TABS.includes(t)) t='home';
+  if(t==='desk' && !CAN_AUTH) t='board';
   if(ESS_HIDDEN && t==='home' && ME && _isOfficeRole(ME.role)) t=_officeLanding(ME.role);
   NAV.seq++;                                  // every navigation gets its own token
   if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
@@ -12897,7 +12909,7 @@ function _areaTxt(u){ const a=Number(u&&u.area||0); return a>0 ? a.toLocaleStrin
 function _unitsSeg(){ if(_isOfficeRole(ME&&ME.role)) return '';
   return '<div class="seg" style="margin:0 0 14px">'
   +'<button class="so'+(TAB==='board'?' on':'')+'" onclick="setTab(\'board\')">All units</button>'
-  +'<button class="so'+(TAB==='desk'?' on':'')+'" onclick="setTab(\'desk\')">Desk</button>'
+  +(CAN_AUTH?'<button class="so'+(TAB==='desk'?' on':'')+'" onclick="setTab(\'desk\')">Desk</button>':'')
   +'<button class="so'+(TAB==='mine'?' on':'')+'" onclick="setTab(\'mine\')">My Bookings</button></div>'; }
 async function renderBoard(){
   if(!_BG) $('app-body').innerHTML=_skel();
@@ -13127,6 +13139,14 @@ function openReserve(unitId,unitNo,area,areaUnit,price){
     +(rt?'<div class="rs-r"><span>Rate</span><b>'+esc(rt)+'</b></div>':'')
     +(price>0?'<div class="rs-r"><span>Total price</span><b>'+esc(pkrFull(price))+'</b></div>':'')
     +'</div>';
+  if(!CAN_AUTH){
+    openModal('Unit '+esc(unitNo),
+      summary
+      +'<button class="btn btn-full" style="margin-bottom:14px" onclick="openShareUnit()">'+li('send',16,2)+' Share with client (WhatsApp)</button>'
+      +'<div class="note">Preview only. Reservations are authorised by Rashid (0321-9694246) — send him the unit number.</div>',
+      '<button class="btn btn-secondary" onclick="closeModal()">Close</button>');
+    return;
+  }
   openModal('Reserve unit '+esc(unitNo),
     summary
     +'<button class="btn btn-full" style="margin-bottom:14px" onclick="openShareUnit()">'+li('send',16,2)+' Share with client (WhatsApp)</button>'
@@ -14077,7 +14097,7 @@ bootstrap().finally(function(){ _navReady = true; _armBack(); });
 </script>
 <script defer src="vendor/pdf-lib.min.js?v=1.17.1"></script>
 <script src="js/portal-quote-pdf.js?v=20260816quote"></script>
-<script src="js/portal-unitmap.js?v=20260817focus"></script>
+<script src="js/portal-unitmap.js?v=20260928auth"></script>
 <!-- portal-copy defines _portalCopy and MUST load before anything that copies -->
 <script src="js/portal-copy.js?v=20260907desk"></script>
 <script src="js/portal-sharelink.js?v=20260911pass"></script>

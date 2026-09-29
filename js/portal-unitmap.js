@@ -434,7 +434,7 @@
            '<div class="umv-res-b"><button class="btn btn-secondary" onclick="_umvQuote(\'' + d.unit_id + '\')">' +
            'Make a plan</button></div></div>';
     }
-    if (d.can_reserve) {
+    if (d.can_reserve && typeof CAN_AUTH !== 'undefined' && CAN_AUTH) {   // only Rashid books; everyone else previews
       h += '<div class="umv-res"><div class="umv-res-l">Hold this unit</div>' +
            '<div class="umv-res-b"><button class="btn btn-primary" onclick="_umvReserve(\'' + d.unit_id + '\',3)">3 days</button>' +
            '<button class="btn btn-primary" onclick="_umvReserve(\'' + d.unit_id + '\',7)">7 days</button></div></div>';
