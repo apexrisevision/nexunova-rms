@@ -120,7 +120,34 @@ function sql(query) {
     INSERT INTO _vut SELECT 'desk_bogus',    public.get_unallocated_tokens_desk('not-a-session');
     INSERT INTO _vut SELECT 'desk_null',     public.get_unallocated_tokens_desk(NULL);
     INSERT INTO _vut SELECT 'desk_expired',  public.get_unallocated_tokens_desk('vut_rashid_expired');
+    -- the Token Received report: same door, same gate
+    INSERT INTO _vut SELECT 'rep_rashid',    public.get_token_report_desk('vut_rashid');
+    INSERT INTO _vut SELECT 'rep_rep',       public.get_token_report_desk('vut_rep');
+    INSERT INTO _vut SELECT 'rep_otherdir',  public.get_token_report_desk('vut_otherdir');
+    INSERT INTO _vut SELECT 'rep_bogus',     public.get_token_report_desk('not-a-session');
+    INSERT INTO _vut SELECT 'rep_null',      public.get_token_report_desk(NULL);
+    INSERT INTO _vut SELECT 'rep_expired',   public.get_token_report_desk('vut_rashid_expired');
     RESET ROLE;
+
+    -- the report's figures, recomputed here by independent SQL (not by the
+    -- function under test), so a wrong join in the function cannot agree with itself
+    INSERT INTO _vut SELECT 'indep', jsonb_build_object(
+      'recv_count', (SELECT count(DISTINCT r.unit_id) FROM public.reservations r
+                      WHERE r.company_id = '${AWAMI_CO}' AND r.status = 'active'
+                        AND r.token_received AND r.token_amount > 0),
+      'missing', (SELECT count(*) FROM public.units u
+                    JOIN public.category_unit_statuses cs ON cs.id = u.status_id
+                   WHERE u.company_id = '${AWAMI_CO}' AND NOT cs.is_available
+                     AND NOT EXISTS (SELECT 1 FROM public.reservations r WHERE r.unit_id = u.id
+                                       AND r.status = 'active' AND r.token_received AND r.token_amount > 0)),
+      'missing_no_active', (SELECT count(*) FROM public.units u
+                    JOIN public.category_unit_statuses cs ON cs.id = u.status_id
+                   WHERE u.company_id = '${AWAMI_CO}' AND NOT cs.is_available
+                     AND NOT EXISTS (SELECT 1 FROM public.reservations r WHERE r.unit_id = u.id AND r.status = 'active')),
+      'recv_incl_own', (SELECT COALESCE(sum(l.debit), 0) FROM public.nf_voucher_legs l
+                          JOIN public.nf_vouchers v ON v.id = l.voucher_id
+                          JOIN public.nf_accounts a ON a.company_id = l.company_id AND a.code = l.account_code
+                         WHERE l.company_id = '${AWAMI_CO}' AND v.status = 'POSTED' AND a.qb_type = 'Bank'));
 
     SELECT jsonb_object_agg(k, v)::text AS r FROM _vut;
     ROLLBACK;`);
@@ -146,6 +173,40 @@ function sql(query) {
     if ((k === 'desk_rep' || k === 'desk_otherdir') && !R.who[k === 'desk_rep' ? 'rep' : 'otherdir']) { bad(k + ': no such session could be made — not proven'); continue; }
     assert(x && x.success === false && x.error === 'forbidden' && !leaks(x),
            k + ' is refused with no amounts and no names: ' + JSON.stringify(x));
+  }
+
+  console.log('\n── Token Received report — nobody else gets it either');
+  for (const k of ['rep_rep', 'rep_otherdir', 'rep_bogus', 'rep_null', 'rep_expired']) {
+    const x = R[k];
+    const bigLeak = (y) => /agree|received|missing|money|rows|token|price|buyer|sold_by/.test(JSON.stringify(y || {}));
+    assert(x && x.success === false && x.error === 'forbidden' && !bigLeak(x),
+           k + ' is refused with no amounts and no names: ' + JSON.stringify(x));
+  }
+
+  console.log('\n── Token Received report — the figures (Rashid)');
+  const T = R.rep_rashid, I = R.indep, inv = R.invariant;
+  if (assert(T && T.success === true, 'the report answered Rashid (' + (T && T.project) + ')')) {
+    const A = T.agree, N = Number;
+    console.log('  block 1: ' + JSON.stringify(A));
+    console.log('  block 3: ' + T.missing.count + ' rows · ' + T.missing.no_active_reservation +
+                ' no active reservation · ' + T.missing.never_reserved + ' never reserved');
+    console.log('  block 4: ' + JSON.stringify(T.money));
+    assert(N(A.reservations) === N(inv.reservations), 'block 1 reservations = independent sum (' + A.reservations + ')');
+    assert(N(A.nf_21100) === N(inv.nf_21100), 'block 1 21100 = independent ledger sum (' + A.nf_21100 + ')');
+    assert(N(A.difference) === N(A.reservations) - N(A.nf_21100), 'block 1 difference is reservations − 21100 (' + A.difference + ')');
+    assert(N(A.difference) === 0, 'unit list and books agree: difference 0');
+    assert(N(A.nf_21150) === N(nf.total), 'block 1 21150 = the not-allocated block, same shared body (' + A.nf_21150 + ')');
+    assert(N(A.total_held) === N(A.nf_21100) + N(A.nf_21150), 'block 1 total held = 21100 + 21150 (' + A.total_held + ')');
+    assert(T.received.count === I.recv_count && N(T.received.total) === N(A.reservations),
+           'block 2: ' + T.received.count + ' units totalling ' + T.received.total + ' — matches the reservations side');
+    assert(T.missing.count === I.missing, 'block 3: ' + T.missing.count + ' off-market units with no token = independent count ' + I.missing);
+    assert(T.missing.no_active_reservation === I.missing_no_active,
+           'block 3: ' + T.missing.no_active_reservation + ' with no active reservation = independent count');
+    const M = T.money;
+    assert(N(M.in_hand) === N(M.cash) + N(M.bank), 'block 4: in hand = cash + bank (' + M.in_hand + ')');
+    assert(N(M.own_transfers) > 0 ? N(M.received) < N(I.recv_incl_own) : N(M.received) === N(I.recv_incl_own),
+           'block 4: own transfers (' + M.own_transfers + ') are excluded from received (' + M.received +
+           ' vs ' + I.recv_incl_own + ' if counted)');
   }
 
   console.log('\n── The invariant 21150 exists to protect');
