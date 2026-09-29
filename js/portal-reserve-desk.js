@@ -2099,6 +2099,9 @@
           '<div class="rq-by">' +
             (r.requested_by ? '<b>' + esc(r.requested_by) + '</b>' :
               '<span class="rq-m">no name given</span>') +
+            /* the mobile the dealer had to give on the link — tap to call back */
+            (r.requested_by_phone ? ' · <a onclick="event.stopPropagation()" href="tel:' + esc(r.requested_by_phone) + '">' +
+              esc(r.requested_by_phone) + '</a>' : '') +
             /* When the ask can be applied as asked, the status and days have
                their own line below. Otherwise they stay here, as they were. */
             (ask ? '' : (r.days == null

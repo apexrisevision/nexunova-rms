@@ -230,19 +230,19 @@ function serve() {
                  (SELECT u.unit_no FROM public.units u
                     JOIN public.category_unit_statuses st ON st.id=u.status_id
                    WHERE u.project_id='${AWAMI_PR}' AND st.is_available
-                   ORDER BY u.unit_no LIMIT 1), 999, 'Clamp') AS d
+                   ORDER BY u.unit_no LIMIT 1), 999, 'Clamp', NULL, '03001234567') AS d
         UNION ALL
         SELECT 'low', public.submit_availability_request('clamp_probe',
                  (SELECT u.unit_no FROM public.units u
                     JOIN public.category_unit_statuses st ON st.id=u.status_id
                    WHERE u.project_id='${AWAMI_PR}' AND st.is_available
-                   ORDER BY u.unit_no OFFSET 1 LIMIT 1), 0, 'Clamp')
+                   ORDER BY u.unit_no OFFSET 1 LIMIT 1), 0, 'Clamp', NULL, '03001234567')
         UNION ALL
         SELECT 'mid', public.submit_availability_request('clamp_probe',
                  (SELECT u.unit_no FROM public.units u
                     JOIN public.category_unit_statuses st ON st.id=u.status_id
                    WHERE u.project_id='${AWAMI_PR}' AND st.is_available
-                   ORDER BY u.unit_no OFFSET 2 LIMIT 1), 12, 'Clamp');
+                   ORDER BY u.unit_no OFFSET 2 LIMIT 1), 12, 'Clamp', NULL, '03001234567');
       SELECT k, (SELECT days FROM public.availability_requests r WHERE r.ref = cl.d->>'ref') AS days
         FROM cl ORDER BY k;
       ROLLBACK;`);
@@ -581,8 +581,10 @@ function serve() {
        reported, because "it scrolls a little while it asks your name once" is
        a fact somebody should be able to read here rather than discover. */
     const settled = await page.evaluate(() => {
-      const sk = document.getElementById('nm-skip');
-      if (sk) sk.click();
+      /* no Skip any more (name + mobile are compulsory): give them, as a dealer would */
+      const ni = document.getElementById('nm-in');
+      if (ni) { ni.value = 'Fawad khan'; document.getElementById('nm-ph').value = '03001234567';
+                document.getElementById('nm-ok').click(); }
       const fl = document.querySelector('.fl');
       return { docH: document.documentElement.scrollHeight, winH: window.innerHeight,
                floorsEnd: fl ? Math.round(fl.getBoundingClientRect().bottom) : 0,
@@ -1964,7 +1966,7 @@ function serve() {
       try { localStorage.setItem('avail.name', 'Fawad khan'); } catch (e) {}
     });
     const sheet = await page.evaluate(i => {
-      NAME = 'Fawad khan';
+      NAME = 'Fawad khan'; PHONE = '03001234567';
       document.querySelector('#floors button[data-f="' + i + '"]').click();
       { const a = document.querySelector('#vask:not([hidden]) [data-view="plan"]');
         if (a) a.click(); }
@@ -2582,7 +2584,7 @@ function serve() {
        opens it; and whose building it turned out to be, so the next open can
        raise the right mark before the building has arrived. Nothing that
        identifies anybody, and nothing that ever leaves the phone. */
-    const allowed = ['avail.name', 'avail.name.asked', 'avail.theme', 'nx.hub.avail',
+    const allowed = ['avail.name', 'avail.phone', 'avail.name.asked', 'avail.theme', 'nx.hub.avail',
                      'avail.brand'];
     /* AND ONE MORE, WHICH IS A CREDENTIAL AND IS NAMED LIKE ONE: the key a
        director's own phone is given so the room stops asking for the password
@@ -3127,6 +3129,7 @@ function serve() {
         const asked = await dp.evaluate(async () => {
           /* give the name the way a dealer does */
           document.getElementById('nm-in').value = 'Round Trip Rep';
+          document.getElementById('nm-ph').value = '03001234567';
           document.getElementById('nm-ok').click();
           await new Promise(r => setTimeout(r, 150));
           document.querySelector('#floors button').click();
@@ -3420,7 +3423,7 @@ function serve() {
             WHERE u.project_id='${zz2[0].id}' AND st.is_available
               AND NOT EXISTS (SELECT 1 FROM public.availability_requests x
                                WHERE x.unit_id=u.id AND x.status='pending')
-            ORDER BY u.unit_no DESC LIMIT 1), 5, 'Second Rep')->>'ref') AS ref;`);
+            ORDER BY u.unit_no DESC LIMIT 1), 5, 'Second Rep', NULL, '03001234567')->>'ref') AS ref;`);
         if (!arriving[0].ref) { badU2('could not make a second request to arrive'); }
         else {
           const arrived = await deskPage.evaluate(async want => {
@@ -3749,7 +3752,7 @@ function serve() {
 
         /* THE CAPS. One pending per unit, asserted by asking twice. */
         const twice = await sql(`
-          SELECT (public.submit_availability_request('${T}','${asked.unit}',7,'Someone')->>'error') AS e;`);
+          SELECT (public.submit_availability_request('${T}','${asked.unit}',7,'Someone', NULL, '03001234567')->>'error') AS e;`);
         twice[0].e === 'unit_unavailable'
           ? okU2('asking for a unit that is now booked is refused')
           : badU2('a booked unit accepted a request: ' + twice[0].e);

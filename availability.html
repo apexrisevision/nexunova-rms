@@ -3083,6 +3083,7 @@ var ALLV = false;
 var MINEV = false;        // the dealer's own screen
 var ALLF = 'all';        // all | free | held
 var NAME = '';
+var PHONE = '';          // 03XXXXXXXXX — compulsory with the name, so the desk can call back
 
 var $ = function (id) { return document.getElementById(id); };
 function esc(s) {
@@ -3245,17 +3246,35 @@ function toast(msg, kind) {
                                     kind === 'err' ? 4200 : 2400);
 }
 
-/* ── the name, stored here and nowhere else ──────────────────────────────
-   localStorage only: no account, no server write, nothing that could identify
-   a dealer to anyone but themselves. Skipping is a real choice — the whole flow
-   works without it and the message simply omits the line. Every access is
-   guarded because a private window, cleared site data or a browser set to block
-   storage all THROW here rather than return empty. */
+/* ── the name and mobile, kept on this phone ─────────────────────────────
+   COMPULSORY since 2026-09-28: the desk has to know who asked and be able to
+   call them back. Asked once, kept in localStorage, and sent with every
+   request — the server refuses a request without both. The mobile goes to the
+   desk only; it is never part of what this page shows. Every access is
+   guarded because a private window, cleared site data or a browser set to
+   block storage all THROW here rather than return empty. */
 function readName() {
   try { return localStorage.getItem('avail.name') || ''; } catch (e) { return ''; }
 }
 function writeName(v) {
   try { localStorage.setItem('avail.name', v); } catch (e) {}
+}
+function readPhone() {
+  try { return normPhone(localStorage.getItem('avail.phone') || ''); } catch (e) { return ''; }
+}
+function writePhone(v) {
+  try { localStorage.setItem('avail.phone', v); } catch (e) {}
+}
+/* 03XXXXXXXXX, or '' when it is not an 11-digit Pakistani mobile. +92 / 0092
+   and spaces or dashes are accepted and folded — the same rule the server
+   applies (_normalize_pk_mobile). */
+function normPhone(v) {
+  var core = String(v || '').replace(/\D/g, '').replace(/^(0092|92|0)/, '');
+  return /^3\d{9}$/.test(core) ? '0' + core : '';
+}
+function phoneField(id) {
+  return '<input id="' + id + '" type="tel" inputmode="numeric" autocomplete="tel" ' +
+         'maxlength="16" placeholder="Mobile, e.g. 03001234567" value="' + esc(PHONE) + '">';
 }
 /* THE REQUESTS THIS PHONE HAS MADE.
    Refs only — six readable characters each. Not the unit id, not the request
@@ -3355,34 +3374,43 @@ function confirmName(v, sg, done) {
   };
 }
 
+/* No Skip: name and mobile are both compulsory. The card stays until both
+   are given. */
 function paintNameAsk() {
   var box = $('name-ask');
-  if (NAME || nameAsked()) { box.hidden = true; box.innerHTML = ''; return; }
+  if (NAME && PHONE) { box.hidden = true; box.innerHTML = ''; return; }
   box.hidden = false;
   box.className = 'nm';
   box.innerHTML =
-    '<div class="nm-t">Your name</div>' +
-    '<div class="nm-s">Goes on the requests you send. Stays on this phone.</div>' +
-    '<div class="nm-r">' +
-      '<input id="nm-in" type="text" autocomplete="name" placeholder="e.g. Fawad khan">' +
-      '<button id="nm-ok">Save</button>' +
-      '<button class="nm-sk" id="nm-skip">Skip</button>' +
+    '<div class="nm-t">Your name and mobile</div>' +
+    '<div class="nm-s">Required before you can send a request, so the desk knows who asked and can call you back.</div>' +
+    '<div class="nm-r" style="margin-bottom:9px">' +
+      '<input id="nm-in" type="text" autocomplete="name" placeholder="Your name, e.g. Fawad khan" value="' + esc(NAME) + '">' +
     '</div>' +
+    '<div class="nm-r">' + phoneField('nm-ph') +
+      '<button id="nm-ok">Save</button>' +
+    '</div>' +
+    '<div class="nm-s" id="nm-err" style="color:#dc2626;margin:8px 0 0" hidden></div>' +
     '<div class="sg" id="nm-sg" hidden></div>';
   wireSuggest($('nm-in'), $('nm-sg'));
+  function bad(msg, el) {
+    var e = $('nm-err'); e.textContent = msg; e.hidden = false;
+    try { $(el).focus(); } catch (x) {}
+  }
   $('nm-ok').onclick = function () {
     var v = String($('nm-in').value || '').trim().replace(/\s+/g, ' ');
-    function keep(n) {
-      NAME = n;
-      if (NAME) writeName(NAME);
+    var ph = normPhone($('nm-ph').value);
+    if (!v) return bad('Please enter your name.', 'nm-in');
+    if (!ph) return bad('Please enter an 11-digit mobile number, e.g. 03001234567.', 'nm-ph');
+    confirmName(v, $('nm-sg'), function (n) {
+      NAME = n; writeName(n); PHONE = ph; writePhone(ph);
       markAsked(); paintNameAsk();
-    }
-    if (!v) return keep('');
-    confirmName(v, $('nm-sg'), keep);
+    });
   };
-  $('nm-skip').onclick = function () { markAsked(); paintNameAsk(); };
-  $('nm-in').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); $('nm-ok').click(); }
+  ['nm-in', 'nm-ph'].forEach(function (id) {
+    $(id).addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); $('nm-ok').click(); }
+    });
   });
 }
 
@@ -5808,6 +5836,7 @@ async function submitRequest() {
   try {
     var r = await sb.rpc('submit_availability_request', {
       p_token: LINK, p_unit_no: SHEET.n, p_days: SHEET.days, p_name: NAME || null,
+      p_phone: PHONE || null,
       /* An ASK, not a decision. The server re-derives it against this link's
          own project and a director still applies it. */
       p_status_id: SHEET.choice || null });
@@ -5832,6 +5861,7 @@ async function submitMany() {
   try {
     var r = await sb.rpc('submit_availability_requests', {
       p_token: LINK, p_unit_nos: units, p_days: SHEET.days, p_name: NAME || null,
+      p_phone: PHONE || null,
       p_status_id: SHEET.choice || null });
     var d = r && r.data;
     if (!d || !d.ok) {
@@ -5865,7 +5895,7 @@ async function requestAndSend(how) {
   /* If the name was skipped earlier, ask HERE — this is the moment it means
      something, and the desk is useless without it. Once given it is final,
      the same as if it had been given on the first screen. */
-  if (!NAME) { askNameInSheet(how); return; }
+  if (!NAME || !PHONE) { askNameInSheet(how); return; }
 
   SENDING = true;
   var go = document.getElementById('wa');
@@ -5876,6 +5906,13 @@ async function requestAndSend(how) {
   if (go) { go.disabled = false; go.textContent = goWas; }
 
   if (res && !res.ok) {
+    /* the server refused the name or number: ask again, send nothing */
+    if (res.error === 'name_required' || res.error === 'phone_required') {
+      if (res.error === 'phone_required') { PHONE = ''; writePhone(''); }
+      else { NAME = ''; writeName(''); }
+      toast(res.message || 'Please enter your name and mobile.', 'err');
+      paintNameAsk(); askNameInSheet(how); return;
+    }
     if (res.error === 'unit_unavailable') { toast('That unit has just been taken.'); return refreshSheet(); }
     if (res.error === 'queue_full' || res.error === 'too_many') { toast(res.message); return; }
     if (res.error === 'none_free') { toast(res.message); return refreshSheet(); }
@@ -5924,28 +5961,39 @@ function askNameInSheet(how) {
   var box = document.createElement('div');
   box.className = 'ask';
   box.innerHTML =
-    '<div class="ask-t">Your name, so the desk knows who asked</div>' +
-    '<div class="ask-r"><input id="ask-in" type="text" autocomplete="name" ' +
-      'placeholder="e.g. Fawad khan"><button class="go" id="ask-ok" ' +
+    '<div class="ask-t">Your name and mobile, so the desk knows who asked and can call you back</div>' +
+    '<div class="ask-r" style="margin-bottom:9px"><input id="ask-in" type="text" autocomplete="name" ' +
+      'placeholder="Your name, e.g. Fawad khan" value="' + esc(NAME) + '"></div>' +
+    '<div class="ask-r">' + phoneField('ask-ph') + '<button class="go" id="ask-ok" ' +
       'style="width:auto;margin:0;padding:0 18px;height:42px">Save</button></div>' +
+    '<div id="ask-err" style="color:#dc2626;font-size:12.5px;margin-top:8px" hidden></div>' +
     '<div class="sg" id="ask-sg" hidden></div>';
   host.appendChild(box);
   var input = document.getElementById('ask-in');
+  var phone = document.getElementById('ask-ph');
   var sg = document.getElementById('ask-sg');
   wireSuggest(input, sg);
-  try { input.focus(); } catch (e) {}
+  try { (NAME ? phone : input).focus(); } catch (e) {}
+  function bad(msg, el) {
+    var e = document.getElementById('ask-err'); e.textContent = msg; e.hidden = false;
+    try { el.focus(); } catch (x) {}
+  }
   function save() {
     var v = String(input.value || '').trim().replace(/\s+/g, ' ');
-    if (!v) { try { input.focus(); } catch (e) {} return; }
+    var ph = normPhone(phone.value);
+    if (!v) return bad('Please enter your name.', input);
+    if (!ph) return bad('Please enter an 11-digit mobile number, e.g. 03001234567.', phone);
     confirmName(v, sg, function (n) {
-      NAME = n; writeName(n); markAsked(); paintNameAsk();
+      NAME = n; writeName(n); PHONE = ph; writePhone(ph); markAsked(); paintNameAsk();
       box.remove();
       requestAndSend(how);
     });
   }
   document.getElementById('ask-ok').onclick = save;
-  input.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); save(); }
+  [input, phone].forEach(function (el) {
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); save(); }
+    });
   });
 }
 
@@ -6566,7 +6614,7 @@ async function repOpen() {
 var TOKEN = '';           // the SALES SESSION. The link is LINK, up above.
 var ME = null;
 var TAB = 'desk';
-var DESK_SRC = '/js/portal-reserve-desk.js?v=20260922ask';
+var DESK_SRC = '/js/portal-reserve-desk.js?v=20260929phone';
 var DESK_UP = false, DESKV = false;
 /* the portal's own key, on purpose: same origin, same phone, so a director
    already signed into the CRM here is not asked twice */
@@ -7650,6 +7698,7 @@ document.addEventListener('keydown', function (e) {
 
 /* ── go ──────────────────────────────────────────────────────────────────── */
 NAME = readName();
+PHONE = readPhone();
 REQS = readReqs();
 /* The screenshot harness renders a CAPTURED payload so the scale screens can be
    photographed without an Awami link being created. ?preview=1 only stops this
