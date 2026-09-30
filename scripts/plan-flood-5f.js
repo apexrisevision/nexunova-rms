@@ -79,7 +79,7 @@ const spans = bridgesWith(glassPaths)(struct, Number(process.env.MAXGAP || 20), 
    their front opens onto the 8'-0" cross PASSAGE between blocks, where the
    architect drew no rail — so no rule can see that it is a front. Each is closed
    between the two red wall ends nearest the gap, found on the sheet, not typed. */
-const BY_NAME = { '535': 'down', '541': 'up' };
+const BY_NAME = { '535': 'down', '541': 'up' };   // the sheet's own numbers; matched with or without the register's '5F-'
 {
   const ends = [];
   struct.forEach(d => d.split('M').slice(1).forEach(sub => {
@@ -87,7 +87,8 @@ const BY_NAME = { '535': 'down', '541': 'up' };
     for (let i = 0; i + 1 < n.length; i += 2) ends.push([n[i], n[i + 1]]);
   }));
   Object.entries(BY_NAME).forEach(([u, dir]) => {
-    const lab = L.find(l => l.u === u); if (!lab) return;
+    const lab = L.find(l => l.u === u || l.u.replace(/^[^-]+-/, '') === u);
+    if (!lab) throw new Error('closed-by-name unit ' + u + ' is not on the sheet — refusing to build a plate with its front open');
     /* the block's front wall on that side: the horizontal red run nearest the
        label in that direction that has a gap straddling the label's x */
     const sgn = dir === 'up' ? -1 : 1;
@@ -98,6 +99,10 @@ const BY_NAME = { '535': 'down', '541': 'up' };
       for (let i = 0; i + 3 < n.length; i += 2)
         if (Math.abs(n[i + 1] - n[i + 3]) < 0.3) hseg.push([Math.min(n[i], n[i + 2]), Math.max(n[i], n[i + 2]), n[i + 1]]);
     }));
+    /* EVERY gap in the block's front line within reach of the flat, not one of
+       them: the line is the block's face onto the passage, so nothing on it is
+       an inner door. (Picking one gap closed a sliver beside a column and left
+       535's real 13-unit door open.) */
     let best = null;
     for (let dy = 8; dy < 60 && !best; dy += 0.25) {
       const y = lab.cy + sgn * dy;
@@ -107,19 +112,25 @@ const BY_NAME = { '535': 'down', '541': 'up' };
       const covered = run.reduce((t, s) => t + (Math.min(s[1], lab.cx + 45) - Math.max(s[0], lab.cx - 45)), 0);
       if (covered < 40) continue;
       const xs = run.map(s => [s[0], s[1]]).sort((a, b) => a[0] - b[0]);
-      let reach = xs[0][1];
+      let reach = xs[0][1]; const gaps = [];
       for (let i = 1; i < xs.length; i++) {
-        const gap = xs[i][0] - reach;
-        if (gap > 6 && gap < 30 && Math.abs((reach + xs[i][0]) / 2 - lab.cx) < 30) { best = [[reach, y], [xs[i][0], y]]; break; }
+        const gap = xs[i][0] - reach, mid = (reach + xs[i][0]) / 2;
+        if (gap > 2 && gap < 30 && Math.abs(mid - lab.cx) < 35) gaps.push([[reach, y], [xs[i][0], y]]);
         reach = Math.max(reach, xs[i][1]);
       }
+      if (gaps.length) best = gaps;
     }
-    if (best) { spans.push('M' + best[0][0] + ' ' + best[0][1] + ' L' + best[1][0] + ' ' + best[1][1]);
-                console.log('  closed by name: ' + u + ' front ' + JSON.stringify(best)); }
-    else console.log('  COULD NOT FIND the front of ' + u);
+    if (!best) throw new Error('could not find the front of ' + u + ' — refusing to build a plate with it open');
+    best.forEach(g => spans.push('M' + g[0][0] + ' ' + g[0][1] + ' L' + g[1][0] + ' ' + g[1][1]));
+    console.log('  closed by name: ' + u + ' front, ' + best.length + ' gap(s) ' + JSON.stringify(best.map(g => [g[0][0], g[1][0]])));
   });
 }
 if (process.env.SPANNEAR) { const [sx, sy] = process.env.SPANNEAR.split(',').map(Number); spans.forEach(d => { const n = (d.match(/-?[0-9.]+/g) || []).map(Number); if (Math.min(n[0], n[2]) - 3 < sx && Math.max(n[0], n[2]) + 3 > sx && Math.min(n[1], n[3]) - 3 < sy && Math.max(n[1], n[3]) + 3 > sy) console.log('  SPAN', d); }); walls.forEach((d, i) => { const n = (d.match(/-?[0-9.]+/g) || []).map(Number); for (let k = 0; k + 3 < n.length; k += 2) { const a = [n[k], n[k+1]], b = [n[k+2], n[k+3]]; if (Math.min(a[0], b[0]) - 1.5 < sx && Math.max(a[0], b[0]) + 1.5 > sx && Math.min(a[1], b[1]) - 1.5 < sy && Math.max(a[1], b[1]) + 1.5 > sy) { console.log('  WALLSEG', a, b); } } }); }
+if (process.env.PASS2) {
+  const extra = JSON.parse(fs.readFileSync(DIR + '/closures.json', 'utf8'));
+  extra.forEach(s => spans.push(s));
+  console.log('pass 2: ' + extra.length + ' carried-on walls drawn');
+}
 console.log('walls', walls.length, ' rails', rails.length, ' dotted openings left open', dotted,
             ' grey leaves/counters left open', grey, ' fronts closed', spans.length);
 
@@ -249,6 +260,200 @@ if (process.env.ASK) process.env.ASK.split(';').forEach(p => { const [x, y] = p.
   console.log('pockets behind glass given to their flat: ' + given + ', left with nobody: ' + left);
 }
 
+/* ── OPEN EDGES: where a flat meets common space or another flat with no
+   wall between. A closed front leaves none; every one left is a wedge. ── */
+{
+  const open = {};
+  for (let k = 0; k < GW * GH; k++) {
+    const a = owner[k]; if (a < 0 || a === 999) continue;
+    const i = k % GW;
+    for (const n of [i < GW - 1 ? k + 1 : -1, k + GW < GW * GH ? k + GW : -1, i > 0 ? k - 1 : -1, k - GW]) {
+      if (n < 0) continue;
+      const b = owner[n];
+      if (b === -1 || b === a || wall[n]) continue;
+      const key = units[a] + (b === 999 ? ' ~ common' : ' ~ ' + units[b]);
+      open[key] = (open[key] || 0) + 1;
+    }
+  }
+  const list = Object.entries(open).filter(([, n]) => n >= 2 * PX).sort((x, y) => y[1] - x[1]);
+  global.OPEN_EDGES = list;
+
+  /* ── A WALL CARRIED ON TO THE WALL IT WAS GOING TO MEET ─────────────────
+     Some fronts run from a wall's END to another wall's FACE (597: the
+     kitchen wall stops, the living-room wall carries on; 547/548 the same at
+     the widened foot of the block). bridges() only joins end to end, so these
+     stay open and the flat meets the verandah on a diagonal watershed. Pass 1
+     finds every red wall end within 4 units of such an open edge and carries
+     it on, straight, until it meets a wall (at most 30 units); pass 2 draws
+     those as walls. Only ends on axis-aligned walls, only where a flat is
+     actually open. */
+  if (!process.env.PASS2) {
+    const edgeCell = new Uint8Array(GW * GH);
+    for (let k = 0; k < GW * GH; k++) {
+      const a = owner[k]; if (a < 0 || a === 999) continue;
+      const i = k % GW;
+      for (const n of [i < GW - 1 ? k + 1 : -1, k + GW < GW * GH ? k + GW : -1, i > 0 ? k - 1 : -1, k - GW]) {
+        if (n < 0) continue; const b = owner[n];
+        if (b !== -1 && b !== a && !wall[n] && (b === 999 || b >= 0)) { edgeCell[k] = 1; edgeCell[n] = 1; }
+      }
+    }
+    const nearEdge = (x, y) => {
+      const ci = Math.round((x - X0) * PX), cj = Math.round((y - Y0) * PX), R = 4 * PX;
+      for (let j = cj - R; j <= cj + R; j++) for (let i = ci - R; i <= ci + R; i++)
+        if (i >= 0 && j >= 0 && i < GW && j < GH && edgeCell[j * GW + i]) return true;
+      return false;
+    };
+    const closures = [];
+    struct.forEach(d => d.split('M').slice(1).forEach(sub => {
+      const n = (sub.match(/-?[0-9.]+/g) || []).map(Number);
+      const pts = []; for (let i = 0; i + 1 < n.length; i += 2) pts.push([n[i], n[i + 1]]);
+      for (let i = 0; i + 1 < pts.length; i++) for (const [p, q] of [[pts[i], pts[i + 1]], [pts[i + 1], pts[i]]]) {
+        const dx = p[0] - q[0], dy = p[1] - q[1], Ls = Math.hypot(dx, dy);
+        if (Ls < 0.5) continue;
+        const ux = dx / Ls, uy = dy / Ls;
+        if (!nearEdge(p[0], p[1])) continue;
+        if (process.env.WHYEND) console.log('  end near an open edge', p.map(v => v.toFixed(2)).join(','), 'dir', ux.toFixed(3), uy.toFixed(3));
+        if (Math.abs(ux) < 0.995 && Math.abs(uy) < 0.995) continue;      // axis-aligned walls only
+        for (let t = 2; t <= 30; t += 0.25) {
+          const x = p[0] + ux * t, y = p[1] + uy * t;
+          const ci = Math.round((x - X0) * PX), cj = Math.round((y - Y0) * PX);
+          if (ci < 0 || cj < 0 || ci >= GW || cj >= GH) break;
+          if (wall[cj * GW + ci]) { break;   /* untested carry-ons are NOT drawn: at 597 one ran across the kitchen. Only the tested search below closes a front. */ }
+        }
+      }
+    }));
+    /* WHERE THE WEDGE IS FAR FROM THE DOOR. At 547/548 the flat floods up the
+       verandah strip before it meets the verandah's own seed, so the open edge
+       is well above the corner the door is actually in, and no wall end is
+       near it. For each flat still open, every axis-aligned red end inside its
+       reach is carried on to the wall it meets (<= 30 units), and a candidate is
+       KEPT only if, drawn as a wall, (a) the flat's own number can no longer
+       reach its open edge, and (b) it can still reach every room name the
+       drawing puts inside the flat (BED, BATH, KIT…). Of those, the one that
+       cuts least off the flat wins. An arch between a flat's own rooms fails
+       (b), so it is never closed. */
+    const stillOpen = new Set(list.filter(([k]) => / ~ common$/.test(k)).map(([k]) => k.split(' ~ ')[0]));
+    const ROOMWORDS = /^(BED|BEDROOM|STUDIOAPARTMENT|LOUNGE|LIVING|KIT|KITCHEN|BATH|DRESS|BALCONY)$/;
+    const cellOf = (x, y) => Math.round((y - Y0) * PX) * GW + Math.round((x - X0) * PX);
+    stillOpen.forEach(u => {
+      const id = units.indexOf(u);
+      if (closures.some(c => c._u === u)) return;
+      let a = GW, b = GH, c = -1, d = -1;
+      for (let k = 0; k < GW * GH; k++) if (owner[k] === id) { const i = k % GW, j = (k - i) / GW; a = Math.min(a, i); c = Math.max(c, i); b = Math.min(b, j); d = Math.max(d, j); }
+      const M = 30 * PX; a = Math.max(0, a - M); b = Math.max(0, b - M); c = Math.min(GW - 1, c + M); d = Math.min(GH - 1, d + M);
+      const edges = []; const rooms = [];
+      for (let j = b; j <= d; j++) for (let i = a; i <= c; i++) {
+        const k = j * GW + i; if (owner[k] !== id) continue;
+        for (const n of [k + 1, k - 1, k + GW, k - GW]) if (owner[n] === 999 && !wall[n]) { edges.push(k); break; }
+      }
+      T.forEach(o => { if (!ROOMWORDS.test(o.t)) return;
+        const k = cellOf(o.x + 0.3 * o.size * o.t.length, H - o.y - 0.35 * o.size); if (owner[k] === id) rooms.push(k); });
+      const lab = L[id], start = cellOf(lab.cx, lab.cy);
+      const cand = [];
+      struct.forEach(dd => dd.split('M').slice(1).forEach(sub => {
+        const n = (sub.match(/-?[0-9.]+/g) || []).map(Number);
+        const pts = []; for (let i = 0; i + 1 < n.length; i += 2) pts.push([n[i], n[i + 1]]);
+        for (let i = 0; i + 1 < pts.length; i++) for (const [p, q] of [[pts[i], pts[i + 1]], [pts[i + 1], pts[i]]]) {
+          const dx = p[0] - q[0], dy = p[1] - q[1], Ls = Math.hypot(dx, dy); if (Ls < 0.5) continue;
+          const ux = dx / Ls, uy = dy / Ls; if (Math.abs(ux) < 0.995 && Math.abs(uy) < 0.995) continue;
+          const pi = Math.round((p[0] - X0) * PX), pj = Math.round((p[1] - Y0) * PX);
+          if (pi < a || pi > c || pj < b || pj > d) continue;
+          for (let t = 2; t <= 30; t += 0.25) {
+            const x = p[0] + ux * t, y = p[1] + uy * t, k = cellOf(x, y);
+            if (wall[k]) { if (t > 2.5) cand.push([p[0], p[1], x, y]); break; }
+          }
+        }
+      }));
+      let best = null, bestReach = -1;
+      const W2 = c - a + 1, H2 = d - b + 1;
+      /* only candidates that cross the flat's own floor can matter */
+      const masks = [];
+      cand.forEach(s => {
+        const cells = [];
+        const steps = Math.ceil(Math.hypot(s[2] - s[0], s[3] - s[1]) * PX * 2);
+        let crosses = false;
+        for (let t = 0; t <= steps; t++) {
+          const x = s[0] + (s[2] - s[0]) * t / steps, y = s[1] + (s[3] - s[1]) * t / steps;
+          const ci = Math.round((x - X0) * PX), cj = Math.round((y - Y0) * PX);
+          for (let jj = cj - PX; jj <= cj + PX; jj++) for (let ii = ci - PX; ii <= ci + PX; ii++)
+            if (ii >= a && ii <= c && jj >= b && jj <= d) { cells.push((jj - b) * W2 + (ii - a)); if (owner[jj * GW + ii] === id) crosses = true; }
+        }
+        if (crosses) masks.push({ s, cells });
+      });
+      const si = start % GW, sj = (start - si) / GW;
+      const test = picked => {
+        const block = new Uint8Array(W2 * H2);
+        picked.forEach(m => m.cells.forEach(l => { block[l] = 1; }));
+        if (block[(sj - b) * W2 + (si - a)]) return -1;
+        const seen = new Uint8Array(W2 * H2); const st = [start]; let reach = 0;
+        seen[(sj - b) * W2 + (si - a)] = 1;
+        while (st.length) {
+          const k = st.pop(); reach++;
+          const i = k % GW, j = (k - i) / GW;
+          for (const [ni, nj] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1]]) {
+            if (ni < a || ni > c || nj < b || nj > d) continue;
+            const l = (nj - b) * W2 + (ni - a), n = nj * GW + ni;
+            if (seen[l] || block[l] || wall[n] || owner[n] !== id) continue;
+            seen[l] = 1; st.push(n);
+          }
+        }
+        const at = k => { const i = k % GW, j = (k - i) / GW; return seen[(j - b) * W2 + (i - a)]; };
+        const eHit = edges.filter(at).length, rMiss = rooms.filter(k => !at(k)).length;
+        if (process.env.DEBUGU === u && picked.length === 1)
+          console.log('    cand ' + picked[0].s.map(v => v.toFixed(1)).join(',') + ' reach ' + reach + ' edgesStillReached ' + eHit + '/' + edges.length + ' roomsLost ' + rMiss + '/' + rooms.length);
+        if (eHit) return -1;                         // still reaches the open edge
+        if (rMiss) return -1;                        // cut off one of its own rooms
+        return reach;
+      };
+      /* the rooms that count are the ones the flat's number can reach TODAY: a
+         balcony given to the flat through its sliding glass is not reachable on
+         foot, and demanding it made every candidate fail */
+      {
+        const base = test.bind(null, []);
+        const keepRooms = [];
+        const saved = rooms.slice(); rooms.length = 0;
+        base();                                        // reach with nothing blocked (rooms empty => always passes)
+        // recompute reachability explicitly
+        const seen0 = new Uint8Array(W2 * H2); const st0 = [start]; seen0[(sj - b) * W2 + (si - a)] = 1;
+        while (st0.length) {
+          const k = st0.pop(), i = k % GW, j = (k - i) / GW;
+          for (const [ni, nj] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1]]) {
+            if (ni < a || ni > c || nj < b || nj > d) continue;
+            const l = (nj - b) * W2 + (ni - a), n = nj * GW + ni;
+            if (seen0[l] || wall[n] || owner[n] !== id) continue;
+            seen0[l] = 1; st0.push(n);
+          }
+        }
+        saved.forEach(k => { const i = k % GW, j = (k - i) / GW; if (seen0[(j - b) * W2 + (i - a)]) keepRooms.push(k); });
+        keepRooms.forEach(k => rooms.push(k));
+      }
+      /* one wall end, and if no single one does it, two (a front may be open on
+         both sides of a column) */
+      /* THE SHORTEST line that seals it: a door is the narrowest place, and "cut least" chose a line far up the verandah strip */
+      const len = ms => ms.reduce((t, m) => t + Math.hypot(m.s[2] - m.s[0], m.s[3] - m.s[1]), 0);
+      let bestLen = Infinity;
+      /* shortest first; among lines of the same length (to half a unit) the one that leaves the flat least of what is not its rooms */
+      const better = (l, r) => Math.round(l * 2) < Math.round(bestLen * 2) || (Math.round(l * 2) === Math.round(bestLen * 2) && r < bestReach);
+      masks.forEach(m => { const r = test([m]); if (r > 0 && better(len([m]), r)) { bestLen = len([m]); bestReach = r; best = [m]; } });
+      if (!best) for (let i = 0; i < masks.length; i++) for (let j = i + 1; j < masks.length; j++) {
+        const pair = [masks[i], masks[j]], r = test(pair); if (r > 0 && better(len(pair), r)) { bestLen = len(pair); bestReach = r; best = pair; }
+      }
+      if (best) {
+        best.forEach(m => {
+          const s = 'M' + m.s[0] + ' ' + m.s[1] + ' L' + m.s[2].toFixed(2) + ' ' + m.s[3].toFixed(2);
+          closures.push(s);
+          console.log('  ' + u + ': front closed at ' + s);
+        });
+        console.log('  ' + u + ': ' + best.length + ' line(s) of ' + masks.length + ' candidates crossing the flat');
+      } else console.log('  ' + u + ': NO one or two wall ends close it (' + masks.length + ' candidates crossing the flat)');
+    });
+    fs.writeFileSync(DIR + '/closures.json', JSON.stringify(closures));
+    console.log('pass 1: ' + closures.length + ' wall ends carried on to the wall they meet (written for pass 2)');
+  }
+  console.log('open edges (flat touching common or another flat with no wall, >= 2 units): ' + list.length +
+              (list.length ? '  ' + list.map(([k, n]) => k + ' ' + (n / PX).toFixed(0) + 'u').join(', ') : ''));
+}
+
 /* ── WHAT EACH FLAT HOLDS, read off its own rooms ── */
 {
   const ROOMS = /^(BED|BEDROOM|STUDIOAPARTMENT|LOUNGE|LIVING|KIT|KITCHEN|BATH|DRESS|BALCONY)$/;
@@ -270,6 +475,61 @@ if (process.env.ASK) process.env.ASK.split(';').forEach(p => { const [x, y] = p.
   });
   fs.writeFileSync(DIR + '/unit-rooms.json', JSON.stringify(held, null, 1));
   console.log('room names inside a flat: written; not inside any flat: ' + stray.length + (stray.length ? ' ' + stray.slice(0, 12).join(' ') : ''));
+}
+
+/* ── ONE PIECE, EDGED BY ITS WALLS ─────────────────────────────────────────
+   A flat is its rooms AND the walls between them. The flood stops at every
+   wall, so without this the outline detours round each partition stub, and a
+   balcony behind its sliding glass is a separate piece that the outline step
+   (longest loop only) drops. Each flat takes every wall cell it can reach
+   within R through walls (dilation into walls only); a taken cell is kept
+   only if it is further than R from anything that is neither this flat nor
+   one of those cells — so a wall with the flat on both sides stays, and an
+   outer wall, which has someone else or the outside behind it, goes back. The
+   outline then runs along the inner face of the outer walls, straight, with
+   bath, dress and balcony inside. Runs in pass 2, when the fronts are shut. */
+if (process.env.PASS2) {
+  const R = Math.round(Number(process.env.WALLR || 3) * PX);
+  const taken = new Int16Array(GW * GH).fill(-1);
+  let filled = 0;
+  units.forEach((u, id) => {
+    let a = GW, b = GH, c = -1, d = -1;
+    for (let k = 0; k < GW * GH; k++) if (owner[k] === id) { const i = k % GW, j = (k - i) / GW; if (i < a) a = i; if (i > c) c = i; if (j < b) b = j; if (j > d) d = j; }
+    if (c < 0) return;
+    a = Math.max(0, a - 2 * R); b = Math.max(0, b - 2 * R); c = Math.min(GW - 1, c + 2 * R); d = Math.min(GH - 1, d + 2 * R);
+    const W2 = c - a + 1, H2 = d - b + 1, idx = (i, j) => (j - b) * W2 + (i - a);
+    /* dilation into wall cells only */
+    const dd = new Int32Array(W2 * H2).fill(-1), q2 = [];
+    for (let j = b; j <= d; j++) for (let i = a; i <= c; i++) if (owner[j * GW + i] === id) { dd[idx(i, j)] = 0; q2.push(i, j); }
+    for (let h = 0; h < q2.length; h += 2) {
+      const i = q2[h], j = q2[h + 1], v = dd[idx(i, j)]; if (v >= R) continue;
+      for (const [ni, nj] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1], [i + 1, j + 1], [i - 1, j - 1], [i + 1, j - 1], [i - 1, j + 1]]) {
+        if (ni < a || ni > c || nj < b || nj > d) continue;
+        const l = idx(ni, nj); if (dd[l] !== -1 || !wall[nj * GW + ni]) continue;
+        dd[l] = v + 1; q2.push(ni, nj);
+      }
+    }
+    /* distance from everything that is neither the flat nor a taken wall cell */
+    const out = new Int32Array(W2 * H2).fill(-1), q3 = [];
+    for (let j = b; j <= d; j++) for (let i = a; i <= c; i++) {
+      const l = idx(i, j);
+      if (dd[l] === -1 || i === a || i === c || j === b || j === d) { out[l] = 0; q3.push(i, j); }
+    }
+    for (let h = 0; h < q3.length; h += 2) {
+      const i = q3[h], j = q3[h + 1], v = out[idx(i, j)]; if (v > R) continue;
+      for (const [ni, nj] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1], [i + 1, j + 1], [i - 1, j - 1], [i + 1, j - 1], [i - 1, j + 1]]) {
+        if (ni < a || ni > c || nj < b || nj > d) continue;
+        const l = idx(ni, nj); if (out[l] !== -1) continue;
+        out[l] = v + 1; q3.push(ni, nj);
+      }
+    }
+    for (let j = b; j <= d; j++) for (let i = a; i <= c; i++) {
+      const l = idx(i, j), k = j * GW + i;
+      if (dd[l] > 0 && (out[l] === -1 || out[l] > R) && taken[k] === -1 && owner[k] === -1) { taken[k] = id; filled++; }
+    }
+  });
+  for (let k = 0; k < GW * GH; k++) if (taken[k] >= 0) owner[k] = taken[k];
+  console.log('walls inside a flat joined to it: ' + (filled / PX / PX * 0.1142).toFixed(0) + ' sq ft across the floor');
 }
 
 /* ── write plan-units' shape ── */
