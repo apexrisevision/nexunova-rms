@@ -1312,6 +1312,69 @@ body.splash .fl::before{opacity:0}
 .rp table.tk-kv tr.bad td{color:#E11D48;font-weight:750}
 .rp .tk-bad{color:#E11D48;background:rgba(225,29,72,.10);border:1px solid rgba(225,29,72,.35);
            border-radius:var(--r);padding:9px 12px;margin:0 0 6px;font-weight:700;font-size:13px}
+/* ── UNIT TRAIL ────────────────────────────────────────────────────────────
+   One unit, from the day it was created, newest first. Money reads green, a
+   hold coming to an end reads red, a change of status wears the status's own
+   colour. A unit code anywhere in the room that carries data-trail opens it. */
+:root{--tr-in:#0F7B4A; --tr-in-bg:rgba(15,123,74,.09); --tr-out:#B3123C; --tr-out-bg:rgba(179,18,60,.08);
+      --tr-amb:#A15C07; --tr-amb-bg:rgba(217,164,65,.14)}
+:root[data-theme="dark"]{--tr-in:#4ADE80; --tr-in-bg:rgba(74,222,128,.10); --tr-out:#F08BA6;
+      --tr-out-bg:rgba(240,139,166,.10); --tr-amb:#E8B860; --tr-amb-bg:rgba(232,184,96,.12)}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]):not([data-theme="dark"]){--tr-in:#4ADE80; --tr-in-bg:rgba(74,222,128,.10);
+      --tr-out:#F08BA6; --tr-out-bg:rgba(240,139,166,.10); --tr-amb:#E8B860; --tr-amb-bg:rgba(232,184,96,.12)}
+}
+.rp .trs{display:flex;gap:7px;background:var(--card);border-radius:var(--r);padding:11px 13px}
+.rp .trs-m{flex:1;min-width:0}
+.rp .trs-l{display:block;font-size:14px;font-weight:650;letter-spacing:-.015em;line-height:1.3}
+.rp .trs-f{display:flex;gap:7px;margin-top:8px}
+.rp .trs input{flex:1;min-width:0;height:42px;border-radius:11px;border:1px solid var(--line);
+               background:var(--bg);color:var(--ink);padding:0 12px;font-size:16px;font-family:inherit;
+               text-transform:uppercase;letter-spacing:.02em}
+.rp .trs input::placeholder{text-transform:none;letter-spacing:0;color:var(--mut)}
+.rp .trs input:focus{outline:none;border-color:var(--accent)}
+.rp .trs button{height:42px;padding:0 16px;border:0;border-radius:11px;background:var(--accent);
+                color:#fff;font-size:14px;font-weight:650;font-family:inherit;flex:none}
+.rp .trs .say{margin-top:6px}
+/* a unit code that opens its trail */
+.tr-u{border:0;background:none;padding:0;font:inherit;color:inherit;cursor:pointer;
+      text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
+.dc-tr{font-size:11.5px;color:var(--mut);margin:-4px 0 9px;line-height:1.6}
+.dc-tr .tr-u{color:var(--soft);margin-right:7px}
+.rel-tr{display:block;margin-top:10px;border:0;background:none;padding:0;font:inherit;
+        font-size:13px;color:var(--accent);font-weight:600;cursor:pointer}
+/* the position at the top */
+.rp .tr-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.rp .tr-c{font-size:24px;font-weight:750;letter-spacing:-.02em}
+.rp .tr-f{font-size:12px;color:var(--mut)}
+.rp .tr-kv{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;margin-top:10px;font-size:13px}
+.rp .tr-kv dt{color:var(--mut);font-size:12px;padding-top:1px}
+.rp .tr-kv dd{margin:0;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.rp .tr-kv dd .m{color:var(--mut);font-weight:500}
+/* the red flags */
+.rp .tr-k{border-radius:var(--r);padding:9px 12px;margin-bottom:5px;font-size:13px;font-weight:650;
+          line-height:1.4;border:1px solid}
+.rp .tr-k.red{color:var(--tr-out);background:var(--tr-out-bg);border-color:var(--tr-out)}
+.rp .tr-k.amber{color:var(--tr-amb);background:var(--tr-amb-bg);border-color:var(--tr-amb)}
+.rp .tr-ok{font-size:12.5px;color:var(--mut)}
+/* the timeline */
+.rp .tl-d{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+          color:var(--soft);margin:13px 0 5px}
+.rp .tl{background:var(--card);border-radius:var(--r);padding:4px 13px}
+.rp .tl-e{display:grid;grid-template-columns:40px 12px 1fr;gap:0 8px;padding:9px 0;
+          border-top:1px solid var(--hair)}
+.rp .tl-e:first-child{border-top:0}
+.rp .tl-t{font-size:11.5px;color:var(--mut);padding-top:2px;font-variant-numeric:tabular-nums}
+.rp .tl-dot{width:9px;height:9px;border-radius:50%;margin-top:6px;background:var(--c,var(--mut))}
+.rp .tl-b{min-width:0}
+.rp .tl-ti{font-size:13.5px;font-weight:650;line-height:1.38;letter-spacing:-.01em;overflow-wrap:anywhere}
+.rp .tl-de{font-size:12px;color:var(--soft);line-height:1.45;margin-top:2px;overflow-wrap:anywhere}
+.rp .tl-w{font-size:11.5px;color:var(--mut);margin-top:3px}
+.rp .tl-w.nr{font-style:italic}
+.rp .tl-e.in .tl-ti{color:var(--tr-in)}
+.rp .tl-e.out .tl-ti{color:var(--tr-out)}
+.rp .tl-kd{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+           color:var(--mut);margin-right:6px}
 .rp .p-h{font-size:13.5px;line-height:1.45}
 .rp .p-h b{font-weight:700}
 /* ── HOLDS THAT WAIT FOR A DIRECTOR ───────────────────────────────────────
@@ -1480,6 +1543,14 @@ body.splash .fl::before{opacity:0}
      border-radius:var(--r);background:#FFFBFB}
 .dis-h{font-size:11px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;
        color:#b3123c;margin-bottom:7px}
+/* the disclaimer kept a light ground in the dark theme, and its light-grey
+   text vanished on it — found on the Unit trail, true of every room page */
+:root[data-theme="dark"] .dis{background:#1F1418}
+:root[data-theme="dark"] .dis-h{color:#F08BA6}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .dis{background:#1F1418}
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .dis-h{color:#F08BA6}
+}
 .dis ul{margin:0;padding-left:17px}
 .dis li{font-size:11.5px;color:var(--soft);line-height:1.45;margin-bottom:4px}
 .dis li b{font-weight:700;color:var(--ink)}
@@ -1519,6 +1590,13 @@ body.splash .fl::before{opacity:0}
   .rp table.tk{min-width:0;font-size:9px}
   .rp table.tk tr{break-inside:avoid}
   .rp .tk-bad{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  /* the unit trail on paper: no search box, the colours kept, an event never cut */
+  .rp .trs{display:none !important}
+  .rp .tl{border:1px solid #ddd;background:#fff !important;break-inside:auto;page-break-inside:auto}
+  .rp .tl-e{break-inside:avoid;page-break-inside:avoid;padding:5px 0}
+  .rp .tl-d{break-after:avoid;page-break-after:avoid;margin:8px 0 3px}
+  .rp .tl-dot, .rp .tr-k, .rp .tl-e .tl-ti, .rp .pill{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .tr-u{text-decoration:none}
   .rp .ut-w table{break-inside:auto;page-break-inside:auto;width:100%}
   /* every column gets the head row, not just the first */
   .rp .ut-w thead{display:table-header-group}
@@ -6933,7 +7011,11 @@ $('rep-body').addEventListener('click', function (e) {
     ' is ' + esc(u.k || 'not available') +
     (u.w ? ' on <b>' + esc(u.w) + '</b>’s word' : '') + '.<br>' +
     'Releasing puts it back on the shelf for anybody to ask for, ' +
-    'and ends the hold on it.';
+    'and ends the hold on it.' +
+    /* a tap on a unit in a list opens this dialog, as it always has; its
+       history is offered here rather than taking that tap away */
+    '<button type="button" class="rel-tr" data-trail="' + esc(no) + '">See ' + esc(no) +
+      '’s history first</button>';
   $('rel-e').classList.remove('on');
   $('rel-ok').disabled = false;
   $('rel-ok').textContent = 'Release';
@@ -7109,6 +7191,12 @@ function decCard(g) {
   H.push('<div class="dc-u">' + g.units.map(function (u) {
     return '<button class="' + (pick[u.id] ? 'on' : '') + '" data-dc="tick" data-id="' + esc(u.id) + '">' +
            esc(u.n) + '</button>';
+  }).join('') + '</div>');
+  /* THE TRAIL BESIDE THE TICK, NOT INSTEAD OF IT. A tap on a unit here picks
+     it for Release or Extend, and that stays exactly as it was; its history is
+     one line under, as its own door. */
+  H.push('<div class="dc-tr">History: ' + g.units.map(function (u) {
+    return trailCode(u.n);
   }).join('') + '</div>');
 
   var ns = ticked.map(function (u) { return u.n; });
@@ -7317,6 +7405,7 @@ function repSubject() {
   if (REPP.view === 'ending') return 'Ending within seven days';
   if (REPP.view === 'floors') return 'What each floor is worth';
   if (REPP.view === 'tokens') return 'Token received';
+  if (REPP.view === 'trail')  return 'Unit trail' + (REPP.key ? ' — ' + REPP.key : '');
   return 'Director Level Report';
 }
 function repRender() {
@@ -7328,6 +7417,7 @@ function repRender() {
   if (REPP.view === 'ending') return repEndingPage(d);
   if (REPP.view === 'floors') return repFloorPage(d);
   if (REPP.view === 'tokens') return repTokenPage(d);
+  if (REPP.view === 'trail')  return repTrailPage(d);
   return repHome(d);
 }
 
@@ -7394,6 +7484,10 @@ function repHome(d) {
         '<span class="r-s">token money from the books, checked against the unit list</span></span>' +
       '<span class="r-a"></span></button>' +
     '</div>');
+  /* ONE UNIT'S WHOLE HISTORY, asked for by its code. A form, not a button-row:
+     the thing pressed here is a code being typed, and Enter on a phone keyboard
+     should be enough to open it. */
+  H.push('<div style="margin-top:4px">' + trailSearch('') + '</div>');
   TOKR = { room: null, money: null, busy: false, err: '' };   // the page reads fresh each time it is opened
 
   /* ── AND THE DESK, FOR WHOEVER ALSO TAKES THE BOOKINGS ──────────────────
@@ -7771,7 +7865,7 @@ function repTokenPage(d) {
     '<th>Unit</th><th>Floor</th><th>Status</th><th>Buyer</th><th>Sold by</th><th class="n">Token</th><th class="n">List price</th>' +
     '</tr></thead><tbody>' +
     R.rows.map(function (x) {
-      return '<tr><td class="nm">' + esc(x.unit) + '</td><td class="w">' + esc(x.floor) + '</td><td class="w">' +
+      return '<tr><td class="nm">' + trailCode(x.unit) + '</td><td class="w">' + esc(x.floor) + '</td><td class="w">' +
         esc(x.status || '—') + '</td><td class="w">' + esc(x.buyer || '—') + '</td><td class="w">' +
         esc(x.sold_by || '—') + '</td><td>' + num(Math.round(x.token)) + '</td><td>' +
         (x.price != null ? num(Math.round(x.price)) : '—') + '</td></tr>';
@@ -7790,7 +7884,7 @@ function repTokenPage(d) {
     '<th>Unit</th><th>Floor</th><th>Status</th><th>Sold by</th><th class="n">List price</th><th>Reservation</th>' +
     '</tr></thead><tbody>' +
     S.rows.map(function (x) {
-      return '<tr><td class="nm">' + esc(x.unit) + '</td><td class="w">' + esc(x.floor) + '</td><td class="w">' +
+      return '<tr><td class="nm">' + trailCode(x.unit) + '</td><td class="w">' + esc(x.floor) + '</td><td class="w">' +
         esc(x.status || '—') + '</td><td class="w">' + esc(x.sold_by || '—') + '</td><td>' +
         (x.price != null ? num(Math.round(x.price)) : '—') + '</td><td class="w">' +
         esc(RES[x.reservation] || x.reservation) + '</td></tr>';
@@ -7816,6 +7910,205 @@ function repTokenPage(d) {
   H.push('</div>');
   return H.join('');
 }
+
+/* ── UNIT TRAIL ───────────────────────────────────────────────────────────
+   "GF-248 was reserved in September — who cancelled it?" A director types a
+   code and gets the unit's whole life on one screen, newest first: created,
+   every area and price change, every status, every hold and how it ended,
+   every request from this link, every rupee of token in the books.
+
+   Read only, from get_unit_trail — the room's own gate (password or remembered
+   key, the same door as Token received). The server writes every sentence; the
+   page only lays them out and says the money the way the room says it.
+
+   "Who: not recorded" is not a gap in this page. Before 4 October 2026 the desk,
+   the link and the room did not write down who pressed the button, and the
+   trail says so rather than guess. */
+var TRL = { code: '', data: null, busy: false, err: '' };
+
+/* RUPEES THE WAY THE ROOM READS THEM. Rashid: "Directors read lakh and crore,
+   not 450,000." Pakistani grouping — 4,50,000 · 1,56,25,000 — and from a lakh
+   up the spoken size beside it, so a figure is never read a digit out. */
+function pkGroup(n) {
+  var neg = n < 0, s = String(Math.round(Math.abs(n)));
+  var last = s.slice(-3), rest = s.slice(0, -3);
+  if (rest) last = rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last;
+  return (neg ? '-' : '') + last;
+}
+function pkRs(v) {
+  var n = Number(v) || 0, a = Math.abs(n), say = '';
+  var trim = function (x) { return String(Math.round(x * 100) / 100); };
+  if (a >= 1e7) say = ' (' + trim(a / 1e7) + ' crore)';
+  else if (a >= 1e5) say = ' (' + trim(a / 1e5) + ' lakh)';
+  return 'Rs ' + pkGroup(n) + say;
+}
+/* the server writes "Rs 450,000"; every such figure in a sentence is re-said */
+function pkText(s) {
+  return String(s == null ? '' : s).replace(/Rs ?(-?[0-9][0-9,]*(?:\.[0-9]+)?)/g, function (m, d) {
+    return pkRs(Number(d.replace(/,/g, '')));
+  });
+}
+function trailNorm(s) {
+  return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+function trailCode(code) {
+  return '<button type="button" class="tr-u" data-trail="' + esc(code) + '">' + esc(code) + '</button>';
+}
+function trailSearch(v) {
+  return '<form class="trs" id="trail-f" autocomplete="off"><div class="trs-m">' +
+    '<span class="trs-l">Unit trail</span>' +
+    '<div class="trs-f"><input id="trail-q" type="text" inputmode="text" autocapitalize="characters" ' +
+      'spellcheck="false" maxlength="20" placeholder="Unit code, e.g. GF-248" value="' + esc(v) + '">' +
+      '<button type="submit">Show</button></div>' +
+    '<div class="say">Everything that happened to one unit, from the day it was created — ' +
+      'who held it, who released it, and every rupee of token against it.</div>' +
+  '</div></form>';
+}
+function openTrail(code) {
+  code = String(code || '').trim();
+  if (!code) return;
+  if (!REP) return;
+  REPP = { view: 'trail', key: code.toUpperCase() };
+  TRL = { code: code, data: null, busy: false, err: '' };
+  $('rep-body').innerHTML = repRender();
+  window.scrollTo(0, 0);
+}
+async function trailLoad() {
+  if (TRL.busy) return;
+  TRL.busy = true; TRL.err = '';
+  var want = TRL.code;
+  try {
+    var r = await sb.rpc('get_unit_trail', { p_token: LINK, p_password: REPPW, p_unit_code: want });
+    var d = r && r.data;
+    if (TRL.code !== want) return;            // a newer search has started
+    if (d && d.success) {
+      TRL.data = d;
+      REPP.key = d.unit.code;                 // GF 248 typed, GF-248 shown
+    } else {
+      TRL.err = !d ? 'Could not open the trail.'
+        : d.error === 'unit_not_found' ? 'There is no unit ' + want.toUpperCase() + ' in this project.'
+        : d.error === 'ambiguous' ? 'More than one unit matches ' + want.toUpperCase() + '. Type the full code.'
+        : d.error === 'too_many' ? 'Too many tries on this link. It opens again in an hour.'
+        : d.error === 'no' ? 'The room password has changed. Open the room again.'
+        : 'Could not open the trail.';
+    }
+  } catch (e) {
+    TRL.err = 'Could not reach the office. Try again.';
+  } finally { TRL.busy = false; }
+  if (REPV && REP && REPP.view === 'trail') $('rep-body').innerHTML = repRender();
+}
+var TR_IN = { token: 1, allocation: 1 };
+var TR_OUT = { release: 1, cancel: 1, expire: 1, refund: 1 };
+var TR_KIND = { created: 'Created', area: 'Area', price: 'Price', status: 'Status', request: 'Link request',
+                hold: 'Hold', holder: 'Holder', extend: 'Extended', release: 'Released', expire: 'Expired',
+                cancel: 'Cancelled', token: 'Token', refund: 'Token returned', allocation: 'Books' };
+function pkDay(s) {
+  return new Date(s).toLocaleDateString('en-GB', { timeZone: 'Asia/Karachi', weekday: 'short',
+    day: '2-digit', month: 'short', year: 'numeric' });
+}
+function pkTime(s) {
+  return new Date(s).toLocaleTimeString('en-GB', { timeZone: 'Asia/Karachi', hour: '2-digit',
+    minute: '2-digit', hour12: false });
+}
+
+function repTrailPage(d) {
+  var head = '<div class="rp">' + printHead(d, 'Unit trail — ' + (REPP.key || '')) +
+    trailSearch(TRL.data ? TRL.data.unit.code : TRL.code);
+  if (!TRL.data) {
+    if (!TRL.busy && !TRL.err) setTimeout(trailLoad, 0);
+    return head + '<h2>Unit trail</h2><div class="card"><div class="say" style="margin:0">' +
+      esc(TRL.err || 'Reading ' + TRL.code.toUpperCase() + '’s history…') + '</div></div>' +
+      disclaimer(d) + '</div>';
+  }
+  var T = TRL.data, u = T.unit, H = [head];
+  var lbl = u.public_label || u.status || '—';
+  var col = u.color || tint(skey(lbl));
+
+  /* 1 · where it stands today */
+  H.push('<h2>Where ' + esc(u.code) + ' stands now</h2>');
+  H.push('<div class="card"><div class="tr-h"><span class="tr-c">' + esc(u.code) + '</span>' +
+    '<span class="pill" style="--t:' + esc(col) + '">' + esc(lbl) + '</span>' +
+    (u.status && u.status !== lbl ? '<span class="tr-f">' + esc(u.status) + '</span>' : '') +
+    '<span class="tr-f">' + esc(u.floor || '') + '</span></div>' +
+    '<dl class="tr-kv">' +
+      '<dt>Holder</dt><dd>' + (u.holder ? esc(u.holder) : '<span class="m">nobody</span>') +
+        (u.hold_until ? ' <span class="m">· until ' + esc(pkDay(u.hold_until)) + '</span>' : '') + '</dd>' +
+      '<dt>Buyer</dt><dd>' + (u.buyer ? esc(u.buyer) : '<span class="m">not named</span>') + '</dd>' +
+      '<dt>Price</dt><dd>' + esc(pkRs(u.price)) + '</dd>' +
+      '<dt>Area</dt><dd>' + (u.area != null ? num(u.area) + ' sq ft' : '—') +
+        (u.rate_per_sqft ? ' <span class="m">· ' + esc(pkRs(u.rate_per_sqft)) + ' per sq ft</span>' : '') + '</dd>' +
+      '<dt>Token</dt><dd>' + esc(pkRs(u.token_total)) + ' <span class="m">in the books</span>' +
+        (Number(u.hold_token) !== Number(u.token_total)
+          ? '<br>' + esc(pkRs(u.hold_token)) + ' <span class="m">on the hold</span>' : '') + '</dd>' +
+    '</dl></div>');
+
+  /* 2 · what does not add up */
+  H.push('<h2>Worth checking</h2>');
+  if ((T.checks || []).length) {
+    H.push(T.checks.map(function (c) {
+      return '<div class="tr-k ' + (c.level === 'amber' ? 'amber' : 'red') + '">' + esc(pkText(c.text)) + '</div>';
+    }).join(''));
+  } else {
+    H.push('<div class="card tr-ok">Nothing on this unit disagrees with anything else.</div>');
+  }
+
+  /* 3 · everything that happened, newest first, a block per day */
+  var ev = T.events || [];
+  H.push('<h2>What happened — ' + num(ev.length) + ' event' + (ev.length === 1 ? '' : 's') + ', newest first</h2>');
+  var day = null, open = false;
+  ev.forEach(function (e) {
+    var dk = pkDay(e.at);
+    if (dk !== day) {
+      if (open) H.push('</div>');
+      H.push('<div class="tl-d">' + esc(dk) + '</div><div class="tl">');
+      day = dk; open = true;
+    }
+    var cls = TR_IN[e.kind] ? ' in' : TR_OUT[e.kind] ? ' out' : '';
+    var dot = TR_IN[e.kind] ? 'var(--tr-in)' : TR_OUT[e.kind] ? 'var(--tr-out)'
+            : e.tone ? esc(e.tone) : e.kind === 'request' ? 'var(--accent)' : 'var(--mut)';
+    /* a time is shown only where one was recorded: the books keep a date, and
+       a change the old desk did not log keeps neither */
+    var t = (e.day_only || e.time_unknown) ? '—' : pkTime(e.at);
+    var books = e.kind === 'token' || e.kind === 'allocation' || e.kind === 'refund';
+    H.push('<div class="tl-e' + cls + '">' +
+      '<div class="tl-t">' + t + '</div><div><div class="tl-dot" style="--c:' + dot + '"></div></div>' +
+      '<div class="tl-b"><div class="tl-ti"><span class="tl-kd">' + esc(TR_KIND[e.kind] || e.kind) + '</span>' +
+        esc(pkText(e.title)) + '</div>' +
+        (e.detail ? '<div class="tl-de">' + esc(pkText(e.detail)) + '</div>' : '') +
+        (books ? '<div class="tl-w">From the books (NexuFinance)</div>'
+               : e.who ? '<div class="tl-w">Who: ' + esc(e.who) + '</div>'
+                       : '<div class="tl-w nr">Who: not recorded</div>') +
+      '</div></div>');
+  });
+  if (open) H.push('</div>');
+  H.push('<div class="say">Times are Pakistan time. “Who: not recorded” means the desk did not write down ' +
+    'who did it — that was so for every desk, link and room action before 4 October 2026. The books keep a ' +
+    'date, not a time.</div>');
+
+  H.push(repTools('Unit trail — ' + u.code));
+  H.push(disclaimer(d));
+  H.push('</div>');
+  return H.join('');
+}
+
+/* every unit code in the room that carries data-trail, and the search box */
+$('rep-body').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-trail]'); if (!b) return;
+  openTrail(b.getAttribute('data-trail'));
+});
+$('rep-body').addEventListener('submit', function (e) {
+  if (e.target.id !== 'trail-f') return;
+  e.preventDefault();
+  var q = ($('trail-q') || {}).value || '';
+  if (!trailNorm(q)) { $('trail-q').focus(); return; }
+  openTrail(q);
+});
+$('relask').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-trail]'); if (!b) return;
+  var code = b.getAttribute('data-trail');
+  relShut();
+  openTrail(code);
+});
 
 $('all-filter').addEventListener('click', function (e) {
   var b = e.target.closest('button[data-f]'); if (!b) return;
