@@ -220,11 +220,50 @@ $function$;
 CREATE OR REPLACE FUNCTION public._ut_login(p_uid uuid, p_name text)
  RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public'
 AS $function$
+  -- the email only when the name IS that login: a desk/room/link label written
+  -- through rms.actor keeps the browser's JWT in changed_by, and must not be
+  -- dressed in that other account's email
   SELECT CASE WHEN public._ut_who(p_name) IS NULL THEN NULL
-              ELSE public._ut_who(p_name)
-                   || COALESCE(' (' || (SELECT u.email FROM auth.users u WHERE u.id = p_uid) || ')', '') END
+              WHEN EXISTS (SELECT 1 FROM public.app_users au
+                            WHERE au.auth_user_id = p_uid AND au.full_name = p_name)
+                THEN public._ut_who(p_name)
+                     || COALESCE(' (' || (SELECT u.email FROM auth.users u WHERE u.id = p_uid) || ')', '')
+              ELSE public._ut_who(p_name) END
 $function$;
 REVOKE ALL ON FUNCTION public._ut_login(uuid, text) FROM PUBLIC, anon, authenticated;
+
+-- 20261005b: WHO REALLY DID IT, for rows written before rms.actor existed.
+-- The portal and the RMS app share one browser sign-in store, so a desk action
+-- (Rashid's session token) was audited under whichever RMS-app login that
+-- browser also held — 41 Awami rows read "FMH" / "Filling Staff", every one of
+-- them in the same second as a hold Rashid's desk session took or cancelled.
+-- Where such a desk row sits beside the change, the desk user is named and the
+-- browser login is said for what it is.
+-- p_short: the name for the main line ("Cancelled by Rashid Manzoor (desk)");
+-- otherwise the Who line, which also says what login the browser carried
+DROP FUNCTION IF EXISTS public._ut_actor(uuid, timestamptz, uuid, text, text);
+CREATE OR REPLACE FUNCTION public._ut_actor(p_unit uuid, p_at timestamptz, p_uid uuid, p_name text, p_role text,
+                                            p_short boolean DEFAULT false)
+ RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public'
+AS $function$
+  SELECT CASE
+    WHEN p_role = 'desk' THEN public._ut_who(p_name) || ' (desk)'
+    WHEN p_role IN ('room', 'link', 'sweep') THEN public._ut_who(p_name)
+    WHEN p_uid IS NOT NULL AND d.name IS NOT NULL AND p_short THEN d.name || ' (desk)'
+    WHEN p_uid IS NOT NULL AND d.name IS NOT NULL
+      THEN d.name || ' (desk) — this browser was also signed in to the RMS app as '
+           || public._ut_login(p_uid, p_name)
+    ELSE public._ut_login(p_uid, p_name) END
+  FROM (SELECT (SELECT su.full_name FROM public.reservations r
+                  JOIN public.sales_users su
+                    ON su.id = CASE WHEN abs(extract(epoch FROM r.created_at - p_at)) < 2
+                                    THEN r.reserved_by ELSE r.cancelled_by END
+                 WHERE r.unit_id = p_unit
+                   AND (abs(extract(epoch FROM r.created_at - p_at)) < 2
+                        OR abs(extract(epoch FROM COALESCE(r.cancelled_at, r.updated_at) - p_at)) < 2)
+                 LIMIT 1) AS name) d
+$function$;
+REVOKE ALL ON FUNCTION public._ut_actor(uuid, timestamptz, uuid, text, text, boolean) FROM PUBLIC, anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public._unit_trail_body(p_project uuid, p_company uuid, p_unit_code text)
  RETURNS jsonb
@@ -298,14 +337,16 @@ BEGIN
        AND (a.old_data->'base_price') IS DISTINCT FROM (a.new_data->'base_price')
     UNION ALL
     SELECT jsonb_build_object('at', s.changed_at, 'seq', s.id, 'kind', 'status',
-             'title', COALESCE(s.o_name, '—') || ' → ' || COALESCE(s.n_name, '—'),
+             'title', COALESCE(s.o_name, '—') || ' → ' || COALESCE(s.n_name, '—')
+                      || COALESCE(' by ' || NULLIF(public._ut_actor(v_u.id, s.changed_at, s.changed_by, s.changed_by_name, s.changed_by_role, true), '')
+                                  , ''),
              'detail', CASE
                 WHEN s.sweep THEN 'Expired automatically — the hold ran out and the hourly sweep put the unit back'
                 WHEN s.putback IS NOT NULL THEN 'No new hold was booked at this moment — the hold of ' || s.putback || ' was put back' END,
-             'who', CASE WHEN s.sweep THEN 'System — expiry sweep' ELSE public._ut_login(s.changed_by, s.changed_by_name) END,
+             'who', CASE WHEN s.sweep THEN 'System — expiry sweep' ELSE public._ut_actor(v_u.id, s.changed_at, s.changed_by, s.changed_by_name, s.changed_by_role) END,
              'tone', s.n_color)
       FROM (
-        SELECT a.id, a.changed_at, a.changed_by, a.changed_by_name, o.status_name o_name, n.status_name n_name, n.color_hex n_color,
+        SELECT a.id, a.changed_at, a.changed_by, a.changed_by_name, a.changed_by_role, o.status_name o_name, n.status_name n_name, n.color_hex n_color,
                ( a.changed_by IS NULL AND COALESCE(n.is_available, false) AND NOT COALESCE(o.is_available, true)
                  AND ( a.changed_by_role = 'sweep'
                        OR (public._ut_who(a.changed_by_name) IS NULL
@@ -415,8 +456,8 @@ BEGIN
                       THEN 'Expired automatically'
                     WHEN r.status = 'expired' THEN 'Hold expired — by ' || public._ut_who(fin.changed_by_name)
                     WHEN r.status = 'cancelled' THEN
-                      CASE WHEN COALESCE(public._ut_login(fin.changed_by, fin.changed_by_name), ux.who, public._ut_person(r.cancelled_by)) IS NOT NULL
-                           THEN 'Cancelled by ' || COALESCE(public._ut_login(fin.changed_by, fin.changed_by_name), ux.who, public._ut_person(r.cancelled_by))
+                      CASE WHEN COALESCE(public._ut_actor(v_u.id, fin.changed_at, fin.changed_by, fin.changed_by_name, fin.changed_by_role, true), ux.short, public._ut_person(r.cancelled_by)) IS NOT NULL
+                           THEN 'Cancelled by ' || COALESCE(public._ut_actor(v_u.id, fin.changed_at, fin.changed_by, fin.changed_by_name, fin.changed_by_role, true), ux.short, public._ut_person(r.cancelled_by))
                            ELSE 'Hold cancelled' END
                     WHEN r.status = 'converted' THEN 'Hold converted to a sale'
                     ELSE 'Hold ' || r.status END AS title,
@@ -432,7 +473,7 @@ BEGIN
                     WHEN r.status = 'expired' AND (fin.id IS NULL OR fin.changed_by_role = 'sweep'
                                                    OR public._ut_who(fin.changed_by_name) IS NULL)
                       THEN 'System — expiry sweep'
-                    ELSE COALESCE(public._ut_login(fin.changed_by, fin.changed_by_name), ux.who, public._ut_person(r.cancelled_by)) END AS who
+                    ELSE COALESCE(public._ut_actor(v_u.id, fin.changed_at, fin.changed_by, fin.changed_by_name, fin.changed_by_role), ux.who, public._ut_person(r.cancelled_by)) END AS who
           FROM public.reservations r
           LEFT JOIN LATERAL (SELECT * FROM public.availability_hold_decisions d
                               WHERE d.reservation_id = r.id AND d.action = 'release'
@@ -445,7 +486,9 @@ BEGIN
           /* a person who changed the UNIT at the moment the hold closed is the
              one who closed it (the status trigger cancels the hold) — truer
              than cancelled_by, which some paths fill with the booker */
-          LEFT JOIN LATERAL (SELECT public._ut_login(a4.changed_by, a4.changed_by_name) AS who FROM public.audit_logs a4
+          LEFT JOIN LATERAL (SELECT public._ut_actor(v_u.id, a4.changed_at, a4.changed_by, a4.changed_by_name, a4.changed_by_role) AS who,
+                                    public._ut_actor(v_u.id, a4.changed_at, a4.changed_by, a4.changed_by_name, a4.changed_by_role, true) AS short
+                               FROM public.audit_logs a4
                               WHERE a4.table_name = 'units' AND a4.record_id = v_u.id::text
                                 AND a4.action = 'UPDATE' AND public._ut_who(a4.changed_by_name) IS NOT NULL
                                 AND abs(extract(epoch FROM a4.changed_at - COALESCE(r.cancelled_at, r.updated_at))) < 2
