@@ -2872,8 +2872,15 @@ body.held *{animation-play-state:paused !important}
    answers. */
 const SUPABASE_URL = 'https://itqxljtfbrppntgyfush.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY,
-  { auth: { persistSession: false } });
+/* ANON ONLY, ALWAYS — see the same note in sales-portal.html. The link, the
+   Directors' Room and the Reserve Desk on this page are reached with a link
+   token, a room password and a desk session; never with a Supabase login, so
+   none is ever sent, whatever else this browser is signed in to. */
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false,
+          storageKey: 'nx-desk-no-auth' },
+  global: { headers: { Authorization: 'Bearer ' + SUPABASE_ANON_KEY } }
+});
 
 /* the token rides in the path (/a/<token>) or as ?t=<token> */
 /* The link itself. It was called TOKEN until the Reserve Desk came to live on
