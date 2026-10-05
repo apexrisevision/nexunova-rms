@@ -1941,7 +1941,8 @@ body.splash .fl::before{opacity:0}
 .pl-kv span{color:var(--mut)}
 .pl-kv b{font-weight:700;text-align:right}
 .pl-kv .pl-dc{color:#15803D}
-.pl-big{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 4px}
+.pl-big{display:grid;grid-template-columns:repeat(var(--n,3),1fr);gap:8px;margin:14px 0 4px;
+        grid-auto-flow:row dense}
 .pl-bx{border-radius:var(--r);padding:10px 11px;background:var(--accent-soft)}
 .pl-bx span{display:block;font-size:10.5px;font-weight:700;letter-spacing:.06em;
             text-transform:uppercase;color:var(--mut)}
@@ -1957,6 +1958,8 @@ table.pl-t{width:100%;border-collapse:collapse;font-size:12.5px}
 @media (max-width:420px){ table.pl-t{font-size:12px} .pl-t td, .pl-t th{padding:6px 4px} }
 .pl-t .r{text-align:right;font-variant-numeric:tabular-nums}
 .pl-t tr.pl-dpr td{background:var(--accent-soft);font-weight:650}
+/* the payments that are not the plain monthly one: every few months, possession */
+.pl-t tr.pl-xr td{background:var(--accent-soft);font-weight:700}
 .pl-t tr.pl-tot td{font-weight:750;border-top:2px solid var(--ink);border-bottom:0}
 .pl-ds{margin-top:12px;font-size:11px;color:var(--mut);line-height:1.5}
 .pl-sig{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:34px}
@@ -1964,30 +1967,26 @@ table.pl-t{width:100%;border-collapse:collapse;font-size:12.5px}
 .pl-act{margin:14px 0 0;text-align:center}
 .pl-act .prc-go{background:var(--pl-fill);color:#fff;border-color:var(--pl-fill);min-width:200px}
 .pl-act .prc-go:disabled{opacity:.45}
+.pl-act{display:flex;justify-content:center;flex-wrap:wrap;gap:9px}
+.pl-act .prc-go.pl-sh{background:var(--card);color:var(--ink);border-color:var(--line)}
+.pl-act .prc-go[hidden]{display:none}
+/* Standard / Customized */
+.pl-seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:var(--r);
+        background:var(--sunk);margin-bottom:4px}
+.pl-seg button{height:40px;border:0;border-radius:9px;background:none;color:var(--ink);
+               font:inherit;font-size:14px;font-weight:650;cursor:pointer}
+.pl-seg button.on{background:var(--pl-fill);color:#fff}
+#pl-cus{margin-top:12px}
+#pl-cus > .pl-f, #pl-pqw, #pl-posw{margin-top:10px}
+.pl-q{font-size:13px;font-weight:650;margin:14px 0 8px}
 @media (max-width:420px){
   .pl-g{grid-template-columns:1fr}
-  .pl-big{grid-template-columns:1fr 1fr}
+  .pl-big{grid-template-columns:1fr 1fr !important}
   .pl-bx.pl-m{grid-column:1/-1}
 }
 @media (min-width:1080px){
   #home #planrow{grid-column:2;grid-row:4;align-self:start}
   #payplan{max-width:760px}
-}
-/* ON PAPER, ONLY THE PLAN. The body carries .pp only while this plan is
-   being printed, so the Director Level Report prints exactly as before. */
-@media print{
-  body.pp #rep{display:none !important}
-  body.pp #payplan{display:block !important}
-  body.pp #payplan .prc-h, body.pp #pln-body .pl-form, body.pp .pl-act{display:none !important}
-  /* the light tokens on paper, whichever theme the screen is in */
-  body.pp .pl-doc{margin:0;padding:0;background:#fff;color:#111;
-                  --ink:#111;--mut:#555;--hair:#e5e5e5;--line:#ddd;
-                  --accent:#1D4ED8;--accent-soft:#EDF2FE}
-  body.pp .pl-dh{border-bottom-color:#111}
-  body.pp .pl-bx, body.pp .pl-t tr.pl-dpr td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  body.pp .pl-tw{overflow:visible}
-  body.pp .pl-t tr{break-inside:avoid}
-  body.pp .pl-sig{break-inside:avoid}
 }
 /* ── THE PASSWORD IS ASKED FOR IN FRONT OF YOU ──────────────────────────
    It used to appear as a block at the foot of the price screen, below
@@ -6357,7 +6356,8 @@ function renderPay() {
   PAYV = true;
   $('payplan').hidden = false;
   /* what was typed survives leaving and coming back, like a form on paper */
-  if (!PAY) PAY = { no: '', amt: 0, dp: '', mo: '', date: payToday(), who: '' };
+  if (!PAY) PAY = { no: '', amt: 0, dp: '', mo: '', date: payToday(), who: '',
+                   mode: 'std', pm: 0, where: '', pq: 0, pos: '' };
   var au = esc(payAU());
   $('pln-body').innerHTML =
     '<div class="pl-form">' +
@@ -6402,8 +6402,45 @@ function renderPay() {
         '<label class="pl-f"><span>Number of months</span>' +
           '<input id="pl-mo" class="pl-i" inputmode="numeric" autocomplete="off" placeholder="e.g. 36"></label>' +
       '</div>' +
+      /* STANDARD OR CUSTOMIZED. Standard divides the balance evenly over the
+         months. Customized is for a customer who names his own monthly figure
+         — "banti to 130000 hai magar wo banda kehta hai k mai har month 100000
+         dunga" — and then the plan has to say where the difference goes:
+         every few months on top, or in one go at possession. */
       '<div class="pl-c">' +
-        '<div class="pl-l">5 · On the document (optional)</div>' +
+        '<div class="pl-l">5 · Plan type</div>' +
+        '<div class="pl-seg" id="pl-mode">' +
+          '<button type="button" data-mode="std">Standard</button>' +
+          '<button type="button" data-mode="cus">Customized</button>' +
+        '</div>' +
+        '<div id="pl-cus" hidden>' +
+          '<label class="pl-f"><span>Monthly instalment the customer will pay (PKR)</span>' +
+            '<input id="pl-pm" class="pl-i" inputmode="numeric" autocomplete="off" placeholder="e.g. 100,000"></label>' +
+          '<div id="pl-pmn" class="pl-n"></div>' +
+          '<div id="pl-wq">' +
+            '<div class="pl-q" id="pl-wt">Where should the remaining balance go?</div>' +
+            '<div class="pl-ch" id="pl-wc">' +
+              '<button type="button" data-w="3">Every 3 months</button>' +
+              '<button type="button" data-w="6">Every 6 months</button>' +
+              '<button type="button" data-w="12">Every 12 months</button>' +
+              '<button type="button" data-w="pos">At possession</button>' +
+            '</div>' +
+            '<div id="pl-pqw" hidden>' +
+              '<label class="pl-f"><span id="pl-pql">Payment every 3rd month (PKR)</span>' +
+                '<input id="pl-pq" class="pl-i" inputmode="numeric" autocomplete="off"></label>' +
+              '<div class="pl-n">Filled in to clear the balance exactly. Type a smaller figure and ' +
+                'whatever is left goes at possession.</div>' +
+            '</div>' +
+            '<div id="pl-posw" hidden>' +
+              '<label class="pl-f"><span>Possession date</span>' +
+                '<input id="pl-pos" class="pl-i" type="date"></label>' +
+            '</div>' +
+          '</div>' +
+          '<div id="pl-cn" class="pl-n"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="pl-c">' +
+        '<div class="pl-l">6 · On the document (optional)</div>' +
         '<div class="pl-2">' +
           '<label class="pl-f"><span>Customer name</span>' +
             '<input id="pl-who" class="pl-i" autocomplete="off"></label>' +
@@ -6413,7 +6450,8 @@ function renderPay() {
       '</div>' +
     '</div>' +
     '<div id="pl-doc" class="pl-doc"></div>' +
-    '<div class="pl-act"><button class="prc-go" id="pl-pdf" disabled>Download PDF</button></div>';
+    '<div class="pl-act"><button class="prc-go" id="pl-pdf" disabled>Download PDF</button>' +
+      '<button class="prc-go pl-sh" id="pl-share" disabled hidden>Share PDF</button></div>';
 
   var h = payUnit();
   $('pl-u').value = h ? h.u.n : '';
@@ -6422,6 +6460,11 @@ function renderPay() {
   $('pl-mo').value = PAY.mo;
   $('pl-who').value = PAY.who;
   $('pl-date').value = PAY.date;
+  $('pl-pm').value = PAY.pm ? Math.round(PAY.pm).toLocaleString('en-US') : '';
+  $('pl-pq').value = PAY.pq ? Math.round(PAY.pq).toLocaleString('en-US') : '';
+  $('pl-pos').value = PAY.pos;
+  $('pl-share').hidden = !payCanShare();
+  payLib().catch(function () {});   // fetched now, so the PDF button answers at once
   payRateFromAmt();
   payWire();
   payPaint();
@@ -6522,23 +6565,126 @@ function payWire() {
     $('pl-amt').value = PAY.amt ? Math.round(PAY.amt).toLocaleString('en-US') : '';
     payRateFromAmt(); payPaint();
   });
-  $('pl-pdf').addEventListener('click', payPrint);
+  $('pl-mode').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-mode]'); if (!b) return;
+    PAY.mode = b.getAttribute('data-mode'); payPaint();
+  });
+  $('pl-pm').addEventListener('input', function () {
+    PAY.pm = payNum($('pl-pm').value); PAY.pq = 0; payPaint();
+  });
+  $('pl-pm').addEventListener('blur', function () {
+    if (PAY.pm) $('pl-pm').value = Math.round(PAY.pm).toLocaleString('en-US');
+  });
+  $('pl-wc').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-w]'); if (!b) return;
+    PAY.where = b.getAttribute('data-w'); PAY.pq = 0; $('pl-pq').value = ''; payPaint();
+  });
+  $('pl-pq').addEventListener('input', function () { PAY.pq = payNum($('pl-pq').value); payPaint(); });
+  $('pl-pq').addEventListener('blur', function () { payPaint(); });
+  $('pl-pos').addEventListener('input', function () { PAY.pos = $('pl-pos').value; payPaint(); });
+  $('pl-pdf').addEventListener('click', payDownload);
+  $('pl-share').addEventListener('click', payShare);
 }
 
-/* the numbers, worked out once and read by both the screen and the paper */
+/* the numbers, worked out once and read by the screen and the PDF alike.
+   Every payment in the plan is one row here — down payment, instalments,
+   the extra every few months, possession — and the rows always add up to the
+   sale amount; the PDF and the table both print this list and nothing else. */
+var PAY_EVERY = { 3: 'quarterly', 6: 'half-yearly', 12: 'yearly' };
 function payCalc() {
   var h = payUnit();
   var amt = Math.round(PAY.amt || 0);
   var dpStr = String(PAY.dp == null ? '' : PAY.dp).trim();
   var dpPct = payNum(dpStr), mo = Math.floor(payNum(PAY.mo));
   var c = { h: h, amt: amt, list: payList(h), area: Number(h && h.u.a) || 0,
-            dpSet: dpStr !== '' && dpPct <= 100, dpPct: dpPct, mo: mo };
+            dpSet: dpStr !== '' && dpPct <= 100, dpPct: dpPct, mo: mo,
+            mode: PAY.mode === 'cus' ? 'cus' : 'std', need: '', err: '', rows: [] };
   c.disc = c.list && amt ? c.list - amt : 0;
   c.dp = Math.round(amt * dpPct / 100);
   c.bal = amt - c.dp;
   c.monthly = mo > 0 ? Math.round(c.bal / mo) : 0;
   c.last = mo > 0 ? c.bal - c.monthly * (mo - 1) : 0;
-  c.ready = !!(h && amt > 0 && c.dpSet && mo >= 1 && mo <= 600);
+  var base = !!(h && amt > 0 && c.dpSet && mo >= 1 && mo <= 600);
+  c.start = PAY.date ? new Date(PAY.date + 'T00:00:00') : new Date();
+  if (isNaN(c.start.getTime())) c.start = new Date();
+
+  if (!base) { c.ready = false; return c; }
+  c.rows.push({ k: 'dp', lab: 'Down payment (' + dpPct + '%)', d: c.start, a: c.dp });
+
+  if (c.mode === 'std') {
+    for (var i = 1; i <= mo; i++) {
+      c.rows.push({ k: 'm', lab: 'Instalment ' + i, d: payAddM(c.start, i),
+                    a: i === mo ? c.last : c.monthly });
+    }
+    c.ready = true;
+    return c;
+  }
+
+  /* CUSTOMIZED. The customer's own monthly figure; whatever it leaves of the
+     balance — the gap — goes where the plan says: on top of every 3rd, 6th
+     or 12th instalment, or in one go at possession. */
+  c.pm = Math.round(PAY.pm || 0);
+  c.where = PAY.where || '';
+  c.extra = 0; c.extraLast = 0; c.q = 0; c.k = 0; c.left = 0; c.p = 0;
+  if (!c.pm) { c.need = 'Type the monthly instalment the customer will pay.'; c.ready = false; return c; }
+  c.gap = c.bal - c.pm * mo;
+  if (c.gap < 0) {
+    c.err = 'At ' + payPKR(c.pm) + ' a month for ' + mo + ' months the customer pays ' +
+            payPKR(-c.gap) + ' more than the balance. Lower the monthly figure or the months.';
+    c.ready = false; return c;
+  }
+  if (c.gap > 0) {
+    if (!c.where) { c.need = 'Choose where the remaining ' + payPKR(c.gap) + ' goes.'; c.ready = false; return c; }
+    if (c.where === 'pos') {
+      c.left = c.gap;
+    } else {
+      c.p = Number(c.where);
+      c.k = Math.floor(mo / c.p);
+      if (c.k < 1) {
+        c.err = 'The tenure is shorter than ' + c.p + ' months — choose another option.';
+        c.ready = false; return c;
+      }
+      var auto = Math.round(c.gap / c.k);
+      c.auto = c.pm + auto;
+      if (PAY.pq > 0) {
+        c.extra = Math.round(PAY.pq) - c.pm;
+        if (c.extra < 0) {
+          c.err = 'The payment every ' + c.p + ' months cannot be less than the monthly instalment.';
+          c.ready = false; return c;
+        }
+        c.extraLast = c.extra;
+        c.left = c.gap - c.extra * c.k;
+        if (c.left < 0) {
+          c.err = 'That is ' + payPKR(-c.left) + ' more than the balance needs. Lower the payment every ' +
+                  c.p + ' months.';
+          c.ready = false; return c;
+        }
+      } else {
+        /* rounded to the rupee; the last of them carries what rounding left */
+        c.extra = auto;
+        c.extraLast = c.gap - auto * (c.k - 1);
+      }
+      c.q = c.pm + c.extra;
+    }
+  }
+  for (var j = 1; j <= mo; j++) {
+    var top = c.p && j % c.p === 0 ? (j / c.p === c.k ? c.extraLast : c.extra) : 0;
+    c.rows.push(top
+      ? { k: 'x', lab: 'Instalment ' + j + ' + ' + PAY_EVERY[c.p], d: payAddM(c.start, j), a: c.pm + top }
+      : { k: 'm', lab: 'Instalment ' + j, d: payAddM(c.start, j), a: c.pm });
+  }
+  if (c.left > 0) {
+    var pd = PAY.pos ? new Date(PAY.pos + 'T00:00:00') : null;
+    c.posD = pd && !isNaN(pd.getTime()) ? pd : payAddM(c.start, mo + 1);
+    c.rows.push({ k: 'pos', lab: 'On possession', d: c.posD, a: c.left });
+    /* possession may fall before the last instalment: the schedule reads by date */
+    var dp = c.rows.shift();
+    c.rows.sort(function (a, b) { return a.d - b.d; });
+    c.rows.unshift(dp);
+  }
+  var sum = c.rows.reduce(function (s, r) { return s + r.a; }, 0);
+  if (sum !== amt) { c.err = 'The schedule does not add up — please check the figures.'; c.ready = false; return c; }
+  c.ready = true;
   return c;
 }
 
@@ -6587,83 +6733,306 @@ function payPaint() {
     b.classList.toggle('on', Number(b.getAttribute('data-mo')) === c.mo);
   });
 
+  /* the plan type, and in Customized the questions only it asks */
+  var cus = c.mode === 'cus';
+  [].forEach.call($('pl-mode').children, function (b) {
+    b.classList.toggle('on', b.getAttribute('data-mode') === c.mode);
+  });
+  $('pl-cus').hidden = !cus;
+  if (cus) {
+    var gap = c.mo > 0 && c.dpSet && c.amt ? c.bal - Math.round(PAY.pm || 0) * c.mo : null;
+    $('pl-pmn').innerHTML = c.monthly && c.dpSet
+      ? 'The standard plan would be <b>' + esc(payPKR(c.monthly)) + '</b> a month.' +
+        (PAY.pm > 0 && gap > 0 ? ' At ' + esc(payPKR(PAY.pm)) + ' a month, <b>' + esc(payPKR(gap)) +
+          '</b> of the balance is left over.' : '')
+      : 'Set the price, the down payment and the tenure first.';
+    /* only asked when something is actually left over */
+    $('pl-wq').hidden = !(PAY.pm > 0 && gap > 0);
+    $('pl-wt').textContent = gap > 0 ? 'Where should the remaining ' + payPKR(gap) + ' go?' : '';
+    [].forEach.call($('pl-wc').children, function (b) {
+      b.classList.toggle('on', b.getAttribute('data-w') === PAY.where);
+    });
+    var per = PAY.where && PAY.where !== 'pos';
+    $('pl-pqw').hidden = !per;
+    if (per) {
+      $('pl-pql').textContent = 'Payment every ' + (PAY.where === '3' ? '3rd' : PAY.where === '6' ? '6th' : '12th') +
+                                ' month (PKR)';
+      /* filled with the figure that clears the balance, until somebody types their own */
+      if (!(PAY.pq > 0) && document.activeElement !== $('pl-pq')) {
+        $('pl-pq').value = c.auto ? Math.round(c.auto).toLocaleString('en-US') : '';
+      }
+    }
+    $('pl-posw').hidden = !(c.left > 0 || PAY.where === 'pos');
+    if (!$('pl-posw').hidden && !PAY.pos && document.activeElement !== $('pl-pos')) {
+      var dd = payAddM(c.start, Math.max(c.mo, 0) + 1);
+      $('pl-pos').value = dd.getFullYear() + '-' + String(dd.getMonth() + 1).padStart(2, '0') + '-' +
+                          String(dd.getDate()).padStart(2, '0');
+    }
+    $('pl-cn').innerHTML = c.err ? '<span class="pl-w">' + esc(c.err) + '</span>'
+      : (c.ready && c.left > 0 && c.p
+          ? '<b>' + esc(payPKR(c.left)) + '</b> still left after the ' + PAY_EVERY[c.p] +
+            ' payments — it goes at possession.'
+          : '');
+  }
+
   $('pl-pdf').disabled = !c.ready;
+  $('pl-share').disabled = !c.ready;
   $('pl-doc').innerHTML = c.ready ? payDoc(c)
     : '<div class="pl-e">' + (!h ? 'Pick a unit to start.'
         : !c.amt ? 'Type the sale amount.'
         : !c.dpSet ? 'Set the down payment %.'
-        : 'Choose the tenure.') + '</div>';
+        : !(c.mo >= 1 && c.mo <= 600) ? 'Choose the tenure.'
+        : esc(c.err || c.need)) + '</div>';
+}
+
+/* the boxes at the head of the plan — the screen and the PDF use the same list */
+function payBoxes(c) {
+  var b = [{ t: 'Down payment', v: c.dp, s: c.dpPct + '% at booking' }];
+  if (c.mode === 'std') {
+    b.push({ t: 'Balance', v: c.bal, s: 'over ' + c.mo + ' months' });
+    b.push({ t: 'Per month', v: c.monthly, main: true,
+             s: c.last !== c.monthly ? 'last one ' + payPKR(c.last) : '× ' + c.mo + ' months' });
+  } else {
+    b.push({ t: 'Per month', v: c.pm, main: true, s: '× ' + c.mo + ' months' });
+    if (c.q) b.push({ t: 'Every ' + c.p + ' months', v: c.q,
+                      s: c.k + ' times, instead of ' + payPKR(c.pm) });
+    if (c.left > 0) b.push({ t: 'On possession', v: c.left, s: payDate(c.posD) });
+  }
+  return b;
+}
+/* the facts block, likewise shared */
+function payFacts(c) {
+  var h = c.h, au = payAU(), f = [];
+  f.push(['Unit', h.u.n]);
+  f.push(['Floor', h.f.floor_label]);
+  if (h.u.t) f.push(['Type', h.u.t]);
+  f.push(['Area', c.area ? area(h.u) : '—']);
+  if (c.list) f.push(['List price', payPKR(c.list)]);
+  if (c.disc > 0) f.push(['Discount', '- ' + payPKR(c.disc), 'pl-dc']);
+  if (c.area) f.push(['Rate', Math.round(c.amt / c.area).toLocaleString('en-US') + ' per ' + au]);
+  f.push(['Sale amount', payPKR(c.amt)]);
+  var yrs = c.mo % 12 === 0 ? ' (' + (c.mo / 12) + ' year' + (c.mo === 12 ? '' : 's') + ')' : '';
+  f.push(['Tenure', c.mo + ' month' + (c.mo === 1 ? '' : 's') + yrs]);
+  f.push(['Plan type', c.mode === 'cus' ? 'Customized' : 'Standard']);
+  f.push(['Balance after down payment', payPKR(c.bal)]);
+  return f;
 }
 
 function payDoc(c) {
-  var h = c.h, au = esc(payAU());
-  var start = PAY.date ? new Date(PAY.date + 'T00:00:00') : new Date();
-  if (isNaN(start.getTime())) start = new Date();
-  var kv = function (k, v, cls) {
-    return '<div class="pl-kv"><span>' + k + '</span><b' + (cls ? ' class="' + cls + '"' : '') + '>' +
-           v + '</b></div>';
-  };
-  var rows = '';
-  rows += '<tr class="pl-dpr"><td>Down payment (' + esc(String(c.dpPct)) + '%)</td>' +
-          '<td>' + esc(payDate(start)) + '</td><td class="r">' +
-          esc(payPKR(c.dp)) + '</td></tr>';
-  for (var i = 1; i <= c.mo; i++) {
-    rows += '<tr><td>Instalment ' + i + '</td><td>' + esc(payDate(payAddM(start, i))) + '</td>' +
-            '<td class="r">' +
-            esc(payPKR(i === c.mo ? c.last : c.monthly)) + '</td></tr>';
-  }
-  var yrs = c.mo % 12 === 0 ? ' (' + (c.mo / 12) + ' year' + (c.mo === 12 ? '' : 's') + ')' : '';
+  var h = c.h;
+  var rows = c.rows.map(function (r) {
+    return '<tr' + (r.k === 'dp' ? ' class="pl-dpr"' : r.k !== 'm' ? ' class="pl-xr"' : '') + '><td>' +
+           esc(r.lab) + '</td><td>' + esc(payDate(r.d)) + '</td><td class="r">' + esc(payPKR(r.a)) + '</td></tr>';
+  }).join('');
+  var bx = payBoxes(c);
   return '' +
     '<div class="pl-dh"><div>' +
       '<div class="pl-dt">Payment plan — ' + esc(h.u.n) + '</div>' +
       '<div class="pl-dp">' + esc(P.project || '') + (P.company ? ' · ' + esc(P.company) : '') + '</div>' +
     '</div><div class="pl-dd">Prepared<br>' + esc(payDate(new Date())) + '</div></div>' +
     (PAY.who.trim() ? '<div class="pl-who">Prepared for <b>' + esc(PAY.who.trim()) + '</b></div>' : '') +
-    '<div class="pl-g">' +
-      kv('Unit', esc(h.u.n)) +
-      kv('Floor', esc(h.f.floor_label)) +
-      (h.u.t ? kv('Type', esc(h.u.t)) : '') +
-      kv('Area', c.area ? esc(area(h.u)) : '—') +
-      (c.list ? kv('List price', esc(payPKR(c.list))) : '') +
-      (c.disc > 0 ? kv('Discount', '− ' + esc(payPKR(c.disc)), 'pl-dc') : '') +
-      (c.area ? kv('Rate', Math.round(c.amt / c.area).toLocaleString('en-US') + ' per ' + au) : '') +
-      kv('Sale amount', esc(payPKR(c.amt))) +
-      kv('Tenure', c.mo + ' month' + (c.mo === 1 ? '' : 's') + yrs) +
-      kv('Balance after down payment', esc(payPKR(c.bal))) +
-    '</div>' +
-    '<div class="pl-big">' +
-      '<div class="pl-bx"><span>Down payment</span><b>' + esc(payPKR(c.dp)) + '</b>' +
-        '<small>' + esc(String(c.dpPct)) + '% at booking</small></div>' +
-      '<div class="pl-bx"><span>Balance</span><b>' + esc(payPKR(c.bal)) + '</b>' +
-        '<small>over ' + c.mo + ' months</small></div>' +
-      '<div class="pl-bx pl-m"><span>Per month</span><b>' + esc(payPKR(c.monthly)) + '</b>' +
-        '<small>' + (c.last !== c.monthly ? 'last one ' + esc(payPKR(c.last)) : '× ' + c.mo + ' months') +
-        '</small></div>' +
-    '</div>' +
+    '<div class="pl-g">' + payFacts(c).map(function (f) {
+      return '<div class="pl-kv"><span>' + esc(f[0]) + '</span><b' + (f[2] ? ' class="' + f[2] + '"' : '') + '>' +
+             esc(f[1]) + '</b></div>';
+    }).join('') + '</div>' +
+    '<div class="pl-big" style="--n:' + bx.length + '">' + bx.map(function (b) {
+      return '<div class="pl-bx' + (b.main ? ' pl-m' : '') + '"><span>' + esc(b.t) + '</span><b>' +
+             esc(payPKR(b.v)) + '</b><small>' + esc(b.s) + '</small></div>';
+    }).join('') + '</div>' +
     '<div class="pl-tw"><table class="pl-t">' +
       '<thead><tr><th>Payment</th><th>Due date</th><th class="r">Amount</th></tr></thead>' +
       '<tbody>' + rows + '<tr class="pl-tot"><td>Total</td><td></td><td class="r">' + esc(payPKR(c.amt)) + '</td></tr>' +
       '</tbody>' +
     '</table></div>' +
-    '<div class="pl-ds">This plan is a calculation only. It does not reserve or hold the unit, ' +
-      'and the price and terms are final only once confirmed by the management.</div>' +
+    '<div class="pl-ds">' + esc(PAY_NOTE) + '</div>' +
     '<div class="pl-sig"><div>Prepared by</div><div>Customer</div></div>';
 }
+var PAY_NOTE = 'This plan is a calculation only. It does not reserve or hold the unit, ' +
+               'and the price and terms are final only once confirmed by the management.';
 
-/* PDF the way every report here does it: the page's own print, with only
-   the plan on the paper, and the file named after the unit. */
-function payPrint() {
-  if (!payCalc().ready) return;
-  var was = document.title, h = payUnit();
-  document.title = 'Payment plan ' + (h ? h.u.n : '');
-  document.body.classList.add('pp');
-  var done = function () {
-    document.body.classList.remove('pp'); document.title = was;
-    window.removeEventListener('afterprint', done);
-  };
-  window.addEventListener('afterprint', done);
-  window.print();
-  setTimeout(done, 1500);
+/* ── THE PDF IS A FILE, NOT A PRINTOUT ──────────────────────────────────
+   The first cut used the page's own print, and on a phone that does not
+   work: "mobile pe download PDF kaam nahi kar raha hai". A phone's browser
+   either has no print at all or prints the page around the plan. So the plan
+   is drawn into a real PDF with pdf-lib — the library the portal's quote
+   PDF already uses — and handed over as a download, or to the phone's share
+   sheet. The library is fetched only when this screen opens. */
+var PAYLIB = null;
+function payLib() {
+  if (window.PDFLib) return Promise.resolve(window.PDFLib);
+  if (PAYLIB) return PAYLIB;
+  PAYLIB = new Promise(function (res, rej) {
+    var s = document.createElement('script');
+    s.src = '/vendor/pdf-lib.min.js?v=1.17.1';
+    s.onload = function () { window.PDFLib ? res(window.PDFLib) : rej(new Error('pdf-lib')); };
+    s.onerror = function () { PAYLIB = null; rej(new Error('pdf-lib')); };
+    document.head.appendChild(s);
+  });
+  return PAYLIB;
+}
+/* Helvetica is WinAnsi: anything it cannot draw is folded, never thrown */
+function paySafe(s) {
+  var F = { '—': '-', '–': '-', '−': '-', '‘': "'", '’': "'",
+            '“': '"', '”': '"', '•': '-', '…': '...', '×': 'x' };
+  s = String(s == null ? '' : s);
+  var out = '';
+  for (var i = 0; i < s.length; i++) {
+    var ch = s[i], k = s.charCodeAt(i);
+    out += F[ch] ? F[ch] : ((k >= 32 && k <= 126) || (k >= 160 && k <= 255)) ? ch : '?';
+  }
+  return out;
+}
+async function payPdfBytes(c) {
+  var L = await payLib();
+  var doc = await L.PDFDocument.create();
+  var R = await doc.embedFont(L.StandardFonts.Helvetica);
+  var B = await doc.embedFont(L.StandardFonts.HelveticaBold);
+  var W = 595.28, H = 841.89, M = 40, CW = W - 2 * M;
+  var INK = L.rgb(0.07, 0.07, 0.07), MUT = L.rgb(0.36, 0.38, 0.42), HAIR = L.rgb(0.88, 0.89, 0.9);
+  var BLUE = L.rgb(0.114, 0.306, 0.847), SOFT = L.rgb(0.93, 0.95, 0.996), GREEN = L.rgb(0.08, 0.5, 0.24);
+  var pages = [], pg, y;
+  function page() { pg = doc.addPage([W, H]); pages.push(pg); y = H - M; }
+  function txt(s, x, yy, size, font, color) {
+    pg.drawText(paySafe(s), { x: x, y: yy, size: size, font: font || R, color: color || INK });
+  }
+  function rtxt(s, xr, yy, size, font, color) {
+    s = paySafe(s); font = font || R;
+    pg.drawText(s, { x: xr - font.widthOfTextAtSize(s, size), y: yy, size: size, font: font, color: color || INK });
+  }
+  function line(x1, yy, x2, th, color) {
+    pg.drawLine({ start: { x: x1, y: yy }, end: { x: x2, y: yy }, thickness: th, color: color || HAIR });
+  }
+  function wrap(s, size, font, width) {
+    var words = paySafe(s).split(' '), lines = [], cur = '';
+    words.forEach(function (w) {
+      var t = cur ? cur + ' ' + w : w;
+      if (font.widthOfTextAtSize(t, size) > width && cur) { lines.push(cur); cur = w; } else cur = t;
+    });
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  page();
+  /* the head */
+  txt('Payment plan - ' + c.h.u.n, M, y - 16, 18, B);
+  txt((P.project || '') + (P.company ? '  ·  ' + P.company : ''), M, y - 31, 10, R, MUT);
+  rtxt('Prepared', W - M, y - 12, 9, R, MUT);
+  rtxt(payDate(new Date()), W - M, y - 24, 10, B);
+  y -= 40; line(M, y, W - M, 1.6, INK); y -= 18;
+  if (PAY.who.trim()) {
+    txt('Prepared for', M, y, 10, R, MUT);
+    txt(PAY.who.trim(), M + R.widthOfTextAtSize('Prepared for ', 10), y, 10, B);
+    y -= 18;
+  }
+  /* the facts, two columns */
+  var facts = payFacts(c), colW = (CW - 20) / 2;
+  for (var i = 0; i < facts.length; i += 2) {
+    [facts[i], facts[i + 1]].forEach(function (f, j) {
+      if (!f) return;
+      var x = M + j * (colW + 20);
+      txt(f[0], x, y, 9.5, R, MUT);
+      rtxt(f[1], x + colW, y, 9.5, B, f[2] ? GREEN : INK);
+      line(x, y - 6, x + colW, 0.6);
+    });
+    y -= 19;
+  }
+  /* the boxes */
+  y -= 6;
+  var bx = payBoxes(c), gap = 8, bw = (CW - gap * (bx.length - 1)) / bx.length, bh = 50;
+  bx.forEach(function (b, k) {
+    var x = M + k * (bw + gap);
+    pg.drawRectangle({ x: x, y: y - bh, width: bw, height: bh, color: b.main ? BLUE : SOFT });
+    var fg = b.main ? L.rgb(1, 1, 1) : INK, fm = b.main ? L.rgb(0.9, 0.93, 1) : MUT;
+    txt(b.t.toUpperCase(), x + 9, y - 14, 7.5, B, fm);
+    txt(payPKR(b.v), x + 9, y - 30, bx.length > 3 ? 11.5 : 13, B, fg);
+    txt(b.s, x + 9, y - 42, 7.5, R, fm);
+  });
+  y -= bh + 20;
+  /* the schedule, running onto as many pages as it needs */
+  var cDue = M + CW * 0.52;
+  function head() {
+    txt('PAYMENT', M + 4, y, 8, B, MUT); txt('DUE DATE', cDue, y, 8, B, MUT);
+    rtxt('AMOUNT', W - M - 4, y, 8, B, MUT);
+    y -= 6; line(M, y, W - M, 0.9, L.rgb(0.8, 0.8, 0.82)); y -= 13;
+  }
+  head();
+  var RH = 15.5;
+  c.rows.concat([{ k: 'tot', lab: 'Total', a: c.amt }]).forEach(function (r) {
+    if (y < M + 30) { page(); head(); }
+    if (r.k !== 'm' && r.k !== 'tot') {
+      pg.drawRectangle({ x: M, y: y - 4.5, width: CW, height: RH, color: SOFT });
+    }
+    if (r.k === 'tot') { line(M, y + 10, W - M, 1.4, INK); }
+    var f = r.k === 'm' ? R : B;
+    txt(r.lab, M + 4, y, 9.5, f);
+    if (r.d) txt(payDate(r.d), cDue, y, 9.5, f);
+    rtxt(payPKR(r.a), W - M - 4, y, 9.5, f);
+    if (r.k !== 'tot') line(M, y - 4.5, W - M, 0.5);
+    y -= RH;
+  });
+  /* the note and the signatures, kept together */
+  var note = wrap(PAY_NOTE, 8.5, R, CW);
+  if (y - (note.length * 11 + 70) < M) page();
+  y -= 8;
+  note.forEach(function (l) { txt(l, M, y, 8.5, R, MUT); y -= 11; });
+  y -= 44;
+  var sw = (CW - 40) / 2;
+  [['Prepared by', M], ['Customer', M + sw + 40]].forEach(function (s) {
+    line(s[1], y, s[1] + sw, 0.8, INK); txt(s[0], s[1], y - 12, 8.5, R, MUT);
+  });
+  /* page numbers once the count is known */
+  pages.forEach(function (p, n) {
+    var s = 'Page ' + (n + 1) + ' of ' + pages.length;
+    p.drawText(s, { x: W - M - R.widthOfTextAtSize(s, 8), y: 22, size: 8, font: R, color: MUT });
+    p.drawText(paySafe(c.h.u.n + ' - ' + (P.project || '')), { x: M, y: 22, size: 8, font: R, color: MUT });
+  });
+  doc.setTitle('Payment plan ' + c.h.u.n);
+  return doc.save();
+}
+function payFileName(c) {
+  return 'Payment plan ' + String(c.h.u.n).replace(/[^A-Za-z0-9 _-]/g, '-') + '.pdf';
+}
+function payBusy(btn, on, label) {
+  btn.disabled = on; btn.textContent = on ? 'Preparing…' : label;
+}
+async function payDownload() {
+  var c = payCalc(); if (!c.ready) return;
+  var btn = $('pl-pdf');
+  payBusy(btn, true);
+  try {
+    var bytes = await payPdfBytes(c);
+    var url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    var a = document.createElement('a');
+    a.href = url; a.download = payFileName(c); a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+    toast('PDF downloaded');
+  } catch (e) {
+    toast('Could not make the PDF — check the connection and try again');
+  }
+  payBusy(btn, false, 'Download PDF');
+}
+/* THE PHONE'S OWN SHARE SHEET, where the phone has one — WhatsApp, Files,
+   Drive — offered only where the browser can share a file at all */
+function payCanShare() {
+  try {
+    return !!(navigator.canShare && window.File &&
+              navigator.canShare({ files: [new File(['x'], 'x.pdf', { type: 'application/pdf' })] }));
+  } catch (e) { return false; }
+}
+async function payShare() {
+  var c = payCalc(); if (!c.ready) return;
+  var btn = $('pl-share');
+  payBusy(btn, true);
+  try {
+    var bytes = await payPdfBytes(c);
+    var file = new File([bytes], payFileName(c), { type: 'application/pdf' });
+    await navigator.share({ files: [file], title: 'Payment plan ' + c.h.u.n });
+  } catch (e) {
+    /* the reader closing the sheet is not a failure; anything else falls back to the download */
+    if (!e || e.name !== 'AbortError') { payBusy(btn, false, 'Share PDF'); return payDownload(); }
+  }
+  payBusy(btn, false, 'Share PDF');
 }
 
 $('planrow').addEventListener('click', function (e) {
