@@ -1836,16 +1836,43 @@
       '</details></div>';
   }
 
-  /* Resolves true to go ahead, false to leave everything as it was. */
+  /* Resolves true to go ahead, false to leave everything as it was. A queue
+     decision is handed request ids; the desk's own booking hands units. */
   function _trailGate(ids) {
     var rows = (DESK.reqs || []).filter(function (r) { return ids.indexOf(r.id) >= 0; });
     var units = [], asker = {};
     rows.forEach(function (r) {
       if (r.unit_id && units.indexOf(r.unit_id) < 0) { units.push(r.unit_id); asker[r.unit_id] = r.requested_by; }
     });
-    if (!units.length) return Promise.resolve(true);
     var who = rows.map(function (r) { return r.requested_by; })
       .filter(function (n, i, a) { return n && a.indexOf(n) === i; });
+    return _trailShow(units, asker, rows.length ? rows[0].unit_no : '', who, 'Approve');
+  }
+  /* the desk typing a unit in itself: same panel, the person it is booked for
+     standing where the dealer's name stands on a request */
+  function _trailGateUnits(list, name, verb) {
+    var units = [], asker = {};
+    (list || []).forEach(function (u) {
+      if (u && u.id && units.indexOf(u.id) < 0) { units.push(u.id); asker[u.id] = name; }
+    });
+    return _trailShow(units, asker, list && list[0] ? list[0].n : '', name ? [name] : [], verb || 'Save', true);
+  }
+  /* 40 a call is the server's limit; a long cart is read in pieces */
+  async function _trailFetch(units) {
+    var out = [];
+    for (var i = 0; i < units.length; i += 40) {
+      var r;
+      try { r = await sb.rpc('get_unit_trail_desk', { p_session_token: TOKEN, p_unit_ids: units.slice(i, i + 40) }); }
+      catch (e) { return null; }
+      var d = r && r.data;
+      if (d && d.error === 'session_expired') return d;
+      if (!d || !d.success) return null;
+      out = out.concat(d.trails || []);
+    }
+    return { success: true, trails: out };
+  }
+  function _trailShow(units, asker, firstNo, who, verb, own) {
+    if (!units.length) return Promise.resolve(true);
     return new Promise(function (done) {
       var host = _root() || document.body;
       var old = _q('#rd-trail'); if (old) old.parentNode.removeChild(old);
@@ -1854,13 +1881,13 @@
       wrap.className = 'rd-ask rd-trail';
       wrap.innerHTML =
         '<div class="rd-ask-c">' +
-          '<div class="rd-ask-t">Check before approving</div>' +
-          '<div class="tr-s">' + (units.length === 1 ? esc(rows[0].unit_no) : units.length + ' units') +
-            (who.length ? ' · asked by ' + esc(who.join(', ')) : '') + '</div>' +
+          '<div class="rd-ask-t">Check before ' + (own ? 'reserving' : 'approving') + '</div>' +
+          '<div class="tr-s">' + (units.length === 1 ? esc(firstNo) : units.length + ' units') +
+            (who.length ? (own ? ' · for ' : ' · asked by ') + esc(who.join(', ')) : '') + '</div>' +
           '<div class="tr-b" id="tr-b"><div class="tr-m">Reading the unit’s history…</div></div>' +
           '<div class="rd-ask-r">' +
             '<button type="button" data-askno>Cancel</button>' +
-            '<button type="button" data-askok disabled>Approve</button>' +
+            '<button type="button" data-askok disabled>' + esc(verb) + '</button>' +
           '</div>' +
         '</div>';
       host.appendChild(wrap);
@@ -1878,8 +1905,7 @@
       document.addEventListener('keydown', key);
 
       var body = wrap.querySelector('#tr-b'), okb = wrap.querySelector('[data-askok]');
-      sb.rpc('get_unit_trail_desk', { p_session_token: TOKEN, p_unit_ids: units })
-        .then(function (r) { return r && r.data; }, function () { return null; })
+      _trailFetch(units)
         .then(function (d) {
           if (!wrap.parentNode) return;
           if (d && d.error === 'session_expired') { shut(false); return sessionGone(); }
@@ -1901,7 +1927,7 @@
             }).join('');
           }
           okb.disabled = false;
-          okb.textContent = warn ? 'Approve anyway' : 'Approve';
+          okb.textContent = warn ? verb + ' anyway' : verb;
           wrap.classList.toggle('danger', warn);
         });
     });
@@ -1940,6 +1966,10 @@
     /* READ IT BACK BEFORE IT IS SAVED. Everything the sentence needs is
        already in hand here: the units, the tag, the days, the person and the
        client. */
+    /* the history first, then the sentence read back */
+    if (!(await _trailGateUnits(units, r.name, 'Continue'))) return;
+    if (DESK.busy) return;
+
     var cname = String((_q('#rd-cname') || {}).value || '').trim() || null;
     var _t = _armedTag(), _perm = _armedPermanent();
     var _okd = await _askOk(
@@ -2074,6 +2104,11 @@
       var ra = _q('#rd-req'); if (ra) ra.focus();
       return;
     }
+
+    /* the unit's history before it is booked, the same as a request gets */
+    if (!(await _trailGateUnits([u], r.name,
+        String((_q('#rd-go') || {}).textContent || '').trim() || 'Save'))) return;
+    if (DESK.busy) return;
 
     var go = _q('#rd-go');
     DESK.busy = true; if (go) { go.disabled = true; go.textContent = 'Saving…'; }
