@@ -260,6 +260,8 @@
         "background:var(--fk-bg-card);color:var(--fk-text);font:inherit;font-size:var(--fs-caption);" +
         "font-weight:600;cursor:pointer}" +
       ".rd-undo:disabled{opacity:.45;cursor:default}" +
+      /* Share sits beside Undo and must not be mistaken for it */
+      ".rd-undo.rd-shr{border-color:var(--fk-accent);color:var(--fk-accent);margin-right:6px}" +
       /* The list sits in the flow rather than floating: the desk is used on a
          phone, where an absolutely positioned menu ends up under the keyboard. */
       ".rd-sugg{margin-top:7px;border:1px solid var(--fk-border);border-radius:11px;background:var(--fk-bg-card);overflow:auto;max-height:min(46vh,320px)}" +
@@ -1984,8 +1986,10 @@
     o.line = (o.was ? 'was ' + o.was + ' · ' : '') + 'before: ' + o.last + ' · token: ' + o.token;
     return o;
   }
-  function _nowStamp() {
-    var d = new Date(), k = new Date(d.getTime() + 5 * 3600000);
+  function _nowStamp(at) {
+    var d = at ? new Date(at) : new Date();
+    if (isNaN(d)) d = new Date();
+    var k = new Date(d.getTime() + 5 * 3600000);
     return _trDay(d) + ', ' + String(k.getUTCHours()).padStart(2, '0') + ':' +
            String(k.getUTCMinutes()).padStart(2, '0');
   }
@@ -2002,10 +2006,11 @@
     o.oneWho = it.every(function (x) { return _trSame(x.who, it[0].who); });
     o.oneSpan = it.every(function (x) { return x.days === it[0].days; });
     o.by = (typeof ME !== 'undefined' && ME && (ME.sales_user_name || ME.name)) || '';
-    o.stamp = _nowStamp();
+    /* a booking shared later keeps the time it was made, not the time it was shared */
+    o.stamp = _nowStamp(o.at);
     it.forEach(function (x) {
       var t = _TRAILS[x.id];
-      x.s = _trShort(t);
+      x.s = _trShort(t, x.at ? new Date(x.at).getTime() : null);
       x.floor = (t && t.unit && t.unit.floor) || x.floor || '';
       /* somebody else's hold before this one is the thing the group argues about */
       x.warn = !!(x.s.lastWho && !_trSame(x.s.lastWho, x.who));
@@ -2238,7 +2243,10 @@
     cx.fillText(o.stamp || '', left + CW - P, y + 104);
     cx.textAlign = 'center';
     cx.fillStyle = '#94A3B8'; cx.font = F('400', 22);
-    cx.fillText('Nexunova RMS · the unit’s history is read from the books at the moment of decision',
+    /* shared later, the history is still cut at the booking but the token is
+       today's figure, and the receipt says so rather than claim otherwise */
+    cx.fillText(o.at ? 'Nexunova RMS · shared after the booking · token as it stands today'
+                     : 'Nexunova RMS · the unit’s history is read from the books at the moment of decision',
                 W / 2, y + 160);
     cx.textAlign = 'left';
     return cv;
@@ -2673,7 +2681,9 @@
           (r.client_name ? ' · ' + esc(r.client_name) : '') + '</span>' +
         '<span class="t">' + esc(_pkTime(r.created_at)) + '</span>' +
         (live
-          ? '<button class="rd-undo" data-undo="' + esc(r.id) + '">Undo</button>'
+          /* the receipt again, for a share missed at the moment of booking */
+          ? '<button class="rd-undo rd-shr" data-shr="' + esc(r.id) + '">Share</button>' +
+            '<button class="rd-undo" data-undo="' + esc(r.id) + '">Undo</button>'
           : '<span class="t">' + esc(r.status) + '</span>') +
       '</div>';
     }).join('');
@@ -3270,7 +3280,32 @@
     else { _paintReqs(); }
   }
 
+  /* SHARE, FROM BOOKED TODAY. Rashid: "agar reservation k time picture share
+     karna miss ho jai to insaan yahan se share kar sake". The same receipt the
+     decision opened, rebuilt from the row: the unit's trail is read if this
+     page has not read it yet, and is cut at the moment of booking, so 'Was'
+     and 'Previous hold' say what they said then, and the time on it is the
+     booking's own. */
+  async function _todayShare(b, id) {
+    var r = ((DESK.data && DESK.data.today) || []).filter(function (x) { return String(x.id) === String(id); })[0];
+    if (!r) return;
+    if (r.unit_id && !_TRAILS[r.unit_id]) {
+      b.disabled = true; b.textContent = '…';
+      var d = await _trailFetch([r.unit_id]);
+      b.disabled = false; b.textContent = 'Share';
+      if (d && d.error === 'session_expired') return sessionGone();
+      ((d && d.trails) || []).forEach(function (t) { if (t && t.unit_id) _TRAILS[t.unit_id] = t; });
+    }
+    var days = r.expiry_date && r.created_at
+      ? Math.max(1, Math.round((new Date(r.expiry_date) - new Date(r.created_at)) / 86400000)) : null;
+    _shareSheet(_shareText({ verb: 'Booked', tag: r.tag || 'Reserved', at: r.created_at,
+      items: [{ id: r.unit_id, no: r.unit_no, who: r.by, days: days, until: r.expiry_date,
+                client: r.client_name, floor: r.floor, at: r.created_at }] }));
+  }
+
   async function _undoClick(e) {
+    var sb2 = e.target.closest('button[data-shr]');
+    if (sb2) return _todayShare(sb2, sb2.getAttribute('data-shr'));
     var b = e.target.closest('button[data-undo]'); if (!b) return;
     var id = b.getAttribute('data-undo');
     b.disabled = true; b.textContent = '…';
