@@ -6874,6 +6874,14 @@ var PAY_NOTES = [
        'It has no connection with the company’s finance or accounts and is not an accounting record. ' +
        'The final schedule will be issued by the Accounts department at the time of booking or down payment. ' +
        'This schedule is an estimated calculation only.' },
+  /* Rashid: "is mai mentioned prices ka accounts departmnent se koi taluq
+     nahi, final prices directors k approval k baad consider ki jaigi … accounts
+     ko is mamlay se complete out karwao" */
+  { h: 'THE ACCOUNTS DEPARTMENT IS NOT A PARTY TO THIS DOCUMENT. ',
+    t: 'The prices, rates, discounts and amounts shown here were not issued, checked or approved by the ' +
+       'Accounts department, and the Accounts department bears no responsibility or liability for anything in ' +
+       'this estimate. Final prices apply only after approval by the Directors. No claim, dispute, refund or ' +
+       'payment may be raised with the Accounts department on the basis of this document.' },
   { h: 'NOT AN OFFER, BOOKING, ALLOTMENT OR RECEIPT. ',
     t: 'This document does not reserve, hold, book or allot any unit, and creates no right or obligation ' +
        'for the client or the company. Prices, availability, discounts and terms may change without notice ' +
@@ -6990,7 +6998,7 @@ async function payPdfBytes(c) {
      page is allowed to run into it */
   var NS = 7.6, NL = 9.6, NW = CW - 18;
   var noteLines = PAY_NOTES.map(function (n) {
-    var hw = B.widthOfTextAtSize(paySafe(n.h).trim(), NS) + 4;    // a clear gap after the heading
+    var hw = B.widthOfTextAtSize(paySafe(n.h).trim(), NS) + 7;    // a clear gap after the heading
     /* the heading runs into the first line, as it does on screen */
     var words = paySafe(n.t).split(' '), lines = [], cur = '', first = true;
     words.forEach(function (w) {
