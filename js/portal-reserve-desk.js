@@ -3394,7 +3394,7 @@
     });
     var cp = _dbq('#db-copy'); if (cp) cp.addEventListener('click', _dbCopy);
     var wa = _dbq('#db-wa'); if (wa) wa.addEventListener('click', _dbWa);
-    var pf = _dbq('#db-pdf'); if (pf) pf.addEventListener('click', _dbPrint);
+    var pf = _dbq('#db-pdf'); if (pf) pf.addEventListener('click', _dbPdfFile);
 
     /* Delegated on the root: the table is rebuilt on every render and a
        listener per button would stack one for each redraw. */
@@ -4356,7 +4356,9 @@
         cols: [['Unit'], ['Today'], ['Was'], ['Before'], ['Token now']],
         rows: (_dbTrailRows(d) || []).map(function (t) {
           return [{ v: t.no, cls: 'u' }, t.today, t.was, t.before,
-                  t.token === 'none' ? { v: 'none', cls: 'mut' } : t.token];
+                  /* the amount only: the buyer is already on the booking's own line,
+                     and the name pushed this column past the page edge */
+                  t.token === 'none' ? { v: 'none', cls: 'mut' } : String(t.token).replace(/ \(buyer .*\)$/, '')];
         }),
         empty: function () { return 'Nothing booked or sold ' + _periodPhrase(d) + '.'; } },
 
@@ -4486,6 +4488,75 @@
 
     host.style.cssText = '';
     return pages.length;
+  }
+
+  /* ── THE DAYBOOK AS A FILE ───────────────────────────────────────────────
+     The PDF button printed the page, and a phone's browser either has no
+     print or prints the screen around the report — the same thing that broke
+     the payment plan's PDF on the link. Rashid: "Daybook ka PDF bhi asli file
+     bana do". So the A4 pages _dbBuild already lays out are photographed one
+     by one (html2canvas) and bound into a real PDF (pdf-lib), then downloaded.
+     The pages are exactly the ones print showed — same layout, same breaks,
+     same colours — so nothing about the report itself changes. Both libraries
+     are vendored and fetched only when this button is pressed. If either
+     cannot load, the button falls back to printing, as before. */
+  function _dbLoadScript(src, ready) {
+    if (ready()) return Promise.resolve();
+    return new Promise(function (res, rej) {
+      var s = document.createElement('script');
+      s.src = src;
+      s.onload = function () { ready() ? res() : rej(new Error(src)); };
+      s.onerror = function () { rej(new Error(src)); };
+      document.head.appendChild(s);
+    });
+  }
+  var _dbPdfBusy = false;
+  async function _dbPdfFile() {
+    if (_dbPdfBusy || !DB.data) return;
+    var btn = _dbq('#db-pdf'), was = btn ? btn.innerHTML : '';
+    _dbPdfBusy = true;
+    if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
+    var host = null;
+    try {
+      await Promise.all([
+        _dbLoadScript('/vendor/html2canvas.min.js?v=1.4.1', function () { return typeof window.html2canvas === 'function'; }),
+        _dbLoadScript('/vendor/pdf-lib.min.js?v=1.17.1', function () { return !!window.PDFLib; })
+      ]);
+      _dbBuild();
+      host = _printHost();
+      /* on the page but behind it: html2canvas needs the pages laid out */
+      host.style.cssText = 'display:block;position:fixed;left:0;top:0;z-index:-1;pointer-events:none;width:210mm';
+      var pages = host.querySelectorAll('.rd-pg');
+      var L = window.PDFLib, doc = await L.PDFDocument.create();
+      for (var i = 0; i < pages.length; i++) {
+        var cv = await window.html2canvas(pages[i], { scale: 2, useCORS: true, backgroundColor: '#ffffff',
+                                                      logging: false });
+        var jpg = await doc.embedJpg(cv.toDataURL('image/jpeg', 0.9));
+        var pg = doc.addPage([595.28, 841.89]);       // A4, the size the pages are drawn at
+        pg.drawImage(jpg, { x: 0, y: 0, width: 595.28, height: 841.89 });
+      }
+      var d = DB.data, h = d.header || {};
+      var name = ((h.project || 'Project') + ' Daybook ' + _periodShort(d)).replace(/[^A-Za-z0-9 _.,–-]/g, '-');
+      doc.setTitle(name);
+      var bytes = await doc.save();
+      var url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      var a = document.createElement('a');
+      a.href = url; a.download = name + '.pdf'; a.rel = 'noopener';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+      toast('Daybook PDF downloaded.', 'ok');
+    } catch (e) {
+      /* a library that would not load, or a page that would not draw: the old
+         way still works on a computer */
+      toast('Could not make the file — opening print instead.', 'warn');
+      if (host) host.style.cssText = '';
+      _dbPdfBusy = false;
+      if (btn) { btn.disabled = false; btn.innerHTML = was; }
+      return _dbPrint();
+    }
+    if (host) host.style.cssText = '';
+    _dbPdfBusy = false;
+    if (btn) { btn.disabled = false; btn.innerHTML = was; }
   }
 
   function _dbPrint() {
