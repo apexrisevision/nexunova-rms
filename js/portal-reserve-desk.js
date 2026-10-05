@@ -125,6 +125,8 @@
       /* the trail before Approve: wider, and it scrolls inside itself */
       ".rd-trail .rd-ask-c{max-width:560px;max-height:88vh;display:flex;flex-direction:column}" +
       ".rd-trail .rd-ask-r [data-askok]:disabled{opacity:.5}" +
+      ".sh-img{display:block;width:100%;height:auto;max-height:62vh;object-fit:contain;margin:12px 0 0;" +
+        "border-radius:10px;background:#E9EDF3}" +
       ".sh-pre{white-space:pre-wrap;word-break:break-word;font:inherit;font-size:13px;line-height:1.5;" +
         "color:var(--fk-text);background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:10px;" +
         "padding:10px 12px;margin:12px 0 0;overflow-y:auto;max-height:55vh}" +
@@ -1971,6 +1973,7 @@
       var m = /Hold for (.+?) taken /.exec(ended[0].detail || ''), nm = m ? m[1] : 'someone';
       var how = ended[0].kind === 'expire' ? 'ran out on its own' : ended[0].kind === 'release'
               ? 'was released' : 'was cancelled';
+      o.lastWho = m ? m[1] : '';
       o.last = nm + '’s hold ' + how + ' on ' + _trDay(ended[0].at) +
                (holds > 1 ? ' (held ' + holds + ' times before)' : '');
     } else {
@@ -1991,56 +1994,295 @@
     var u = until ? new Date(until) : new Date(Date.now() + Number(days) * 86400000);
     return days + ' day' + (Number(days) === 1 ? '' : 's') + ', till ' + _trDay(u);
   }
-  /* o: { verb, tag, items: [{ id, no, who, days, until, client }] } */
+  /* o: { verb, tag, items: [{ id, no, who, days, until, client, tag }] }
+     Returns the same object with everything the receipt prints worked out:
+     each unit's short trail, who decided, when, and a plain-text copy. */
   function _shareText(o) {
     var it = o.items || [], L = [];
-    var oneWho = it.every(function (x) { return _trSame(x.who, it[0].who); });
-    var oneSpan = it.every(function (x) { return x.days === it[0].days; });
-    var by = (typeof ME !== 'undefined' && ME && (ME.sales_user_name || ME.name)) || '';
+    o.oneWho = it.every(function (x) { return _trSame(x.who, it[0].who); });
+    o.oneSpan = it.every(function (x) { return x.days === it[0].days; });
+    o.by = (typeof ME !== 'undefined' && ME && (ME.sales_user_name || ME.name)) || '';
+    o.stamp = _nowStamp();
+    it.forEach(function (x) {
+      var t = _TRAILS[x.id];
+      x.s = _trShort(t);
+      x.floor = (t && t.unit && t.unit.floor) || x.floor || '';
+      /* somebody else's hold before this one is the thing the group argues about */
+      x.warn = !!(x.s.lastWho && !_trSame(x.s.lastWho, x.who));
+    });
     if (it.length === 1) {
-      var x = it[0], s = _trShort(_TRAILS[x.id]);
+      var x = it[0];
       L.push('*' + x.no + ' — ' + o.verb + ': ' + (o.tag || 'Reserved') + '*');
-      L.push('For ' + (x.who || '—') + ' · ' + _spanTxt(x.days, x.until) +
-             (x.client ? ' · buyer ' + x.client : ''));
-      if (s.was) L.push('Was: ' + s.was);
-      L.push('Before: ' + (s.last || s.line));
-      if (s.token) L.push('Token in the books: ' + s.token);
+      L.push('For ' + (x.who || '—') + ' · ' + _spanTxt(x.days, x.until));
+      if (x.s.was) L.push('Was: ' + x.s.was);
+      L.push('Before: ' + (x.s.last || x.s.line));
+      if (x.s.token) L.push('Token in the books: ' + x.s.token);
     } else {
       L.push('*' + it.length + ' units — ' + o.verb + (o.tag ? ': ' + o.tag : '') + '*');
-      if (oneWho) L.push('For ' + (it[0].who || '—') + (oneSpan ? ' · ' + _spanTxt(it[0].days, it[0].until) : ''));
-      it.forEach(function (x) {
-        L.push('• ' + x.no + (o.tag ? '' : ' ' + (x.tag || 'Reserved')) + (oneWho ? '' : ' for ' + (x.who || '—')) +
-               (oneSpan ? '' : ' (' + _spanTxt(x.days, x.until) + ')') +
-               ' — ' + _trShort(_TRAILS[x.id]).line);
-      });
+      it.forEach(function (x) { L.push('• ' + x.no + ' — ' + x.s.line); });
     }
-    L.push((by ? 'Decided by ' + by + ' · ' : '') + _nowStamp());
-    return L.join('\n');
+    L.push((o.by ? 'Decided by ' + o.by + ' · ' : '') + o.stamp);
+    o.text = L.join('\n');
+    return o;
   }
-  function _waSend(t) {
-    if (t.length > WA_MAX) { _portalCopy(t, 'Too long to send as a link — copied instead. Paste it into the group.'); return; }
-    try { window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank'); }
-    catch (e) { _portalCopy(t, 'Copied — paste it into the group.'); }
+
+  /* ── THE DECISION AS A PICTURE ───────────────────────────────────────────
+     Rashid, of the text message: "isay aisa na banao balke aik chooti si jpg
+     image picture banao sleek beautiful si, impressive aur professional si.
+     receipt type." So the decision is drawn as a receipt: the project across
+     the top, the unit large, the status as a stamp, then the lines the group
+     reads — for whom, how long, what it was, whose hold it was before, the
+     token — and who decided it and when. Drawn on a canvas, not photographed
+     from the page, so it is sharp on any phone and costs no library. */
+  var RC = { navy: '#0B2545', navy2: '#13315C', amber: '#E0A23B', ink: '#111827', mut: '#64748B',
+             line: '#E5E7EB', bg: '#E9EDF3', paper: '#FFFFFF', warnBg: '#FFF7E6', warnInk: '#92400E',
+             font: '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' };
+  function _tagInk(tag) {
+    var k = String(tag || '').toLowerCase();
+    return /sold|pagri/.test(k) ? '#B3123C' : /hold/.test(k) ? '#C2760A'
+         : /book/.test(k) ? '#B45309' : /land/.test(k) ? '#4D7C0F' : '#0F766E';
   }
-  function _shareSheet(text) {
-    if (!text) return;
+  function _projName() {
+    var ps = (DESK.data && DESK.data.projects) || [];
+    var p = ps.filter(function (x) { return x.id === DESK.projectId; })[0] || ps[0];
+    return (p && p.name) || 'Reserve Desk';
+  }
+  /* words to lines that fit a width, at the font already set */
+  function _wrap(cx, text, w) {
+    var words = String(text || '').split(' '), out = [], cur = '';
+    words.forEach(function (wd) {
+      var t = cur ? cur + ' ' + wd : wd;
+      if (cx.measureText(t).width > w && cur) { out.push(cur); cur = wd; } else cur = t;
+    });
+    if (cur) out.push(cur);
+    return out;
+  }
+  function _rr(cx, x, y, w, h, r) {
+    cx.beginPath();
+    cx.moveTo(x + r, y); cx.arcTo(x + w, y, x + w, y + h, r); cx.arcTo(x + w, y + h, x, y + h, r);
+    cx.arcTo(x, y + h, x, y, r); cx.arcTo(x, y, x + w, y, r); cx.closePath();
+  }
+  function _receipt(o) {
+    var W = 1080, M = 56, P = 64;                    // canvas, outer margin, inner padding
+    var CW = W - 2 * M, IW = CW - 2 * P;             // card and content widths
+    var it = o.items || [], one = it.length === 1, MAXN = 14;
+    var cv = document.createElement('canvas'), cx = cv.getContext('2d');
+    var F = function (wt, px) { return wt + ' ' + px + 'px ' + RC.font; };
+
+    /* ── measure first, so the card is exactly as tall as what it says ── */
+    var rows = [];
+    if (one) {
+      var x = it[0];
+      rows.push(['For', x.who || '—']);
+      rows.push(['Duration', x.days == null ? 'No expiry' : x.days + ' day' + (Number(x.days) === 1 ? '' : 's')]);
+      if (x.days != null) {
+        rows.push(['Valid till', _trDay(x.until ? new Date(x.until) : new Date(Date.now() + Number(x.days) * 86400000))]);
+      }
+      if (x.client) rows.push(['Buyer', x.client]);
+      rows.push(['Status before', x.s.was || '—']);
+      rows.push(['Previous hold', x.s.last || x.s.line, x.warn]);
+      rows.push(['Token in the books', x.s.token || '—']);
+    }
+    cx.font = F('400', 30);
+    var LH = 42, labelW = 300, valW = IW - labelW;
+    var rowH = rows.map(function (r) { return Math.max(1, _wrap(cx, r[1], valW - (r[2] ? 28 : 0)).length) * LH + 30; });
+    var list = it.slice(0, MAXN);
+    cx.font = F('400', 26);
+    var listH = list.map(function (x) {
+      return 52 + _wrap(cx, x.s.line, IW - 24).length * 36 + 26;
+    });
+    var HEAD = 230, HERO = one ? 300 : 272, FOOT = 230, TEAR = 34;
+    var bodyH = one ? rowH.reduce(function (a, b) { return a + b; }, 0) + 30
+                    : listH.reduce(function (a, b) { return a + b; }, 0) + (it.length > MAXN ? 60 : 0) + 30;
+    var CH = HEAD + HERO + bodyH + FOOT;
+    var H = CH + 2 * M + TEAR;
+    cv.width = W; cv.height = H;
+
+    /* ── ground and paper ── */
+    cx.fillStyle = RC.bg; cx.fillRect(0, 0, W, H);
+    var top = M, left = M, bot = M + CH;
+    cx.save();
+    cx.shadowColor = 'rgba(15,23,42,.18)'; cx.shadowBlur = 40; cx.shadowOffsetY = 14;
+    cx.beginPath();
+    cx.moveTo(left + 28, top); cx.lineTo(left + CW - 28, top);
+    cx.arcTo(left + CW, top, left + CW, top + 28, 28);
+    cx.lineTo(left + CW, bot);
+    /* the torn edge of a receipt */
+    var teeth = 24, tw = CW / teeth;
+    for (var i = teeth; i > 0; i--) {
+      cx.lineTo(left + (i - 0.5) * tw, bot + TEAR * 0.7);
+      cx.lineTo(left + (i - 1) * tw, bot);
+    }
+    cx.lineTo(left, top + 28); cx.arcTo(left, top, left + 28, top, 28); cx.closePath();
+    cx.fillStyle = RC.paper; cx.fill();
+    cx.restore();
+
+    /* ── the head: project, what happened, when ── */
+    cx.save();
+    _rr(cx, left, top, CW, HEAD + 20, 28); cx.clip();
+    var g = cx.createLinearGradient(left, top, left + CW, top + HEAD);
+    g.addColorStop(0, RC.navy); g.addColorStop(1, RC.navy2);
+    cx.fillStyle = g; cx.fillRect(left, top, CW, HEAD);
+    cx.restore();
+    cx.fillStyle = RC.amber; cx.fillRect(left, top + HEAD - 8, CW, 8);
+    cx.fillStyle = 'rgba(255,255,255,.72)'; cx.font = F('600', 24);
+    cx.textBaseline = 'alphabetic';
+    var proj = _projName().toUpperCase().split('').join(String.fromCharCode(8202));
+    cx.fillText(proj, left + P, top + 70);
+    cx.fillStyle = '#FFFFFF'; cx.font = F('700', 50);
+    cx.fillText(o.verb === 'Approved' ? 'Request Approved' : 'Unit Booked', left + P, top + 132);
+    cx.fillStyle = 'rgba(255,255,255,.72)'; cx.font = F('400', 26);
+    cx.fillText('Reserve Desk · decision record', left + P, top + 176);
+    cx.textAlign = 'right';
+    cx.fillStyle = 'rgba(255,255,255,.72)'; cx.font = F('400', 24);
+    var st = String(o.stamp || '').split(', ');
+    cx.fillText(st[0] || '', left + CW - P, top + 70);
+    cx.fillStyle = '#FFFFFF'; cx.font = F('700', 30);
+    cx.fillText(st[1] || '', left + CW - P, top + 110);
+    cx.textAlign = 'left';
+
+    /* ── the hero: the unit, large, and the status as a stamp ── */
+    var y = top + HEAD;
+    var tag = o.tag || (one ? it[0].tag : null) || 'Mixed';
+    var ink = _tagInk(tag);
+    cx.textAlign = 'center';
+    if (one) {
+      cx.fillStyle = RC.mut; cx.font = F('600', 24);
+      cx.fillText('UNIT', W / 2, y + 62);
+      cx.fillStyle = RC.ink; cx.font = F('800', 112);
+      cx.fillText(it[0].no, W / 2, y + 170);
+      if (it[0].floor) { cx.fillStyle = RC.mut; cx.font = F('400', 26); cx.fillText(it[0].floor, W / 2, y + 212); }
+    } else {
+      cx.fillStyle = RC.mut; cx.font = F('600', 24);
+      cx.fillText('UNITS', W / 2, y + 62);
+      cx.fillStyle = RC.ink; cx.font = F('800', 96);
+      cx.fillText(String(it.length), W / 2, y + 160);
+    }
+    /* the stamp */
+    var stampTxt = (o.tag ? String(o.tag) : 'As asked').toUpperCase();
+    cx.font = F('800', 28);
+    var sw = cx.measureText(stampTxt).width + 64, sx = W / 2 - sw / 2, sy = y + (one ? 236 : 186);
+    _rr(cx, sx, sy, sw, 52, 26);
+    cx.fillStyle = ink + '1A'; cx.fill();
+    cx.lineWidth = 3; cx.strokeStyle = ink; cx.stroke();
+    cx.fillStyle = ink; cx.fillText(stampTxt, W / 2, sy + 37);
+    cx.textAlign = 'left';
+    y += HERO;
+
+    /* a perforation, with the two notches of a ticket */
+    var perf = function (yy) {
+      cx.save();
+      cx.fillStyle = RC.bg;
+      cx.beginPath(); cx.arc(left, yy, 18, 0, Math.PI * 2); cx.fill();
+      cx.beginPath(); cx.arc(left + CW, yy, 18, 0, Math.PI * 2); cx.fill();
+      cx.setLineDash([12, 12]); cx.strokeStyle = '#CBD5E1'; cx.lineWidth = 3;
+      cx.beginPath(); cx.moveTo(left + 34, yy); cx.lineTo(left + CW - 34, yy); cx.stroke();
+      cx.restore();
+    };
+    perf(y);
+    y += 30;
+
+    /* ── the lines the group reads ── */
+    if (one) {
+      rows.forEach(function (r, k) {
+        var h = rowH[k];
+        if (r[2]) {
+          _rr(cx, left + P - 18, y + 4, IW + 36, h - 8, 14);
+          cx.fillStyle = RC.warnBg; cx.fill();
+        }
+        cx.fillStyle = RC.mut; cx.font = F('400', 28);
+        cx.fillText(r[0], left + P, y + 46);
+        cx.fillStyle = r[2] ? RC.warnInk : RC.ink; cx.font = F(r[2] ? '700' : '600', 30);
+        var ls = _wrap(cx, r[1], valW - (r[2] ? 28 : 0));
+        ls.forEach(function (ln, j) { cx.fillText(ln, left + P + labelW, y + 46 + j * LH); });
+        if (!r[2] && k < rows.length - 1) {
+          cx.fillStyle = RC.line; cx.fillRect(left + P, y + h - 1, IW, 2);
+        }
+        y += h;
+      });
+    } else {
+      list.forEach(function (x, k) {
+        var h = listH[k];
+        if (x.warn) { _rr(cx, left + P - 18, y + 6, IW + 36, h - 12, 14); cx.fillStyle = RC.warnBg; cx.fill(); }
+        cx.fillStyle = RC.ink; cx.font = F('800', 34);
+        cx.fillText(x.no, left + P, y + 46);
+        var nw = cx.measureText(x.no).width;
+        cx.font = F('400', 26); cx.fillStyle = RC.mut;
+        var who = (o.tag ? '' : (x.tag || 'Reserved') + ' · ') + 'for ' + (x.who || '—') +
+                  (x.days == null ? ' · no expiry' : ' · ' + x.days + 'd');
+        cx.fillText(who, left + P + nw + 18, y + 46);
+        cx.fillStyle = x.warn ? RC.warnInk : RC.ink; cx.font = F(x.warn ? '600' : '400', 26);
+        _wrap(cx, x.s.line, IW - 24).forEach(function (ln, j) { cx.fillText(ln, left + P, y + 88 + j * 36); });
+        if (!x.warn && k < list.length - 1) { cx.fillStyle = RC.line; cx.fillRect(left + P, y + h - 1, IW, 2); }
+        y += h;
+      });
+      if (it.length > MAXN) {
+        cx.fillStyle = RC.mut; cx.font = F('600', 26);
+        cx.fillText('+ ' + (it.length - MAXN) + ' more unit' + (it.length - MAXN === 1 ? '' : 's') +
+                    ' — see the Daybook', left + P, y + 40);
+        y += 60;
+      }
+    }
+    y += 30;
+
+    /* ── who decided ── */
+    perf(y);
+    cx.fillStyle = RC.mut; cx.font = F('400', 26);
+    cx.fillText('Decided by', left + P, y + 62);
+    cx.fillStyle = RC.ink; cx.font = F('700', 34);
+    cx.fillText(o.by || '—', left + P, y + 106);
+    cx.textAlign = 'right';
+    cx.fillStyle = RC.mut; cx.font = F('400', 26);
+    cx.fillText('Recorded', left + CW - P, y + 62);
+    cx.fillStyle = RC.ink; cx.font = F('600', 30);
+    cx.fillText(o.stamp || '', left + CW - P, y + 104);
+    cx.textAlign = 'center';
+    cx.fillStyle = '#94A3B8'; cx.font = F('400', 22);
+    cx.fillText('Nexunova RMS · the unit’s history is read from the books at the moment of decision',
+                W / 2, y + 160);
+    cx.textAlign = 'left';
+    return cv;
+  }
+
+  function _shareSheet(o) {
+    if (!o || !o.items || !o.items.length) return;
+    var cv;
+    try { cv = _receipt(o); } catch (e) { cv = null; }
     var host = _root() || document.body;
     var old = document.getElementById('rd-share'); if (old) old.parentNode.removeChild(old);
     var wrap = document.createElement('div');
     wrap.id = 'rd-share';
     wrap.className = 'rd-ask rd-trail';
+    var canFile = false;
+    try {
+      canFile = !!(navigator.canShare && window.File &&
+        navigator.canShare({ files: [new File(['x'], 'x.jpg', { type: 'image/jpeg' })] }));
+    } catch (e) {}
+    var canCopy = !!(navigator.clipboard && window.ClipboardItem && window.isSecureContext);
     wrap.innerHTML =
       '<div class="rd-ask-c">' +
         '<div class="rd-ask-t">Share with the group</div>' +
-        '<div class="tr-s">The decision and the unit’s short trail, ready for WhatsApp.</div>' +
-        '<pre class="sh-pre">' + esc(text) + '</pre>' +
+        '<div class="tr-s">The decision as a picture, ready for WhatsApp.</div>' +
+        (cv ? '<img class="sh-img" alt="Decision receipt" src="' + cv.toDataURL('image/jpeg', 0.92) + '">'
+            : '<pre class="sh-pre">' + esc(o.text) + '</pre>') +
         '<div class="rd-ask-r">' +
           '<button type="button" data-shx>Close</button>' +
-          '<button type="button" data-shc>Copy</button>' +
-          '<button type="button" data-askok data-shw>WhatsApp</button>' +
+          '<button type="button" data-shs>Save image</button>' +
+          (canFile ? '<button type="button" data-askok data-shf>Share</button>'
+           : canCopy ? '<button type="button" data-askok data-shc>Copy image</button>' : '') +
         '</div>' +
       '</div>';
     host.appendChild(wrap);
+    var name = (o.items.length === 1 ? o.items[0].no : o.items.length + ' units') + ' ' +
+               (o.tag || 'decision') + ' ' + String(o.stamp || '').replace(/[,:]/g, '').replace(/\s+/g, ' ');
+    name = name.replace(/[^A-Za-z0-9 _.-]/g, '-') + '.jpg';
+    /* the files are made now, so Share and Copy answer the tap at once —
+       a phone only lets a share open inside the tap that asked for it */
+    var jpg = null, png = null;
+    if (cv && cv.toBlob) {
+      cv.toBlob(function (b) { jpg = b; }, 'image/jpeg', 0.92);
+      if (canCopy) cv.toBlob(function (b) { png = b; }, 'image/png');
+    }
     var shut = function () {
       document.removeEventListener('keydown', key);
       if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
@@ -2049,8 +2291,27 @@
     document.addEventListener('keydown', key);
     wrap.addEventListener('click', function (e) {
       if (e.target === wrap || e.target.closest('[data-shx]')) return shut();
-      if (e.target.closest('[data-shc]')) { _portalCopy(text, 'Copied — paste it into the group.'); return shut(); }
-      if (e.target.closest('[data-shw]')) { _waSend(text); return shut(); }
+      if (e.target.closest('[data-shs]')) {
+        if (!cv) { _portalCopy(o.text, 'Copied — paste it into the group.'); return; }
+        var a = document.createElement('a');
+        a.href = cv.toDataURL('image/jpeg', 0.92); a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        toast('Image saved.', 'ok');
+        return;
+      }
+      if (e.target.closest('[data-shf]')) {
+        if (!jpg) { toast('One moment — the picture is still being made.', 'warn'); return; }
+        navigator.share({ files: [new File([jpg], name, { type: 'image/jpeg' })] })
+          .then(function () { shut(); }, function () {});
+        return;
+      }
+      if (e.target.closest('[data-shc]')) {
+        if (!png) { toast('One moment — the picture is still being made.', 'warn'); return; }
+        navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]).then(function () {
+          toast('Image copied — paste it into the WhatsApp group.', 'ok'); shut();
+        }, function () { toast('Could not copy the image — use Save image instead.', 'err'); });
+        return;
+      }
     });
   }
 
