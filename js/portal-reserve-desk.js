@@ -122,6 +122,33 @@
       ".rd-ask-r [data-askok]{border:0;background:var(--fk-accent);color:#fff}" +
       ".rd-ask.danger .rd-ask-r [data-askok]{background:var(--fk-danger)}" +
       ".rd-ask-r button:active{transform:scale(.98)}" +
+      /* the trail before Approve: wider, and it scrolls inside itself */
+      ".rd-trail .rd-ask-c{max-width:560px;max-height:88vh;display:flex;flex-direction:column}" +
+      ".rd-trail .rd-ask-r [data-askok]:disabled{opacity:.5}" +
+      ".tr-s{font-size:12.5px;color:var(--fk-text-muted);margin-top:3px}" +
+      ".tr-b{overflow-y:auto;margin-top:12px;-webkit-overflow-scrolling:touch;min-height:60px}" +
+      ".tr-u{padding:10px 0;border-top:1px solid var(--fk-border)}" +
+      ".tr-u:first-child{border-top:0;padding-top:0}" +
+      ".tr-uh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px}" +
+      ".tr-uh b{font-size:16px;color:var(--fk-text)}" +
+      ".tr-pill{font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;color:#fff;background:var(--c)}" +
+      ".tr-m{font-size:12px;color:var(--fk-text-muted)}" +
+      ".tr-f{font-size:13px;line-height:1.45;padding:8px 10px;border-radius:9px;margin-top:6px;" +
+        "color:var(--fk-text);border:1px solid var(--fk-border)}" +
+      ".tr-f.red{background:var(--fk-danger-surface);border-color:var(--fk-danger-edge)}" +
+      ".tr-f.amber{background:var(--fk-warning-surface);border-color:var(--fk-warning-edge)}" +
+      ".tr-f.ok{background:var(--fk-success-surface,rgba(20,107,58,.10));border-color:var(--fk-success-edge,rgba(20,107,58,.32))}" +
+      ".tr-d{margin-top:9px}" +
+      ".tr-d summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--fk-accent);padding:4px 0}" +
+      ".tr-e{display:grid;grid-template-columns:86px 1fr;gap:8px;padding:7px 0;border-top:1px solid var(--fk-border);font-size:12.5px;color:var(--fk-text)}" +
+      ".tr-et{color:var(--fk-text-muted);font-size:11.5px;line-height:1.35}" +
+      ".tr-k{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;" +
+        "padding:1px 6px;margin-right:6px;border-radius:5px;background:var(--fk-border);color:var(--fk-text)}" +
+      ".tr-e.k-expire .tr-k,.tr-e.k-cancel .tr-k,.tr-e.k-release .tr-k,.tr-e.k-refund .tr-k{background:var(--fk-danger);color:#fff}" +
+      ".tr-e.k-token .tr-k,.tr-e.k-allocation .tr-k{background:#15803d;color:#fff}" +
+      ".tr-e.k-hold .tr-k{background:#d97706;color:#fff}" +
+      ".tr-ed{color:var(--fk-text-muted);font-size:11.5px;margin-top:2px;line-height:1.4}" +
+      ".tr-ew{color:var(--fk-text-muted);font-size:11px;margin-top:2px}" +
       ".rd-rel .rd-meta{margin-top:0}" +
       ".rd-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:6px}" +
       ".rd-chip{height:38px;min-width:44px;padding:0 13px;border-radius:var(--fk-radius-control);" +
@@ -1692,6 +1719,194 @@
     });
   }
 
+  /* ── THE TRAIL, BEFORE APPROVE ───────────────────────────────────────────
+     Rashid: "reserve desk pe jab mai approve karun unit ko to pehle muje trail
+     show kare k ye unit pehle reserve howa tha, is banday means sale rep ne
+     kiya tha is k liye kia tha, token is mai aaya howa hai ya nahi … us k baad
+     decision lun". LG-22 and LG-23 are why: Yousaf Shah's hold ran out on
+     19-Sep, the sweep put them back, and on 22-Sep they were approved for
+     somebody else — with nothing on this card to say they had been his.
+
+     So every Approve on the queue — one tap, a chosen tag, a bulk answer —
+     stops here first. The unit's whole history comes from get_unit_trail_desk
+     (the same trail the Directors' Room reads), and the panel says the things
+     that matter for this decision on top: who held it before and how that
+     ended, whether token is already in the books, and anything the server
+     itself flags. Then Approve, or not.
+
+     If the trail cannot be read the panel says so and still lets him approve:
+     a missing history is not a reason to stop the desk working. */
+  function _trDay(s) {
+    var d = new Date(s);
+    if (isNaN(d)) return '';
+    /* Pakistan's calendar day, written the way the rest of the desk writes it */
+    var k = new Date(d.getTime() + 5 * 3600000);
+    return k.getUTCDate() + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov',
+      'Dec'][k.getUTCMonth()] + ' ' + k.getUTCFullYear();
+  }
+  function _trAgo(s) {
+    var n = Math.floor((Date.now() - new Date(s).getTime()) / 86400000);
+    return isNaN(n) ? '' : n <= 0 ? 'today' : n === 1 ? 'yesterday' : n + ' days ago';
+  }
+  function _trSame(a, b) {
+    return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+  }
+  var _TR_KIND = { created: 'Created', area: 'Area', price: 'Price', status: 'Status', request: 'Link request',
+                   hold: 'Hold', holder: 'Holder', extend: 'Extended', release: 'Released', expire: 'Expired',
+                   cancel: 'Cancelled', token: 'Token', refund: 'Token returned', allocation: 'Books' };
+
+  /* the few sentences this decision turns on, worst first */
+  function _trFlags(t, asker) {
+    var out = [], ev = t.events || [], u = t.unit || {};
+    /* every hold that has ended, newest first; the server writes who it was for */
+    var ended = ev.filter(function (e) { return e.kind === 'expire' || e.kind === 'cancel' || e.kind === 'release'; })
+      .map(function (e) {
+        var m = /Hold for (.+?) taken /.exec(e.detail || '');
+        return { e: e, name: m ? m[1] : '' };
+      });
+    if (u.holder && !u.available) {
+      out.push({ lv: 'red', t: 'Held right now for <b>' + esc(u.holder) + '</b>' +
+        (u.hold_until ? ' until ' + esc(_trDay(u.hold_until)) : '') +
+        (u.buyer ? ' · buyer ' + esc(u.buyer) : '') + '.' });
+    }
+    if (ended.length) {
+      var last = ended[0], other = last.name && !_trSame(last.name, asker);
+      var how = last.e.kind === 'expire' ? 'ran out on its own' : last.e.kind === 'release' ? 'was released'
+              : 'was cancelled';
+      out.push({ lv: other ? 'red' : 'amber',
+        t: 'Last held for <b>' + esc(last.name || 'someone') + '</b> — it ' + how + ' on ' +
+           esc(_trDay(last.e.at)) + ' (' + esc(_trAgo(last.e.at)) + ')' +
+           (last.e.who ? ', by ' + esc(last.e.who) : '') + '.' +
+           (other && last.e.kind === 'expire'
+             ? ' It was not given back by a person — ' + esc(last.name) + ' may still think it is theirs.' : '') });
+      var names = [];
+      ended.forEach(function (x) {
+        if (x.name && !names.some(function (n) { return _trSame(n, x.name); })) names.push(x.name);
+      });
+      if (ended.length > 1) {
+        out.push({ lv: 'amber', t: 'Held ' + ended.length + ' times before, for ' +
+          names.map(function (n) { return '<b>' + esc(n) + '</b>'; }).join(', ') + '.' });
+      }
+    }
+    var tok = Number(u.token_total) || 0;
+    var toks = ev.filter(function (e) { return e.kind === 'token' || e.kind === 'allocation'; });
+    if (tok > 0) {
+      out.push({ lv: 'red', t: 'Token already in the books for this unit: <b>' + esc(pkrFull(tok)) + '</b>' +
+        (u.buyer ? ' · buyer ' + esc(u.buyer) : '') + '.' });
+    } else if (toks.length) {
+      out.push({ lv: 'amber', t: 'Token has moved against this unit before (' + toks.length + ' entr' +
+        (toks.length === 1 ? 'y' : 'ies') + ' in NexuFinance) — see the history.' });
+    }
+    (t.checks || []).forEach(function (c) {
+      out.push({ lv: c.level === 'amber' ? 'amber' : 'red', t: esc(c.text) });
+    });
+    return out;
+  }
+
+  function _trUnit(t, asker, open) {
+    if (!t || t.success === false) {
+      return '<div class="tr-u"><div class="tr-uh"><b>' + esc((t && t.unit_no) || '') + '</b></div>' +
+        '<div class="tr-f amber">The history could not be read for this unit' +
+        (t && t.error === 'ambiguous' ? ' (two units share this number)' : '') + '.</div></div>';
+    }
+    var u = t.unit || {}, ev = t.events || [], fl = _trFlags(t, asker);
+    return '<div class="tr-u">' +
+      '<div class="tr-uh"><b>' + esc(u.code) + '</b>' +
+        '<span class="tr-pill" style="--c:' + esc(u.color || '#64748b') + '">' +
+          esc(u.public_label || u.status || '') + '</span>' +
+        '<span class="tr-m">' + esc(u.floor || '') + '</span></div>' +
+      (fl.length
+        ? fl.map(function (f) { return '<div class="tr-f ' + f.lv + '">' + f.t + '</div>'; }).join('')
+        : '<div class="tr-f ok">Never held before and no token in the books — nothing to check.</div>') +
+      '<details class="tr-d"' + (open ? ' open' : '') + '><summary>Full history — ' + ev.length +
+        ' event' + (ev.length === 1 ? '' : 's') + ', newest first</summary>' +
+        (ev.length ? ev.map(function (e) {
+          return '<div class="tr-e k-' + esc(e.kind) + '">' +
+            '<div class="tr-et">' + esc(e.day_only || e.time_unknown ? _trDay(e.at)
+              : _trDay(e.at) + ' ' + new Date(e.at).toLocaleTimeString('en-GB',
+                  { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: false })) + '</div>' +
+            '<div class="tr-eb"><span class="tr-k">' + esc(_TR_KIND[e.kind] || e.kind) + '</span>' +
+              esc(e.title || '') +
+              (e.detail ? '<div class="tr-ed">' + esc(e.detail) + '</div>' : '') +
+              (e.kind === 'token' || e.kind === 'allocation' || e.kind === 'refund'
+                ? '<div class="tr-ew">From the books (NexuFinance)</div>'
+                : e.who ? '<div class="tr-ew">Who: ' + esc(e.who) + '</div>' : '') +
+            '</div></div>';
+        }).join('') : '<div class="tr-m">Nothing recorded yet.</div>') +
+      '</details></div>';
+  }
+
+  /* Resolves true to go ahead, false to leave everything as it was. */
+  function _trailGate(ids) {
+    var rows = (DESK.reqs || []).filter(function (r) { return ids.indexOf(r.id) >= 0; });
+    var units = [], asker = {};
+    rows.forEach(function (r) {
+      if (r.unit_id && units.indexOf(r.unit_id) < 0) { units.push(r.unit_id); asker[r.unit_id] = r.requested_by; }
+    });
+    if (!units.length) return Promise.resolve(true);
+    var who = rows.map(function (r) { return r.requested_by; })
+      .filter(function (n, i, a) { return n && a.indexOf(n) === i; });
+    return new Promise(function (done) {
+      var host = _root() || document.body;
+      var old = _q('#rd-trail'); if (old) old.parentNode.removeChild(old);
+      var wrap = document.createElement('div');
+      wrap.id = 'rd-trail';
+      wrap.className = 'rd-ask rd-trail';
+      wrap.innerHTML =
+        '<div class="rd-ask-c">' +
+          '<div class="rd-ask-t">Check before approving</div>' +
+          '<div class="tr-s">' + (units.length === 1 ? esc(rows[0].unit_no) : units.length + ' units') +
+            (who.length ? ' · asked by ' + esc(who.join(', ')) : '') + '</div>' +
+          '<div class="tr-b" id="tr-b"><div class="tr-m">Reading the unit’s history…</div></div>' +
+          '<div class="rd-ask-r">' +
+            '<button type="button" data-askno>Cancel</button>' +
+            '<button type="button" data-askok disabled>Approve</button>' +
+          '</div>' +
+        '</div>';
+      host.appendChild(wrap);
+      var shut = function (yes) {
+        document.removeEventListener('keydown', key);
+        if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+        done(yes);
+      };
+      var key = function (e) { if (e.key === 'Escape') { e.preventDefault(); shut(false); } };
+      wrap.addEventListener('click', function (e) {
+        if (e.target === wrap || e.target.closest('[data-askno]')) return shut(false);
+        var ok = e.target.closest('[data-askok]');
+        if (ok && !ok.disabled) return shut(true);
+      });
+      document.addEventListener('keydown', key);
+
+      var body = wrap.querySelector('#tr-b'), okb = wrap.querySelector('[data-askok]');
+      sb.rpc('get_unit_trail_desk', { p_session_token: TOKEN, p_unit_ids: units })
+        .then(function (r) { return r && r.data; }, function () { return null; })
+        .then(function (d) {
+          if (!wrap.parentNode) return;
+          if (d && d.error === 'session_expired') { shut(false); return sessionGone(); }
+          var trails = (d && d.success && d.trails) || null;
+          var warn = false;
+          if (!trails) {
+            body.innerHTML = '<div class="tr-f amber">The unit’s history could not be read just now. ' +
+              'You can still approve, or cancel and try again.</div>';
+          } else {
+            /* the units with something to say first */
+            var scored = trails.map(function (t) {
+              var f = t.success === false ? [{ lv: 'amber' }] : _trFlags(t, asker[t.unit_id]);
+              return { t: t, red: f.some(function (x) { return x.lv === 'red'; }), n: f.length };
+            });
+            warn = scored.some(function (x) { return x.red; });
+            scored.sort(function (a, b) { return (b.red - a.red) || (b.n - a.n); });
+            body.innerHTML = scored.map(function (x) {
+              return _trUnit(x.t, asker[x.t.unit_id], trails.length === 1);
+            }).join('');
+          }
+          okb.disabled = false;
+          okb.textContent = warn ? 'Approve anyway' : 'Approve';
+          wrap.classList.toggle('danger', warn);
+        });
+    });
+  }
+
   /* the sentence itself, written once so book and change cannot describe the
      same action differently */
   function _sayWhat(units, tagName, permanent, days, who, client) {
@@ -2351,6 +2566,11 @@
       /* Every call first, then ONE reload. Reloading between them repainted
          the queue under the loop and the second status was never sent. */
       if (DESK.reqBusy || !order.length) return;
+      /* the history first, for every unit about to be booked */
+      var allIds = [];
+      order.forEach(function (t) { allIds = allIds.concat(byTag[t]); });
+      if (!(await _trailGate(allIds))) return;
+      if (DESK.reqBusy) return;
       DESK.reqBusy = 'bulkasked';
       b.disabled = true; b.textContent = 'Approving…';
       var done = 0, bad = [], gone = false;
@@ -2395,6 +2615,8 @@
   async function _reqDecideMany(ids, act, tagId, b) {
     if (!ids || !ids.length) return;
     if (DESK.reqBusy) return;
+    if (act === 'approve' && !(await _trailGate(ids))) return;
+    if (DESK.reqBusy) return;
     DESK.reqBusy = ids[0];
     var was = b ? b.textContent : '';
     if (b) { b.disabled = true; b.textContent = (act === 'approve' ? 'Approving ' : 'Declining ') + ids.length + '\u2026'; }
@@ -2437,6 +2659,8 @@
      Approve arrives carrying the one that was chosen. */
   async function _reqDecide(card, id, act, tagId, b) {
     if (!card || !id) return;
+    if (DESK.reqBusy) return;
+    if (act === 'approve' && !(await _trailGate([id]))) return;
     if (DESK.reqBusy) return;
     DESK.reqBusy = id;
     var all = card.querySelectorAll('button');
