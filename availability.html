@@ -7701,7 +7701,7 @@ async function repOpen() {
 var TOKEN = '';           // the SALES SESSION. The link is LINK, up above.
 var ME = null;
 var TAB = 'desk';
-var DESK_SRC = '/js/portal-reserve-desk.js?v=20261005extcard';
+var DESK_SRC = '/js/portal-reserve-desk.js?v=20261005relcard';
 var DESK_UP = false, DESKV = false;
 /* the portal's own key, on purpose: same origin, same phone, so a director
    already signed into the CRM here is not asked twice */
@@ -7987,7 +7987,7 @@ $('rep-body').addEventListener('click', function (e) {
   var no = row.getAttribute('data-rel');
   var u = held().filter(function (r) { return r.n === no; })[0];
   if (!u) return;
-  RELQ = no;
+  RELQ = no; RELU = u;
   $('rel-w').innerHTML =
     '<b>' + esc(no) + '</b> on ' + esc(u.f || 'this floor') +
     ' is ' + esc(u.k || 'not available') +
@@ -8003,7 +8003,8 @@ $('rep-body').addEventListener('click', function (e) {
   $('rel-ok').textContent = 'Release';
   $('relask').hidden = false;
 });
-function relShut() { $('relask').hidden = true; RELQ = null; }
+var RELU = null;
+function relShut() { $('relask').hidden = true; RELQ = null; RELU = null; }
 $('rel-no').onclick = relShut;
 $('relask').addEventListener('click', function (e) {
   if (e.target === $('relask')) relShut();
@@ -8029,8 +8030,11 @@ $('rel-ok').onclick = async function () {
       $('rel-ok').disabled = false; $('rel-ok').textContent = 'Release';
       return;
     }
+    var ru = RELU;
     relShut();
     toast(esc(no) + ' released — it is back on the shelf.');
+    /* the picture for the group, straight away, as the desk does after a booking */
+    if (ru) decShareCard({ card: relCardSpec([{ n: no, k: ru.k, e: ru.e, f: ru.f }], ru.w, decBy()) });
     /* the room again, and the building again */
     var rep = await sb.rpc('get_availability_report',
       { p_token: LINK, p_password: REPPW });
@@ -8281,12 +8285,43 @@ function decCardSpec(g, done, wasBy, days, by) {
     text: decMsg('extend', g.who, ns, first.x ? decUntil(first.x) : '')
   };
 }
+/* ── THE RELEASE, AS A PICTURE ──────────────────────────────────────────
+   Rashid: "release ki bhi image banao". The same receipt, for a hold that
+   was let go: whose it was, what kind, until when it would have run, how
+   early it ended, and that the unit is open for sale again. Used by the
+   holds that wait for a decision and by the Release dialog alike. */
+function relCardSpec(us, who, by) {
+  var one = us.length === 1, first = us[0] || {}, now = new Date();
+  var hit = one ? findUnit(first.n) : null;
+  var rows = [['Held for', who || 'No name on the hold'], ['Hold type', first.k || 'Hold']];
+  if (!one) rows.push(['Units', us.map(function (u) { return u.n; }).join(', ')]);
+  if (first.e) {
+    rows.push(['Was held until', decStamp(first.e)]);
+    var left = Math.round((new Date(first.e) - now) / 86400000);
+    rows.push(['Ended', left >= 1 ? 'Released ' + left + ' day' + (left === 1 ? '' : 's') + ' before its end date'
+                                  : 'Its time had run out']);
+  }
+  rows.push(['Status now', 'Available — open for sale', 'good']);
+  var when = decStamp(now.toISOString());
+  return {
+    spec: { project: (P && P.project) || '', title: 'Hold Released',
+            sub: 'Directors’ Room · decision record',
+            label: one ? 'UNIT' : 'UNITS', big: one ? first.n : String(us.length),
+            small: one ? (hit && hit.f ? hit.f.floor_label : (first.f || '')) : '',
+            stamp: 'Back to Available', stampInk: '#0F7A38',
+            rows: rows, by: by || 'Directors’ Room', when: when,
+            foot: 'Nexunova RMS · the unit is open for sale again' },
+    name: 'Released ' + (one ? first.n : us.length + ' units') + ' ' + when.replace(/[,:]/g, ''),
+    text: decMsg('release', who, us.map(function (u) { return u.n; }), '')
+  };
+}
 function decShareCard(x, btn) {
   if (!x || !x.card) return;
   var go = function () {
     if (typeof window.RDShareCard !== 'function') { toast('The picture could not be made.', 'err'); return; }
-    window.RDShareCard(x.card.spec, x.card.name, 'Share the extension',
-                       'The extension as a picture, ready for WhatsApp.', x.card.text);
+    var rel = x.card.spec.title === 'Hold Released';
+    window.RDShareCard(x.card.spec, x.card.name, rel ? 'Share the release' : 'Share the extension',
+                       (rel ? 'The release' : 'The extension') + ' as a picture, ready for WhatsApp.', x.card.text);
   };
   if (typeof window.RDShareCard === 'function') return go();
   if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
@@ -8331,6 +8366,12 @@ async function decAct(g, action) {
     var ns = (d.done || []).map(function (x) { return x.n; });
     var card = null;
     if (action === 'extend' && ns.length) card = decCardSpec(g, d.done, wasBy, days, by);
+    if (action !== 'extend' && ns.length) {
+      card = relCardSpec(ns.map(function (n) {
+        var u0 = g.units.filter(function (u) { return u.n === n; })[0] || {};
+        return { n: n, k: u0.k, e: wasBy[n] };
+      }), g.who, by);
+    }
     var skipped = (d.skipped || []).map(function (x) { return x.n; }).filter(Boolean);
     if (ns.length) {
       var until = action === 'extend' && d.done[0].x ? decUntil(d.done[0].x) : '';

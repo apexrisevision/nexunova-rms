@@ -2312,7 +2312,7 @@
     cx.fillText(String(spec.big || ''), W / 2, y + 170);
     if (spec.small) { cx.fillStyle = RC.mut; cx.font = F('400', 26); cx.fillText(spec.small, W / 2, y + 212); }
     if (spec.stamp) {
-      var ink = _tagInk(spec.stampTag || spec.stamp), stx = String(spec.stamp).toUpperCase();
+      var ink = spec.stampInk || _tagInk(spec.stampTag || spec.stamp), stx = String(spec.stamp).toUpperCase();
       cx.font = F('800', 28);
       var sw = cx.measureText(stx).width + 64, sx = W / 2 - sw / 2, sy = y + 236;
       _rr(cx, sx, sy, sw, 52, 26);
