@@ -125,6 +125,9 @@
       /* the trail before Approve: wider, and it scrolls inside itself */
       ".rd-trail .rd-ask-c{max-width:560px;max-height:88vh;display:flex;flex-direction:column}" +
       ".rd-trail .rd-ask-r [data-askok]:disabled{opacity:.5}" +
+      ".sh-pre{white-space:pre-wrap;word-break:break-word;font:inherit;font-size:13px;line-height:1.5;" +
+        "color:var(--fk-text);background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:10px;" +
+        "padding:10px 12px;margin:12px 0 0;overflow-y:auto;max-height:55vh}" +
       ".tr-s{font-size:12.5px;color:var(--fk-text-muted);margin-top:3px}" +
       ".tr-b{overflow-y:auto;margin-top:12px;-webkit-overflow-scrolling:touch;min-height:60px}" +
       ".tr-u{padding:10px 0;border-top:1px solid var(--fk-border)}" +
@@ -1910,6 +1913,8 @@
           if (!wrap.parentNode) return;
           if (d && d.error === 'session_expired') { shut(false); return sessionGone(); }
           var trails = (d && d.success && d.trails) || null;
+          /* kept for the share after the decision */
+          (trails || []).forEach(function (t) { if (t && t.unit_id) _TRAILS[t.unit_id] = t; });
           var warn = false;
           if (!trails) {
             body.innerHTML = '<div class="tr-f amber">The unit’s history could not be read just now. ' +
@@ -1930,6 +1935,122 @@
           okb.textContent = warn ? verb + ' anyway' : verb;
           wrap.classList.toggle('danger', warn);
         });
+    });
+  }
+
+  /* ── THE SHORT TRAIL, FOR THE GROUP ──────────────────────────────────────
+     Rashid: "jo tum ne trail banaya wo trail ham decision k sath group mai
+     share karain. k approved reserve, aur is se pehle kia status tha". So the
+     history read for the panel above is kept, and after the decision it is
+     boiled down to the three facts the group argues about: what the unit was
+     a moment ago, whose hold it was before and how that ended, and whether
+     token is sitting in the books. One line a unit; the same line goes into
+     the Daybook's trail report. */
+  var _TRAILS = {};                     // unit id -> the last trail read for it
+  function _trWas(t, at) {
+    var ev = (t && t.events) || [];
+    if (at == null) return (t.unit && (t.unit.public_label || t.unit.status)) || '';
+    /* the status change made by the booking itself says what it replaced */
+    var hit = ev.filter(function (e) {
+      return e.kind === 'status' && Math.abs(new Date(e.at) - at) < 5000;
+    }).pop();
+    if (hit && / → /.test(hit.title)) return hit.title.split(' → ')[0];
+    var prev = ev.filter(function (e) { return e.kind === 'status' && new Date(e.at) < at - 5000; })[0];
+    if (prev && / → /.test(prev.title)) return prev.title.split(' → ').pop();
+    return '';
+  }
+  function _trShort(t, at) {
+    if (!t || t.success === false || !t.unit) return { line: 'history not available' };
+    var ev = t.events || [], cut = at == null ? Infinity : at - 5000;
+    var ended = ev.filter(function (e) {
+      return (e.kind === 'expire' || e.kind === 'cancel' || e.kind === 'release') && new Date(e.at) < cut;
+    });
+    var holds = ev.filter(function (e) { return e.kind === 'hold' && new Date(e.at) < cut; }).length;
+    var o = { was: _trWas(t, at) };
+    if (ended.length) {
+      var m = /Hold for (.+?) taken /.exec(ended[0].detail || ''), nm = m ? m[1] : 'someone';
+      var how = ended[0].kind === 'expire' ? 'ran out on its own' : ended[0].kind === 'release'
+              ? 'was released' : 'was cancelled';
+      o.last = nm + '’s hold ' + how + ' on ' + _trDay(ended[0].at) +
+               (holds > 1 ? ' (held ' + holds + ' times before)' : '');
+    } else {
+      o.last = holds ? 'held before, still standing' : 'never held before';
+    }
+    var tok = Number(t.unit.token_total) || 0;
+    o.token = tok > 0 ? pkrFull(tok) + (t.unit.buyer ? ' (buyer ' + t.unit.buyer + ')' : '') : 'none';
+    o.line = (o.was ? 'was ' + o.was + ' · ' : '') + 'before: ' + o.last + ' · token: ' + o.token;
+    return o;
+  }
+  function _nowStamp() {
+    var d = new Date(), k = new Date(d.getTime() + 5 * 3600000);
+    return _trDay(d) + ', ' + String(k.getUTCHours()).padStart(2, '0') + ':' +
+           String(k.getUTCMinutes()).padStart(2, '0');
+  }
+  function _spanTxt(days, until) {
+    if (days == null) return 'no expiry';
+    var u = until ? new Date(until) : new Date(Date.now() + Number(days) * 86400000);
+    return days + ' day' + (Number(days) === 1 ? '' : 's') + ', till ' + _trDay(u);
+  }
+  /* o: { verb, tag, items: [{ id, no, who, days, until, client }] } */
+  function _shareText(o) {
+    var it = o.items || [], L = [];
+    var oneWho = it.every(function (x) { return _trSame(x.who, it[0].who); });
+    var oneSpan = it.every(function (x) { return x.days === it[0].days; });
+    var by = (typeof ME !== 'undefined' && ME && (ME.sales_user_name || ME.name)) || '';
+    if (it.length === 1) {
+      var x = it[0], s = _trShort(_TRAILS[x.id]);
+      L.push('*' + x.no + ' — ' + o.verb + ': ' + (o.tag || 'Reserved') + '*');
+      L.push('For ' + (x.who || '—') + ' · ' + _spanTxt(x.days, x.until) +
+             (x.client ? ' · buyer ' + x.client : ''));
+      if (s.was) L.push('Was: ' + s.was);
+      L.push('Before: ' + (s.last || s.line));
+      if (s.token) L.push('Token in the books: ' + s.token);
+    } else {
+      L.push('*' + it.length + ' units — ' + o.verb + (o.tag ? ': ' + o.tag : '') + '*');
+      if (oneWho) L.push('For ' + (it[0].who || '—') + (oneSpan ? ' · ' + _spanTxt(it[0].days, it[0].until) : ''));
+      it.forEach(function (x) {
+        L.push('• ' + x.no + (o.tag ? '' : ' ' + (x.tag || 'Reserved')) + (oneWho ? '' : ' for ' + (x.who || '—')) +
+               (oneSpan ? '' : ' (' + _spanTxt(x.days, x.until) + ')') +
+               ' — ' + _trShort(_TRAILS[x.id]).line);
+      });
+    }
+    L.push((by ? 'Decided by ' + by + ' · ' : '') + _nowStamp());
+    return L.join('\n');
+  }
+  function _waSend(t) {
+    if (t.length > WA_MAX) { _portalCopy(t, 'Too long to send as a link — copied instead. Paste it into the group.'); return; }
+    try { window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank'); }
+    catch (e) { _portalCopy(t, 'Copied — paste it into the group.'); }
+  }
+  function _shareSheet(text) {
+    if (!text) return;
+    var host = _root() || document.body;
+    var old = document.getElementById('rd-share'); if (old) old.parentNode.removeChild(old);
+    var wrap = document.createElement('div');
+    wrap.id = 'rd-share';
+    wrap.className = 'rd-ask rd-trail';
+    wrap.innerHTML =
+      '<div class="rd-ask-c">' +
+        '<div class="rd-ask-t">Share with the group</div>' +
+        '<div class="tr-s">The decision and the unit’s short trail, ready for WhatsApp.</div>' +
+        '<pre class="sh-pre">' + esc(text) + '</pre>' +
+        '<div class="rd-ask-r">' +
+          '<button type="button" data-shx>Close</button>' +
+          '<button type="button" data-shc>Copy</button>' +
+          '<button type="button" data-askok data-shw>WhatsApp</button>' +
+        '</div>' +
+      '</div>';
+    host.appendChild(wrap);
+    var shut = function () {
+      document.removeEventListener('keydown', key);
+      if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+    };
+    var key = function (e) { if (e.key === 'Escape') { e.preventDefault(); shut(); } };
+    document.addEventListener('keydown', key);
+    wrap.addEventListener('click', function (e) {
+      if (e.target === wrap || e.target.closest('[data-shx]')) return shut();
+      if (e.target.closest('[data-shc]')) { _portalCopy(text, 'Copied — paste it into the group.'); return shut(); }
+      if (e.target.closest('[data-shw]')) { _waSend(text); return shut(); }
     });
   }
 
@@ -2070,6 +2191,16 @@
       for (i = 0; i < ids.length; i++) { var el = _q(ids[i]); if (el) el.value = ''; }
       var ub = _q('#rd-unit'); if (ub) { ub.value = ''; try { ub.focus(); } catch (e) {} }
     }
+    /* the booked ones, with their short trail, for the group */
+    var booked = rows.filter(function (x) { return x.success; }).map(function (x) {
+      var uu = DESK.byId[String(x.unit_id)] || {};
+      return { id: x.unit_id, no: x.unit_no || uu.n, who: x.requested_by || r.name, days: x.expiry_days,
+               until: x.expiry_date, tag: x.tag, client: cname };
+    });
+    if (booked.length) {
+      var oneT = booked.every(function (x) { return x.tag === booked[0].tag; });
+      _shareSheet(_shareText({ verb: 'Booked', tag: oneT ? (booked[0].tag || 'Reserved') : null, items: booked }));
+    }
   }
 
   /* Unit by unit, in the order they were sent. "3 of 20 failed" without
@@ -2175,6 +2306,9 @@
     toast(esc(d.unit_no || u.n) + ' ' + verb + ' ' + d.requested_by + ' · ' + span, 'ok');
     _clearLine();
     _paintToday();
+    _shareSheet(_shareText({ verb: 'Booked', tag: d.tag || 'Reserved',
+      items: [{ id: u.id, no: d.unit_no || u.n, who: d.requested_by || r.name, days: d.expiry_days,
+                until: d.expiry_date, client: args.p_client_name }] }));
   }
 
   /* Fold a successful booking into the cache. Deliberately separate from the
@@ -2606,6 +2740,8 @@
       order.forEach(function (t) { allIds = allIds.concat(byTag[t]); });
       if (!(await _trailGate(allIds))) return;
       if (DESK.reqBusy) return;
+      var askedRows = (DESK.reqs || []).filter(function (x) { return allIds.indexOf(x.id) >= 0; });
+      var allRes = [];
       DESK.reqBusy = 'bulkasked';
       b.disabled = true; b.textContent = 'Approving…';
       var done = 0, bad = [], gone = false;
@@ -2620,6 +2756,7 @@
         if (dd && dd.error === 'session_expired') { gone = true; break; }
         if (!dd) { bad.push('(no answer)'); continue; }
         done += Number(dd.done || 0);
+        allRes = allRes.concat(dd.results || []);
         (dd.results || []).forEach(function (x) { if (!x.success) bad.push(x.unit_no || '?'); });
       }
       DESK.reqBusy = null;
@@ -2632,6 +2769,7 @@
       }
       DESK.reqSel = {};
       await _refreshReqs(true);
+      var sh2 = _shareFromResults(allRes, askedRows); if (sh2) _shareSheet(sh2);
       return;
     }
     var card = b.closest('.rq-c'); if (!card) return;
@@ -2646,12 +2784,28 @@
     return _reqDecideMany(ids, act, tagId, b);
   }
 
+  /* the share for answers that came back as a list (bulk approve) */
+  function _shareFromResults(results, reqRows) {
+    var byId = {};
+    (reqRows || []).forEach(function (r) { byId[r.id] = r; });
+    var items = (results || []).filter(function (x) { return x && x.success && x.status !== 'declined'; })
+      .map(function (x) {
+        var q = byId[x.request_id] || {}, bk = x.booking || {};
+        return { id: q.unit_id, no: x.unit_no || bk.unit_no || q.unit_no, who: bk.requested_by || q.requested_by,
+                 days: bk.expiry_days, until: bk.expiry_date, tag: bk.tag || q.asked_tag };
+      });
+    if (!items.length) return null;
+    var oneTag = items.every(function (x) { return x.tag === items[0].tag; });
+    return _shareText({ verb: 'Approved', tag: oneTag ? items[0].tag : null, items: items });
+  }
+
   /* ── several requests, one answer ────────────────────────────────────── */
   async function _reqDecideMany(ids, act, tagId, b) {
     if (!ids || !ids.length) return;
     if (DESK.reqBusy) return;
     if (act === 'approve' && !(await _trailGate(ids))) return;
     if (DESK.reqBusy) return;
+    var rqs = (DESK.reqs || []).filter(function (x) { return ids.indexOf(x.id) >= 0; });
     DESK.reqBusy = ids[0];
     var was = b ? b.textContent : '';
     if (b) { b.disabled = true; b.textContent = (act === 'approve' ? 'Approving ' : 'Declining ') + ids.length + '\u2026'; }
@@ -2687,6 +2841,7 @@
     /* The whole desk is reloaded, not just the queue: approving books units,
        so the board, the index and today's list are all now out of date. */
     await _refreshReqs(true);
+    if (act === 'approve') { var sh = _shareFromResults(rows, rqs); if (sh) _shareSheet(sh); }
   }
 
   
@@ -2697,6 +2852,8 @@
     if (DESK.reqBusy) return;
     if (act === 'approve' && !(await _trailGate([id]))) return;
     if (DESK.reqBusy) return;
+    var rq0 = (DESK.reqs || []).filter(function (x) { return x.id === id; })[0] || {};
+    var share = null;
     DESK.reqBusy = id;
     var all = card.querySelectorAll('button');
     for (var i = 0; i < all.length; i++) all[i].disabled = true;
@@ -2724,6 +2881,9 @@
       var span = (bk.expiry_days == null) ? 'no expiry' : (bk.expiry_days + 'd');
       toast(esc(bk.unit_no || '') + ' · ' + esc(bk.tag || 'reserved') + ' for ' +
             esc(bk.requested_by || '') + ' · ' + span, 'ok');
+      share = _shareText({ verb: 'Approved', tag: bk.tag || rq0.asked_tag,
+        items: [{ id: rq0.unit_id, no: bk.unit_no || rq0.unit_no, who: bk.requested_by || rq0.requested_by,
+                  days: bk.expiry_days, until: bk.expiry_date }] });
     } else if (d.success && d.status === 'declined') {
       toast('Declined \u2014 the dealer will see it on the link.', 'ok');
     } else if (d.error === 'already_decided') {
@@ -2740,6 +2900,7 @@
     /* The whole desk is reloaded, not just the queue: approving books a unit,
        so the board, the index and today's list are all now out of date. */
     await _refreshReqs(true);
+    if (share) _shareSheet(share);
   }
 
   /* ══ THE WATCH ═════════════════════════════════════════════════════════
@@ -2905,7 +3066,79 @@
                 landowner in one afternoon printed 113 lines that differed in
                 nothing but the unit number, and a five-page daybook is a daybook
                 nobody opens. Ticking it puts every unit back on its own line. */
-             showEach: _pref('each', false) };
+             showEach: _pref('each', false),
+             /* the day's units with their short trail — off by default: it costs a
+                read per unit, and only a director may make it */
+             showTrail: _pref('trail', false), trails: null, trailKey: null, trailBusy: false, trailErr: '' };
+
+  /* ── THE DAY WITH ITS TRAIL ──────────────────────────────────────────────
+     Rashid: "pooray din ki aik report ho k aaj ye ye unit so far reserve ya
+     hold ya sold howay aur us ka trail ye raha". Every unit booked or sold in
+     the period, and for each the same one-line trail the desk shares after a
+     decision: what it was just before, whose hold it was before that and how
+     it ended, and the token in the books. Screen, WhatsApp text and PDF all
+     print the rows this one function returns. */
+  function _dbTrailKey(d) { return String(d.from || d.date) + '|' + String(d.to || d.date) + '|' + (DESK.projectId || ''); }
+  function _dbTrailUnits(d) {
+    var out = [];
+    _liveOnly(d.reserved).forEach(function (r) {
+      out.push({ no: r.unit_no, at: r.reserved_at || r.created_at,
+                 today: (r.tag || 'Reserved') + ' for ' + (r.requested_by || '—') });
+    });
+    (d.sold || []).forEach(function (x) {
+      out.push({ no: x.unit_no, at: x.sale_date, today: 'Sold' + (x.agent ? ' — ' + x.agent : '') });
+    });
+    return out;
+  }
+  function _dbTrailRows(d) {
+    if (!DB.showTrail || !DB.trails || DB.trailKey !== _dbTrailKey(d)) return null;
+    return _dbTrailUnits(d).map(function (x) {
+      var t = DB.trails[String(x.no).toUpperCase()];
+      var s = t ? _trShort(t, x.at ? new Date(x.at).getTime() : null) : { line: 'history not available' };
+      return { no: x.no, today: x.today, was: s.was || '—', before: s.last || s.line, token: s.token || '—' };
+    });
+  }
+  async function _dbLoadTrails() {
+    var d = DB.data; if (!d || DB.trailBusy) return;
+    var key = _dbTrailKey(d), ids = [], byId = {};
+    _dbTrailUnits(d).forEach(function (x) {
+      var hit = DESK.idx[String(x.no).toUpperCase()];
+      if (hit && hit.length === 1 && hit[0].id && !byId[hit[0].id]) { ids.push(hit[0].id); byId[hit[0].id] = x.no; }
+    });
+    DB.trailBusy = true; DB.trailErr = '';
+    var res = ids.length ? await _trailFetch(ids) : { success: true, trails: [] };
+    DB.trailBusy = false;
+    if (res && res.error === 'session_expired') return sessionGone();
+    if (!res || !res.success) {
+      DB.trailErr = 'The unit trail could not be read — it is open to directors only.';
+      DB.trailErrKey = key;
+    } else {
+      DB.trails = {};
+      res.trails.forEach(function (t) {
+        if (t && t.unit_id) _TRAILS[t.unit_id] = t;
+        var no = (t && (t.unit_no || (t.unit && t.unit.code))) || byId[t && t.unit_id];
+        if (no) DB.trails[String(no).toUpperCase()] = t;
+      });
+      DB.trailKey = key;
+    }
+    var host = document.getElementById('app-body');
+    if (host && DB.data === d && _alive('daybook')) _dbPaint(host);
+  }
+  function _dbTrailSec(d) {
+    if (!DB.showTrail) return '';
+    var rows = _dbTrailRows(d);
+    if (!rows) {
+      return _dbSec('Unit trail', '', '<div class="rd-empty">' +
+        esc((DB.trailErrKey === _dbTrailKey(d) && DB.trailErr) || 'Reading each unit’s history…') + '</div>');
+    }
+    return _dbSec('Unit trail', rows.length, rows.length
+      /* the token is today's figure in the books, not the period's: said so */
+      ? _dbTable(['Unit', 'Today', 'Was', 'Before', 'Token now'], rows.map(function (r) {
+          return ['<b>' + esc(r.no) + '</b>', esc(r.today), esc(r.was), esc(r.before),
+                  r.token === 'none' ? '<span class="t">none</span>' : esc(r.token)];
+        }))
+      : '<div class="rd-empty">Nothing booked or sold ' + esc(_periodPhrase(d)) + '.</div>');
+  }
 
   window.renderDaybook = async function () {
     var host = document.getElementById('app-body');
@@ -2986,6 +3219,8 @@
             '> Movement</label>' +
           '<label><input type="checkbox" id="db-rl"' + (DB.showReleased ? ' checked' : '') +
             '> Released</label>' +
+          '<label><input type="checkbox" id="db-tr"' + (DB.showTrail ? ' checked' : '') +
+            '> Unit trail</label>' +
           '<label><input type="checkbox" id="db-ea"' + (DB.showEach ? ' checked' : '') +
             '> Unit by unit (PDF)</label>' +
         '</div>' +
@@ -3003,6 +3238,7 @@
            the ledger is the working that explains them. */
         _dbTotals(d) +
         _dbDay(d) +
+        _dbTrailSec(d) +
         /* The same four numbers as the PDF, in the same order. If the screen
            and the paper ever disagree about an opening balance, the one being
            looked at is the one that will be believed. */
@@ -3130,6 +3366,15 @@
           if (host && DB.data) _dbPaint(host);
         });
       });
+
+    var trc = _dbq('#db-tr');
+    if (trc) trc.addEventListener('change', function () {
+      DB.showTrail = !!trc.checked; _setPref('trail', DB.showTrail); DB.trailErrKey = null;
+      var host = document.getElementById('app-body');
+      if (host && DB.data) _dbPaint(host);
+    });
+    /* asked for and not yet read for this period: read it, then draw again */
+    if (DB.showTrail && DB.trailKey !== _dbTrailKey(d) && !DB.trailBusy && DB.trailErrKey !== _dbTrailKey(d)) _dbLoadTrails();
 
     var tdy = _dbq('#db-today');
     if (tdy) tdy.addEventListener('click', function () {
@@ -3405,6 +3650,16 @@
       L.push('• ' + s.unit_no + ' (' + s.floor + ')' + (s.agent ? ' — ' + s.agent : ''));
     });
     L.push('');
+
+    var trl = _dbTrailRows(d);
+    if (trl && trl.length) {
+      L.push('*Unit trail*');
+      trl.forEach(function (t) {
+        L.push('• ' + t.no + ' — ' + t.today);
+        L.push('   was ' + t.was + ' · before: ' + t.before + ' · token now: ' + t.token);
+      });
+      L.push('');
+    }
 
     /* The standing position, in place of the 48-hour slice — which was a subset
        of this list and printed the same units twice. This is the part the group
@@ -4094,6 +4349,16 @@
                   _dShort(r.reserved_at), _dShort(r.went_at), how];
         }),
         empty: function () { return 'Nothing was released ' + _periodPhrase(d) + '.'; } },
+
+      /* THE TRAIL, when it was asked for and has been read: one line a unit */
+      { title: 'Unit Trail', unit: 'unit', noun: 'trails',
+        skip: !_dbTrailRows(d),
+        cols: [['Unit'], ['Today'], ['Was'], ['Before'], ['Token now']],
+        rows: (_dbTrailRows(d) || []).map(function (t) {
+          return [{ v: t.no, cls: 'u' }, t.today, t.was, t.before,
+                  t.token === 'none' ? { v: 'none', cls: 'mut' } : t.token];
+        }),
+        empty: function () { return 'Nothing booked or sold ' + _periodPhrase(d) + '.'; } },
 
       { title: 'Floor-wise Position', unit: 'floor', noun: 'inventory',
         cols: [['Floor'], ['On hold', 'n'], ['Reserved', 'n'], ['Booked', 'n'], ['Sold', 'n']]
