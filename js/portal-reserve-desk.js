@@ -3964,8 +3964,34 @@
     return L.join('\n');
   }
 
+  /* COPY FOR WHATSAPP COPIES THE PICTURE. Rashid: "Copy for WhatsApp bhi
+     image bana do". The report card goes onto the clipboard as an image, ready
+     to paste into the group (WhatsApp Web, or a phone that pastes images).
+     The clipboard is handed a promise of the picture INSIDE the tap — Safari
+     refuses a write that arrives after the tap is over. Where the browser
+     cannot put an image on the clipboard at all, the picture opens in the
+     share sheet instead, with Share and Save image. */
   function _dbCopy() {
-    _portalCopy(_dbText(), 'Daybook copied — paste it into the group.');
+    var d = DB.data; if (!d) return;
+    var cv;
+    try { cv = _dbImage(d); } catch (e) { cv = null; }
+    if (!cv) { _portalCopy(_dbText(), 'Daybook copied — paste it into the group.'); return; }
+    var h = d.header || {};
+    var sheet = function () {
+      _imgSheet(cv, (h.project || 'Project') + ' Daybook ' + _periodShort(d), 'Daybook for WhatsApp',
+                'The report as a picture, ready for the group.', _dbText(), _dbRoot());
+    };
+    if (!(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem && window.isSecureContext)) {
+      return sheet();
+    }
+    var png = new Promise(function (res, rej) {
+      cv.toBlob(function (b) { b ? res(b) : rej(new Error('blob')); }, 'image/png');
+    });
+    var item;
+    try { item = new ClipboardItem({ 'image/png': png }); } catch (e) { return sheet(); }
+    navigator.clipboard.write([item]).then(function () {
+      toast('Report picture copied — paste it into the WhatsApp group.', 'ok');
+    }, function () { sheet(); });
   }
 
   var WA_MAX = 1200;   // beyond this a wa.me URL is unreliable across phones
