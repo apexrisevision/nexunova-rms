@@ -1961,7 +1961,19 @@ table.pl-t{width:100%;border-collapse:collapse;font-size:12.5px}
 /* the payments that are not the plain monthly one: every few months, possession */
 .pl-t tr.pl-xr td{background:var(--accent-soft);font-weight:700}
 .pl-t tr.pl-tot td{font-weight:750;border-top:2px solid var(--ink);border-bottom:0}
-.pl-ds{margin-top:12px;font-size:11px;color:var(--mut);line-height:1.5}
+/* the two notes: meant to be read, so not grey six-point type */
+.pl-ds{margin-top:18px;border:1.5px solid #b3123c;border-radius:10px;background:#FFF5F6;padding:10px 12px}
+.pl-dn{font-size:11.5px;line-height:1.5;color:#3b0a14}
+.pl-dn + .pl-dn{margin-top:7px;padding-top:7px;border-top:1px solid rgba(179,18,60,.25)}
+.pl-dn b{color:#b3123c;font-weight:800;letter-spacing:.01em}
+:root[data-theme="dark"] .pl-ds{background:#2A1218;border-color:#F08BA6}
+:root[data-theme="dark"] .pl-dn{color:#F6D6DE}
+:root[data-theme="dark"] .pl-dn b{color:#F08BA6}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .pl-ds{background:#2A1218;border-color:#F08BA6}
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .pl-dn{color:#F6D6DE}
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .pl-dn b{color:#F08BA6}
+}
 .pl-sig{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:34px}
 .pl-sig div{border-top:1px solid var(--ink);padding-top:5px;font-size:11px;color:var(--mut)}
 .pl-act{margin:14px 0 0;text-align:center}
@@ -2742,7 +2754,7 @@ body.held *{animation-play-state:paused !important}
   <section id="payplan" hidden>
     <div class="ft"><button class="bk" id="pln-back"><i></i>All floors</button></div>
     <div class="prc-h">
-      <div class="prc-t">Payment plan</div>
+      <div class="prc-t">Estimated Payment Plan</div>
       <div class="prc-s">Pick a unit, set the price, the down payment and the tenure.
         The monthly instalment is worked out for you.</div>
     </div>
@@ -4360,7 +4372,7 @@ function renderHome() {
   $('planrow').innerHTML =
     '<button class="all-chip" data-pay="1">' +
       '<span class="ac-w">' +
-        '<span class="ac-t">Payment plan</span>' +
+        '<span class="ac-t">Make Estimated Payment Plan</span>' +
         '<span class="ac-m">Down payment, tenure and the monthly instalment for any unit</span>' +
       '</span>' +
       '<span class="ac-x"><i></i></span>' +
@@ -6827,7 +6839,7 @@ function payDoc(c) {
   var bx = payBoxes(c);
   return '' +
     '<div class="pl-dh"><div>' +
-      '<div class="pl-dt">Payment plan — ' + esc(h.u.n) + '</div>' +
+      '<div class="pl-dt">Estimated Payment Plan — ' + esc(h.u.n) + '</div>' +
       '<div class="pl-dp">' + esc(P.project || '') + (P.company ? ' · ' + esc(P.company) : '') + '</div>' +
     '</div><div class="pl-dd">Prepared<br>' + esc(payDate(new Date())) + '</div></div>' +
     (PAY.who.trim() ? '<div class="pl-who">Prepared for <b>' + esc(PAY.who.trim()) + '</b></div>' : '') +
@@ -6844,11 +6856,30 @@ function payDoc(c) {
       '<tbody>' + rows + '<tr class="pl-tot"><td>Total</td><td></td><td class="r">' + esc(payPKR(c.amt)) + '</td></tr>' +
       '</tbody>' +
     '</table></div>' +
-    '<div class="pl-ds">' + esc(PAY_NOTE) + '</div>' +
-    '<div class="pl-sig"><div>Prepared by</div><div>Customer</div></div>';
+    '<div class="pl-sig"><div>Prepared by</div><div>Customer</div></div>' +
+    '<div class="pl-ds">' + PAY_NOTES.map(function (n) {
+      return '<div class="pl-dn"><b>' + esc(n.h) + '</b>' + esc(n.t) + '</div>';
+    }).join('') + '</div>';
 }
-var PAY_NOTE = 'This plan is a calculation only. It does not reserve or hold the unit, ' +
-               'and the price and terms are final only once confirmed by the management.';
+/* ── THE TWO NOTES, ON EVERY PAGE ─────────────────────────────────────────
+   Rashid: "aik strongest line likho each page k neeche k ye schedule dummy
+   hai, is ka purpose sirf client ko aik estimate dena hai is ka financial aur
+   accounts se koi taluq nahi hai, final schedule at the time of booking ya
+   downpayment k time banay ga accounts se" — and a second one, as strong,
+   written here. A plan printed off a public link travels; these say plainly
+   what it is not, on the screen and at the foot of every PDF page. */
+var PAY_NOTES = [
+  { h: 'ESTIMATE ONLY — NOT A PAYMENT SCHEDULE. ',
+    t: 'This schedule is a dummy estimate, prepared only to give the client an idea of the payments. ' +
+       'It has no connection with the company’s finance or accounts and is not an accounting record. ' +
+       'The final schedule will be issued by the Accounts department at the time of booking or down payment. ' +
+       'This schedule is an estimated calculation only.' },
+  { h: 'NOT AN OFFER, BOOKING, ALLOTMENT OR RECEIPT. ',
+    t: 'This document does not reserve, hold, book or allot any unit, and creates no right or obligation ' +
+       'for the client or the company. Prices, availability, discounts and terms may change without notice ' +
+       'until confirmed in writing by the management. Do not make any payment on the basis of this document: ' +
+       'only an official receipt issued by the company’s Accounts office is valid proof of payment.' }
+];
 
 /* ── THE PDF IS A FILE, NOT A PRINTOUT ──────────────────────────────────
    The first cut used the page's own print, and on a phone that does not
@@ -6914,7 +6945,7 @@ async function payPdfBytes(c) {
 
   page();
   /* the head */
-  txt('Payment plan - ' + c.h.u.n, M, y - 16, 18, B);
+  txt('Estimated Payment Plan - ' + c.h.u.n, M, y - 16, 18, B);
   txt((P.project || '') + (P.company ? '  ·  ' + P.company : ''), M, y - 31, 10, R, MUT);
   rtxt('Prepared', W - M, y - 12, 9, R, MUT);
   rtxt(payDate(new Date()), W - M, y - 24, 10, B);
@@ -6955,10 +6986,27 @@ async function payPdfBytes(c) {
     rtxt('AMOUNT', W - M - 4, y, 8, B, MUT);
     y -= 6; line(M, y, W - M, 0.9, L.rgb(0.8, 0.8, 0.82)); y -= 13;
   }
+  /* THE NOTES' BOX at the foot of every page, measured now so nothing on the
+     page is allowed to run into it */
+  var NS = 7.6, NL = 9.6, NW = CW - 18;
+  var noteLines = PAY_NOTES.map(function (n) {
+    var hw = B.widthOfTextAtSize(paySafe(n.h).trim(), NS) + 4;    // a clear gap after the heading
+    /* the heading runs into the first line, as it does on screen */
+    var words = paySafe(n.t).split(' '), lines = [], cur = '', first = true;
+    words.forEach(function (w) {
+      var t = cur ? cur + ' ' + w : w;
+      if (R.widthOfTextAtSize(t, NS) > (first ? NW - hw : NW) && cur) { lines.push(cur); cur = w; first = false; }
+      else cur = t;
+    });
+    if (cur) lines.push(cur);
+    return { h: paySafe(n.h).trim(), hw: hw, lines: lines };
+  });
+  var NOTE_H = noteLines.reduce(function (s, n) { return s + n.lines.length * NL; }, 0) + 6 + 18;
+  var FOOT_TOP = 34 + NOTE_H;        // nothing is drawn below this line but the notes
   head();
   var RH = 15.5;
   c.rows.concat([{ k: 'tot', lab: 'Total', a: c.amt }]).forEach(function (r) {
-    if (y < M + 30) { page(); head(); }
+    if (y < FOOT_TOP + 22) { page(); head(); }
     if (r.k !== 'm' && r.k !== 'tot') {
       pg.drawRectangle({ x: M, y: y - 4.5, width: CW, height: RH, color: SOFT });
     }
@@ -6970,15 +7018,34 @@ async function payPdfBytes(c) {
     if (r.k !== 'tot') line(M, y - 4.5, W - M, 0.5);
     y -= RH;
   });
-  /* the note and the signatures, kept together */
-  var note = wrap(PAY_NOTE, 8.5, R, CW);
-  if (y - (note.length * 11 + 70) < M) page();
-  y -= 8;
-  note.forEach(function (l) { txt(l, M, y, 8.5, R, MUT); y -= 11; });
+  /* the signatures, clear of the notes */
+  if (y - 60 < FOOT_TOP) page();
   y -= 44;
   var sw = (CW - 40) / 2;
   [['Prepared by', M], ['Customer', M + sw + 40]].forEach(function (s) {
     line(s[1], y, s[1] + sw, 0.8, INK); txt(s[0], s[1], y - 12, 8.5, R, MUT);
+  });
+  /* EVERY PAGE: a faint ESTIMATE across it, and the two notes in a red box at
+     its foot — a page torn off the end of the plan still says what it is */
+  var RED = L.rgb(0.70, 0.07, 0.24), REDBG = L.rgb(1, 0.96, 0.965), REDINK = L.rgb(0.23, 0.04, 0.08);
+  pages.forEach(function (p) {
+    var wm = 'ESTIMATE', ws = 96;
+    p.drawText(wm, { x: W / 2 - B.widthOfTextAtSize(wm, ws) * 0.36, y: H / 2 - 150, size: ws, font: B,
+                     color: L.rgb(0.70, 0.07, 0.24), opacity: 0.06, rotate: L.degrees(35) });
+    var top = FOOT_TOP - 4;
+    p.drawRectangle({ x: M, y: 34, width: CW, height: top - 34, color: REDBG,
+                      borderColor: RED, borderWidth: 1.1 });
+    var yy = top - 13;
+    noteLines.forEach(function (n, i) {
+      if (i) { p.drawLine({ start: { x: M + 9, y: yy + 7 }, end: { x: W - M - 9, y: yy + 7 },
+                            thickness: 0.5, color: L.rgb(0.85, 0.6, 0.66) }); yy -= 4; }
+      n.lines.forEach(function (ln, j) {
+        var x = M + 9;
+        if (j === 0) { p.drawText(n.h, { x: x, y: yy, size: NS, font: B, color: RED }); x += n.hw; }
+        p.drawText(ln, { x: x, y: yy, size: NS, font: R, color: REDINK });
+        yy -= NL;
+      });
+    });
   });
   /* page numbers once the count is known */
   pages.forEach(function (p, n) {
@@ -6986,11 +7053,11 @@ async function payPdfBytes(c) {
     p.drawText(s, { x: W - M - R.widthOfTextAtSize(s, 8), y: 22, size: 8, font: R, color: MUT });
     p.drawText(paySafe(c.h.u.n + ' - ' + (P.project || '')), { x: M, y: 22, size: 8, font: R, color: MUT });
   });
-  doc.setTitle('Payment plan ' + c.h.u.n);
+  doc.setTitle('Estimated Payment Plan ' + c.h.u.n);
   return doc.save();
 }
 function payFileName(c) {
-  return 'Payment plan ' + String(c.h.u.n).replace(/[^A-Za-z0-9 _-]/g, '-') + '.pdf';
+  return 'Estimated Payment Plan ' + String(c.h.u.n).replace(/[^A-Za-z0-9 _-]/g, '-') + '.pdf';
 }
 function payBusy(btn, on, label) {
   btn.disabled = on; btn.textContent = on ? 'Preparing…' : label;
@@ -7027,7 +7094,7 @@ async function payShare() {
   try {
     var bytes = await payPdfBytes(c);
     var file = new File([bytes], payFileName(c), { type: 'application/pdf' });
-    await navigator.share({ files: [file], title: 'Payment plan ' + c.h.u.n });
+    await navigator.share({ files: [file], title: 'Estimated Payment Plan ' + c.h.u.n });
   } catch (e) {
     /* the reader closing the sheet is not a failure; anything else falls back to the download */
     if (!e || e.name !== 'AbortError') { payBusy(btn, false, 'Share PDF'); return payDownload(); }
