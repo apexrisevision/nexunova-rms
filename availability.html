@@ -1878,6 +1878,117 @@ body.splash .fl::before{opacity:0}
         transition:background var(--t-fast) var(--ease),transform var(--t-fast) var(--ease)}
 .prc-go:active{transform:scale(.98);background:var(--sunk)}
 .prc-note{display:block;margin-top:9px;font-size:11.5px;color:var(--mut);line-height:1.5}
+
+/* ── the payment plan ───────────────────────────────────────────────────
+   The doorway is the full width under the three, in the page's own blue, so
+   it is not mistaken for a fourth of them. */
+#planrow{margin:9px 0 0}
+/* white text sits on this blue in both themes; the dark theme's pale accent would not carry it */
+#payplan, #planrow{--pl-fill:#1D4ED8}
+#planrow .all-chip{background:var(--pl-fill);min-height:50px}
+#planrow .all-chip .ac-t, #planrow .all-chip .ac-x{color:#fff}
+#planrow .all-chip .ac-m{color:rgba(255,255,255,.9)}
+@media (hover:hover){ #planrow .all-chip:hover{background:var(--pl-fill);filter:brightness(1.08)} }
+#planrow .all-chip:active{background:var(--pl-fill);filter:brightness(.94)}
+.pl-c{background:var(--card);border-radius:var(--r-lg);padding:13px 14px 14px;margin-bottom:10px}
+.pl-l{font-size:10.5px;font-weight:750;letter-spacing:.11em;text-transform:uppercase;
+      color:var(--mut);margin-bottom:9px}
+.pl-f{display:block;min-width:0}
+.pl-f > span{display:block;font-size:11.5px;color:var(--mut);margin-bottom:4px}
+.pl-i{width:100%;height:46px;padding:0 13px;border:1px solid var(--line);border-radius:var(--r);
+      background:var(--card);color:var(--ink);font-size:16px;font-family:inherit;outline:none;
+      transition:border-color var(--t) var(--ease),box-shadow var(--t) var(--ease)}
+.pl-i:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--ring)}
+.pl-i:disabled{background:var(--sunk);color:var(--mut)}
+.pl-2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.pl-uw{position:relative}
+.pl-sg{position:absolute;left:0;right:0;top:50px;z-index:5;background:var(--card);
+       border:1px solid var(--line);border-radius:var(--r);box-shadow:0 10px 28px rgba(0,0,0,.12);
+       overflow:hidden;max-height:300px;overflow-y:auto}
+.pl-sg button{display:flex;width:100%;justify-content:space-between;gap:10px;padding:10px 13px;
+              border:0;border-top:1px solid var(--hair);background:none;color:var(--ink);
+              font:inherit;font-size:13.5px;text-align:left;cursor:pointer}
+.pl-sg button:first-child{border-top:0}
+.pl-sg button:hover, .pl-sg button.on{background:var(--accent-soft)}
+.pl-sg b{font-weight:700}
+.pl-sg small{color:var(--mut);font-size:11.5px;white-space:nowrap}
+.pl-sg .pl-x{padding:10px 13px;font-size:12.5px;color:var(--mut)}
+.pl-uf{margin-top:9px;font-size:12.5px;color:var(--soft);line-height:1.5}
+.pl-uf b{font-weight:700;color:var(--ink)}
+.pl-uf .pl-w{color:#b3123c;font-weight:650}
+.pl-n{margin-top:8px;font-size:12px;color:var(--mut);line-height:1.45}
+.pl-n b{font-weight:700;color:var(--ink)}
+.pl-n .pl-dc{color:#15803D;font-weight:700}
+.pl-n button{margin-left:6px;padding:0;border:0;background:none;color:var(--accent);
+             font:inherit;font-weight:650;text-decoration:underline;cursor:pointer}
+.pl-ch{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+.pl-ch button{height:36px;padding:0 13px;border:1px solid var(--line);border-radius:999px;
+              background:var(--card);color:var(--ink);font:inherit;font-size:13px;font-weight:650;
+              cursor:pointer}
+.pl-ch button.on{background:var(--pl-fill);border-color:var(--pl-fill);color:#fff}
+/* the plan itself: the same block on the screen and on the paper */
+.pl-doc{background:var(--card);border-radius:var(--r-lg);padding:16px 15px;margin:14px 0 0}
+.pl-e{font-size:13px;color:var(--mut);text-align:center;padding:8px 0}
+.pl-dh{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+       padding-bottom:10px;border-bottom:2px solid var(--ink)}
+.pl-dt{font-size:19px;font-weight:750;letter-spacing:-.02em}
+.pl-dp{font-size:12px;color:var(--mut);margin-top:2px}
+.pl-dd{font-size:11.5px;color:var(--mut);text-align:right;white-space:nowrap}
+.pl-who{margin-top:10px;font-size:13px}
+.pl-g{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;margin-top:10px}
+.pl-kv{display:flex;justify-content:space-between;gap:10px;padding:7px 0;
+       border-bottom:1px solid var(--hair);font-size:12.5px}
+.pl-kv span{color:var(--mut)}
+.pl-kv b{font-weight:700;text-align:right}
+.pl-kv .pl-dc{color:#15803D}
+.pl-big{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 4px}
+.pl-bx{border-radius:var(--r);padding:10px 11px;background:var(--accent-soft)}
+.pl-bx span{display:block;font-size:10.5px;font-weight:700;letter-spacing:.06em;
+            text-transform:uppercase;color:var(--mut)}
+.pl-bx b{display:block;font-size:16px;font-weight:750;letter-spacing:-.015em;margin-top:3px}
+.pl-bx small{display:block;font-size:11px;color:var(--mut);margin-top:1px}
+.pl-bx.pl-m{background:var(--pl-fill);color:#fff}
+.pl-bx.pl-m span, .pl-bx.pl-m small{color:rgba(255,255,255,.88)}
+.pl-tw{overflow-x:auto;margin-top:12px}
+table.pl-t{width:100%;border-collapse:collapse;font-size:12.5px}
+.pl-t th{text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+         color:var(--mut);padding:7px 6px;border-bottom:1px solid var(--line)}
+.pl-t td{padding:6px;border-bottom:1px solid var(--hair);white-space:nowrap}
+@media (max-width:420px){ table.pl-t{font-size:12px} .pl-t td, .pl-t th{padding:6px 4px} }
+.pl-t .r{text-align:right;font-variant-numeric:tabular-nums}
+.pl-t tr.pl-dpr td{background:var(--accent-soft);font-weight:650}
+.pl-t tr.pl-tot td{font-weight:750;border-top:2px solid var(--ink);border-bottom:0}
+.pl-ds{margin-top:12px;font-size:11px;color:var(--mut);line-height:1.5}
+.pl-sig{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:34px}
+.pl-sig div{border-top:1px solid var(--ink);padding-top:5px;font-size:11px;color:var(--mut)}
+.pl-act{margin:14px 0 0;text-align:center}
+.pl-act .prc-go{background:var(--pl-fill);color:#fff;border-color:var(--pl-fill);min-width:200px}
+.pl-act .prc-go:disabled{opacity:.45}
+@media (max-width:420px){
+  .pl-g{grid-template-columns:1fr}
+  .pl-big{grid-template-columns:1fr 1fr}
+  .pl-bx.pl-m{grid-column:1/-1}
+}
+@media (min-width:1080px){
+  #home #planrow{grid-column:2;grid-row:4;align-self:start}
+  #payplan{max-width:760px}
+}
+/* ON PAPER, ONLY THE PLAN. The body carries .pp only while this plan is
+   being printed, so the Director Level Report prints exactly as before. */
+@media print{
+  body.pp #rep{display:none !important}
+  body.pp #payplan{display:block !important}
+  body.pp #payplan .prc-h, body.pp #pln-body .pl-form, body.pp .pl-act{display:none !important}
+  /* the light tokens on paper, whichever theme the screen is in */
+  body.pp .pl-doc{margin:0;padding:0;background:#fff;color:#111;
+                  --ink:#111;--mut:#555;--hair:#e5e5e5;--line:#ddd;
+                  --accent:#1D4ED8;--accent-soft:#EDF2FE}
+  body.pp .pl-dh{border-bottom-color:#111}
+  body.pp .pl-bx, body.pp .pl-t tr.pl-dpr td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body.pp .pl-tw{overflow:visible}
+  body.pp .pl-t tr{break-inside:avoid}
+  body.pp .pl-sig{break-inside:avoid}
+}
 /* ── THE PASSWORD IS ASKED FOR IN FRONT OF YOU ──────────────────────────
    It used to appear as a block at the foot of the price screen, below
    everything the screen already had on it, so tapping "Update prices" looked
@@ -2564,6 +2675,12 @@ body.held *{animation-play-state:paused !important}
            reservation aur all units k sath same isi button k size ka". -->
       <div id="pricerow"></div>
     </div>
+    <!-- THE PAYMENT PLAN. Rashid: "reservation link mai aik report bana k do
+         … ham select karain unit … discount … downpayment percentage, phir
+         tenure … total amount - downpayment / 36 month to ye aa jaiga per
+         month". A calculator, not a booking: it reads the units already on
+         this page and sends nothing anywhere. -->
+    <div id="planrow"></div>
     <!-- THE REGISTER. Seven separate white cards were the first cut and Rashid
          threw them out: "us ka style muje … bohat bura lagta hai". A picker
          with one panel was the second, and he threw that out too, for the
@@ -2615,6 +2732,22 @@ body.held *{animation-play-state:paused !important}
          invitation -->
     <div id="prc-form" hidden></div>
     <div id="prc-log" hidden></div>
+  </section>
+
+  <!-- THE PAYMENT PLAN ──────────────────────────────────────────────────
+       Pick a unit; its area and list price come from this page. Change the
+       rate or the amount if a discount is being given, then the down payment
+       and the tenure — and the monthly instalment is the balance over the
+       months. Built once when opened and never repainted by the clock, so a
+       half-typed number stays where it was typed. -->
+  <section id="payplan" hidden>
+    <div class="ft"><button class="bk" id="pln-back"><i></i>All floors</button></div>
+    <div class="prc-h">
+      <div class="prc-t">Payment plan</div>
+      <div class="prc-s">Pick a unit, set the price, the down payment and the tenure.
+        The monthly instalment is worked out for you.</div>
+    </div>
+    <div id="pln-body"></div>
   </section>
 
   <!-- SCREEN FIVE — THE ROOM BEHIND THE PASSWORD ───────────────────────────
@@ -3171,6 +3304,7 @@ var FLOOR = null;          // index into P.floors, or null on screen one
    it. PRICEPW is held in a variable and nowhere else: it is never written to
    the phone, so closing the page closes the door. */
 var PRICEV = false, PRICEPW = '', PRICELOG = null;
+var PAYV = false, PAY = null;   // the payment plan screen, and what was typed into it
 var SHOWALL = false;
 var SHEET = null;          // { unit, floorIdx, days, ref, more[] }
 var FETCHED = 0;           // ms of the last SUCCESSFUL fetch
@@ -4091,6 +4225,8 @@ function render() {
      would take the number out of their hands. It is redrawn when they ask for
      it and when an update lands, never underneath them. */
   if (PRICEV) { if (SHEET) refreshSheet(); return; }
+  /* nor the payment plan: somebody may be typing a rate into it */
+  if (PAYV) { if (SHEET) refreshSheet(); return; }
   if (MINEV) { renderMine(); }
   else if (ALLV) { renderAll(); }
   else if (FLOOR == null) { renderHome(); } else { renderFloor(); }
@@ -4112,6 +4248,7 @@ function renderHome() {
   $('mine').hidden = true;
   $('rep').hidden = true; REPV = false;
   $('price').hidden = true; PRICEV = false;
+  $('payplan').hidden = true; PAYV = false;
   /* every road home closes the desk, including the ones that do not go
      through its own way out */
   $('desk').hidden = true; DESKV = false;
@@ -4221,6 +4358,15 @@ function renderHome() {
       '</span>' +
     '</button>';
 
+  $('planrow').innerHTML =
+    '<button class="all-chip" data-pay="1">' +
+      '<span class="ac-w">' +
+        '<span class="ac-t">Payment plan</span>' +
+        '<span class="ac-m">Down payment, tenure and the monthly instalment for any unit</span>' +
+      '</span>' +
+      '<span class="ac-x"><i></i></span>' +
+    '</button>';
+
   paintHero(av, tot);
 
   /* ONCE. The entrance belongs to the first time these chips exist, not to
@@ -4285,7 +4431,7 @@ function glowStart() {
   GLOW.timer = setInterval(function () {
     /* the chart lives on screen one; nothing is taught to somebody who is not
        looking at it, and a timer that paints a hidden element is only heat */
-    if (document.hidden || ALLV || MINEV || REPV || PRICEV || FLOOR != null) return;
+    if (document.hidden || ALLV || MINEV || REPV || PRICEV || PAYV || FLOOR != null) return;
     var rows = document.querySelectorAll('#hero .ck');
     var arcs = document.querySelectorAll('#hero .chart-r .rg');
     if (!rows.length) return;
@@ -6169,6 +6315,366 @@ $('prc-back').onclick = function () {
   priceGateShut();
   $('price').hidden = true; BACKING = true; renderHome(); window.scrollTo(0, 0);
 };
+
+/* ── THE PAYMENT PLAN ───────────────────────────────────────────────────
+   A calculator over the payload already on this page. The unit gives the
+   area and, where the project publishes it, the list price. The sale amount
+   starts at that list price and can be changed — directly, or through the
+   rate per sq ft — which is how a discount is given. Then:
+     down payment  = sale amount × down %
+     monthly       = (sale amount − down payment) ÷ months
+   rounded to the rupee, with the last instalment carrying whatever the
+   rounding left over, so the schedule always adds up to the sale amount.
+   Nothing is sent and nothing is held: it is arithmetic and a printout. */
+function payNum(s) {
+  var n = Number(String(s == null ? '' : s).replace(/[^0-9.]/g, ''));
+  return isFinite(n) ? n : 0;
+}
+function payPKR(n) { return 'PKR ' + Math.round(n).toLocaleString('en-US'); }
+function payAU() { return P.area_unit || 'sqft'; }
+/* the same day N months on, held to the last day of a shorter month */
+function payAddM(d, m) {
+  var y = d.getFullYear(), mo = d.getMonth() + m;
+  var last = new Date(y, mo + 1, 0).getDate();
+  return new Date(y, mo, Math.min(d.getDate(), last));
+}
+function payDate(d) {
+  return d.getDate() + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct',
+    'Nov', 'Dec'][d.getMonth()] + ' ' + d.getFullYear();
+}
+function payToday() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
+         String(d.getDate()).padStart(2, '0');
+}
+function payUnit() { return PAY && PAY.no ? findUnit(PAY.no) : null; }
+function payList(h) { var v = Number(h && h.u.v); return P.show_price && v > 0 ? v : 0; }
+
+function renderPay() {
+  ['home', 'floor', 'all', 'mine', 'rep', 'price'].forEach(function (id) { $(id).hidden = true; });
+  REPV = false; PRICEV = false;
+  $('units').innerHTML = ''; $('all-body').innerHTML = '';
+  PAYV = true;
+  $('payplan').hidden = false;
+  /* what was typed survives leaving and coming back, like a form on paper */
+  if (!PAY) PAY = { no: '', amt: 0, dp: '', mo: '', date: payToday(), who: '' };
+  var au = esc(payAU());
+  $('pln-body').innerHTML =
+    '<div class="pl-form">' +
+      '<div class="pl-c">' +
+        '<div class="pl-l">1 · Unit</div>' +
+        '<div class="pl-uw">' +
+          '<input id="pl-u" class="pl-i" autocomplete="off" autocapitalize="characters" ' +
+            'spellcheck="false" placeholder="Type the unit no. — e.g. GF-39" aria-label="Unit">' +
+          '<div id="pl-sg" class="pl-sg" hidden></div>' +
+        '</div>' +
+        '<div id="pl-uf" class="pl-uf"></div>' +
+      '</div>' +
+      '<div class="pl-c">' +
+        '<div class="pl-l">2 · Price and discount</div>' +
+        '<div class="pl-2">' +
+          '<label class="pl-f"><span>Rate per ' + au + '</span>' +
+            '<input id="pl-rate" class="pl-i" inputmode="decimal" autocomplete="off"></label>' +
+          '<label class="pl-f"><span>Sale amount (PKR)</span>' +
+            '<input id="pl-amt" class="pl-i" inputmode="numeric" autocomplete="off"></label>' +
+        '</div>' +
+        '<div id="pl-disc" class="pl-n"></div>' +
+      '</div>' +
+      '<div class="pl-c">' +
+        '<div class="pl-l">3 · Down payment</div>' +
+        '<div class="pl-ch" id="pl-dpc">' +
+          [10, 15, 20, 25, 30, 40, 50].map(function (p) {
+            return '<button type="button" data-dp="' + p + '">' + p + '%</button>';
+          }).join('') +
+        '</div>' +
+        '<label class="pl-f"><span>Down payment %</span>' +
+          '<input id="pl-dp" class="pl-i" inputmode="decimal" autocomplete="off" placeholder="e.g. 25"></label>' +
+        '<div id="pl-dpn" class="pl-n"></div>' +
+      '</div>' +
+      '<div class="pl-c">' +
+        '<div class="pl-l">4 · Tenure — monthly instalments</div>' +
+        '<div class="pl-ch" id="pl-moc">' +
+          [1, 2, 3, 4, 5].map(function (y) {
+            return '<button type="button" data-mo="' + (y * 12) + '">' + y + ' year' +
+                   (y === 1 ? '' : 's') + '</button>';
+          }).join('') +
+        '</div>' +
+        '<label class="pl-f"><span>Number of months</span>' +
+          '<input id="pl-mo" class="pl-i" inputmode="numeric" autocomplete="off" placeholder="e.g. 36"></label>' +
+      '</div>' +
+      '<div class="pl-c">' +
+        '<div class="pl-l">5 · On the document (optional)</div>' +
+        '<div class="pl-2">' +
+          '<label class="pl-f"><span>Customer name</span>' +
+            '<input id="pl-who" class="pl-i" autocomplete="off"></label>' +
+          '<label class="pl-f"><span>Booking date</span>' +
+            '<input id="pl-date" class="pl-i" type="date"></label>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div id="pl-doc" class="pl-doc"></div>' +
+    '<div class="pl-act"><button class="prc-go" id="pl-pdf" disabled>Download PDF</button></div>';
+
+  var h = payUnit();
+  $('pl-u').value = h ? h.u.n : '';
+  $('pl-amt').value = PAY.amt ? Math.round(PAY.amt).toLocaleString('en-US') : '';
+  $('pl-dp').value = PAY.dp;
+  $('pl-mo').value = PAY.mo;
+  $('pl-who').value = PAY.who;
+  $('pl-date').value = PAY.date;
+  payRateFromAmt();
+  payWire();
+  payPaint();
+}
+
+/* THE RATE AND THE AMOUNT ARE ONE NUMBER SAID TWO WAYS. Typing either one
+   rewrites the other; neither is ever rewritten while it is being typed in. */
+function payRateFromAmt() {
+  var h = payUnit(), a = Number(h && h.u.a);
+  $('pl-rate').disabled = !(a > 0);
+  $('pl-rate').value = a > 0 && PAY.amt > 0
+    ? (Math.round(PAY.amt / a * 100) / 100).toLocaleString('en-US') : '';
+}
+
+function payPick(no) {
+  var h = findUnit(no);
+  if (!h) return;
+  PAY.no = h.u.n;
+  PAY.amt = payList(h);
+  $('pl-u').value = h.u.n;
+  $('pl-sg').hidden = true;
+  $('pl-amt').value = PAY.amt ? Math.round(PAY.amt).toLocaleString('en-US') : '';
+  payRateFromAmt();
+  payPaint();
+  if (!PAY.amt) $('pl-amt').focus();
+}
+
+function paySuggest() {
+  var k = norm($('pl-u').value), box = $('pl-sg');
+  if (!k) { box.hidden = true; box.innerHTML = ''; return; }
+  var hits = [];
+  (P.floors || []).forEach(function (f) {
+    (f.units || []).forEach(function (u) {
+      var n = norm(u.n);
+      if (n.indexOf(k) === 0) hits.push({ u: u, f: f, r: 0 });
+      else if (n.indexOf(k) > 0) hits.push({ u: u, f: f, r: 1 });
+    });
+  });
+  hits.sort(function (a, b) {
+    return a.r - b.r || String(a.u.n).localeCompare(String(b.u.n), 'en', { numeric: true });
+  });
+  box.innerHTML = hits.length
+    ? hits.slice(0, 8).map(function (x, i) {
+        var s = stat(x.u);
+        return '<button type="button" data-u="' + esc(x.u.n) + '"' + (i === 0 ? ' class="on"' : '') + '>' +
+          '<span><b>' + esc(x.u.n) + '</b> · ' + esc(x.f.floor_label) +
+            (area(x.u) ? ' · ' + esc(area(x.u)) : '') + '</span>' +
+          '<small>' + (s.free ? (money(x.u.v) || 'Available') : esc(s.label)) + '</small>' +
+        '</button>';
+      }).join('')
+    : '<div class="pl-x">No unit matches “' + esc($('pl-u').value) + '”</div>';
+  box.hidden = false;
+}
+
+function payWire() {
+  $('pl-u').addEventListener('input', paySuggest);
+  $('pl-u').addEventListener('focus', function () { if ($('pl-u').value && !payUnit()) paySuggest(); });
+  $('pl-u').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      var b = $('pl-sg').querySelector('button[data-u]');
+      if (b) payPick(b.getAttribute('data-u'));
+    } else if (e.key === 'Escape') { $('pl-sg').hidden = true; }
+  });
+  $('pl-sg').addEventListener('mousedown', function (e) { e.preventDefault(); });
+  $('pl-sg').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-u]'); if (b) payPick(b.getAttribute('data-u'));
+  });
+  $('pl-u').addEventListener('blur', function () { $('pl-sg').hidden = true; });
+
+  $('pl-amt').addEventListener('input', function () {
+    PAY.amt = payNum($('pl-amt').value); payRateFromAmt(); payPaint();
+  });
+  $('pl-amt').addEventListener('blur', function () {
+    if (PAY.amt) $('pl-amt').value = Math.round(PAY.amt).toLocaleString('en-US');
+  });
+  $('pl-rate').addEventListener('input', function () {
+    var h = payUnit(), a = Number(h && h.u.a);
+    PAY.amt = a > 0 ? Math.round(payNum($('pl-rate').value) * a) : 0;
+    $('pl-amt').value = PAY.amt ? PAY.amt.toLocaleString('en-US') : '';
+    payPaint();
+  });
+  $('pl-dp').addEventListener('input', function () { PAY.dp = $('pl-dp').value.trim(); payPaint(); });
+  $('pl-mo').addEventListener('input', function () { PAY.mo = $('pl-mo').value.trim(); payPaint(); });
+  $('pl-who').addEventListener('input', function () { PAY.who = $('pl-who').value; payPaint(); });
+  $('pl-date').addEventListener('input', function () { PAY.date = $('pl-date').value; payPaint(); });
+  $('pl-dpc').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-dp]'); if (!b) return;
+    PAY.dp = b.getAttribute('data-dp'); $('pl-dp').value = PAY.dp; payPaint();
+  });
+  $('pl-moc').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-mo]'); if (!b) return;
+    PAY.mo = b.getAttribute('data-mo'); $('pl-mo').value = PAY.mo; payPaint();
+  });
+  $('pl-disc').addEventListener('click', function (e) {
+    if (!e.target.closest('[data-reset]')) return;
+    var h = payUnit(); PAY.amt = payList(h);
+    $('pl-amt').value = PAY.amt ? Math.round(PAY.amt).toLocaleString('en-US') : '';
+    payRateFromAmt(); payPaint();
+  });
+  $('pl-pdf').addEventListener('click', payPrint);
+}
+
+/* the numbers, worked out once and read by both the screen and the paper */
+function payCalc() {
+  var h = payUnit();
+  var amt = Math.round(PAY.amt || 0);
+  var dpStr = String(PAY.dp == null ? '' : PAY.dp).trim();
+  var dpPct = payNum(dpStr), mo = Math.floor(payNum(PAY.mo));
+  var c = { h: h, amt: amt, list: payList(h), area: Number(h && h.u.a) || 0,
+            dpSet: dpStr !== '' && dpPct <= 100, dpPct: dpPct, mo: mo };
+  c.disc = c.list && amt ? c.list - amt : 0;
+  c.dp = Math.round(amt * dpPct / 100);
+  c.bal = amt - c.dp;
+  c.monthly = mo > 0 ? Math.round(c.bal / mo) : 0;
+  c.last = mo > 0 ? c.bal - c.monthly * (mo - 1) : 0;
+  c.ready = !!(h && amt > 0 && c.dpSet && mo >= 1 && mo <= 600);
+  return c;
+}
+
+function payPaint() {
+  var c = payCalc(), h = c.h, au = esc(payAU());
+
+  /* the unit, as this page knows it */
+  if (!h) {
+    $('pl-uf').innerHTML = PAY.no ? '' : 'Area and list price fill in from the unit.';
+  } else {
+    var s = stat(h.u);
+    $('pl-uf').innerHTML =
+      [esc(h.f.floor_label), h.u.t ? esc(h.u.t) : '',
+       area(h.u) ? '<b>' + esc(area(h.u)) + '</b>' : 'Area not on record'].filter(Boolean).join(' · ') +
+      (c.list ? '<br>List price <b>' + esc(payPKR(c.list)) + '</b>' +
+                (rate(h.u) ? ' · ' + esc(rate(h.u)) : '')
+              : '<br>No list price on this link — type the sale amount.') +
+      (s.free ? '' : '<br><span class="pl-w">' + esc(s.label) +
+                     ' — this unit is not available right now.</span>');
+  }
+
+  /* what the price is against the list */
+  var d = '';
+  if (h && c.list && c.amt) {
+    if (c.disc > 0) {
+      d = 'Discount <span class="pl-dc">' + esc(payPKR(c.disc)) + '</span>' +
+          (c.area ? ' (' + Math.round(c.disc / c.area).toLocaleString('en-US') + ' per ' + au + ')' : '') +
+          ' off the list price.<button type="button" data-reset="1">Use list price</button>';
+    } else if (c.disc < 0) {
+      d = '<b>' + esc(payPKR(-c.disc)) + '</b> above the list price.' +
+          '<button type="button" data-reset="1">Use list price</button>';
+    } else {
+      d = 'No discount — the list price. Change the rate or the amount to give one.';
+    }
+  }
+  $('pl-disc').innerHTML = d;
+
+  $('pl-dpn').innerHTML = c.amt && c.dpSet
+    ? 'Down payment <b>' + esc(payPKR(c.dp)) + '</b> · balance <b>' + esc(payPKR(c.bal)) + '</b>'
+    : (String(PAY.dp).trim() !== '' && !c.dpSet ? 'The down payment cannot be more than 100%.' : '');
+
+  [].forEach.call($('pl-dpc').children, function (b) {
+    b.classList.toggle('on', c.dpSet && Number(b.getAttribute('data-dp')) === c.dpPct);
+  });
+  [].forEach.call($('pl-moc').children, function (b) {
+    b.classList.toggle('on', Number(b.getAttribute('data-mo')) === c.mo);
+  });
+
+  $('pl-pdf').disabled = !c.ready;
+  $('pl-doc').innerHTML = c.ready ? payDoc(c)
+    : '<div class="pl-e">' + (!h ? 'Pick a unit to start.'
+        : !c.amt ? 'Type the sale amount.'
+        : !c.dpSet ? 'Set the down payment %.'
+        : 'Choose the tenure.') + '</div>';
+}
+
+function payDoc(c) {
+  var h = c.h, au = esc(payAU());
+  var start = PAY.date ? new Date(PAY.date + 'T00:00:00') : new Date();
+  if (isNaN(start.getTime())) start = new Date();
+  var kv = function (k, v, cls) {
+    return '<div class="pl-kv"><span>' + k + '</span><b' + (cls ? ' class="' + cls + '"' : '') + '>' +
+           v + '</b></div>';
+  };
+  var rows = '';
+  rows += '<tr class="pl-dpr"><td>Down payment (' + esc(String(c.dpPct)) + '%)</td>' +
+          '<td>' + esc(payDate(start)) + '</td><td class="r">' +
+          esc(payPKR(c.dp)) + '</td></tr>';
+  for (var i = 1; i <= c.mo; i++) {
+    rows += '<tr><td>Instalment ' + i + '</td><td>' + esc(payDate(payAddM(start, i))) + '</td>' +
+            '<td class="r">' +
+            esc(payPKR(i === c.mo ? c.last : c.monthly)) + '</td></tr>';
+  }
+  var yrs = c.mo % 12 === 0 ? ' (' + (c.mo / 12) + ' year' + (c.mo === 12 ? '' : 's') + ')' : '';
+  return '' +
+    '<div class="pl-dh"><div>' +
+      '<div class="pl-dt">Payment plan — ' + esc(h.u.n) + '</div>' +
+      '<div class="pl-dp">' + esc(P.project || '') + (P.company ? ' · ' + esc(P.company) : '') + '</div>' +
+    '</div><div class="pl-dd">Prepared<br>' + esc(payDate(new Date())) + '</div></div>' +
+    (PAY.who.trim() ? '<div class="pl-who">Prepared for <b>' + esc(PAY.who.trim()) + '</b></div>' : '') +
+    '<div class="pl-g">' +
+      kv('Unit', esc(h.u.n)) +
+      kv('Floor', esc(h.f.floor_label)) +
+      (h.u.t ? kv('Type', esc(h.u.t)) : '') +
+      kv('Area', c.area ? esc(area(h.u)) : '—') +
+      (c.list ? kv('List price', esc(payPKR(c.list))) : '') +
+      (c.disc > 0 ? kv('Discount', '− ' + esc(payPKR(c.disc)), 'pl-dc') : '') +
+      (c.area ? kv('Rate', Math.round(c.amt / c.area).toLocaleString('en-US') + ' per ' + au) : '') +
+      kv('Sale amount', esc(payPKR(c.amt))) +
+      kv('Tenure', c.mo + ' month' + (c.mo === 1 ? '' : 's') + yrs) +
+      kv('Balance after down payment', esc(payPKR(c.bal))) +
+    '</div>' +
+    '<div class="pl-big">' +
+      '<div class="pl-bx"><span>Down payment</span><b>' + esc(payPKR(c.dp)) + '</b>' +
+        '<small>' + esc(String(c.dpPct)) + '% at booking</small></div>' +
+      '<div class="pl-bx"><span>Balance</span><b>' + esc(payPKR(c.bal)) + '</b>' +
+        '<small>over ' + c.mo + ' months</small></div>' +
+      '<div class="pl-bx pl-m"><span>Per month</span><b>' + esc(payPKR(c.monthly)) + '</b>' +
+        '<small>' + (c.last !== c.monthly ? 'last one ' + esc(payPKR(c.last)) : '× ' + c.mo + ' months') +
+        '</small></div>' +
+    '</div>' +
+    '<div class="pl-tw"><table class="pl-t">' +
+      '<thead><tr><th>Payment</th><th>Due date</th><th class="r">Amount</th></tr></thead>' +
+      '<tbody>' + rows + '<tr class="pl-tot"><td>Total</td><td></td><td class="r">' + esc(payPKR(c.amt)) + '</td></tr>' +
+      '</tbody>' +
+    '</table></div>' +
+    '<div class="pl-ds">This plan is a calculation only. It does not reserve or hold the unit, ' +
+      'and the price and terms are final only once confirmed by the management.</div>' +
+    '<div class="pl-sig"><div>Prepared by</div><div>Customer</div></div>';
+}
+
+/* PDF the way every report here does it: the page's own print, with only
+   the plan on the paper, and the file named after the unit. */
+function payPrint() {
+  if (!payCalc().ready) return;
+  var was = document.title, h = payUnit();
+  document.title = 'Payment plan ' + (h ? h.u.n : '');
+  document.body.classList.add('pp');
+  var done = function () {
+    document.body.classList.remove('pp'); document.title = was;
+    window.removeEventListener('afterprint', done);
+  };
+  window.addEventListener('afterprint', done);
+  window.print();
+  setTimeout(done, 1500);
+}
+
+$('planrow').addEventListener('click', function (e) {
+  if (!e.target.closest('[data-pay]')) return;
+  ALLV = false; MINEV = false; FLOOR = null;
+  renderPay(); window.scrollTo(0, 0);
+});
+$('pln-back').onclick = function () {
+  PAYV = false;
+  $('payplan').hidden = true; BACKING = true; renderHome(); window.scrollTo(0, 0);
+};
 $('prc-open').onclick = function () {
   $('prc-err').hidden = true; $('prc-pw').value = '';
   /* A REMEMBERED PHONE IS NOT ASKED AGAIN. Same key, same door — the price
@@ -6638,7 +7144,8 @@ function repTools(title) {
 
 function showRep() {
   REPV = true;
-  ['home', 'all', 'mine', 'floor'].forEach(function (id) { $(id).hidden = true; });
+  ['home', 'all', 'mine', 'floor', 'payplan'].forEach(function (id) { $(id).hidden = true; });
+  PAYV = false;
   /* and the desk, if the room is being reached from on top of it */
   $('desk').hidden = true; DESKV = false;
   /* the card that asks a dealer's name is screen one's furniture, and a
@@ -6805,7 +7312,8 @@ function sessionGone() {
    walks straight in over here. */
 async function openDesk() {
   DESKV = true; TAB = 'desk';
-  ['home', 'all', 'mine', 'floor', 'price', 'rep'].forEach(function (id) {
+  ['home', 'all', 'mine', 'floor', 'price', 'rep', 'payplan'].forEach(function (id) {
+    PAYV = false;
     var e = $(id); if (e) e.hidden = true;
   });
   $('name-ask').hidden = true;
