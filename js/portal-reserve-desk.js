@@ -2248,7 +2248,14 @@
     if (!o || !o.items || !o.items.length) return;
     var cv;
     try { cv = _receipt(o); } catch (e) { cv = null; }
-    var host = _root() || document.body;
+    var name = (o.items.length === 1 ? o.items[0].no : o.items.length + ' units') + ' ' +
+               (o.tag || 'decision') + ' ' + String(o.stamp || '').replace(/[,:]/g, '').replace(/\s+/g, ' ');
+    _imgSheet(cv, name, 'Share with the group', 'The decision as a picture, ready for WhatsApp.', o.text, _root());
+  }
+  /* one sheet for every picture this module hands to WhatsApp: the decision
+     receipt and the Daybook report */
+  function _imgSheet(cv, name, title, sub, text, hostEl) {
+    var host = hostEl || document.body;
     var old = document.getElementById('rd-share'); if (old) old.parentNode.removeChild(old);
     var wrap = document.createElement('div');
     wrap.id = 'rd-share';
@@ -2261,10 +2268,10 @@
     var canCopy = !!(navigator.clipboard && window.ClipboardItem && window.isSecureContext);
     wrap.innerHTML =
       '<div class="rd-ask-c">' +
-        '<div class="rd-ask-t">Share with the group</div>' +
-        '<div class="tr-s">The decision as a picture, ready for WhatsApp.</div>' +
-        (cv ? '<img class="sh-img" alt="Decision receipt" src="' + cv.toDataURL('image/jpeg', 0.92) + '">'
-            : '<pre class="sh-pre">' + esc(o.text) + '</pre>') +
+        '<div class="rd-ask-t">' + esc(title) + '</div>' +
+        '<div class="tr-s">' + esc(sub) + '</div>' +
+        (cv ? '<img class="sh-img" alt="' + esc(title) + '" src="' + cv.toDataURL('image/jpeg', 0.92) + '">'
+            : '<pre class="sh-pre">' + esc(text) + '</pre>') +
         '<div class="rd-ask-r">' +
           '<button type="button" data-shx>Close</button>' +
           '<button type="button" data-shs>Save image</button>' +
@@ -2273,9 +2280,7 @@
         '</div>' +
       '</div>';
     host.appendChild(wrap);
-    var name = (o.items.length === 1 ? o.items[0].no : o.items.length + ' units') + ' ' +
-               (o.tag || 'decision') + ' ' + String(o.stamp || '').replace(/[,:]/g, '').replace(/\s+/g, ' ');
-    name = name.replace(/[^A-Za-z0-9 _.-]/g, '-') + '.jpg';
+    name = String(name).replace(/[^A-Za-z0-9 _.-]/g, '-') + '.jpg';
     /* the files are made now, so Share and Copy answer the tap at once —
        a phone only lets a share open inside the tap that asked for it */
     var jpg = null, png = null;
@@ -2292,7 +2297,7 @@
     wrap.addEventListener('click', function (e) {
       if (e.target === wrap || e.target.closest('[data-shx]')) return shut();
       if (e.target.closest('[data-shs]')) {
-        if (!cv) { _portalCopy(o.text, 'Copied — paste it into the group.'); return; }
+        if (!cv) { _portalCopy(text,'Copied — paste it into the group.'); return; }
         var a = document.createElement('a');
         a.href = cv.toDataURL('image/jpeg', 0.92); a.download = name;
         document.body.appendChild(a); a.click(); a.remove();
@@ -3964,7 +3969,238 @@
   }
 
   var WA_MAX = 1200;   // beyond this a wa.me URL is unreliable across phones
+  /* ── THE DAYBOOK AS A PICTURE ────────────────────────────────────────────
+     Rashid: "Daybook ka WhatsApp report bhi image bana do". The same report the
+     text carries, in the same order, drawn as one tall card in the decision
+     receipt's colours: where the project stands, what was booked and sold
+     (with each unit's short trail when "Unit trail" is ticked), what is still
+     held from before, the movement when it is ticked, and every floor with a
+     bar. A section longer than CAP lines says how many more and points at
+     the PDF, so a busy day is still one picture a phone can open. */
+  /* the trail line under a unit, or nothing when its history could not be read */
+  function _dbSub(t) {
+    if (!t || /history not available/.test(t.before)) return '';
+    return 'was ' + t.was + ' · before: ' + t.before + ' · token now: ' + t.token;
+  }
+  function _dbImage(d) {
+    var h = d.header || {}, W = 1080, M = 48, P = 56, CW = W - 2 * M, IW = CW - 2 * P, CAP = 30;
+    var cv = document.createElement('canvas'), cx = cv.getContext('2d');
+    var F = function (wt, px) { return wt + ' ' + px + 'px ' + RC.font; };
+    var blocks = [];                 // each { h, draw(y) } — measured, then drawn
+    var add = function (hh, fn) { blocks.push({ h: hh, draw: fn }); };
+
+    /* the figures, three to a row */
+    var pos = _dbPosition(d), per = 3, tw = (IW - 2 * 16) / per, th = 112;
+    var tileRows = Math.ceil(pos.length / per);
+    add(36 + tileRows * (th + 16), function (y) {
+      pos.forEach(function (c, i) {
+        var x = M + P + (i % per) * (tw + 16), yy = y + 30 + Math.floor(i / per) * (th + 16);
+        _rr(cx, x, yy, tw, th, 18);
+        cx.fillStyle = c.tone === 'free' ? '#E8F7EF' : c.tone === 'all' ? '#EEF2F7' : '#F6F7F9'; cx.fill();
+        cx.fillStyle = c.tone === 'free' ? '#0F7A38' : RC.ink; cx.font = F('800', 46);
+        cx.fillText(Number(c.v).toLocaleString('en-US'), x + 22, yy + 60);
+        cx.fillStyle = RC.mut; cx.font = F('600', 22);
+        cx.fillText(String(c.k), x + 22, yy + 94);
+      });
+    });
+
+    function section(title, n) {
+      add(92, function (y) {
+        cx.fillStyle = RC.ink; cx.font = F('800', 34);
+        cx.fillText(title, M + P, y + 62);
+        var tw2 = cx.measureText(title).width;
+        var lbl = String(n);
+        cx.font = F('700', 24);
+        var pw = cx.measureText(lbl).width + 28;
+        _rr(cx, M + P + tw2 + 16, y + 36, pw, 36, 18);
+        cx.fillStyle = '#E2E8F0'; cx.fill();
+        cx.fillStyle = RC.ink; cx.fillText(lbl, M + P + tw2 + 30, y + 62);
+        cx.fillStyle = RC.navy; cx.fillRect(M + P, y + 82, IW, 3);
+      });
+    }
+    function none(txt) {
+      add(64, function (y) { cx.fillStyle = RC.mut; cx.font = F('400', 26); cx.fillText(txt, M + P, y + 42); });
+    }
+    function more(n) {
+      add(56, function (y) {
+        cx.fillStyle = RC.mut; cx.font = F('600', 24);
+        cx.fillText('+ ' + n + ' more — see the Daybook PDF', M + P, y + 38);
+      });
+    }
+    /* one unit: number, a tag chip, who, and a right-hand figure; a trail line under it */
+    function unitRow(no, tag, who, right, rightInk, sub, warn) {
+      cx.font = F('400', 24);
+      var subL = sub ? _wrap(cx, sub, IW - 16) : [];
+      var hh = 70 + subL.length * 34 + (subL.length ? 14 : 0);
+      add(hh, function (y) {
+        if (warn) { _rr(cx, M + P - 14, y + 4, IW + 28, hh - 8, 12); cx.fillStyle = RC.warnBg; cx.fill(); }
+        cx.fillStyle = RC.ink; cx.font = F('800', 32);
+        cx.fillText(no, M + P, y + 48);
+        var x = M + P + cx.measureText(no).width + 16;
+        if (tag) {
+          var ink = _tagInk(tag);
+          cx.font = F('800', 20);
+          var tw3 = cx.measureText(tag.toUpperCase()).width + 24;
+          _rr(cx, x, y + 22, tw3, 34, 17);
+          cx.fillStyle = ink + '1A'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = ink; cx.stroke();
+          cx.fillStyle = ink; cx.fillText(tag.toUpperCase(), x + 12, y + 46);
+          x += tw3 + 14;
+        }
+        cx.font = F('400', 26); cx.fillStyle = RC.mut;
+        var rw = 0;
+        if (right) { cx.font = F('700', 26); rw = cx.measureText(right).width; }
+        cx.font = F('400', 26);
+        var whoT = who || '';
+        while (whoT && cx.measureText(whoT).width > M + P + IW - rw - 20 - x) whoT = whoT.slice(0, -2);
+        if (whoT !== (who || '')) whoT = whoT.replace(/\s+\S*$/, '') + '…';
+        cx.fillText(whoT, x, y + 48);
+        if (right) {
+          cx.textAlign = 'right'; cx.font = F('700', 26); cx.fillStyle = rightInk || RC.ink;
+          cx.fillText(right, M + P + IW, y + 48); cx.textAlign = 'left';
+        }
+        if (subL.length) {
+          cx.fillStyle = warn ? RC.warnInk : '#475569'; cx.font = F(warn ? '600' : '400', 24);
+          subL.forEach(function (ln, j) { cx.fillText(ln, M + P, y + 88 + j * 34); });
+        }
+        cx.fillStyle = RC.line; cx.fillRect(M + P, y + hh - 1, IW, 2);
+      });
+    }
+
+    /* booked */
+    var resv = _liveOnly(d.reserved), trl = _dbTrailRows(d) || [], tby = {};
+    trl.forEach(function (t) { tby[String(t.no).toUpperCase() + '|' + t.today] = t; });
+    section(d.single_day ? 'Booked today' : 'Booked in this period', resv.length);
+    if (!resv.length) none('No units booked ' + _periodPhrase(d) + '.');
+    resv.slice(0, CAP).forEach(function (r) {
+      var t = tby[String(r.unit_no).toUpperCase() + '|' + (r.tag || 'Reserved') + ' for ' + (r.requested_by || '—')];
+      var warn = !!(t && /hold (ran out|was released|was cancelled)/.test(t.before) &&
+                    !_trSame(String(t.before).split('’s hold')[0], r.requested_by));
+      unitRow(r.unit_no, r.tag || 'Reserved', 'for ' + (r.requested_by || '—'),
+              r.expiry_date ? 'till ' + _trDay(r.expiry_date) : 'no expiry', null,
+              _dbSub(t), warn);
+    });
+    if (resv.length > CAP) more(resv.length - CAP);
+
+    /* sold */
+    var sold = d.sold || [];
+    section(d.single_day ? 'Sold today' : 'Sold in this period', sold.length);
+    if (!sold.length) none('No units sold ' + _periodPhrase(d) + '.');
+    sold.slice(0, CAP).forEach(function (s) {
+      var t = tby[String(s.unit_no).toUpperCase() + '|Sold' + (s.agent ? ' — ' + s.agent : '')];
+      unitRow(s.unit_no, 'Sold', [s.agent, s.client_name ? 'buyer ' + s.client_name : ''].filter(Boolean).join(' · '),
+              s.floor || '', RC.mut,
+              _dbSub(t), false);
+    });
+    if (sold.length > CAP) more(sold.length - CAP);
+
+    /* held from before */
+    var held = _heldEarlier(d.holding);
+    if (held.length) {
+      section('Also held, from before', held.length);
+      held.slice(0, CAP).forEach(function (r) {
+        var L2 = _holdLeft(r);
+        unitRow(r.unit_no, r.tag || 'Reserved', r.requested_by || '',
+                r.overdue ? 'LAPSED' : L2.t + ' left', L2.tone === 'red' ? '#B3123C' : L2.tone === 'amber' ? '#C2760A' : null,
+                '', false);
+      });
+      if (held.length > CAP) more(held.length - CAP);
+    }
+
+    /* movement */
+    if (d.ledger && d.ledger.held && DB.showMovement) {
+      var lh = d.ledger.held, lav = d.ledger.available || {};
+      section('Movement', _periodShort(d));
+      add(110, function (y) {
+        cx.fillStyle = RC.ink; cx.font = F('600', 28);
+        cx.fillText('Held  ' + (lh.opening || 0) + '  +  ' + (lh.added || 0) + '  −  ' + (lh.removed || 0) +
+                    '  =  ' + (lh.closing || 0), M + P, y + 44);
+        cx.fillText('Available  ' + (lav.opening || 0) + '  →  ' + (lav.closing || 0), M + P, y + 88);
+      });
+    }
+
+    /* every floor, with a bar */
+    var av = d.available || [], tot = 0;
+    av.forEach(function (f) { tot += Number(f.available || 0); });
+    section('Available by floor', tot);
+    av.forEach(function (f) {
+      add(74, function (y) {
+        var a = Number(f.available || 0), t = Number(f.total || 0);
+        cx.fillStyle = RC.ink; cx.font = F('600', 28);
+        cx.fillText(String(f.floor), M + P, y + 44);
+        var bx = M + P + 330, bw = IW - 330 - 190;
+        _rr(cx, bx, y + 26, bw, 22, 11); cx.fillStyle = '#E2E8F0'; cx.fill();
+        if (t && a) { _rr(cx, bx, y + 26, Math.max(22, bw * a / t), 22, 11); cx.fillStyle = '#16A34A'; cx.fill(); }
+        cx.textAlign = 'right';
+        cx.fillStyle = RC.ink; cx.font = F('800', 28); cx.fillText(String(a), M + P + IW - 90, y + 46);
+        cx.fillStyle = RC.mut; cx.font = F('400', 24); cx.fillText('of ' + t, M + P + IW, y + 46);
+        cx.textAlign = 'left';
+        cx.fillStyle = RC.line; cx.fillRect(M + P, y + 73, IW, 2);
+      });
+    });
+    if (!av.length) none('No inventory recorded for this project.');
+
+    /* ── lay it out ── */
+    var HEAD = 230, FOOT = 120, TEAR = 30;
+    var bodyH = blocks.reduce(function (n, b) { return n + b.h; }, 0) + 40;
+    var CH = HEAD + bodyH + FOOT, H = CH + 2 * M + TEAR;
+    cv.width = W; cv.height = H;
+    cx.fillStyle = RC.bg; cx.fillRect(0, 0, W, H);
+    var top = M, left = M, bot = M + CH;
+    cx.save();
+    cx.shadowColor = 'rgba(15,23,42,.16)'; cx.shadowBlur = 36; cx.shadowOffsetY = 12;
+    cx.beginPath();
+    cx.moveTo(left + 28, top); cx.lineTo(left + CW - 28, top);
+    cx.arcTo(left + CW, top, left + CW, top + 28, 28);
+    cx.lineTo(left + CW, bot);
+    var teeth = 26, tw4 = CW / teeth;
+    for (var i = teeth; i > 0; i--) { cx.lineTo(left + (i - 0.5) * tw4, bot + TEAR * 0.7); cx.lineTo(left + (i - 1) * tw4, bot); }
+    cx.lineTo(left, top + 28); cx.arcTo(left, top, left + 28, top, 28); cx.closePath();
+    cx.fillStyle = RC.paper; cx.fill();
+    cx.restore();
+
+    cx.save(); _rr(cx, left, top, CW, HEAD + 20, 28); cx.clip();
+    var g = cx.createLinearGradient(left, top, left + CW, top + HEAD);
+    g.addColorStop(0, RC.navy); g.addColorStop(1, RC.navy2);
+    cx.fillStyle = g; cx.fillRect(left, top, CW, HEAD);
+    cx.restore();
+    cx.fillStyle = RC.amber; cx.fillRect(left, top + HEAD - 8, CW, 8);
+    cx.textBaseline = 'alphabetic';
+    cx.fillStyle = 'rgba(255,255,255,.72)'; cx.font = F('600', 24);
+    cx.fillText(String(h.project || _projName()).toUpperCase().split('').join(String.fromCharCode(8202)), left + P, top + 70);
+    cx.fillStyle = '#FFFFFF'; cx.font = F('700', 52);
+    cx.fillText(d.single_day ? 'Daily Report' : 'Period Report', left + P, top + 134);
+    cx.fillStyle = 'rgba(255,255,255,.72)'; cx.font = F('400', 26);
+    cx.fillText('Reservation Daybook' + (h.company ? ' · ' + h.company : ''), left + P, top + 178);
+    cx.textAlign = 'right';
+    cx.fillStyle = '#FFFFFF'; cx.font = F('700', 30);
+    cx.fillText(_periodShort(d), left + CW - P, top + 76);
+    cx.textAlign = 'left';
+
+    var y = top + HEAD + 8;
+    blocks.forEach(function (b) { b.draw(y); y += b.h; });
+
+    cx.textAlign = 'center';
+    cx.fillStyle = '#94A3B8'; cx.font = F('400', 22);
+    var gen = d.generated_at ? new Date(d.generated_at) : new Date();
+    var k = new Date(gen.getTime() + 5 * 3600000);
+    cx.fillText('Generated ' + _trDay(gen) + ', ' + String(k.getUTCHours()).padStart(2, '0') + ':' +
+                String(k.getUTCMinutes()).padStart(2, '0') + ' PKT · Nexunova RMS', W / 2, bot - 50);
+    cx.textAlign = 'left';
+    return cv;
+  }
+
   function _dbWa() {
+    var d = DB.data; if (!d) return;
+    var cv;
+    try { cv = _dbImage(d); } catch (e) { cv = null; }
+    if (cv) {
+      var h = d.header || {};
+      return _imgSheet(cv, (h.project || 'Project') + ' Daybook ' + _periodShort(d), 'Daybook for WhatsApp',
+                       'The report as a picture, ready for the group.', _dbText(), _dbRoot());
+    }
+    return _dbWaText();
+  }
+  function _dbWaText() {
     var t = _dbText();
     if (t.length > WA_MAX) {
       _portalCopy(t, 'Too long to send as a link — copied instead. Paste it into the group.');
