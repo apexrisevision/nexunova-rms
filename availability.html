@@ -1941,6 +1941,7 @@ body.splash .fl::before{opacity:0}
 .pl-kv span{color:var(--mut)}
 .pl-kv b{font-weight:700;text-align:right}
 .pl-kv .pl-dc{color:#15803D}
+.pl-kv .pl-red{color:#b3123c;font-weight:800}
 .pl-big{display:grid;grid-template-columns:repeat(var(--n,3),1fr);gap:8px;margin:14px 0 4px;
         grid-auto-flow:row dense}
 .pl-bx{border-radius:var(--r);padding:10px 11px;background:var(--accent-soft)}
@@ -6826,6 +6827,15 @@ function payFacts(c) {
   var yrs = c.mo % 12 === 0 ? ' (' + (c.mo / 12) + ' year' + (c.mo === 12 ? '' : 's') + ')' : '';
   f.push(['Tenure', c.mo + ' month' + (c.mo === 1 ? '' : 's') + yrs]);
   f.push(['Plan type', c.mode === 'cus' ? 'Customized' : 'Standard']);
+  /* WHOSE PRICE IS THIS. A dealer once had a 75,000 unit planned at 65,000 and
+     showed it as if it were ours. When the rate on the plan is not the list
+     rate, the plan says, in red, that a person changed it and the company did
+     not approve it. */
+  if (c.list) {
+    f.push(c.amt !== c.list
+      ? ['Price status', 'Changed by preparer - NOT company approved', 'pl-red']
+      : ['Price status', 'Company list price']);
+  }
   f.push(['Balance after down payment', payPKR(c.bal)]);
   return f;
 }
@@ -6877,6 +6887,14 @@ var PAY_NOTES = [
   /* Rashid: "is mai mentioned prices ka accounts departmnent se koi taluq
      nahi, final prices directors k approval k baad consider ki jaigi … accounts
      ko is mamlay se complete out karwao" */
+  /* Rashid: "is unit ka sale rate 75000 hai aur is banday ne muj se 65000 ka
+     schedule banwaya hai. Lehaza is cheez ko clear mention karo k is mai jo sale
+     rate, jo discount likha hai us k ham responsible nahi hain." */
+  { h: 'THE COMPANY IS NOT RESPONSIBLE FOR THE RATE, DISCOUNT OR AMOUNTS SHOWN. ',
+    t: 'The sale rate, discount, down payment and every amount in this estimate are typed in by the person ' +
+       'who prepared it, and may be lower or higher than the company’s actual price. The company has not ' +
+       'approved them, will not honour them, and accepts no responsibility for them. The only valid price is ' +
+       'the one approved in writing by the Directors at the time of booking.' },
   { h: 'THE ACCOUNTS DEPARTMENT IS NOT A PARTY TO THIS DOCUMENT. ',
     t: 'The prices, rates, discounts and amounts shown here were not issued, checked or approved by the ' +
        'Accounts department, and the Accounts department bears no responsibility or liability for anything in ' +
@@ -6970,7 +6988,8 @@ async function payPdfBytes(c) {
       if (!f) return;
       var x = M + j * (colW + 20);
       txt(f[0], x, y, 9.5, R, MUT);
-      rtxt(f[1], x + colW, y, 9.5, B, f[2] ? GREEN : INK);
+      rtxt(f[1], x + colW, y, f[2] === 'pl-red' ? 8.6 : 9.5, B,
+           f[2] === 'pl-red' ? L.rgb(0.70, 0.07, 0.24) : f[2] ? GREEN : INK);
       line(x, y - 6, x + colW, 0.6);
     });
     y -= 19;
