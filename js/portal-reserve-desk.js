@@ -2252,6 +2252,121 @@
     return cv;
   }
 
+  /* ── ANY DECISION AS A RECEIPT ───────────────────────────────────────────
+     The same card for decisions made elsewhere — first the Directors' Room's
+     Extend: Rashid, "jab mai extend karun to us ki b image banay taakay mai
+     share karun aur pata lagay inhe k ye unit extend howa aur ye ye details
+     hain". spec: { title, sub, label, big, small, stamp, stampTag,
+     rows: [[label, value, warn]], by, stamp2 (the time line) } */
+  function _drawCard(spec) {
+    var W = 1080, M = 56, P = 64, CW = W - 2 * M, IW = CW - 2 * P;
+    var cv = document.createElement('canvas'), cx = cv.getContext('2d');
+    var F = function (wt, px) { return wt + ' ' + px + 'px ' + RC.font; };
+    var rows = spec.rows || [], LH = 42, labelW = 300, valW = IW - labelW;
+    cx.font = F('600', 30);
+    var rowH = rows.map(function (r) { return Math.max(1, _wrap(cx, r[1], valW - (r[2] ? 28 : 0)).length) * LH + 30; });
+    cx.font = F('800', 112);
+    var bigPx = 112;
+    while (bigPx > 56 && cx.measureText(String(spec.big || '')).width > IW) { bigPx -= 8; cx.font = F('800', bigPx); }
+    var HEAD = 230, HERO = 300, FOOT = 230, TEAR = 34;
+    var CH = HEAD + HERO + rowH.reduce(function (a, b) { return a + b; }, 0) + 30 + FOOT;
+    var H = CH + 2 * M + TEAR;
+    cv.width = W; cv.height = H;
+    cx.fillStyle = RC.bg; cx.fillRect(0, 0, W, H);
+    var top = M, left = M, bot = M + CH;
+    cx.save();
+    cx.shadowColor = 'rgba(15,23,42,.18)'; cx.shadowBlur = 40; cx.shadowOffsetY = 14;
+    cx.beginPath();
+    cx.moveTo(left + 28, top); cx.lineTo(left + CW - 28, top);
+    cx.arcTo(left + CW, top, left + CW, top + 28, 28);
+    cx.lineTo(left + CW, bot);
+    var teeth = 24, tw = CW / teeth;
+    for (var i = teeth; i > 0; i--) { cx.lineTo(left + (i - 0.5) * tw, bot + TEAR * 0.7); cx.lineTo(left + (i - 1) * tw, bot); }
+    cx.lineTo(left, top + 28); cx.arcTo(left, top, left + 28, top, 28); cx.closePath();
+    cx.fillStyle = RC.paper; cx.fill();
+    cx.restore();
+    cx.save(); _rr(cx, left, top, CW, HEAD + 20, 28); cx.clip();
+    var g = cx.createLinearGradient(left, top, left + CW, top + HEAD);
+    g.addColorStop(0, RC.navy); g.addColorStop(1, RC.navy2);
+    cx.fillStyle = g; cx.fillRect(left, top, CW, HEAD);
+    cx.restore();
+    cx.fillStyle = RC.amber; cx.fillRect(left, top + HEAD - 8, CW, 8);
+    cx.textBaseline = 'alphabetic';
+    cx.fillStyle = 'rgba(255,255,255,.72)'; cx.font = F('600', 24);
+    cx.fillText(String(spec.project || '').toUpperCase().split('').join(String.fromCharCode(8202)), left + P, top + 70);
+    cx.fillStyle = '#FFFFFF'; cx.font = F('700', 50);
+    cx.fillText(spec.title || '', left + P, top + 132);
+    cx.fillStyle = 'rgba(255,255,255,.72)'; cx.font = F('400', 26);
+    cx.fillText(spec.sub || '', left + P, top + 176);
+    var st = String(spec.when || '').split(', ');
+    cx.textAlign = 'right';
+    cx.fillStyle = 'rgba(255,255,255,.72)'; cx.font = F('400', 24);
+    cx.fillText(st[0] || '', left + CW - P, top + 70);
+    cx.fillStyle = '#FFFFFF'; cx.font = F('700', 30);
+    cx.fillText(st[1] || '', left + CW - P, top + 110);
+    var y = top + HEAD;
+    cx.textAlign = 'center';
+    cx.fillStyle = RC.mut; cx.font = F('600', 24);
+    cx.fillText(spec.label || 'UNIT', W / 2, y + 62);
+    cx.fillStyle = RC.ink; cx.font = F('800', bigPx);
+    cx.fillText(String(spec.big || ''), W / 2, y + 170);
+    if (spec.small) { cx.fillStyle = RC.mut; cx.font = F('400', 26); cx.fillText(spec.small, W / 2, y + 212); }
+    if (spec.stamp) {
+      var ink = _tagInk(spec.stampTag || spec.stamp), stx = String(spec.stamp).toUpperCase();
+      cx.font = F('800', 28);
+      var sw = cx.measureText(stx).width + 64, sx = W / 2 - sw / 2, sy = y + 236;
+      _rr(cx, sx, sy, sw, 52, 26);
+      cx.fillStyle = ink + '1A'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = ink; cx.stroke();
+      cx.fillStyle = ink; cx.fillText(stx, W / 2, sy + 37);
+    }
+    cx.textAlign = 'left';
+    y += HERO;
+    var perf = function (yy) {
+      cx.save();
+      cx.fillStyle = RC.bg;
+      cx.beginPath(); cx.arc(left, yy, 18, 0, Math.PI * 2); cx.fill();
+      cx.beginPath(); cx.arc(left + CW, yy, 18, 0, Math.PI * 2); cx.fill();
+      cx.setLineDash([12, 12]); cx.strokeStyle = '#CBD5E1'; cx.lineWidth = 3;
+      cx.beginPath(); cx.moveTo(left + 34, yy); cx.lineTo(left + CW - 34, yy); cx.stroke();
+      cx.restore();
+    };
+    perf(y); y += 30;
+    rows.forEach(function (r, k) {
+      var h = rowH[k];
+      if (r[2]) { _rr(cx, left + P - 18, y + 4, IW + 36, h - 8, 14); cx.fillStyle = r[2] === 'good' ? '#E8F7EF' : RC.warnBg; cx.fill(); }
+      cx.fillStyle = RC.mut; cx.font = F('400', 28);
+      cx.fillText(r[0], left + P, y + 46);
+      cx.fillStyle = r[2] === 'good' ? '#0F7A38' : r[2] ? RC.warnInk : RC.ink; cx.font = F(r[2] ? '700' : '600', 30);
+      _wrap(cx, r[1], valW - (r[2] ? 28 : 0)).forEach(function (ln, j) { cx.fillText(ln, left + P + labelW, y + 46 + j * LH); });
+      if (!r[2] && k < rows.length - 1) { cx.fillStyle = RC.line; cx.fillRect(left + P, y + h - 1, IW, 2); }
+      y += h;
+    });
+    y += 30;
+    perf(y);
+    cx.fillStyle = RC.mut; cx.font = F('400', 26);
+    cx.fillText(spec.byLabel || 'Decided by', left + P, y + 62);
+    cx.fillStyle = RC.ink; cx.font = F('700', 34);
+    cx.fillText(spec.by || '—', left + P, y + 106);
+    cx.textAlign = 'right';
+    cx.fillStyle = RC.mut; cx.font = F('400', 26);
+    cx.fillText('Recorded', left + CW - P, y + 62);
+    cx.fillStyle = RC.ink; cx.font = F('600', 30);
+    cx.fillText(spec.when || '', left + CW - P, y + 104);
+    cx.textAlign = 'center';
+    cx.fillStyle = '#94A3B8'; cx.font = F('400', 22);
+    cx.fillText(spec.foot || 'Nexunova RMS', W / 2, y + 160);
+    cx.textAlign = 'left';
+    return cv;
+  }
+  /* for pages outside the desk (the Directors' Room): draw the card and open
+     the same share sheet the desk uses */
+  window.RDShareCard = function (spec, name, title, sub, text) {
+    var cv;
+    try { cv = _drawCard(spec); } catch (e) { cv = null; }
+    _imgSheet(cv, name, title || 'Share with the group', sub || 'The decision as a picture, ready for WhatsApp.',
+              text || '', null);           // on the body: a fixed sheet inside an animated screen can drift
+  };
+
   function _shareSheet(o) {
     if (!o || !o.items || !o.items.length) return;
     var cv;

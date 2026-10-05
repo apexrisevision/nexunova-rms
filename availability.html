@@ -7701,7 +7701,7 @@ async function repOpen() {
 var TOKEN = '';           // the SALES SESSION. The link is LINK, up above.
 var ME = null;
 var TAB = 'desk';
-var DESK_SRC = '/js/portal-reserve-desk.js?v=20261005todayshare';
+var DESK_SRC = '/js/portal-reserve-desk.js?v=20261005extcard';
 var DESK_UP = false, DESKV = false;
 /* the portal's own key, on purpose: same origin, same phone, so a director
    already signed into the CRM here is not asked twice */
@@ -8226,6 +8226,7 @@ function decPanel() {
     H.push('<div class="dc-ok">' + x.say + (x.who ? ' Tell <b>' + esc(x.who) + '</b>:' : '') +
       '<div class="dc-a"><a class="wa" target="_blank" rel="noopener" href="' + esc(x.wa) + '">' +
       'Send on WhatsApp</a>' +
+      (x.card ? '<button class="ext" data-dc="card" data-i="' + i + '">Share picture</button>' : '') +
       '<button class="no" data-dc="dismiss" data-i="' + i + '">Done</button></div></div>');
   });
   if (due.length) H.push(due.map(decCard).join(''));
@@ -8241,6 +8242,68 @@ function decPanel() {
 
 function decPaint() { if (REPV && REP && REPP.view === 'home') $('rep-body').innerHTML = repRender(); }
 
+/* ── THE EXTEND, AS A PICTURE ────────────────────────────────────────────
+   Rashid: "jab mai extend karun to us ki b image banay taakay mai share karun
+   aur pata lagay inhe k ye unit extend howa aur ye ye details hain is ki".
+   The receipt the desk draws for a booking, drawn here for an extend: which
+   unit, whose hold, what kind, until when it ran and until when it runs now,
+   how many days were added, who decided and when. The drawing and the share
+   sheet live in the desk's script, fetched here only when a picture is asked
+   for — a dealer opening the link never downloads it. */
+var DC_STAMP = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Karachi',
+  day: 'numeric', month: 'short', year: 'numeric' });
+var DC_HM = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Karachi',
+  hour: '2-digit', minute: '2-digit', hour12: false });
+function decStamp(iso) {
+  var t = new Date(iso);
+  return isNaN(t) ? '' : DC_STAMP.format(t).replace(/Sept/, 'Sep') + ', ' + DC_HM.format(t);
+}
+function decCardSpec(g, done, wasBy, days, by) {
+  var ns = done.map(function (x) { return x.n; }), one = ns.length === 1;
+  var first = done[0], k = (g.units[0] && g.units[0].k) || 'Hold';
+  var hit = one ? findUnit(ns[0]) : null;
+  var rows = [['Held for', g.who || 'No name on the hold'], ['Hold type', k]];
+  if (!one) rows.push(['Units', ns.join(', ')]);
+  var wasL = ns.map(function (n) { return wasBy[n]; }).filter(Boolean);
+  if (wasL.length) rows.push(['Was until', decStamp(wasL[0]) + (wasL.length > 1 && wasL.some(function (w) { return w !== wasL[0]; }) ? ' (first unit)' : '')]);
+  rows.push(['Now until', first.x ? decStamp(first.x) : '—', 'good']);
+  rows.push(['Added', days + ' day' + (Number(days) === 1 ? '' : 's')]);
+  var now = new Date().toISOString();
+  return {
+    spec: { project: (P && P.project) || '', title: 'Hold Extended',
+            sub: 'Directors’ Room · decision record',
+            label: one ? 'UNIT' : 'UNITS', big: one ? ns[0] : String(ns.length),
+            small: one ? (hit && hit.f ? hit.f.floor_label : '') : '',
+            stamp: 'Extended +' + days + 'd', stampTag: 'hold',
+            rows: rows, by: by, when: decStamp(now),
+            foot: 'Nexunova RMS · the hold now runs to the date above' },
+    name: 'Extended ' + (one ? ns[0] : ns.length + ' units') + ' ' + decStamp(now).replace(/[,:]/g, ''),
+    text: decMsg('extend', g.who, ns, first.x ? decUntil(first.x) : '')
+  };
+}
+function decShareCard(x, btn) {
+  if (!x || !x.card) return;
+  var go = function () {
+    if (typeof window.RDShareCard !== 'function') { toast('The picture could not be made.', 'err'); return; }
+    window.RDShareCard(x.card.spec, x.card.name, 'Share the extension',
+                       'The extension as a picture, ready for WhatsApp.', x.card.text);
+  };
+  if (typeof window.RDShareCard === 'function') return go();
+  if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
+  var sc = document.createElement('script');
+  sc.src = DESK_SRC;
+  sc.onload = function () {
+    DESK_UP = true;
+    if (btn) { btn.disabled = false; btn.textContent = 'Share picture'; }
+    go();
+  };
+  sc.onerror = function () {
+    if (btn) { btn.disabled = false; btn.textContent = 'Share picture'; }
+    toast('Could not reach the office — try again.', 'err');
+  };
+  document.head.appendChild(sc);
+}
+
 async function decAct(g, action) {
   var by = (($('dc-by') || {}).value || decBy()).trim();
   if (!by) { DEC.err[g.g] = 'Write your name in "Deciding as" first.'; decPaint(); return; }
@@ -8248,6 +8311,9 @@ async function decAct(g, action) {
   var pick = DEC.pick[g.g] || {};
   var ids = g.units.filter(function (u) { return pick[u.id]; }).map(function (u) { return u.id; });
   if (!ids.length) return;
+  /* each unit's end date as it was, for the picture after an extend */
+  var wasBy = {};
+  g.units.forEach(function (u) { if (pick[u.id]) wasBy[u.n] = u.x; });
   var days = action === 'extend' ? (DEC.days[g.g] || 7) : null;
   DEC.err[g.g] = '';
   var btn = document.querySelector('[data-g="' + g.g.replace(/"/g, '') + '"] [data-dc$="-go"]');
@@ -8263,12 +8329,14 @@ async function decAct(g, action) {
       decPaint(); return;
     }
     var ns = (d.done || []).map(function (x) { return x.n; });
+    var card = null;
+    if (action === 'extend' && ns.length) card = decCardSpec(g, d.done, wasBy, days, by);
     var skipped = (d.skipped || []).map(function (x) { return x.n; }).filter(Boolean);
     if (ns.length) {
       var until = action === 'extend' && d.done[0].x ? decUntil(d.done[0].x) : '';
       var msg = decMsg(action === 'extend' ? 'extend' : 'release', g.who, ns, until);
       DEC.done.unshift({
-        who: g.who,
+        who: g.who, card: card,
         wa: decWa(g.phone, msg),
         say: action === 'extend'
           ? '<b>' + esc(ns.join(', ')) + '</b> extended until <b>' + esc(until) + '</b>.'
@@ -8323,6 +8391,7 @@ $('rep-body').addEventListener('click', function (e) {
   var b = e.target.closest('[data-dc]'); if (!b) return;
   var what = b.getAttribute('data-dc');
   if (what === 'dismiss') { DEC.done.splice(Number(b.getAttribute('data-i')), 1); decPaint(); return; }
+  if (what === 'card') { decShareCard(DEC.done[Number(b.getAttribute('data-i'))], b); return; }
   var card = b.closest('[data-g]'); if (!card) return;
   var key = card.getAttribute('data-g');
   var g = decGroups().filter(function (x) { return x.g === key; })[0]; if (!g) return;
