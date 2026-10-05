@@ -2045,6 +2045,12 @@ table.pl-t{width:100%;border-collapse:collapse;font-size:12.5px}
      text-underline-offset:3px;cursor:pointer}
 .ut .ur:active{background:var(--sunk)}
 @media print{ .ut .ur .rel-u{text-decoration:none} }
+/* T.R beside a unit number in the room: the same dark tag as on the dealer's chip */
+.rtr{display:inline-block;margin-left:5px;font-size:8.5px;font-weight:800;line-height:1;padding:2px 3px;
+     border-radius:4px;background:#111827;color:#fff;letter-spacing:.02em;vertical-align:1px;
+     -webkit-print-color-adjust:exact;print-color-adjust:exact}
+:root[data-theme="dark"] .rtr{background:#F5F5F4;color:#111827}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]):not([data-theme="dark"]) .rtr{background:#F5F5F4;color:#111827} }
 .rel-c{max-width:380px;padding:18px 16px 16px}
 .rel-w{font-size:13px;color:var(--soft);line-height:1.55;margin:8px 0 0}
 .rel-w b{color:var(--ink)}
@@ -8196,7 +8202,7 @@ function decCard(g) {
   }
   H.push('<div class="dc-u">' + g.units.map(function (u) {
     return '<button class="' + (pick[u.id] ? 'on' : '') + '" data-dc="tick" data-id="' + esc(u.id) + '">' +
-           esc(u.n) + '</button>';
+           esc(u.n) + trMark(u.n) + '</button>';
   }).join('') + '</div>');
   /* THE TRAIL BESIDE THE TICK, NOT INSTEAD OF IT. A tap on a unit here picks
      it for Release or Extend, and that stays exactly as it was; its history is
@@ -8705,7 +8711,7 @@ function unitTable(rows, opts) {
          number itself is what is pressed — it is the thing a director is
          looking at — and it asks before it does anything. */
       '<tr class="ur" data-rel="' + esc(r.n) + '">' +
-        '<td class="nm"><span class="rel-u">' + esc(r.n) + '</span></td>' +
+        '<td class="nm"><span class="rel-u">' + esc(r.n) + '</span>' + trMark(r.n) + '</td>' +
         (w ? '<td class="w">' + esc(r.w || '—') + '</td>'
            : '<td class="w"><span class="pill" style="--t:' + tint(skey(r.k || '')) + '">' +
              esc(r.k || '\u2014') + '</span></td>') +
@@ -9062,6 +9068,13 @@ function pkText(s) {
 }
 function trailNorm(s) {
   return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+/* T.R IN THE ROOM. The room's own report does not carry the token flag; the
+   link's payload, already on this page, does (r, 20261005b). So the mark is
+   read from there by unit number — the same yes the dealer's chip shows. */
+function trMark(no) {
+  var h = findUnit(no);
+  return h && h.u && h.u.r && h.u.s !== 'available' ? '<span class="rtr">T.R</span>' : '';
 }
 function trailCode(code) {
   return '<button type="button" class="tr-u" data-trail="' + esc(code) + '">' + esc(code) + '</button>';
