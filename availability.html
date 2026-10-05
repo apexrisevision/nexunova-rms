@@ -7014,7 +7014,7 @@ async function payPdfBytes(c) {
   head();
   var RH = 15.5;
   c.rows.concat([{ k: 'tot', lab: 'Total', a: c.amt }]).forEach(function (r) {
-    if (y < FOOT_TOP + 22) { page(); head(); }
+    if (y < M + 30) { page(); head(); }
     if (r.k !== 'm' && r.k !== 'tot') {
       pg.drawRectangle({ x: M, y: y - 4.5, width: CW, height: RH, color: SOFT });
     }
@@ -7026,22 +7026,26 @@ async function payPdfBytes(c) {
     if (r.k !== 'tot') line(M, y - 4.5, W - M, 0.5);
     y -= RH;
   });
-  /* the signatures, clear of the notes */
-  if (y - 60 < FOOT_TOP) page();
+  /* the signatures, then the notes under them: both on the LAST page, so the
+     page is started afresh if they would not fit below the schedule. Rashid:
+     "it's not looking good after each page, last page pe sirf ye warning le kar aao" */
+  /* signatures (about 60) and the notes under them (NOTE_H + a gap) must fit */
+  if (y - 60 - (NOTE_H + 26) < 34) page();
   y -= 44;
   var sw = (CW - 40) / 2;
   [['Prepared by', M], ['Customer', M + sw + 40]].forEach(function (s) {
     line(s[1], y, s[1] + sw, 0.8, INK); txt(s[0], s[1], y - 12, 8.5, R, MUT);
   });
-  /* EVERY PAGE: a faint ESTIMATE across it, and the two notes in a red box at
-     its foot — a page torn off the end of the plan still says what it is */
+  var NOTE_TOP = y - 30;              // the notes sit just under the signatures
+  /* a faint ESTIMATE across every page; the notes' red box on the last one only */
   var RED = L.rgb(0.70, 0.07, 0.24), REDBG = L.rgb(1, 0.96, 0.965), REDINK = L.rgb(0.23, 0.04, 0.08);
   pages.forEach(function (p) {
     var wm = 'ESTIMATE', ws = 96;
     p.drawText(wm, { x: W / 2 - B.widthOfTextAtSize(wm, ws) * 0.36, y: H / 2 - 150, size: ws, font: B,
                      color: L.rgb(0.70, 0.07, 0.24), opacity: 0.06, rotate: L.degrees(35) });
-    var top = FOOT_TOP - 4;
-    p.drawRectangle({ x: M, y: 34, width: CW, height: top - 34, color: REDBG,
+    if (p !== pages[pages.length - 1]) return;
+    var top = NOTE_TOP, bottom = top - (FOOT_TOP - 4 - 34);
+    p.drawRectangle({ x: M, y: bottom, width: CW, height: top - bottom, color: REDBG,
                       borderColor: RED, borderWidth: 1.1 });
     var yy = top - 13;
     noteLines.forEach(function (n, i) {
