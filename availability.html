@@ -1181,6 +1181,7 @@ body.splash .fl::before{opacity:0}
 @media (min-width:440px){ .ug{grid-template-columns:repeat(5,1fr)}
                           .ug.money{grid-template-columns:repeat(4,1fr)} }
 .ug button{
+  position:relative;
   padding:11px 5px;border:0;border-radius:var(--r);background:var(--card);
   display:flex;flex-direction:column;align-items:center;gap:3px;min-height:56px;
   justify-content:center;
@@ -1188,6 +1189,12 @@ body.splash .fl::before{opacity:0}
 }
 @media (hover:hover){ .ug button:hover{background:#FDFDFD} }
 .ug button:active{transform:scale(.94);background:var(--sunk)}
+/* T.R: a small dark tag in the corner of a held chip whose hold has a token on it.
+   Rashid wanted it seen by everyone and explained to no one, so there is no legend. */
+.ug .utr{position:absolute;top:3px;right:3px;font-size:8.5px;font-weight:800;line-height:1;
+         padding:2px 3px;border-radius:4px;background:#111827;color:#fff;letter-spacing:.02em}
+:root[data-theme="dark"] .ug .utr{background:#F5F5F4;color:#111827}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]):not([data-theme="dark"]) .ug .utr{background:#F5F5F4;color:#111827} }
 .ug .un{font-size:13.5px;font-weight:650;letter-spacing:-.015em;line-height:1.2}
 .ug .ua{font-size:10px;color:var(--mut);line-height:1.3}
 /* the money on a chip: the total is the thing being compared, the rate is how
@@ -3433,6 +3440,8 @@ function stat(u) {
   var label = free ? 'Available' : (u && u.k ? String(u.k) : 'Not available');
   var key = free ? 'free' : skey(label);
   return { free: free, label: label, key: key, who: (u && u.w) ? String(u.w) : '',
+           /* T.R — the standing hold has a received token (r on the wire, 20261005b) */
+           tr: !free && !!(u && u.r),
            tint: free ? '' : tint(key), dash: free ? '' : (DASH[key] || 'd-fine') };
 }
 /* the kinds of hold present in a set of units, commonest first — the legend,
@@ -3458,6 +3467,7 @@ function chip(u, fi) {
   return '<button data-u="' + esc(u.n) + '"' +
     (fi === undefined ? '' : ' data-fi="' + fi + '"') +
     (off ? ' class="off" data-k="' + esc(s.key) + '" style="--t:' + s.tint + '" disabled' : '') + '>' +
+    (off && s.tr ? '<span class="utr">T.R</span>' : '') +
     '<span class="un">' + esc(u.n) + '</span>' +
     (off ? '<span class="us">' + esc(s.label) + '</span>' +
            (s.who ? '<span class="uw">' + esc(s.who) + '</span>' : '')
@@ -5319,7 +5329,7 @@ function unitLines(u) {
      it and on whose word. The rate is still on the chip. */
   var s = stat(u);
   if (s.free) { var r = rate(u); if (r) out.push(r); }
-  else out.push(s.label.toUpperCase() + (s.who ? ' · ' + s.who : ''));
+  else out.push(s.label.toUpperCase() + (s.who ? ' · ' + s.who : '') + (s.tr ? ' · T.R' : ''));
   var m = money(u.v);
   if (m) out.push(m);
   return out;
@@ -5496,6 +5506,16 @@ function paintPlan(plan, f) {
     }
     names.push(labelBlock(lines, pts, g.c[0] * plan.w, g.c[1] * plan.h,
                           x0, x1, y0, y1, free, s.key));
+    /* T.R in the shop's top-right corner, sized to the shop */
+    if (s.tr) {
+      var bh = Math.max(6, Math.min((y1 - y0) * 0.16, (x1 - x0) * 0.3, 22)), bw = bh * 2.2;
+      var bx = x1 - bw - bh * 0.25, by = y0 + bh * 0.25;
+      names.push('<g class="trb" data-k="' + esc(s.key) + '"><rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) +
+        '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="' + (bh * 0.22).toFixed(1) +
+        '" fill="#111827"/><text x="' + (bx + bw / 2).toFixed(1) + '" y="' + (by + bh * 0.74).toFixed(1) +
+        '" text-anchor="middle" font-size="' + (bh * 0.68).toFixed(1) +
+        '" font-weight="800" fill="#fff" style="pointer-events:none">T.R</text></g>');
+    }
   });
   host.innerHTML =
     '<div class="base">' + plan.svg + '</div>' +

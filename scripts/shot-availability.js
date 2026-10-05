@@ -154,10 +154,23 @@ function serve() {
      still none of an outsider's business: not the buyer, not the phone, not
      the amount, not the note, not who at the desk pressed the button. This
      list is a lock, not a description — an eighth key fails here before
-     anybody has to notice it on the page. */
-  JSON.stringify([...keys].sort()) === JSON.stringify(['a', 'k', 'n', 's', 't', 'v', 'w'])
-    ? ok('a unit carries exactly: ' + [...keys].sort().join(', '))
-    : bad('unexpected unit keys: ' + [...keys].sort().join(', '));
+     anybody has to notice it on the page.
+
+     2026-10-05: an eighth, r — "token received", a bare true, on Rashid's
+     word ("Sab ko dikhe"). Never the amount. It is checked below to ride only
+     on held units. A payload with no token anywhere carries no r, so the lock
+     accepts the seven alone as well. */
+  {
+    const ks = JSON.stringify([...keys].sort());
+    (ks === JSON.stringify(['a', 'k', 'n', 'r', 's', 't', 'v', 'w']) ||
+     ks === JSON.stringify(['a', 'k', 'n', 's', 't', 'v', 'w']))
+      ? ok('a unit carries exactly: ' + [...keys].sort().join(', '))
+      : bad('unexpected unit keys: ' + [...keys].sort().join(', '));
+    const rLeak = payload.floors.flatMap(f => f.units).filter(u => 'r' in u && (u.s === 'available' || u.r !== true));
+    rLeak.length === 0
+      ? ok('T.R (r) rides only on held units, and only as true')
+      : bad(rLeak.length + ' unit(s) carry r on a free unit or as something other than true, first ' + rLeak[0].n);
+  }
   /* AND THE TWO NEW ONES RIDE ONLY ON A UNIT THAT IS ALREADY GONE. A free
      shop that carried a kind would be telling a dealer about a hold that was
      lifted, which is worse than telling them nothing. */
