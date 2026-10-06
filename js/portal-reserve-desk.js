@@ -2545,6 +2545,181 @@
     return cv;
   }
 
+  /* ── THE TOKEN SLIP, AS THE OFFICE'S OWN BOOK PRINTS IT ──────────────────
+     Rashid sent the physical Awami TOKEN receipt: "Is physical receipt ki
+     fields dekho, we need all these fields." So the picture is that slip:
+     logo, "For details & bookings", head and site office; TOKEN in red with
+     the serial; then Date / Valid Upto, Unit Address / Unit Size, Name,
+     Father / Husband Name / CNIC, Mobile, Basic Price / Final Price, Amount
+     Paid with the words, Paid Through (Cash / Cheque / Online / Bank, Ref #,
+     bank), Narration, and Received By / Approved by / Customer Sign. The
+     values are set in a pen blue on ruled lines, as they are written on the
+     paper. The office's contact block is the one printed on that slip; a
+     project without one gets its name alone. */
+  var RC_BRAND = {
+    AWAMI: { logo: '/assets/awami-logo.png', contacts: '0319 46 4 4646, 0313 95 6 3363', email: 'info@fourteen.pk',
+             web: 'www.fourteen.pk',
+             offices: ['Behind Deans Complex, Board Bazar, Peshawar', 'Main BRT Station, Karkhano Market, Peshawar'] }
+  };
+  var RC_LOGOS = {};
+  function _brandOf(project) { return /awami/i.test(String(project || '')) ? RC_BRAND.AWAMI : null; }
+  function _logoFor(br) {
+    if (!br || !br.logo) return Promise.resolve(null);
+    if (RC_LOGOS[br.logo]) return RC_LOGOS[br.logo];
+    RC_LOGOS[br.logo] = new Promise(function (res) {
+      var im = new Image();
+      var t = setTimeout(function () { res(null); }, 2500);
+      im.onload = function () { clearTimeout(t); res(im); };
+      im.onerror = function () { clearTimeout(t); res(null); };
+      im.src = br.logo;
+    });
+    return RC_LOGOS[br.logo];
+  }
+  function _drawToken(x, logo) {
+    var W = 1240, PAD = 56, CW = W - 2 * PAD;
+    var INK = '#111827', MUT = '#4b5563', PEN = '#1d3a8a', RULE = '#9ca3af', RED = '#dc2626';
+    var FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+    var F = function (wt, px) { return wt + ' ' + px + 'px ' + FONT; };
+    var cv = document.createElement('canvas'), cx = cv.getContext('2d');
+    var st = x.status || 'pending', br = _brandOf(x.project);
+    var amt = Math.round(Number(x.amount) || 0);
+    var money = function (n) { return Number(n) > 0 ? Math.round(Number(n)).toLocaleString('en-US') + '/-' : ''; };
+    var day = function (d) { return d ? _trDay(String(d).slice(0, 10) + 'T12:00:00Z') : ''; };
+    var size = Number(x.area) > 0 ? Number(x.area).toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' sq.ft' : '';
+    var H = 1340;                       // the slip has a fixed set of lines, so a fixed height
+    cv.width = W; cv.height = H;
+    cx.fillStyle = '#fffdf8'; cx.fillRect(0, 0, W, H);
+    cx.strokeStyle = '#e5e1d8'; cx.lineWidth = 2; cx.strokeRect(14, 14, W - 28, H - 28);
+    cx.textBaseline = 'alphabetic';
+
+    /* the head: logo, bookings, offices */
+    var y = 46;
+    if (logo) {
+      var lh = 120, lw = Math.min(400, logo.width * lh / logo.height);
+      cx.drawImage(logo, PAD, y, lw, lh);
+    } else {
+      cx.fillStyle = '#82201F'; cx.font = F('800', 52); cx.fillText(String(x.project || '').toUpperCase(), PAD, y + 80);
+    }
+    if (br) {
+      cx.fillStyle = INK; cx.font = F('700', 19); cx.fillText('FOR DETAILS & BOOKINGS', 500, y + 22);
+      cx.fillStyle = MUT; cx.font = F('400', 18);
+      cx.fillText('Contacts: ' + br.contacts, 500, y + 50);
+      cx.fillText('Email: ' + br.email, 500, y + 76);
+      cx.fillText('Website: ' + br.web, 500, y + 102);
+      cx.textAlign = 'right';
+      cx.fillStyle = INK; cx.font = F('700', 19); cx.fillText('Head Office & Site Office', W - PAD, y + 22);
+      cx.fillStyle = MUT; cx.font = F('400', 17);
+      br.offices.forEach(function (o, i) {
+        var words = o.split(', '), a = words.slice(0, Math.ceil(words.length / 2)).join(', '),
+            b2 = words.slice(Math.ceil(words.length / 2)).join(', ');
+        cx.fillText('• ' + a + (b2 ? ',' : ''), W - PAD, y + 50 + i * 52);
+        if (b2) cx.fillText(b2, W - PAD, y + 74 + i * 52);
+      });
+      cx.textAlign = 'left';
+    }
+    y += 160;
+
+    /* TOKEN, the serial, the stamp */
+    cx.fillStyle = RED; cx.font = F('800', 64); cx.textAlign = 'center';
+    cx.fillText((x.kind === 'payment' ? 'PAYMENT' : 'TOKEN'), W / 2, y + 56);
+    cx.textAlign = 'left';
+    cx.fillStyle = INK; cx.font = F('600', 24); cx.fillText('Serial:', W - PAD - 300, y + 50);
+    /* the serial is the number alone, as the book prints it; an older entry
+       without one gives the digits of its receipt no. */
+    var serial = String(x.serial || ((String(x.ref || '').match(/(\d+)$/) || [])[1]) || '');
+    cx.fillStyle = RED; cx.font = F('800', 40); cx.fillText(serial, W - PAD - 210, y + 52);
+    cx.fillStyle = RULE; cx.fillRect(W - PAD - 215, y + 62, 215, 2);
+    var stTxt = st === 'verified' ? 'VERIFIED' : st === 'rejected' ? 'REJECTED' : 'PENDING VERIFICATION';
+    var stInk = st === 'verified' ? '#15803d' : st === 'rejected' ? RED : '#c2760a';
+    cx.font = F('800', 18);
+    var sw = cx.measureText(stTxt).width + 34;
+    cx.save(); cx.setLineDash([6, 4]); cx.lineWidth = 2.5; cx.strokeStyle = stInk;
+    _rr(cx, PAD, y + 22, sw, 38, 6); cx.stroke(); cx.restore();
+    cx.fillStyle = stInk; cx.fillText(stTxt, PAD + 17, y + 48);
+    y += 110;
+
+    /* a ruled field: label in ink, value in pen on the line */
+    var field = function (x0, y0, w, label, val, opts) {
+      opts = opts || {};
+      cx.fillStyle = INK; cx.font = F('600', 24);
+      cx.fillText(label + ' :', x0, y0);
+      var lw = cx.measureText(label + ' :').width + 14;
+      cx.fillStyle = RULE; cx.fillRect(x0 + lw, y0 + 8, w - lw, 2);
+      cx.fillStyle = opts.ink || PEN; cx.font = opts.font || F('600', 28);
+      var v = String(val || '');
+      while (v && cx.measureText(v).width > w - lw - 8) v = v.slice(0, -2);
+      if (v !== String(val || '')) v = v.replace(/\s+\S*$/, '') + '…';
+      cx.fillText(v, x0 + lw + 6, y0 - 2);
+    };
+    var half = (CW - 40) / 2, col2 = PAD + half + 40, RowH = 74;
+    field(PAD, y, half, 'Date', day(x.paid_on));
+    field(col2, y, half, 'Valid Upto', day(x.valid_upto));
+    y += RowH;
+    field(PAD, y, half, 'Unit Address', (x.unit_no || '') + (x.floor ? ' · ' + x.floor : ''));
+    field(col2, y, half, 'Unit Size', size);
+    y += RowH;
+    field(PAD, y, CW, 'Name', x.payer);
+    y += RowH;
+    field(PAD, y, half, 'Father / Husband Name', x.father);
+    field(col2, y, half, 'CNIC', x.cnic);
+    y += RowH;
+    field(PAD, y, half, 'Mobile', x.payer_mobile);
+    y += RowH;
+    field(PAD, y, half, 'Basic Price', money(x.basic_price));
+    field(col2, y, half, 'Final Price', money(x.final_price));
+    y += RowH + 6;
+    /* the amount: large, then in words on its own line */
+    field(PAD, y, half, 'Amount Paid', money(amt), { font: F('800', 38) });
+    y += 54;
+    cx.fillStyle = PEN; cx.font = 'italic ' + F('600', 27);
+    cx.fillText(_pkWords(amt) + ' Rupees Only', PAD + 20, y);
+    cx.fillStyle = RULE; cx.fillRect(PAD, y + 10, CW, 2);
+    y += 66;
+
+    /* paid through: the boxes the slip has, ticked */
+    cx.fillStyle = INK; cx.font = F('600', 24); cx.fillText('Paid Through :', PAD, y);
+    var bx = PAD + 190;
+    [['cash', 'Cash'], ['cheque', 'Cheque'], ['online', 'Online'], ['bank', 'Bank']].forEach(function (m) {
+      cx.lineWidth = 2; cx.strokeStyle = INK; cx.strokeRect(bx, y - 22, 26, 26);
+      if (x.mode === m[0]) {
+        cx.strokeStyle = PEN; cx.lineWidth = 4;
+        cx.beginPath(); cx.moveTo(bx + 5, y - 9); cx.lineTo(bx + 11, y - 2); cx.lineTo(bx + 23, y - 20); cx.stroke();
+      }
+      cx.fillStyle = INK; cx.font = F('600', 24); cx.fillText(m[1], bx + 36, y);
+      bx += 36 + cx.measureText(m[1]).width + 36;
+    });
+    y += RowH - 8;
+    field(PAD, y, half, 'Ref #', x.reference);
+    field(col2, y, half, 'Bank', x.bank);
+    y += RowH;
+    field(PAD, y, CW, 'Narration / Description', x.note);
+    y += 140;
+
+    /* the three signatures the slip ends with */
+    var sgW = (CW - 80) / 3;
+    [['Received By', (x.received_by || '') + (x.received_by_phone ? ' · ' + x.received_by_phone : '')],
+     ['Approved by', st === 'pending' ? '' : (x.decided_by || '')],
+     ['Customer Sign', '']].forEach(function (s, i) {
+      var x0 = PAD + i * (sgW + 40);
+      cx.fillStyle = PEN; cx.font = F('600', 22);
+      var v = s[1];
+      while (v && cx.measureText(v).width > sgW) v = v.slice(0, -2);
+      cx.fillText(v, x0, y - 14);
+      cx.fillStyle = '#374151'; cx.fillRect(x0, y, sgW, 2.5);
+      cx.fillStyle = INK; cx.font = F('700', 22); cx.fillText(s[0], x0, y + 32);
+    });
+    y += 90;
+
+    /* what the picture is, said plainly */
+    cx.fillStyle = '#e5e7eb'; cx.fillRect(PAD, y, CW, 2);
+    cx.fillStyle = '#6b7280'; cx.font = F('400', 18);
+    cx.fillText(st === 'verified' ? 'Verified by the management · not an official accounts receipt'
+                                  : 'Recorded by the sales rep · not an official company receipt until verified by the management',
+                PAD, y + 32);
+    cx.textAlign = 'right'; cx.fillText((x.ref || '') + ' · Nexunova RMS', W - PAD, y + 32); cx.textAlign = 'left';
+    return cv;
+  }
+
   window.RDWords = _pkWords;
   /* the receipt prints PKR the same way on every page it is drawn from */
   function _pkrRc(n) { return 'PKR ' + Math.round(Number(n) || 0).toLocaleString('en-US'); }
@@ -2578,14 +2753,22 @@
         ? 'Verified by the management · not an official accounts receipt'
         : 'Not an official company receipt · valid only after verification by the management'
     };
-    var cv;
-    /* the office's own Receipt Voucher layout; the card is the fallback */
-    try { cv = _drawVoucher(x); } catch (e) { cv = null; }
-    if (!cv) { try { cv = _drawCard(spec); } catch (e2) { cv = null; } }
+    /* the office's TOKEN slip first; its Receipt Voucher, then the card, only if a drawing fails */
+    var xx = Object.assign({ project: _projName() }, x);
+    /* an entry saved before the unit's size travelled with it: the page knows the unit */
+    if (!(Number(xx.area) > 0) && typeof findUnit === 'function') {
+      try { var fu = findUnit(xx.unit_no); if (fu && fu.u && Number(fu.u.a) > 0) xx.area = fu.u.a; } catch (e0) {}
+    }
+    _logoFor(_brandOf(xx.project)).then(function (logo) {
+      var cv = null;
+      try { cv = _drawToken(xx, logo); } catch (e) { cv = null; }
+      if (!cv) { try { cv = _drawVoucher(xx); } catch (e1) { cv = null; } }
+      if (!cv) { try { cv = _drawCard(spec); } catch (e2) { cv = null; } }
     var text = 'Payment received ' + (x.ref || '') + ': ' + _pkrRc(x.amount) + ' for ' + (x.unit_no || '') +
                ' from ' + (x.payer || '') + ' (' + (PAY_MODE[x.mode] || x.mode) + ') - ' + stamp;
-    _imgSheet(cv, (x.ref || 'Payment') + ' ' + (x.unit_no || ''), 'Share the receipt',
-              'The receipt as a picture, ready for WhatsApp.', text, null);
+      _imgSheet(cv, (x.ref || 'Payment') + ' ' + (x.unit_no || ''), 'Share the receipt',
+                'The receipt as a picture, ready for WhatsApp.', text, null);
+    });
   };
 
   /* for pages outside the desk (the Directors' Room): draw the card and open
@@ -3633,7 +3816,7 @@
      2026-10-06): nothing is written to a hold, the token flag or the books.
      Read and decided through list_link_payments / decide_link_payment, which
      refuse anybody who is not a director. */
-  var PAY_MODE = { cash: 'Cash', bank: 'Bank', online: 'Online' };
+  var PAY_MODE = { cash: 'Cash', bank: 'Bank', online: 'Online', cheque: 'Cheque' };
   async function _loadPays() {
     var r;
     try { r = await sb.rpc('list_link_payments', { p_session_token: TOKEN }); } catch (e) { return false; }
@@ -3652,10 +3835,19 @@
       var pend = x.status === 'pending';
       return '<div class="rq-c pay-c' + (pend ? '' : ' pay-done') + '" data-pay="' + esc(x.id) + '">' +
         '<div class="pay-h"><b>' + esc(pkrFull(x.amount)) + '</b>' +
-          '<span class="pay-m">' + esc(PAY_MODE[x.mode] || x.mode) + (x.reference ? ' · ' + esc(x.reference) : '') + '</span>' +
+          '<span class="pay-m">' + (x.kind === 'payment' ? 'Payment' : 'Token') + ' · ' + esc(PAY_MODE[x.mode] || x.mode) +
+            (x.reference ? ' · ' + esc(x.reference) : '') + (x.bank ? ' · ' + esc(x.bank) : '') + '</span>' +
           '<span class="pay-r">' + esc(x.ref) + '</span></div>' +
         '<div class="pay-l"><b>' + esc(x.unit_no) + '</b> · ' + esc(x.floor || '') +
           ' · from <b>' + esc(x.payer) + '</b> · paid ' + esc(_trDay(x.paid_on + 'T12:00:00Z')) + '</div>' +
+        ((x.father || x.cnic || x.payer_mobile)
+          ? '<div class="pay-l">' + [x.father ? 'S/O, W/O ' + esc(x.father) : '', x.cnic ? 'CNIC ' + esc(x.cnic) : '',
+              x.payer_mobile ? '<a href="tel:' + esc(x.payer_mobile) + '">' + esc(x.payer_mobile) + '</a>' : '']
+              .filter(Boolean).join(' · ') + '</div>' : '') +
+        ((x.basic_price || x.final_price || x.valid_upto)
+          ? '<div class="pay-l">' + [x.basic_price ? 'Basic ' + esc(pkrFull(x.basic_price)) : '',
+              x.final_price ? 'Final <b>' + esc(pkrFull(x.final_price)) + '</b>' : '',
+              x.valid_upto ? 'valid upto ' + esc(_trDay(x.valid_upto + 'T12:00:00Z')) : ''].filter(Boolean).join(' · ') + '</div>' : '') +
         '<div class="pay-l">Received by ' + esc(x.received_by) +
           (x.received_by_phone ? ' · <a href="tel:' + esc(x.received_by_phone) + '">' + esc(x.received_by_phone) + '</a>' : '') +
           ' · sent ' + esc(_pkTime(x.created_at)) + '</div>' +

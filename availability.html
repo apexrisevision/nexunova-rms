@@ -7236,72 +7236,100 @@ function withDesk(cb) {
   document.head.appendChild(sc);
 }
 
+/* the slip's own fields, in the slip's own order (the physical Awami TOKEN
+   receipt Rashid sent): kind, unit and its size, the customer with father /
+   husband name, CNIC and mobile, basic and final price, valid upto, the
+   amount, how it was paid with ref and bank, the date and the narration */
+var RC_TEXT = { 'rc-payer': 'payer', 'rc-father': 'father', 'rc-cnic': 'cnic', 'rc-pmob': 'pmob',
+                'rc-ref': 'ref', 'rc-bank': 'bank', 'rc-date': 'date', 'rc-valid': 'valid', 'rc-note': 'note' };
+var RC_MONEY = { 'rc-amt': 'amt', 'rc-basic': 'basic', 'rc-final': 'final' };
 function renderRcv() {
   ['home', 'floor', 'all', 'mine', 'rep', 'price', 'payplan'].forEach(function (id) { $(id).hidden = true; });
   REPV = false; PRICEV = false; PAYV = false;
   $('units').innerHTML = ''; $('all-body').innerHTML = '';
   RCVV = true;
   $('rcvsec').hidden = false;
-  if (!RCV) RCV = { no: '', amt: 0, mode: '', ref: '', payer: '', date: rcvToday(), note: '', earl: null, busy: false };
+  if (!RCV) RCV = { kind: 'token', no: '', amt: 0, basic: 0, final: 0, mode: '', ref: '', bank: '', payer: '', father: '',
+                    cnic: '', pmob: '', date: rcvToday(), valid: '', note: '', earl: null, busy: false };
+  var money = function (id, label, ph) {
+    return '<label class="pl-f"><span>' + label + '</span><input id="' + id + '" class="pl-i" inputmode="numeric" ' +
+           'autocomplete="off" placeholder="' + ph + '"></label>';
+  };
+  var text = function (id, label, ph, extra) {
+    return '<label class="pl-f"><span>' + label + '</span><input id="' + id + '" class="pl-i" autocomplete="off" ' +
+           (extra || '') + ' placeholder="' + (ph || '') + '"></label>';
+  };
   $('rcv-body').innerHTML =
     '<div class="pl-form">' +
       '<div class="pl-c">' +
-        '<div class="pl-l">1 · Unit</div>' +
+        '<div class="pl-l">1 · Token or payment, and the unit</div>' +
+        '<div class="pl-seg" id="rc-kind" style="margin-bottom:12px">' +
+          '<button type="button" data-k="token">Token</button><button type="button" data-k="payment">Payment</button></div>' +
         '<div class="pl-uw">' +
           '<input id="rc-u" class="pl-i" autocomplete="off" autocapitalize="characters" spellcheck="false" ' +
-            'placeholder="Type the unit no. — e.g. GF-39" aria-label="Unit">' +
+            'placeholder="Unit address — e.g. GF-120" aria-label="Unit">' +
           '<div id="rc-sg" class="pl-sg" hidden></div>' +
         '</div>' +
         '<div id="rc-uf" class="pl-uf"></div>' +
       '</div>' +
       '<div class="pl-c">' +
-        '<div class="pl-l">2 · Amount and how it was paid</div>' +
-        '<label class="pl-f"><span>Amount received (PKR)</span>' +
-          '<input id="rc-amt" class="pl-i" inputmode="numeric" autocomplete="off" placeholder="e.g. 250,000"></label>' +
-        '<div id="rc-words" class="rc-words"></div>' +
-        '<div class="pl-ch" id="rc-mode" style="margin:12px 0 0">' +
-          '<button type="button" data-m="cash">Cash</button>' +
-          '<button type="button" data-m="bank">Bank</button>' +
-          '<button type="button" data-m="online">Online</button>' +
+        '<div class="pl-l">2 · Customer</div>' +
+        text('rc-payer', 'Name', 'Customer name') +
+        '<div class="pl-2" style="margin-top:10px">' +
+          text('rc-father', 'Father / Husband name', '') +
+          text('rc-cnic', 'CNIC', '12345-1234567-1', 'inputmode="numeric" maxlength="15"') +
         '</div>' +
-        '<label class="pl-f" id="rc-refw" hidden style="margin-top:10px"><span>Reference / transaction no.</span>' +
-          '<input id="rc-ref" class="pl-i" autocomplete="off" placeholder="e.g. TRX-12345"></label>' +
+        '<div style="margin-top:10px">' + text('rc-pmob', 'Mobile', '03XXXXXXXXX', 'type="tel" inputmode="numeric" maxlength="16"') + '</div>' +
       '</div>' +
       '<div class="pl-c">' +
-        '<div class="pl-l">3 · From whom, and when</div>' +
-        '<div class="pl-2">' +
-          '<label class="pl-f"><span>Received from</span>' +
-            '<input id="rc-payer" class="pl-i" autocomplete="off" placeholder="Customer name"></label>' +
-          '<label class="pl-f"><span>Date received</span>' +
-            '<input id="rc-date" class="pl-i" type="date"></label>' +
-        '</div>' +
-        '<label class="pl-f" style="margin-top:10px"><span>Note (optional)</span>' +
-          '<input id="rc-note" class="pl-i" autocomplete="off" maxlength="300"></label>' +
+        '<div class="pl-l">3 · Price</div>' +
+        '<div class="pl-2">' + money('rc-basic', 'Basic price (PKR)', 'List price') +
+                               money('rc-final', 'Final price (PKR)', 'Agreed price') + '</div>' +
+        '<div style="margin-top:10px">' + text('rc-valid', 'Valid upto (optional)', '', 'type="date"') + '</div>' +
       '</div>' +
-      '<div class="pl-c"><div class="pl-l">4 · Received by</div><div id="rc-by" class="rc-by"></div></div>' +
+      '<div class="pl-c">' +
+        '<div class="pl-l">4 · Amount paid</div>' +
+        money('rc-amt', 'Amount paid (PKR)', 'e.g. 500,000') +
+        '<div id="rc-words" class="rc-words"></div>' +
+        '<div class="pl-q" style="margin:12px 0 6px">Paid through</div>' +
+        '<div class="pl-ch" id="rc-mode">' +
+          '<button type="button" data-m="cash">Cash</button><button type="button" data-m="cheque">Cheque</button>' +
+          '<button type="button" data-m="online">Online</button><button type="button" data-m="bank">Bank</button>' +
+        '</div>' +
+        '<div class="pl-2" id="rc-refw" hidden style="margin-top:10px">' +
+          text('rc-ref', 'Ref # / cheque no.', 'e.g. 15416') + text('rc-bank', 'Bank (paid into)', 'e.g. BOP') +
+        '</div>' +
+      '</div>' +
+      '<div class="pl-c">' +
+        '<div class="pl-l">5 · Date and narration</div>' +
+        text('rc-date', 'Date received', '', 'type="date"') +
+        '<div style="margin-top:10px">' + text('rc-note', 'Narration / description (optional)', 'e.g. Transfer from Hafiz Shah Islam NBL A/c', 'maxlength="300"') + '</div>' +
+      '</div>' +
+      '<div class="pl-c"><div class="pl-l">6 · Received by</div><div id="rc-by" class="rc-by"></div></div>' +
     '</div>' +
     '<div id="rc-err" class="rc-err" hidden></div>' +
     '<div class="pl-act"><button class="prc-go" id="rc-go">Send to the office</button></div>' +
     '<div id="rc-mine" class="rc-mine"></div>';
-  $('rc-u').value = RCV.no; $('rc-amt').value = RCV.amt ? Math.round(RCV.amt).toLocaleString('en-US') : '';
-  $('rc-ref').value = RCV.ref; $('rc-payer').value = RCV.payer; $('rc-date').value = RCV.date; $('rc-note').value = RCV.note;
+  $('rc-u').value = RCV.no;
+  Object.keys(RC_TEXT).forEach(function (id) { $(id).value = RCV[RC_TEXT[id]] || ''; });
+  Object.keys(RC_MONEY).forEach(function (id) { var v = RCV[RC_MONEY[id]]; $(id).value = v ? Math.round(v).toLocaleString('en-US') : ''; });
   rcvWire(); rcvPaint(); rcvMine();
 }
 
 function rcvPaint() {
   var h = RCV.no ? findUnit(RCV.no) : null;
   $('rc-uf').innerHTML = !h ? (RCV.no ? '' : 'Pick the unit the money is for.')
-    : esc(h.f.floor_label) + (h.u.t ? ' · ' + esc(h.u.t) : '') + (area(h.u) ? ' · <b>' + esc(area(h.u)) + '</b>' : '') +
+    : esc(h.f.floor_label) + (h.u.t ? ' · ' + esc(h.u.t) : '') + (area(h.u) ? ' · Unit size <b>' + esc(area(h.u)) + '</b>' : '') +
       (RCV.earl === 'loading' ? '<div class="rc-earl">Checking earlier entries…</div>'
        : RCV.earl ? '<div class="rc-earl">Earlier on this unit: <b>' +
             (RCV.earl.recorded_count ? esc(rcvPKR(RCV.earl.recorded_total)) + '</b> (' + RCV.earl.recorded_count +
               ' entr' + (RCV.earl.recorded_count === 1 ? 'y' : 'ies') + ')' : 'nothing recorded</b>') +
             (Number(RCV.earl.hold_token) ? ' · Token on the hold: <b>' + esc(rcvPKR(RCV.earl.hold_token)) + '</b>' : '') +
           '</div>' : '');
-  var w = RCV.amt > 0 ? (window.RDWords ? window.RDWords(RCV.amt) + ' Rupees Only' : rcvPKR(RCV.amt)) : '';
-  $('rc-words').textContent = w;
+  $('rc-words').textContent = RCV.amt > 0 ? (window.RDWords ? window.RDWords(RCV.amt) + ' Rupees Only' : rcvPKR(RCV.amt)) : '';
+  [].forEach.call($('rc-kind').children, function (b) { b.classList.toggle('on', b.getAttribute('data-k') === RCV.kind); });
   [].forEach.call($('rc-mode').children, function (b) { b.classList.toggle('on', b.getAttribute('data-m') === RCV.mode); });
-  $('rc-refw').hidden = !(RCV.mode === 'bank' || RCV.mode === 'online');
+  $('rc-refw').hidden = !(RCV.mode && RCV.mode !== 'cash');
   $('rc-by').innerHTML = NAME && PHONE
     ? '<b>' + esc(NAME) + '</b> · ' + esc(PHONE) + '<div class="pl-n">From the name and mobile saved on this phone.</div>'
     : '<span style="color:#b3123c;font-weight:650">Save your name and mobile at the top of the page first.</span>';
@@ -7310,7 +7338,15 @@ function rcvPaint() {
 
 function rcvPick(no) {
   var h = findUnit(no); if (!h) return;
+  var changed = RCV.no !== h.u.n;
   RCV.no = h.u.n; $('rc-u').value = h.u.n; $('rc-sg').hidden = true;
+  /* the basic price is the unit's list price; the final price starts there */
+  if (changed || !RCV.basic) {
+    var list = Number(h.u.v) > 0 ? Math.round(Number(h.u.v)) : 0;
+    RCV.basic = list; RCV.final = list;
+    $('rc-basic').value = list ? list.toLocaleString('en-US') : '';
+    $('rc-final').value = list ? list.toLocaleString('en-US') : '';
+  }
   RCV.earl = 'loading'; rcvPaint();
   var want = RCV.no;
   sb.rpc('get_link_unit_receipts', { p_token: LINK, p_unit_no: want }).then(function (r) {
@@ -7351,17 +7387,21 @@ function rcvWire() {
   $('rc-sg').addEventListener('mousedown', function (e) { e.preventDefault(); });
   $('rc-sg').addEventListener('click', function (e) { var b = e.target.closest('button[data-u]'); if (b) rcvPick(b.getAttribute('data-u')); });
   $('rc-u').addEventListener('blur', function () { $('rc-sg').hidden = true; });
-  $('rc-amt').addEventListener('input', function () { RCV.amt = payNum($('rc-amt').value); rcvPaint(); });
-  $('rc-amt').addEventListener('blur', function () { if (RCV.amt) $('rc-amt').value = Math.round(RCV.amt).toLocaleString('en-US'); });
+  Object.keys(RC_MONEY).forEach(function (id) {
+    $(id).addEventListener('input', function () { RCV[RC_MONEY[id]] = payNum($(id).value); rcvPaint(); });
+    $(id).addEventListener('blur', function () { var v = RCV[RC_MONEY[id]]; if (v) $(id).value = Math.round(v).toLocaleString('en-US'); });
+  });
+  Object.keys(RC_TEXT).forEach(function (id) {
+    $(id).addEventListener('input', function () { RCV[RC_TEXT[id]] = $(id).value; });
+  });
+  $('rc-kind').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-k]'); if (!b) return; RCV.kind = b.getAttribute('data-k'); rcvPaint();
+  });
   $('rc-mode').addEventListener('click', function (e) {
     var b = e.target.closest('[data-m]'); if (!b) return; RCV.mode = b.getAttribute('data-m'); rcvPaint();
   });
-  $('rc-ref').addEventListener('input', function () { RCV.ref = $('rc-ref').value; });
-  $('rc-payer').addEventListener('input', function () { RCV.payer = $('rc-payer').value; });
-  $('rc-date').addEventListener('input', function () { RCV.date = $('rc-date').value; });
-  $('rc-note').addEventListener('input', function () { RCV.note = $('rc-note').value; });
   /* a message about the form goes as soon as the form is touched again */
-  ['rc-u', 'rc-amt', 'rc-ref', 'rc-payer', 'rc-date', 'rc-note'].forEach(function (id) {
+  ['rc-u'].concat(Object.keys(RC_MONEY), Object.keys(RC_TEXT)).forEach(function (id) {
     $(id).addEventListener('input', function () { rcvErr(''); });
   });
   $('rc-mode').addEventListener('click', function () { rcvErr(''); });
@@ -7382,29 +7422,42 @@ async function rcvSend() {
   rcvErr('');
   if (!NAME || !PHONE) return rcvErr('Save your name and mobile at the top of the page first.');
   if (!RCV.no || !findUnit(RCV.no)) return rcvErr('Pick the unit from the list.');
-  if (!(RCV.amt > 0)) return rcvErr('Enter the amount received.');
-  if (!RCV.mode) return rcvErr('Choose Cash, Bank or Online.');
-  if (!String(RCV.payer || '').trim()) return rcvErr('Enter who paid.');
+  if (!String(RCV.payer || '').trim()) return rcvErr('Enter the customer’s name.');
+  var cn = String(RCV.cnic || '').replace(/\D/g, '');
+  if (cn && cn.length !== 13) return rcvErr('The CNIC must have 13 digits.');
+  if (String(RCV.pmob || '').trim() && !normPhone(RCV.pmob)) return rcvErr('The customer’s mobile must be 11 digits, e.g. 03001234567.');
+  if (!(RCV.amt > 0)) return rcvErr('Enter the amount paid.');
+  if (!RCV.mode) return rcvErr('Choose how it was paid: Cash, Cheque, Online or Bank.');
   if (!RCV.date) return rcvErr('Enter the date the money was received.');
   RCV.busy = true; $('rc-go').textContent = 'Sending…'; rcvPaint();
   var d = null;
   try {
     var r = await sb.rpc('submit_link_payment', {
       p_token: LINK, p_unit_no: RCV.no, p_amount: RCV.amt, p_mode: RCV.mode,
-      p_reference: (RCV.mode === 'cash' ? '' : RCV.ref) || null, p_payer: String(RCV.payer).trim(),
-      p_paid_on: RCV.date, p_note: String(RCV.note || '').trim() || null, p_name: NAME, p_phone: PHONE });
+      p_reference: (RCV.mode === 'cash' ? '' : String(RCV.ref || '').trim()) || null,
+      p_payer: String(RCV.payer).trim(), p_paid_on: RCV.date,
+      p_note: String(RCV.note || '').trim() || null, p_name: NAME, p_phone: PHONE,
+      p_kind: RCV.kind || 'token', p_father: String(RCV.father || '').trim() || null,
+      p_cnic: cn || null, p_payer_mobile: String(RCV.pmob || '').trim() || null,
+      p_basic_price: RCV.basic || null, p_final_price: RCV.final || null,
+      p_valid_upto: RCV.valid || null,
+      p_bank: (RCV.mode === 'cash' ? '' : String(RCV.bank || '').trim()) || null });
     d = r && r.data;
   } catch (e) { d = null; }
   RCV.busy = false; $('rc-go').textContent = 'Send to the office'; rcvPaint();
   if (!d || !d.success) return rcvErr((d && d.message) || 'That did not reach the office. Nothing was recorded — try again.');
-  var row = { ref: d.ref, unit_no: d.unit_no, floor: d.floor, amount: d.amount, mode: d.mode, reference: d.reference,
-              payer: d.payer, paid_on: d.paid_on, note: d.note, received_by: d.received_by,
+  var row = { ref: d.ref, serial: d.serial, kind: d.kind, unit_no: d.unit_no, floor: d.floor, area: d.area,
+              amount: d.amount, mode: d.mode, reference: d.reference, bank: d.bank,
+              payer: d.payer, father: d.father, cnic: d.cnic, payer_mobile: d.payer_mobile,
+              basic_price: d.basic_price, final_price: d.final_price, valid_upto: d.valid_upto,
+              paid_on: d.paid_on, note: d.note, received_by: d.received_by,
               received_by_phone: d.received_by_phone, status: d.status, created_at: d.created_at,
               before: d.before, project: P.project, company: P.company };
   var list = readRcv().filter(function (x) { return x.ref !== row.ref; });
   list.unshift(row); writeRcv(list);
   toast(d.already ? 'Already recorded as ' + d.ref + '.' : 'Sent to the office as ' + d.ref + '.', 'ok');
-  /* a fresh form for the next one; the unit stays, it is often paid in parts */
+  /* a fresh form for the next one; the unit and the customer stay, a unit is
+     often paid for in parts by the same person */
   RCV.amt = 0; RCV.ref = ''; RCV.note = ''; RCV.earl = null;
   renderRcv();
   if (RCV.no) rcvPick(RCV.no);
@@ -8003,7 +8056,7 @@ async function repOpen() {
 var TOKEN = '';           // the SALES SESSION. The link is LINK, up above.
 var ME = null;
 var TAB = 'desk';
-var DESK_SRC = '/js/portal-reserve-desk.js?v=20261006voucher';
+var DESK_SRC = '/js/portal-reserve-desk.js?v=20261006token';
 var DESK_UP = false, DESKV = false;
 /* the portal's own key, on purpose: same origin, same phone, so a director
    already signed into the CRM here is not asked twice */
