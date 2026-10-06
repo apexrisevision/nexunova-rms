@@ -2401,6 +2401,150 @@
     if (rest) out.push(three(rest));
     return out.join(' ');
   }
+  /* ── THE RECEIPT VOUCHER, AS THE OFFICE PRINTS IT ────────────────────────
+     Rashid: "muje image ki pic exact receipt format mai chahiye". The format
+     is the one RMS already prints (reports/payment-receipt.html, the FMH
+     receipt-voucher style): navy letterhead with a gold rule, a boxed
+     RECEIPT VOUCHER title, labelled cells in pairs, the amount band with
+     Rs. and Rs. in words, remarks and unit address, then two signature
+     lines. Drawn on a canvas so it is the same picture on every phone. */
+  function _drawVoucher(x) {
+    var W = 1240, PAD = 60, CW = W - 2 * PAD;
+    var NAVY = '#1e2d47', GOLD = '#c9a84c', INK = '#111827', MUT = '#64748b', LINE = '#cbd5e1';
+    var FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+    var F = function (wt, px) { return wt + ' ' + px + 'px ' + FONT; };
+    var cv = document.createElement('canvas'), cx = cv.getContext('2d');
+    var st = x.status || 'pending';
+    var project = x.project || _projName(), company = x.company || '';
+    var modeTxt = (PAY_MODE[x.mode] || x.mode || '') + (x.reference ? ' — ' + x.reference : '');
+    var amt = Math.round(Number(x.amount) || 0);
+    var words = _pkWords(amt) + ' Rupees Only';
+    var b = x.before || null;
+    var earlier = b ? ((Number(b.recorded_count) ? 'Earlier on this unit: PKR ' + Math.round(b.recorded_total).toLocaleString('en-US') +
+                       ' (' + b.recorded_count + ' entr' + (Number(b.recorded_count) === 1 ? 'y' : 'ies') + ')'
+                     : 'Earlier on this unit: nothing recorded') +
+                     (Number(b.hold_token) ? '  ·  Token on the hold: PKR ' + Math.round(b.hold_token).toLocaleString('en-US') : '')) : '';
+    /* measure the wrapped cells before the canvas is sized */
+    cx.font = F('600', 26);
+    var half = CW / 2;
+    var pairs = [
+      [['Receipt #', x.ref || '—', true], ['Date', x.paid_on ? _trDay(x.paid_on + 'T12:00:00Z') : '—']],
+      [['Unit', (x.unit_no || '') + (x.floor ? ' · ' + x.floor : '')], ['Received from (Name)', x.payer || '—']],
+      [['By Cash / Bank / Online', modeTxt || '—'], ['Amount of', 'Token / Payment']]
+    ];
+    var tail = [['Remarks', x.note || '—'], ['Unit Address', [x.unit_no, x.floor, project].filter(Boolean).join(' · ')]];
+    var cellH = function (pair) {
+      var m = 0;
+      pair.forEach(function (c) { m = Math.max(m, _wrap(cx, c[1], half - 40).length); });
+      return 44 + m * 34;
+    };
+    cx.font = F('600', 28);
+    var wordsL = _wrap(cx, words, CW - 360 - 40);
+    var amtH = Math.max(110, 50 + wordsL.length * 36);
+    var LH = 150, TITLE = 120;
+    var bodyH = 34 + TITLE + pairs.reduce(function (s, p) { return s + cellH(p); }, 0) + 22 + amtH +
+                cellH(tail) + (earlier ? 60 : 20) + 150 + 110;
+    var H = LH + 8 + bodyH;
+    cv.width = W; cv.height = H;
+    cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, W, H);
+    cx.textBaseline = 'alphabetic';
+
+    /* letterhead */
+    cx.fillStyle = NAVY; cx.fillRect(0, 0, W, LH);
+    _rr(cx, PAD, 36, 78, 78, 14); cx.fillStyle = 'rgba(255,255,255,.15)'; cx.fill();
+    cx.fillStyle = '#fff'; cx.font = F('800', 38); cx.textAlign = 'center';
+    cx.fillText(String(project || 'R').charAt(0).toUpperCase(), PAD + 39, 89);
+    cx.textAlign = 'left';
+    cx.font = F('700', 34); cx.fillText(project || '', PAD + 100, 76);
+    cx.fillStyle = 'rgba(255,255,255,.7)'; cx.font = F('600', 17);
+    cx.fillText(String(company || 'Sales Office').toUpperCase().split('').join(String.fromCharCode(8202)), PAD + 100, 108);
+    cx.textAlign = 'right';
+    cx.fillStyle = '#fff'; cx.font = F('700', 24); cx.fillText('PAYMENT RECEIPT', W - PAD, 66);
+    cx.fillStyle = 'rgba(255,255,255,.75)'; cx.font = F('400', 20);
+    cx.fillText(_nowStamp(x.created_at), W - PAD, 100);
+    cx.textAlign = 'left';
+    var gb = cx.createLinearGradient(0, 0, W, 0);
+    gb.addColorStop(0, GOLD); gb.addColorStop(.5, '#f0e09a'); gb.addColorStop(1, GOLD);
+    cx.fillStyle = gb; cx.fillRect(0, LH, W, 8);
+
+    var y = LH + 8 + 34;
+    /* the title in its box, and the stamp beside it */
+    cx.font = F('800', 32);
+    var tt = 'RECEIPT VOUCHER', tw = Math.max(420, cx.measureText(tt).width + 120);
+    cx.lineWidth = 3; cx.strokeStyle = INK; _rr(cx, W / 2 - tw / 2, y, tw, 66, 10); cx.stroke();
+    cx.fillStyle = INK; cx.textAlign = 'center';
+    cx.fillText(tt.split('').join(String.fromCharCode(8202)), W / 2, y + 45);
+    var stTxt = st === 'verified' ? 'VERIFIED' : st === 'rejected' ? 'REJECTED' : 'PENDING VERIFICATION';
+    var stInk = st === 'verified' ? '#15803d' : st === 'rejected' ? '#dc2626' : '#c2760a';
+    cx.font = F('800', 18);
+    var sw = cx.measureText(stTxt).width + 36;
+    cx.save(); cx.setLineDash([6, 4]); cx.lineWidth = 2.5; cx.strokeStyle = stInk;
+    _rr(cx, W - PAD - sw, y + 14, sw, 38, 6); cx.stroke(); cx.restore();
+    cx.fillStyle = stInk; cx.fillText(stTxt, W - PAD - sw / 2, y + 40);
+    cx.textAlign = 'left';
+    y += TITLE;
+
+    var cell = function (x0, y0, w, h, label, val, mono, opts) {
+      opts = opts || {};
+      if (opts.bg) { cx.fillStyle = opts.bg; cx.fillRect(x0, y0, w, h); }
+      cx.lineWidth = opts.bw || 1.5; cx.strokeStyle = opts.border || LINE; cx.strokeRect(x0, y0, w, h);
+      cx.fillStyle = MUT; cx.font = F('700', 15);
+      cx.fillText(String(label).toUpperCase().split('').join(String.fromCharCode(8202)), x0 + 18, y0 + 28);
+      cx.fillStyle = opts.ink || INK; cx.font = opts.font || F('600', 26);
+      if (mono) cx.font = '600 26px Consolas, "Courier New", monospace';
+      _wrap(cx, val, w - 40).forEach(function (ln, i) { cx.fillText(ln, x0 + 18, y0 + 64 + i * 34); });
+    };
+    pairs.forEach(function (p) {
+      var h = cellH(p);
+      cell(PAD, y, half, h, p[0][0], p[0][1], p[0][2]);
+      cell(PAD + half, y, half, h, p[1][0], p[1][1], p[1][2]);
+      y += h;
+    });
+    /* the amount band */
+    y += 22;
+    var aw = 360;
+    cell(PAD, y, aw, amtH, 'Rs.', '', false, { bg: '#f8fafc', border: INK, bw: 2.5 });
+    cx.fillStyle = '#15803d'; cx.font = F('800', 44);
+    cx.fillText(amt.toLocaleString('en-US') + '/-', PAD + 18, y + 82);
+    cell(PAD + aw, y, CW - aw, amtH, 'Rs. in words', '', false, { bg: '#f8fafc', border: INK, bw: 2.5 });
+    cx.fillStyle = '#166534'; cx.font = 'italic ' + F('600', 28);
+    wordsL.forEach(function (ln, i) { cx.fillText(ln, PAD + aw + 18, y + 70 + i * 36); });
+    y += amtH;
+    var th2 = cellH(tail);
+    cell(PAD, y, half, th2, tail[0][0], tail[0][1]);
+    cell(PAD + half, y, half, th2, tail[1][0], tail[1][1]);
+    y += th2;
+    if (earlier) {
+      cx.textAlign = 'right'; cx.fillStyle = '#475569'; cx.font = F('400', 21);
+      cx.fillText(earlier, W - PAD, y + 40); cx.textAlign = 'left';
+      y += 60;
+    } else { y += 20; }
+
+    /* signatures */
+    y += 90;
+    var sgW = (CW - 80) / 2;
+    cx.fillStyle = '#374151'; cx.fillRect(PAD, y, sgW, 2.5); cx.fillRect(PAD + sgW + 80, y, sgW, 2.5);
+    cx.fillStyle = INK; cx.font = F('700', 20);
+    cx.fillText('Sales Rep — ' + (x.received_by || '—') + (x.received_by_phone ? '  ' + x.received_by_phone : ''), PAD, y + 32);
+    cx.fillText(st === 'pending' ? 'Director' : (st === 'verified' ? 'Verified by ' : 'Rejected by ') + (x.decided_by || '—'),
+                PAD + sgW + 80, y + 32);
+    cx.fillStyle = '#9ca3af'; cx.font = F('400', 17);
+    cx.fillText('Received / Recorded by', PAD, y + 58);
+    cx.fillText(st === 'pending' ? 'Verification — pending' : 'Management — verification', PAD + sgW + 80, y + 58);
+    y += 60;
+
+    /* footer */
+    y += 30;
+    cx.fillStyle = '#e5e7eb'; cx.fillRect(PAD, y, CW, 2);
+    cx.fillStyle = '#9ca3af'; cx.font = F('400', 17);
+    cx.fillText(st === 'verified' ? 'Verified by the management · not an official accounts receipt'
+                                  : 'Not an official company receipt · valid only after verification by the management', PAD, y + 34);
+    cx.textAlign = 'right';
+    cx.fillText('Nexunova RMS', W - PAD, y + 34);
+    cx.textAlign = 'left';
+    return cv;
+  }
+
   window.RDWords = _pkWords;
   /* the receipt prints PKR the same way on every page it is drawn from */
   function _pkrRc(n) { return 'PKR ' + Math.round(Number(n) || 0).toLocaleString('en-US'); }
@@ -2435,7 +2579,9 @@
         : 'Not an official company receipt · valid only after verification by the management'
     };
     var cv;
-    try { cv = _drawCard(spec); } catch (e) { cv = null; }
+    /* the office's own Receipt Voucher layout; the card is the fallback */
+    try { cv = _drawVoucher(x); } catch (e) { cv = null; }
+    if (!cv) { try { cv = _drawCard(spec); } catch (e2) { cv = null; } }
     var text = 'Payment received ' + (x.ref || '') + ': ' + _pkrRc(x.amount) + ' for ' + (x.unit_no || '') +
                ' from ' + (x.payer || '') + ' (' + (PAY_MODE[x.mode] || x.mode) + ') - ' + stamp;
     _imgSheet(cv, (x.ref || 'Payment') + ' ' + (x.unit_no || ''), 'Share the receipt',

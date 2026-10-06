@@ -7400,7 +7400,7 @@ async function rcvSend() {
   var row = { ref: d.ref, unit_no: d.unit_no, floor: d.floor, amount: d.amount, mode: d.mode, reference: d.reference,
               payer: d.payer, paid_on: d.paid_on, note: d.note, received_by: d.received_by,
               received_by_phone: d.received_by_phone, status: d.status, created_at: d.created_at,
-              before: d.before, project: P.project };
+              before: d.before, project: P.project, company: P.company };
   var list = readRcv().filter(function (x) { return x.ref !== row.ref; });
   list.unshift(row); writeRcv(list);
   toast(d.already ? 'Already recorded as ' + d.ref + '.' : 'Sent to the office as ' + d.ref + '.', 'ok');
@@ -8003,7 +8003,7 @@ async function repOpen() {
 var TOKEN = '';           // the SALES SESSION. The link is LINK, up above.
 var ME = null;
 var TAB = 'desk';
-var DESK_SRC = '/js/portal-reserve-desk.js?v=20261006vshare';
+var DESK_SRC = '/js/portal-reserve-desk.js?v=20261006voucher';
 var DESK_UP = false, DESKV = false;
 /* the portal's own key, on purpose: same origin, same phone, so a director
    already signed into the CRM here is not asked twice */
