@@ -3891,7 +3891,13 @@
     if (!d || !d.success) {
       toast((d && d.message) || 'That did not go through.', 'err');
     } else {
-      toast(x.ref + ' ' + (d.status === 'verified' ? 'verified.' : 'rejected.'), 'ok');
+      /* Verify adds the money to the unit's standing hold (20261006c) - say what happened to it */
+      toast(d.status !== 'verified' ? x.ref + ' rejected.'
+            : d.hold_updated
+              ? x.ref + ' verified · token on ' + x.unit_no + (d.held_by ? ' (' + d.held_by + ')' : '') +
+                " now " + pkrFull(d.hold_token_after)
+              : x.ref + ' verified · ' + x.unit_no + ' has no standing hold, so no token was added',
+            d.status === 'verified' && !d.hold_updated ? 'warn' : 'ok');
     }
     await _loadPays();
     if (_alive('desk')) _paintPays();
