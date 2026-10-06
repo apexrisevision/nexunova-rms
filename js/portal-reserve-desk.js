@@ -2430,7 +2430,9 @@
       stamp: stamp, stampInk: ink, rows: rows,
       byLabel: 'Received by', by: (x.received_by || '—') + (x.received_by_phone ? '  ' + x.received_by_phone : ''),
       when: when,
-      foot: 'Not an official company receipt · valid only after verification by the management'
+      foot: st === 'verified'
+        ? 'Verified by the management · not an official accounts receipt'
+        : 'Not an official company receipt · valid only after verification by the management'
     };
     var cv;
     try { cv = _drawCard(spec); } catch (e) { cv = null; }
@@ -3555,6 +3557,14 @@
     }
     await _loadPays();
     if (_alive('desk')) _paintPays();
+    /* VERIFIED, AND SAID SO. Rashid: "Payment verify hone pe bhi share wali
+       image ban jaye". The receipt opens again, now carrying the green
+       VERIFIED stamp and who verified it, ready for the group. */
+    if (d && d.success && d.status === 'verified') {
+      var nx = (DESK.pays || []).filter(function (p) { return String(p.id) === String(x.id); })[0] ||
+               Object.assign({}, x, { status: 'verified', decided_by: d.decided_by, decided_at: d.decided_at });
+      window.RDPaymentCard(nx);
+    }
   }
 
   /* SHARE, FROM BOOKED TODAY. Rashid: "agar reservation k time picture share
