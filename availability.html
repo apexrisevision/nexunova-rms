@@ -8056,7 +8056,7 @@ async function repOpen() {
 var TOKEN = '';           // the SALES SESSION. The link is LINK, up above.
 var ME = null;
 var TAB = 'desk';
-var DESK_SRC = '/js/portal-reserve-desk.js?v=20261006vtoken';
+var DESK_SRC = '/js/portal-reserve-desk.js?v=20261006trail360';
 var DESK_UP = false, DESKV = false;
 /* the portal's own key, on purpose: same origin, same phone, so a director
    already signed into the CRM here is not asked twice */
@@ -9415,7 +9415,7 @@ function trailSearch(v) {
       'spellcheck="false" maxlength="20" placeholder="Unit code, e.g. GF-248" value="' + esc(v) + '">' +
       '<button type="submit">Show</button></div>' +
     '<div class="say">Everything that happened to one unit, from the day it was created — ' +
-      'who held it, who released it, and every rupee of token against it.</div>' +
+      'who held it, who released it, the sale, every payment and every rupee of token against it.</div>' +
   '</div></form>';
 }
 function openTrail(code) {
@@ -9451,11 +9451,15 @@ async function trailLoad() {
   } finally { TRL.busy = false; }
   if (REPV && REP && REPP.view === 'trail') $('rep-body').innerHTML = repRender();
 }
-var TR_IN = { token: 1, allocation: 1 };
-var TR_OUT = { release: 1, cancel: 1, expire: 1, refund: 1 };
+var TR_IN = { token: 1, allocation: 1, payment: 1, linkpay_ok: 1, linkpay: 1 };
+var TR_OUT = { release: 1, cancel: 1, expire: 1, refund: 1, sale_x: 1, payment_x: 1, cancellation: 1, linkpay_no: 1 };
 var TR_KIND = { created: 'Created', area: 'Area', price: 'Price', status: 'Status', request: 'Link request',
                 hold: 'Hold', holder: 'Holder', extend: 'Extended', release: 'Released', expire: 'Expired',
-                cancel: 'Cancelled', token: 'Token', refund: 'Token returned', allocation: 'Books' };
+                cancel: 'Cancelled', token: 'Token', refund: 'Token returned', allocation: 'Books' ,
+                /* 20261006d — the rest of the unit's life */
+                linkpay: 'Link receipt', linkpay_ok: 'Verified', linkpay_no: 'Rejected', sale: 'Sale', sale_x: 'Sale cancelled',
+                payment: 'Payment', payment_x: 'Payment cancelled', cancellation: 'Unit cancelled', transfer: 'Transfer',
+                possession: 'Possession', noc: 'NOC', legal: 'Legal', quote: 'Plan', submission: 'Submission' };
 function pkDay(s) {
   return new Date(s).toLocaleDateString('en-GB', { timeZone: 'Asia/Karachi', weekday: 'short',
     day: '2-digit', month: 'short', year: 'numeric' });
@@ -9487,7 +9491,10 @@ function repTrailPage(d) {
     '<dl class="tr-kv">' +
       '<dt>Holder</dt><dd>' + (u.holder ? esc(u.holder) : '<span class="m">nobody</span>') +
         (u.hold_until ? ' <span class="m">· until ' + esc(pkDay(u.hold_until)) + '</span>' : '') + '</dd>' +
-      '<dt>Buyer</dt><dd>' + (u.buyer ? esc(u.buyer) : '<span class="m">not named</span>') + '</dd>' +
+      /* a unit sold in RMS names its buyer on the sale (20261006d) */
+      '<dt>Buyer</dt><dd>' + (u.buyer ? esc(u.buyer)
+        : (T.money && T.money.sale && T.money.sale.client) ? esc(T.money.sale.client) + ' <span class="m">· sale ' + esc(T.money.sale.sale_number || '') + '</span>'
+        : '<span class="m">not named</span>') + '</dd>' +
       '<dt>Price</dt><dd>' + esc(pkRs(u.price)) + '</dd>' +
       '<dt>Area</dt><dd>' + (u.area != null ? num(u.area) + ' sq ft' : '—') +
         (u.rate_per_sqft ? ' <span class="m">· ' + esc(pkRs(u.rate_per_sqft)) + ' per sq ft</span>' : '') + '</dd>' +
@@ -9495,6 +9502,27 @@ function repTrailPage(d) {
         (Number(u.hold_token) !== Number(u.token_total)
           ? '<br>' + esc(pkRs(u.hold_token)) + ' <span class="m">on the hold</span>' : '') + '</dd>' +
     '</dl></div>');
+
+  /* 1b · THE MONEY, AT A GLANCE (20261006d): the sale and what has been paid
+     against it, and what reps recorded on the link — verified and waiting */
+  var M = T.money || {}, I = T.interest || {};
+  if (M.sale || (M.link_pending && M.link_pending.count) || (M.link_verified && M.link_verified.count)) {
+    H.push('<h2>Money</h2><div class="card"><dl class="tr-kv">' +
+      (M.sale ? '<dt>Sale</dt><dd>' + esc(M.sale.sale_number || '') + ' · ' + esc(M.sale.client || '') + '</dd>' +
+                '<dt>Net</dt><dd>' + esc(pkRs(M.sale.net)) + '</dd>' +
+                '<dt>Paid</dt><dd>' + esc(pkRs(M.sale.paid)) + '</dd>' +
+                '<dt>Outstanding</dt><dd>' + esc(pkRs(Math.max(0, Number(M.sale.net || 0) - Number(M.sale.paid || 0)))) + '</dd>' : '') +
+      (M.link_verified && M.link_verified.count ? '<dt>Link, verified</dt><dd>' + esc(pkRs(M.link_verified.amount)) +
+        ' <span class="m">(' + M.link_verified.count + ')</span></dd>' : '') +
+      (M.link_pending && M.link_pending.count ? '<dt>Link, waiting</dt><dd>' + esc(pkRs(M.link_pending.amount)) +
+        ' <span class="m">(' + M.link_pending.count + ')</span></dd>' : '') +
+    '</dl></div>');
+  }
+  if (I.leads || I.deals || I.quotes) {
+    H.push('<div class="say">Interest in this unit: ' + [I.leads ? I.leads + ' lead' + (I.leads === 1 ? '' : 's') : '',
+      I.deals ? I.deals + ' deal' + (I.deals === 1 ? '' : 's') : '',
+      I.quotes ? I.quotes + ' payment plan' + (I.quotes === 1 ? '' : 's') : ''].filter(Boolean).join(' · ') + '.</div>');
+  }
 
   /* 2 · what does not add up */
   H.push('<h2>Worth checking</h2>');

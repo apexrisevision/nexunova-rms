@@ -150,7 +150,9 @@
       ".tr-k{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;" +
         "padding:1px 6px;margin-right:6px;border-radius:5px;background:var(--fk-border);color:var(--fk-text)}" +
       ".tr-e.k-expire .tr-k,.tr-e.k-cancel .tr-k,.tr-e.k-release .tr-k,.tr-e.k-refund .tr-k{background:var(--fk-danger);color:#fff}" +
-      ".tr-e.k-token .tr-k,.tr-e.k-allocation .tr-k{background:#15803d;color:#fff}" +
+      ".tr-e.k-token .tr-k,.tr-e.k-allocation .tr-k,.tr-e.k-payment .tr-k,.tr-e.k-linkpay_ok .tr-k{background:#15803d;color:#fff}" +
+      ".tr-e.k-sale_x .tr-k,.tr-e.k-payment_x .tr-k,.tr-e.k-cancellation .tr-k,.tr-e.k-linkpay_no .tr-k{background:var(--fk-danger);color:#fff}" +
+      ".tr-e.k-sale .tr-k,.tr-e.k-linkpay .tr-k{background:var(--fk-accent);color:#fff}" +
       ".tr-e.k-hold .tr-k{background:#d97706;color:#fff}" +
       ".tr-ed{color:var(--fk-text-muted);font-size:11.5px;margin-top:2px;line-height:1.4}" +
       ".tr-ew{color:var(--fk-text-muted);font-size:11px;margin-top:2px}" +
@@ -1777,7 +1779,10 @@
   }
   var _TR_KIND = { created: 'Created', area: 'Area', price: 'Price', status: 'Status', request: 'Link request',
                    hold: 'Hold', holder: 'Holder', extend: 'Extended', release: 'Released', expire: 'Expired',
-                   cancel: 'Cancelled', token: 'Token', refund: 'Token returned', allocation: 'Books' };
+                   cancel: 'Cancelled', token: 'Token', refund: 'Token returned', allocation: 'Books',
+                   linkpay: 'Link receipt', linkpay_ok: 'Verified', linkpay_no: 'Rejected', sale: 'Sale', sale_x: 'Sale cancelled',
+                   payment: 'Payment', payment_x: 'Payment cancelled', cancellation: 'Unit cancelled', transfer: 'Transfer',
+                   possession: 'Possession', noc: 'NOC', legal: 'Legal', quote: 'Plan', submission: 'Submission' };
 
   /* the few sentences this decision turns on, worst first */
   function _trFlags(t, asker) {
