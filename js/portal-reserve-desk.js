@@ -293,6 +293,21 @@
       ".pay-s{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px}" +
       ".pay-s.verified{background:#E8F7EF;color:#0F7A38}" +
       ".pay-s.rejected{background:var(--fk-danger-surface);color:var(--fk-danger)}" +
+      ".pay-num{color:var(--fk-text);font-weight:650}" +
+      ".pay-reg{margin-left:auto;float:right}" +
+      ".pay-nums{display:flex;gap:10px;margin-top:12px}" +
+      ".pay-nums label{flex:1;font-size:12px;color:var(--fk-text-muted);display:flex;flex-direction:column;gap:4px}" +
+      ".pay-nums input{height:40px;border:1px solid var(--fk-border);border-radius:9px;padding:0 10px;font:inherit;font-size:15px;background:var(--fk-surface);color:var(--fk-text)}" +
+      ".reg-c{max-width:760px !important}" +
+      ".reg-f{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}" +
+      ".reg-f label{font-size:11px;color:var(--fk-text-muted);display:flex;flex-direction:column;gap:3px}" +
+      ".reg-f input{height:36px;border:1px solid var(--fk-border);border-radius:8px;padding:0 8px;font:inherit;font-size:13px;background:var(--fk-surface);color:var(--fk-text)}" +
+      ".reg-f #rg-q{flex:1;min-width:180px;align-self:flex-end}" +
+      ".reg-s{display:flex;gap:6px;margin-top:8px}" +
+      ".reg-s button{height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--fk-border);background:var(--fk-surface);color:var(--fk-text);font:inherit;font-size:12.5px;font-weight:650;cursor:pointer}" +
+      ".reg-s button.on{background:var(--fk-accent);border-color:var(--fk-accent);color:#fff}" +
+      ".reg-t{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--fk-text)}" +
+      ".reg-t .g{color:#15803d}.reg-t .a{color:#c2760a}.reg-t .r{color:var(--fk-danger)}" +
       ".pay-none{font-size:12.5px;color:var(--fk-text-muted);padding:4px 2px 10px}" +
       ".pay-sub{font-size:11px;font-weight:750;letter-spacing:.08em;text-transform:uppercase;color:var(--fk-text-muted);margin:12px 0 6px}" +
       ".rq-c{border:1px solid var(--fk-border);border-radius:11px;background:var(--fk-bg-card);padding:12px 13px;margin-bottom:8px}" +
@@ -2591,7 +2606,7 @@
     var money = function (n) { return Number(n) > 0 ? Math.round(Number(n)).toLocaleString('en-US') + '/-' : ''; };
     var day = function (d) { return d ? _trDay(String(d).slice(0, 10) + 'T12:00:00Z') : ''; };
     var size = Number(x.area) > 0 ? Number(x.area).toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' sq.ft' : '';
-    var H = 1340;                       // the slip has a fixed set of lines, so a fixed height
+    var H = 1414;                       // the slip has a fixed set of lines, so a fixed height
     cv.width = W; cv.height = H;
     cx.fillStyle = '#fffdf8'; cx.fillRect(0, 0, W, H);
     cx.strokeStyle = '#e5e1d8'; cx.lineWidth = 2; cx.strokeRect(14, 14, W - 28, H - 28);
@@ -2626,12 +2641,13 @@
 
     /* TOKEN, the serial, the stamp */
     cx.fillStyle = RED; cx.font = F('800', 64); cx.textAlign = 'center';
-    cx.fillText((x.kind === 'payment' ? 'PAYMENT' : 'TOKEN'), W / 2, y + 56);
+    cx.fillText('TOKEN', W / 2, y + 56);    // token only on the link (payments are taken in RMS)
     cx.textAlign = 'left';
     cx.fillStyle = INK; cx.font = F('600', 24); cx.fillText('Serial:', W - PAD - 300, y + 50);
     /* the serial is the number alone, as the book prints it; an older entry
        without one gives the digits of its receipt no. */
-    var serial = String(x.serial || ((String(x.ref || '').match(/(\d+)$/) || [])[1]) || '');
+    /* the serial is the book's Token # when there is one */
+    var serial = String(x.token_no || x.serial || ((String(x.ref || '').match(/(\d+)$/) || [])[1]) || '');
     cx.fillStyle = RED; cx.font = F('800', 40); cx.fillText(serial, W - PAD - 210, y + 52);
     cx.fillStyle = RULE; cx.fillRect(W - PAD - 215, y + 62, 215, 2);
     var stTxt = st === 'verified' ? 'VERIFIED' : st === 'rejected' ? 'REJECTED' : 'PENDING VERIFICATION';
@@ -2696,6 +2712,10 @@
     y += RowH - 8;
     field(PAD, y, half, 'Ref #', x.reference);
     field(col2, y, half, 'Bank', x.bank);
+    y += RowH;
+    /* the books run on Token # and Voucher # (Rashid, 2026-10-06) */
+    field(PAD, y, half, 'Voucher #', x.voucher_no);
+    field(col2, y, half, 'Receipt no.', x.ref);
     y += RowH;
     field(PAD, y, CW, 'Narration / Description', x.note);
     y += 140;
@@ -3830,90 +3850,309 @@
     DESK.pays = d.rows || [];
     return true;
   }
+  /* one card, for the waiting list and for the register alike */
+  function _payCard(x, opts) {
+    opts = opts || {};
+    var pend = x.status === 'pending';
+    var nums = [x.token_no ? 'Token # ' + esc(x.token_no) : '', x.voucher_no ? 'Voucher # ' + esc(x.voucher_no) : ''].filter(Boolean);
+    return '<div class="rq-c pay-c' + (pend ? '' : ' pay-done') + '" data-pay="' + esc(x.id) + '">' +
+      '<div class="pay-h"><b>' + esc(pkrFull(x.amount)) + '</b>' +
+        '<span class="pay-m">Token · ' + esc(PAY_MODE[x.mode] || x.mode) +
+          (x.reference ? ' · ' + esc(x.reference) : '') + (x.bank ? ' · ' + esc(x.bank) : '') + '</span>' +
+        '<span class="pay-r">' + esc(x.ref) + '</span></div>' +
+      (nums.length ? '<div class="pay-l pay-num">' + nums.join(' · ') + '</div>' : '') +
+      '<div class="pay-l"><b>' + esc(x.unit_no) + '</b> · ' + esc(x.floor || '') +
+        ' · from <b>' + esc(x.payer) + '</b> · paid ' + esc(_trDay(x.paid_on + 'T12:00:00Z')) + '</div>' +
+      ((x.father || x.cnic || x.payer_mobile)
+        ? '<div class="pay-l">' + [x.father ? 'S/O, W/O ' + esc(x.father) : '', x.cnic ? 'CNIC ' + esc(x.cnic) : '',
+            x.payer_mobile ? '<a href="tel:' + esc(x.payer_mobile) + '">' + esc(x.payer_mobile) + '</a>' : '']
+            .filter(Boolean).join(' · ') + '</div>' : '') +
+      ((x.basic_price || x.final_price || x.valid_upto)
+        ? '<div class="pay-l">' + [x.basic_price ? 'Basic ' + esc(pkrFull(x.basic_price)) : '',
+            x.final_price ? 'Final <b>' + esc(pkrFull(x.final_price)) + '</b>' : '',
+            x.valid_upto ? 'valid upto ' + esc(_trDay(x.valid_upto + 'T12:00:00Z')) : ''].filter(Boolean).join(' · ') + '</div>' : '') +
+      '<div class="pay-l">Received by ' + esc(x.received_by) +
+        (x.received_by_phone ? ' · <a href="tel:' + esc(x.received_by_phone) + '">' + esc(x.received_by_phone) + '</a>' : '') +
+        ' · sent ' + esc(_trDay(x.created_at)) + ' ' + esc(_pkTime(x.created_at)) + '</div>' +
+      (x.note ? '<div class="pay-l pay-n">' + esc(x.note) + '</div>' : '') +
+      (x.reopened_count ? '<div class="pay-l pay-n">Decision undone ' + x.reopened_count + '×' +
+         (x.reopened_by ? ', last by ' + esc(x.reopened_by) : '') + '</div>' : '') +
+      (pend
+        ? '<div class="rq-a"><button class="ok" data-pact="verify">Verify</button>' +
+          '<button data-pact="share">Share</button>' +
+          '<button data-pact="reject">Reject</button></div>'
+        : '<div class="pay-l"><span class="pay-s ' + esc(x.status) + '">' + esc(x.status === 'verified' ? 'Verified' : 'Rejected') +
+          '</span> by ' + esc(x.decided_by || '—') + (x.decision_note ? ' — ' + esc(x.decision_note) : '') +
+          (x.status === 'verified' ? (x.applied ? ' · added to the hold' : ' · not added (no hold)') : '') +
+          ' <button class="rd-undo rd-shr" data-pact="share">Share</button>' +
+          '<button class="rd-undo" data-pact="reopen">Undo</button></div>') +
+    '</div>';
+  }
   function _paintPays() {
     var box = _q('#rd-pays'); if (!box) return;
     var rows = DESK.pays || [];
-    if (!rows.length) { box.innerHTML = ''; return; }
     var waiting = rows.filter(function (x) { return x.status === 'pending'; });
     var done = rows.filter(function (x) { return x.status !== 'pending'; });
-    var card = function (x) {
-      var pend = x.status === 'pending';
-      return '<div class="rq-c pay-c' + (pend ? '' : ' pay-done') + '" data-pay="' + esc(x.id) + '">' +
-        '<div class="pay-h"><b>' + esc(pkrFull(x.amount)) + '</b>' +
-          '<span class="pay-m">' + (x.kind === 'payment' ? 'Payment' : 'Token') + ' · ' + esc(PAY_MODE[x.mode] || x.mode) +
-            (x.reference ? ' · ' + esc(x.reference) : '') + (x.bank ? ' · ' + esc(x.bank) : '') + '</span>' +
-          '<span class="pay-r">' + esc(x.ref) + '</span></div>' +
-        '<div class="pay-l"><b>' + esc(x.unit_no) + '</b> · ' + esc(x.floor || '') +
-          ' · from <b>' + esc(x.payer) + '</b> · paid ' + esc(_trDay(x.paid_on + 'T12:00:00Z')) + '</div>' +
-        ((x.father || x.cnic || x.payer_mobile)
-          ? '<div class="pay-l">' + [x.father ? 'S/O, W/O ' + esc(x.father) : '', x.cnic ? 'CNIC ' + esc(x.cnic) : '',
-              x.payer_mobile ? '<a href="tel:' + esc(x.payer_mobile) + '">' + esc(x.payer_mobile) + '</a>' : '']
-              .filter(Boolean).join(' · ') + '</div>' : '') +
-        ((x.basic_price || x.final_price || x.valid_upto)
-          ? '<div class="pay-l">' + [x.basic_price ? 'Basic ' + esc(pkrFull(x.basic_price)) : '',
-              x.final_price ? 'Final <b>' + esc(pkrFull(x.final_price)) + '</b>' : '',
-              x.valid_upto ? 'valid upto ' + esc(_trDay(x.valid_upto + 'T12:00:00Z')) : ''].filter(Boolean).join(' · ') + '</div>' : '') +
-        '<div class="pay-l">Received by ' + esc(x.received_by) +
-          (x.received_by_phone ? ' · <a href="tel:' + esc(x.received_by_phone) + '">' + esc(x.received_by_phone) + '</a>' : '') +
-          ' · sent ' + esc(_pkTime(x.created_at)) + '</div>' +
-        (x.note ? '<div class="pay-l pay-n">' + esc(x.note) + '</div>' : '') +
-        (pend
-          ? '<div class="rq-a"><button class="ok" data-pact="verify">Verify</button>' +
-            '<button data-pact="share">Share</button>' +
-            '<button data-pact="reject">Reject</button></div>'
-          : '<div class="pay-l"><span class="pay-s ' + esc(x.status) + '">' + esc(x.status === 'verified' ? 'Verified' : 'Rejected') +
-            '</span> by ' + esc(x.decided_by || '—') + (x.decision_note ? ' — ' + esc(x.decision_note) : '') +
-            ' <button class="rd-undo rd-shr" data-pact="share">Share</button></div>') +
-      '</div>';
-    };
     box.innerHTML =
-      '<div class="rq-h">Payments from the link <span class="rq-n">' + waiting.length + '</span></div>' +
-      (waiting.length ? waiting.map(card).join('') : '<div class="pay-none">Nothing waiting.</div>') +
-      (done.length ? '<div class="pay-sub">Decided in the last 3 days</div>' + done.map(card).join('') : '');
+      '<div class="rq-h">Tokens from the link <span class="rq-n">' + waiting.length + '</span>' +
+        '<button class="rd-undo rd-shr pay-reg" data-pact="register">All tokens — register</button></div>' +
+      (waiting.length ? waiting.map(function (x) { return _payCard(x); }).join('') : '<div class="pay-none">Nothing waiting.</div>') +
+      (done.length ? '<div class="pay-sub">Decided in the last 3 days</div>' + done.map(function (x) { return _payCard(x); }).join('') : '');
     if (!box.__payBound) { box.addEventListener('click', _payClick); box.__payBound = true; }
   }
+
+  /* the books' numbers, asked for at Verify (prefilled with what the rep wrote) */
+  function _payNumbers(x) {
+    return new Promise(function (done) {
+      var host = _root() || document.body;
+      var wrap = document.createElement('div');
+      wrap.className = 'rd-ask';
+      wrap.innerHTML =
+        '<div class="rd-ask-c">' +
+          '<div class="rd-ask-t">Verify ' + esc(x.ref) + '</div>' +
+          '<ul class="rd-ask-l"><li><b>' + esc(pkrFull(x.amount)) + '</b> on <b>' + esc(x.unit_no) + '</b> from ' + esc(x.payer) +
+            ' — received by ' + esc(x.received_by) + '</li>' +
+          '<li>It is added to the token on the unit’s hold. Write the numbers the books use.</li></ul>' +
+          '<div class="pay-nums"><label>Token #<input id="pv-tok" autocomplete="off" value="' + esc(x.token_no || '') + '"></label>' +
+          '<label>Voucher #<input id="pv-vch" autocomplete="off" value="' + esc(x.voucher_no || '') + '"></label></div>' +
+          '<div class="rd-ask-r"><button type="button" data-askno>Cancel</button>' +
+          '<button type="button" data-askok>Verify</button></div>' +
+        '</div>';
+      host.appendChild(wrap);
+      var shut = function (v) { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); done(v); };
+      wrap.addEventListener('click', function (e) {
+        if (e.target === wrap || e.target.closest('[data-askno]')) return shut(null);
+        if (e.target.closest('[data-askok]')) {
+          return shut({ tok: (wrap.querySelector('#pv-tok').value || '').trim(),
+                        vch: (wrap.querySelector('#pv-vch').value || '').trim() });
+        }
+      });
+      try { wrap.querySelector('#pv-tok').focus(); } catch (e) {}
+    });
+  }
+
   async function _payClick(e) {
     var b = e.target.closest('[data-pact]'); if (!b) return;
-    var c = b.closest('[data-pay]'); if (!c) return;
-    var x = (DESK.pays || []).filter(function (p) { return String(p.id) === c.getAttribute('data-pay'); })[0];
-    if (!x) return;
     var act = b.getAttribute('data-pact');
+    if (act === 'register') return _regOpen();
+    var c = b.closest('[data-pay]'); if (!c) return;
+    var pool = (DESK.pays || []).concat((REG.rows || []));
+    var x = pool.filter(function (p) { return String(p.id) === c.getAttribute('data-pay'); })[0];
+    if (!x) return;
     if (act === 'share') { if (window.RDPaymentCard) window.RDPaymentCard(x); return; }
-    var note = null;
+    var nums = null, note = null;
+    if (act === 'verify') {
+      nums = await _payNumbers(x);
+      if (!nums) return;
+    }
     if (act === 'reject') {
-      var ok = await _askOk('Reject this payment?', [
+      var ok = await _askOk('Reject this token?', [
         '<b>' + esc(pkrFull(x.amount)) + '</b> on <b>' + esc(x.unit_no) + '</b> from ' + esc(x.payer),
         'Received by ' + esc(x.received_by) + ' — the rep will see it as rejected on the link.'
       ], 'Reject', true);
       if (!ok) return;
     }
-    b.disabled = true; b.textContent = act === 'verify' ? 'Verifying…' : 'Rejecting…';
+    /* UNDO: a decision taken back. A verified token that went onto the hold
+       comes off it again, and the entry waits to be decided afresh. */
+    if (act === 'reopen') {
+      var ok2 = await _askOk('Undo this ' + (x.status === 'verified' ? 'Verify' : 'Reject') + '?', [
+        '<b>' + esc(x.ref) + '</b> — ' + esc(pkrFull(x.amount)) + ' on <b>' + esc(x.unit_no) + '</b>',
+        x.status === 'verified' && x.applied
+          ? 'The ' + esc(pkrFull(x.applied_amount || x.amount)) + ' added to ' + esc(x.unit_no) + '’s hold token comes off it again.'
+          : 'Nothing was added to a hold, so nothing comes off.',
+        'The entry goes back to waiting, to be decided again.'
+      ], 'Undo', true);
+      if (!ok2) return;
+    }
+    b.disabled = true;
+    b.textContent = act === 'verify' ? 'Verifying…' : act === 'reject' ? 'Rejecting…' : 'Undoing…';
     var r;
-    try { r = await sb.rpc('decide_link_payment', { p_session_token: TOKEN, p_id: x.id, p_action: act, p_note: note }); }
-    catch (e2) { r = null; }
+    try {
+      r = await sb.rpc('decide_link_payment', { p_session_token: TOKEN, p_id: x.id, p_action: act, p_note: note,
+                                                p_token_no: nums ? nums.tok || null : null,
+                                                p_voucher_no: nums ? nums.vch || null : null });
+    } catch (e2) { r = null; }
     var d = r && r.data;
     if (d && d.error === 'session_expired') return sessionGone();
     if (!d || !d.success) {
       toast((d && d.message) || 'That did not go through.', 'err');
+    } else if (act === 'reopen') {
+      toast(x.ref + ' is waiting again' + (d.hold_updated ? ' · token on ' + x.unit_no + ' now ' + pkrFull(d.hold_token_after) : '') + '.', 'ok');
     } else {
-      /* Verify adds the money to the unit's standing hold (20261006c) - say what happened to it */
+      /* Verify adds the money to the unit's standing hold - say what happened to it */
       toast(d.status !== 'verified' ? x.ref + ' rejected.'
             : d.hold_updated
               ? x.ref + ' verified · token on ' + x.unit_no + (d.held_by ? ' (' + d.held_by + ')' : '') +
-                " now " + pkrFull(d.hold_token_after)
+                ' now ' + pkrFull(d.hold_token_after)
               : x.ref + ' verified · ' + x.unit_no + ' has no standing hold, so no token was added',
             d.status === 'verified' && !d.hold_updated ? 'warn' : 'ok');
     }
     await _loadPays();
     if (_alive('desk')) _paintPays();
-    /* VERIFIED, AND SAID SO. Rashid: "Payment verify hone pe bhi share wali
-       image ban jaye". The receipt opens again, now carrying the green
-       VERIFIED stamp and who verified it, ready for the group. */
-    if (d && d.success && d.status === 'verified') {
+    if (REG.open) await _regLoad();
+    /* VERIFIED, AND SAID SO: the receipt opens again with the green stamp */
+    if (d && d.success && d.status === 'verified' && act === 'verify') {
       var nx = (DESK.pays || []).filter(function (p) { return String(p.id) === String(x.id); })[0] ||
-               Object.assign({}, x, { status: 'verified', decided_by: d.decided_by, decided_at: d.decided_at });
+               Object.assign({}, x, { status: 'verified', decided_by: d.decided_by, decided_at: d.decided_at,
+                                      token_no: d.token_no, voucher_no: d.voucher_no });
       window.RDPaymentCard(nx);
     }
+  }
+
+  /* ══ THE TOKEN REGISTER ═══════════════════════════════════════════════════
+     Rashid: "Purana record gayab ho jata hai ... Pura record ya report nahi
+     hai". Every token ever recorded on the link, by date received, with a
+     filter by status and a search over unit, customer, dealer, Token # and
+     Voucher #; totals for what is shown; each entry can be shared, decided or
+     undone from here; and a PDF of exactly what is on screen. */
+  var REG = { open: false, rows: [], from: '', to: '', status: 'all', q: '' };
+  function _regOpen() {
+    REG.open = true;
+    var host = _root() || document.body;
+    var old = document.getElementById('rd-reg'); if (old) old.parentNode.removeChild(old);
+    var wrap = document.createElement('div');
+    wrap.id = 'rd-reg'; wrap.className = 'rd-ask rd-trail';
+    wrap.innerHTML =
+      '<div class="rd-ask-c reg-c">' +
+        '<div class="rd-ask-t">Token register</div>' +
+        '<div class="tr-s">Every token recorded on the link. Filter, search, and save as PDF.</div>' +
+        '<div class="reg-f">' +
+          '<label>From<input type="date" id="rg-from" value="' + esc(REG.from) + '"></label>' +
+          '<label>To<input type="date" id="rg-to" value="' + esc(REG.to) + '"></label>' +
+          '<input id="rg-q" placeholder="Unit, customer, dealer, Token #, Voucher #" value="' + esc(REG.q) + '">' +
+        '</div>' +
+        '<div class="reg-s" id="rg-st">' +
+          ['all', 'pending', 'verified', 'rejected'].map(function (s) {
+            return '<button type="button" data-st="' + s + '"' + (REG.status === s ? ' class="on"' : '') + '>' +
+                   s.charAt(0).toUpperCase() + s.slice(1) + '</button>';
+          }).join('') +
+        '</div>' +
+        '<div class="reg-t" id="rg-tot"></div>' +
+        '<div class="tr-b" id="rg-list"><div class="tr-m">Reading the register…</div></div>' +
+        '<div class="rd-ask-r"><button type="button" data-rgx>Close</button>' +
+          '<button type="button" data-askok data-rgpdf>PDF</button></div>' +
+      '</div>';
+    host.appendChild(wrap);
+    wrap.addEventListener('click', function (e) {
+      if (e.target === wrap || e.target.closest('[data-rgx]')) { REG.open = false; return wrap.parentNode && wrap.parentNode.removeChild(wrap); }
+      if (e.target.closest('[data-rgpdf]')) return _regPdf();
+      var st = e.target.closest('[data-st]');
+      if (st) { REG.status = st.getAttribute('data-st'); return _regPaint(); }
+      if (e.target.closest('[data-pact]')) return _payClick(e);
+    });
+    wrap.querySelector('#rg-q').addEventListener('input', function (e) { REG.q = e.target.value; _regPaint(); });
+    ['rg-from', 'rg-to'].forEach(function (id) {
+      wrap.querySelector('#' + id).addEventListener('change', function () {
+        REG.from = wrap.querySelector('#rg-from').value; REG.to = wrap.querySelector('#rg-to').value; _regLoad();
+      });
+    });
+    _regLoad();
+  }
+  async function _regLoad() {
+    var r;
+    try { r = await sb.rpc('list_link_payments', { p_session_token: TOKEN, p_all: true, p_from: REG.from || null, p_to: REG.to || null }); }
+    catch (e) { r = null; }
+    var d = r && r.data;
+    if (d && d.error === 'session_expired') return sessionGone();
+    REG.rows = (d && d.success && d.rows) || [];
+    REG.err = !(d && d.success);
+    _regPaint();
+  }
+  function _regShown() {
+    var q = String(REG.q || '').trim().toLowerCase();
+    return (REG.rows || []).filter(function (x) {
+      if (REG.status !== 'all' && x.status !== REG.status) return false;
+      if (!q) return true;
+      return [x.unit_no, x.payer, x.received_by, x.token_no, x.voucher_no, x.ref, x.cnic]
+        .some(function (v) { return String(v || '').toLowerCase().indexOf(q) >= 0; });
+    }).sort(function (a, b) { return String(b.paid_on).localeCompare(String(a.paid_on)) || String(b.created_at).localeCompare(String(a.created_at)); });
+  }
+  function _regPaint() {
+    var w = document.getElementById('rd-reg'); if (!w) return;
+    [].forEach.call(w.querySelectorAll('[data-st]'), function (b) { b.classList.toggle('on', b.getAttribute('data-st') === REG.status); });
+    var rows = _regShown();
+    var sum = function (st) {
+      var l = rows.filter(function (x) { return !st || x.status === st; });
+      return { n: l.length, a: l.reduce(function (s, x) { return s + Number(x.amount || 0); }, 0) };
+    };
+    var t = sum(), v = sum('verified'), p = sum('pending'), rj = sum('rejected');
+    w.querySelector('#rg-tot').innerHTML =
+      '<span><b>' + t.n + '</b> shown · <b>' + esc(pkrFull(t.a)) + '</b></span>' +
+      '<span class="g">Verified ' + v.n + ' · ' + esc(pkrFull(v.a)) + '</span>' +
+      '<span class="a">Pending ' + p.n + ' · ' + esc(pkrFull(p.a)) + '</span>' +
+      '<span class="r">Rejected ' + rj.n + ' · ' + esc(pkrFull(rj.a)) + '</span>';
+    w.querySelector('#rg-list').innerHTML = REG.err ? '<div class="tr-f amber">The register could not be read.</div>'
+      : rows.length ? rows.map(function (x) { return _payCard(x); }).join('')
+      : '<div class="tr-m">Nothing matches.</div>';
+  }
+  /* the register as a real PDF file: exactly the rows on screen, with totals */
+  async function _regPdf() {
+    var rows = _regShown();
+    var btn = document.querySelector('#rd-reg [data-rgpdf]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
+    try {
+      await _dbLoadScript('/vendor/pdf-lib.min.js?v=1.17.1', function () { return !!window.PDFLib; });
+      var L = window.PDFLib, doc = await L.PDFDocument.create();
+      var R = await doc.embedFont(L.StandardFonts.Helvetica), B = await doc.embedFont(L.StandardFonts.HelveticaBold);
+      var W = 841.89, H = 595.28, M = 30;
+      var safe = function (s) { return String(s == null ? '' : s).replace(/[—–]/g, '-').replace(/[·]/g, '|').replace(/[^\x20-\x7e\xa0-\xff]/g, '?'); };
+      var cols = [['Paid on', 58], ['Receipt', 72], ['Token #', 50], ['Voucher #', 62], ['Unit', 48], ['Customer', 112],
+                  ['Dealer', 100], ['Mode / Ref', 100], ['Amount', 78], ['Status', 70]];
+      var pg, y, pages = [];
+      var fit = function (s, w, f, sz) { s = safe(s); while (s && f.widthOfTextAtSize(s, sz) > w - 6) s = s.slice(0, -1); return s; };
+      var head = function () {
+        pg = doc.addPage([W, H]); pages.push(pg); y = H - M;
+        pg.drawText(safe((_projName() || '') + ' - Token register'), { x: M, y: y - 14, size: 15, font: B });
+        var per = (REG.from || REG.to) ? 'Paid ' + (REG.from || '...') + ' to ' + (REG.to || '...') : 'All dates';
+        pg.drawText(safe(per + ' | ' + (REG.status === 'all' ? 'All statuses' : REG.status) + (REG.q ? ' | search "' + REG.q + '"' : '')),
+                    { x: M, y: y - 30, size: 9, font: R, color: L.rgb(0.35, 0.38, 0.42) });
+        y -= 48;
+        var x = M;
+        pg.drawRectangle({ x: M, y: y - 5, width: W - 2 * M, height: 16, color: L.rgb(0.93, 0.95, 0.99) });
+        cols.forEach(function (c) { pg.drawText(c[0], { x: x + 3, y: y, size: 8, font: B }); x += c[1] + 12; });
+        y -= 18;
+      };
+      head();
+      rows.forEach(function (r) {
+        if (y < M + 40) head();
+        var vals = [r.paid_on || '', r.ref || '', r.token_no || '', r.voucher_no || '', r.unit_no || '', r.payer || '',
+                    r.received_by || '', (PAY_MODE[r.mode] || r.mode || '') + (r.reference ? ' ' + r.reference : ''),
+                    Math.round(Number(r.amount) || 0).toLocaleString('en-US'),
+                    (r.status || '') + (r.status === 'verified' && r.applied ? ' (on hold)' : '')];
+        var x = M;
+        vals.forEach(function (v, i) {
+          var w = cols[i][1];
+          var s = fit(v, w + 12, R, 8);
+          if (i === 8) pg.drawText(s, { x: x + w - R.widthOfTextAtSize(s, 8), y: y, size: 8, font: R });
+          else pg.drawText(s, { x: x + 3, y: y, size: 8, font: R });
+          x += w + 12;
+        });
+        pg.drawLine({ start: { x: M, y: y - 4 }, end: { x: W - M, y: y - 4 }, thickness: 0.4, color: L.rgb(0.88, 0.89, 0.9) });
+        y -= 15;
+      });
+      if (y < M + 70) head();
+      y -= 8;
+      var tot = function (st) { var l = rows.filter(function (x) { return !st || x.status === st; });
+        return l.length + ' | PKR ' + Math.round(l.reduce(function (s, x) { return s + Number(x.amount || 0); }, 0)).toLocaleString('en-US'); };
+      [['Shown', tot()], ['Verified', tot('verified')], ['Pending', tot('pending')], ['Rejected', tot('rejected')]].forEach(function (t) {
+        pg.drawText(t[0] + ':', { x: M, y: y, size: 9, font: B }); pg.drawText(t[1], { x: M + 70, y: y, size: 9, font: R }); y -= 13;
+      });
+      pages.forEach(function (p, i) {
+        var s = 'Page ' + (i + 1) + ' of ' + pages.length + ' | printed ' + _nowStamp();
+        p.drawText(safe(s), { x: W - M - R.widthOfTextAtSize(safe(s), 7.5), y: 16, size: 7.5, font: R, color: L.rgb(0.45, 0.47, 0.5) });
+        p.drawText('Recorded by sales reps on the link | not an accounts record', { x: M, y: 16, size: 7.5, font: R, color: L.rgb(0.45, 0.47, 0.5) });
+      });
+      var bytes = await doc.save();
+      var url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      var a = document.createElement('a');
+      a.href = url; a.download = safe((_projName() || 'Project') + ' Token register ' + (REG.from || '') + (REG.to ? ' to ' + REG.to : '')).trim() + '.pdf';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+      toast('Register PDF downloaded.', 'ok');
+    } catch (e) {
+      toast('Could not make the PDF — try again.', 'err');
+    }
+    if (btn) { btn.disabled = false; btn.textContent = 'PDF'; }
   }
 
   /* SHARE, FROM BOOKED TODAY. Rashid: "agar reservation k time picture share

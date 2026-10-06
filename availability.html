@@ -2802,8 +2802,8 @@ body.held *{animation-play-state:paused !important}
   <section id="rcvsec" hidden>
     <div class="ft"><button class="bk" id="rcv-back"><i></i>All floors</button></div>
     <div class="prc-h">
-      <div class="prc-t">Receive Token / Payment</div>
-      <div class="prc-s">Record money you collected against a unit. It goes to the office for
+      <div class="prc-t">Receive Token</div>
+      <div class="prc-s">Record a token you collected on a unit you hold. It goes to the office for
         verification, and you get a receipt to share.</div>
     </div>
     <div id="rcv-body"></div>
@@ -4433,8 +4433,8 @@ function renderHome() {
     /* RECEIVE TOKEN / PAYMENT — a rep records money collected against a unit */
     '<button class="all-chip rcv" data-rcv="1">' +
       '<span class="ac-w">' +
-        '<span class="ac-t">Receive Token / Payment</span>' +
-        '<span class="ac-m">Record money you collected — a receipt for the group</span>' +
+        '<span class="ac-t">Receive Token</span>' +
+        '<span class="ac-m">Record a token on a unit you hold — a receipt for the group</span>' +
       '</span>' +
       '<span class="ac-x"><i></i></span>' +
     '</button>';
@@ -7241,7 +7241,8 @@ function withDesk(cb) {
    husband name, CNIC and mobile, basic and final price, valid upto, the
    amount, how it was paid with ref and bank, the date and the narration */
 var RC_TEXT = { 'rc-payer': 'payer', 'rc-father': 'father', 'rc-cnic': 'cnic', 'rc-pmob': 'pmob',
-                'rc-ref': 'ref', 'rc-bank': 'bank', 'rc-date': 'date', 'rc-valid': 'valid', 'rc-note': 'note' };
+                'rc-ref': 'ref', 'rc-bank': 'bank', 'rc-date': 'date', 'rc-valid': 'valid', 'rc-note': 'note',
+                'rc-tokno': 'tokno', 'rc-vchno': 'vchno' };
 var RC_MONEY = { 'rc-amt': 'amt', 'rc-basic': 'basic', 'rc-final': 'final' };
 function renderRcv() {
   ['home', 'floor', 'all', 'mine', 'rep', 'price', 'payplan'].forEach(function (id) { $(id).hidden = true; });
@@ -7262,9 +7263,11 @@ function renderRcv() {
   $('rcv-body').innerHTML =
     '<div class="pl-form">' +
       '<div class="pl-c">' +
-        '<div class="pl-l">1 · Token or payment, and the unit</div>' +
-        '<div class="pl-seg" id="rc-kind" style="margin-bottom:12px">' +
-          '<button type="button" data-k="token">Token</button><button type="button" data-k="payment">Payment</button></div>' +
+        '<div class="pl-l">1 · Your held unit</div>' +
+        /* a token only on a unit this dealer holds (V.Hold, Reserve, Sold) -
+           never on an Available unit, never on Sold (P) */
+        '<div class="pl-n" style="margin:0 0 9px">Only a unit you hold — V.Hold, Reserve or Sold. ' +
+          'Mark an Available unit first.</div>' +
         '<div class="pl-uw">' +
           '<input id="rc-u" class="pl-i" autocomplete="off" autocapitalize="characters" spellcheck="false" ' +
             'placeholder="Unit address — e.g. GF-120" aria-label="Unit">' +
@@ -7288,8 +7291,12 @@ function renderRcv() {
         '<div style="margin-top:10px">' + text('rc-valid', 'Valid upto (optional)', '', 'type="date"') + '</div>' +
       '</div>' +
       '<div class="pl-c">' +
-        '<div class="pl-l">4 · Amount paid</div>' +
-        money('rc-amt', 'Amount paid (PKR)', 'e.g. 500,000') +
+        '<div class="pl-l">4 · Token amount</div>' +
+        money('rc-amt', 'Token amount (PKR)', 'e.g. 500,000') +
+        /* the books run on Token # and Voucher # */
+        '<div class="pl-2" style="margin-top:10px">' +
+          text('rc-tokno', 'Token #', 'e.g. 153') + text('rc-vchno', 'Voucher # (if known)', 'e.g. BRV-0007') +
+        '</div>' +
         '<div id="rc-words" class="rc-words"></div>' +
         '<div class="pl-q" style="margin:12px 0 6px">Paid through</div>' +
         '<div class="pl-ch" id="rc-mode">' +
@@ -7327,13 +7334,14 @@ function rcvPaint() {
             (Number(RCV.earl.hold_token) ? ' · Token on the hold: <b>' + esc(rcvPKR(RCV.earl.hold_token)) + '</b>' : '') +
           '</div>' : '');
   $('rc-words').textContent = RCV.amt > 0 ? (window.RDWords ? window.RDWords(RCV.amt) + ' Rupees Only' : rcvPKR(RCV.amt)) : '';
-  [].forEach.call($('rc-kind').children, function (b) { b.classList.toggle('on', b.getAttribute('data-k') === RCV.kind); });
   [].forEach.call($('rc-mode').children, function (b) { b.classList.toggle('on', b.getAttribute('data-m') === RCV.mode); });
   $('rc-refw').hidden = !(RCV.mode && RCV.mode !== 'cash');
   $('rc-by').innerHTML = NAME && PHONE
     ? '<b>' + esc(NAME) + '</b> · ' + esc(PHONE) + '<div class="pl-n">From the name and mobile saved on this phone.</div>'
     : '<span style="color:#b3123c;font-weight:650">Save your name and mobile at the top of the page first.</span>';
-  $('rc-go').disabled = RCV.busy;
+  /* refused by the server for this unit: said in red, and Send stays off */
+  if (RCV.block) $('rc-uf').innerHTML += '<div class="rc-err" style="margin-top:8px">' + esc(RCV.block) + '</div>';
+  $('rc-go').disabled = RCV.busy || !!RCV.block;
 }
 
 function rcvPick(no) {
@@ -7349,10 +7357,15 @@ function rcvPick(no) {
   }
   RCV.earl = 'loading'; rcvPaint();
   var want = RCV.no;
-  sb.rpc('get_link_unit_receipts', { p_token: LINK, p_unit_no: want }).then(function (r) {
+  /* the server says whether this dealer may record a token here: a held unit,
+     not Pagri, and theirs (by mobile or by name) */
+  RCV.block = '';
+  sb.rpc('get_link_unit_receipts', { p_token: LINK, p_unit_no: want, p_name: NAME, p_phone: PHONE }).then(function (r) {
     if (RCV.no !== want) return;
     var d = r && r.data;
-    RCV.earl = d && d.success ? d : null; rcvPaint();
+    RCV.earl = d && d.success ? d : null;
+    RCV.block = d && !d.success ? (d.message || 'A token cannot be recorded on this unit.') : '';
+    rcvPaint();
   }, function () { if (RCV.no === want) { RCV.earl = null; rcvPaint(); } });
 }
 
@@ -7360,8 +7373,13 @@ function rcvSuggest() {
   var k = norm($('rc-u').value), box = $('rc-sg');
   if (!k) { box.hidden = true; box.innerHTML = ''; return; }
   var hits = [];
+  /* only held units, never Available and never Sold (P) - whose it is, the
+     server decides when one is picked */
+  var pagri = function (s) { return /sold\s*\(p\)|pagri/i.test(s.label); };
   (P.floors || []).forEach(function (f) {
     (f.units || []).forEach(function (u) {
+      var s = stat(u);
+      if (s.free || pagri(s)) return;
       var n = norm(u.n);
       if (n.indexOf(k) === 0) hits.push({ u: u, f: f, r: 0 });
       else if (n.indexOf(k) > 0) hits.push({ u: u, f: f, r: 1 });
@@ -7372,9 +7390,9 @@ function rcvSuggest() {
       var s = stat(x.u);
       return '<button type="button" data-u="' + esc(x.u.n) + '"' + (i === 0 ? ' class="on"' : '') + '>' +
         '<span><b>' + esc(x.u.n) + '</b> · ' + esc(x.f.floor_label) + '</span>' +
-        '<small>' + esc(s.free ? 'Available' : s.label) + '</small></button>';
+        '<small>' + esc(s.label + (s.who ? ' · ' + s.who : '')) + '</small></button>';
     }).join('')
-    : '<div class="pl-x">No unit matches “' + esc($('rc-u').value) + '”</div>';
+    : '<div class="pl-x">No held unit matches “' + esc($('rc-u').value) + '” — an Available or Sold (P) unit takes no token.</div>';
   box.hidden = false;
 }
 
@@ -7393,9 +7411,6 @@ function rcvWire() {
   });
   Object.keys(RC_TEXT).forEach(function (id) {
     $(id).addEventListener('input', function () { RCV[RC_TEXT[id]] = $(id).value; });
-  });
-  $('rc-kind').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-k]'); if (!b) return; RCV.kind = b.getAttribute('data-k'); rcvPaint();
   });
   $('rc-mode').addEventListener('click', function (e) {
     var b = e.target.closest('[data-m]'); if (!b) return; RCV.mode = b.getAttribute('data-m'); rcvPaint();
@@ -7422,6 +7437,7 @@ async function rcvSend() {
   rcvErr('');
   if (!NAME || !PHONE) return rcvErr('Save your name and mobile at the top of the page first.');
   if (!RCV.no || !findUnit(RCV.no)) return rcvErr('Pick the unit from the list.');
+  if (RCV.block) return rcvErr(RCV.block);
   if (!String(RCV.payer || '').trim()) return rcvErr('Enter the customer’s name.');
   var cn = String(RCV.cnic || '').replace(/\D/g, '');
   if (cn && cn.length !== 13) return rcvErr('The CNIC must have 13 digits.');
@@ -7437,7 +7453,8 @@ async function rcvSend() {
       p_reference: (RCV.mode === 'cash' ? '' : String(RCV.ref || '').trim()) || null,
       p_payer: String(RCV.payer).trim(), p_paid_on: RCV.date,
       p_note: String(RCV.note || '').trim() || null, p_name: NAME, p_phone: PHONE,
-      p_kind: RCV.kind || 'token', p_father: String(RCV.father || '').trim() || null,
+      p_kind: 'token', p_token_no: String(RCV.tokno || '').trim() || null,
+      p_voucher_no: String(RCV.vchno || '').trim() || null, p_father: String(RCV.father || '').trim() || null,
       p_cnic: cn || null, p_payer_mobile: String(RCV.pmob || '').trim() || null,
       p_basic_price: RCV.basic || null, p_final_price: RCV.final || null,
       p_valid_upto: RCV.valid || null,
@@ -7446,7 +7463,7 @@ async function rcvSend() {
   } catch (e) { d = null; }
   RCV.busy = false; $('rc-go').textContent = 'Send to the office'; rcvPaint();
   if (!d || !d.success) return rcvErr((d && d.message) || 'That did not reach the office. Nothing was recorded — try again.');
-  var row = { ref: d.ref, serial: d.serial, kind: d.kind, unit_no: d.unit_no, floor: d.floor, area: d.area,
+  var row = { ref: d.ref, serial: d.serial, kind: d.kind, token_no: d.token_no, voucher_no: d.voucher_no, unit_no: d.unit_no, floor: d.floor, area: d.area,
               amount: d.amount, mode: d.mode, reference: d.reference, bank: d.bank,
               payer: d.payer, father: d.father, cnic: d.cnic, payer_mobile: d.payer_mobile,
               basic_price: d.basic_price, final_price: d.final_price, valid_upto: d.valid_upto,
@@ -7478,7 +7495,8 @@ function rcvMine() {
       }).join('') + '</div>';
   };
   draw();
-  sb.rpc('get_link_payment_status', { p_token: LINK, p_refs: list.slice(0, 50).map(function (x) { return x.ref; }) })
+  /* only the entries this mobile sent - nobody sees another dealer's tokens */
+  sb.rpc('get_link_payment_status', { p_token: LINK, p_phone: PHONE, p_refs: list.slice(0, 50).map(function (x) { return x.ref; }) })
     .then(function (r) {
       var d = r && r.data; if (!d || !d.success) return;
       var by = {}; (d.rows || []).forEach(function (x) { by[x.ref] = x; });
@@ -8056,7 +8074,7 @@ async function repOpen() {
 var TOKEN = '';           // the SALES SESSION. The link is LINK, up above.
 var ME = null;
 var TAB = 'desk';
-var DESK_SRC = '/js/portal-reserve-desk.js?v=20261006trail360';
+var DESK_SRC = '/js/portal-reserve-desk.js?v=20261006rules';
 var DESK_UP = false, DESKV = false;
 /* the portal's own key, on purpose: same origin, same phone, so a director
    already signed into the CRM here is not asked twice */
