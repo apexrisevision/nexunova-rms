@@ -1897,6 +1897,25 @@ body.splash .fl::before{opacity:0}
 #planrow .all-chip .ac-m{color:rgba(255,255,255,.9)}
 @media (hover:hover){ #planrow .all-chip:hover{background:var(--pl-fill);filter:brightness(1.08)} }
 #planrow .all-chip:active{background:var(--pl-fill);filter:brightness(.94)}
+#planrow .all-chip.rcv{margin-top:9px;background:#0F7A38}
+@media (hover:hover){ #planrow .all-chip.rcv:hover{background:#0F7A38} }
+#planrow .all-chip.rcv:active{background:#0F7A38}
+/* Receive Token / Payment */
+#rcvsec{--pl-fill:#0F7A38}
+.rc-earl{margin-top:9px;padding:9px 11px;border-radius:10px;background:var(--sunk);font-size:12.5px;line-height:1.5}
+.rc-earl b{font-weight:750}
+.rc-words{margin-top:6px;font-size:12px;color:var(--mut);font-style:italic}
+.rc-by{font-size:13px;line-height:1.5}
+.rc-by b{font-weight:750}
+.rc-mine{margin-top:16px}
+.rc-row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--hair);font-size:12.5px}
+.rc-row:first-child{border-top:0}
+.rc-st{font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#FFF4E5;color:#8A5300;white-space:nowrap}
+.rc-st.verified{background:#E8F7EF;color:#0F7A38}
+.rc-st.rejected{background:#FDECEF;color:#b3123c}
+.rc-row button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;height:30px;padding:0 10px;font:inherit;font-size:12px;font-weight:650;cursor:pointer}
+.rc-err{margin-top:10px;font-size:12.5px;color:#b3123c;font-weight:650}
+@media (min-width:1080px){ #rcvsec{max-width:760px} }
 .pl-c{background:var(--card);border-radius:var(--r-lg);padding:13px 14px 14px;margin-bottom:10px}
 .pl-l{font-size:10.5px;font-weight:750;letter-spacing:.11em;text-transform:uppercase;
       color:var(--mut);margin-bottom:9px}
@@ -2773,6 +2792,21 @@ body.held *{animation-play-state:paused !important}
         The monthly instalment is worked out for you.</div>
     </div>
     <div id="pln-body"></div>
+  </section>
+
+  <!-- RECEIVE TOKEN / PAYMENT ──────────────────────────────────────────────
+       Rashid: sale reps collect money from different people and forget it. A
+       rep records it here against a unit; it lands pending on the Reserve Desk
+       for a director to verify, and the rep gets a receipt picture for the
+       group. The link only ever learns a unit's earlier total and count. -->
+  <section id="rcvsec" hidden>
+    <div class="ft"><button class="bk" id="rcv-back"><i></i>All floors</button></div>
+    <div class="prc-h">
+      <div class="prc-t">Receive Token / Payment</div>
+      <div class="prc-s">Record money you collected against a unit. It goes to the office for
+        verification, and you get a receipt to share.</div>
+    </div>
+    <div id="rcv-body"></div>
   </section>
 
   <!-- SCREEN FIVE — THE ROOM BEHIND THE PASSWORD ───────────────────────────
@@ -4255,6 +4289,7 @@ function render() {
   if (PRICEV) { if (SHEET) refreshSheet(); return; }
   /* nor the payment plan: somebody may be typing a rate into it */
   if (PAYV) { if (SHEET) refreshSheet(); return; }
+  if (RCVV) { if (SHEET) refreshSheet(); return; }
   if (MINEV) { renderMine(); }
   else if (ALLV) { renderAll(); }
   else if (FLOOR == null) { renderHome(); } else { renderFloor(); }
@@ -4277,6 +4312,7 @@ function renderHome() {
   $('rep').hidden = true; REPV = false;
   $('price').hidden = true; PRICEV = false;
   $('payplan').hidden = true; PAYV = false;
+  $('rcvsec').hidden = true; RCVV = false;
   /* every road home closes the desk, including the ones that do not go
      through its own way out */
   $('desk').hidden = true; DESKV = false;
@@ -4393,6 +4429,14 @@ function renderHome() {
         '<span class="ac-m">Down payment, tenure and the monthly instalment for any unit</span>' +
       '</span>' +
       '<span class="ac-x"><i></i></span>' +
+    '</button>' +
+    /* RECEIVE TOKEN / PAYMENT — a rep records money collected against a unit */
+    '<button class="all-chip rcv" data-rcv="1">' +
+      '<span class="ac-w">' +
+        '<span class="ac-t">Receive Token / Payment</span>' +
+        '<span class="ac-m">Record money you collected — a receipt for the group</span>' +
+      '</span>' +
+      '<span class="ac-x"><i></i></span>' +
     '</button>';
 
   paintHero(av, tot);
@@ -4459,7 +4503,7 @@ function glowStart() {
   GLOW.timer = setInterval(function () {
     /* the chart lives on screen one; nothing is taught to somebody who is not
        looking at it, and a timer that paints a hidden element is only heat */
-    if (document.hidden || ALLV || MINEV || REPV || PRICEV || PAYV || FLOOR != null) return;
+    if (document.hidden || ALLV || MINEV || REPV || PRICEV || PAYV || RCVV || FLOOR != null) return;
     var rows = document.querySelectorAll('#hero .ck');
     var arcs = document.querySelectorAll('#hero .chart-r .rg');
     if (!rows.length) return;
@@ -6389,8 +6433,8 @@ function payUnit() { return PAY && PAY.no ? findUnit(PAY.no) : null; }
 function payList(h) { var v = Number(h && h.u.v); return P.show_price && v > 0 ? v : 0; }
 
 function renderPay() {
-  ['home', 'floor', 'all', 'mine', 'rep', 'price'].forEach(function (id) { $(id).hidden = true; });
-  REPV = false; PRICEV = false;
+  ['home', 'floor', 'all', 'mine', 'rep', 'price', 'rcvsec'].forEach(function (id) { $(id).hidden = true; });
+  REPV = false; PRICEV = false; RCVV = false;
   $('units').innerHTML = ''; $('all-body').innerHTML = '';
   PAYV = true;
   $('payplan').hidden = false;
@@ -7168,6 +7212,238 @@ $('pln-back').onclick = function () {
   PAYV = false;
   $('payplan').hidden = true; BACKING = true; renderHome(); window.scrollTo(0, 0);
 };
+
+/* ── RECEIVE TOKEN / PAYMENT ─────────────────────────────────────────────
+   Rashid: "hamaray sale rep amount receive kar laitay hain different loogo se
+   phir unhe bhool jata hai". The rep picks the unit (its earlier total and
+   count come back, nothing more), enters the amount, Cash / Bank / Online, a
+   reference, who paid and when, and sends. submit_link_payment files it
+   PENDING for the Reserve Desk and hands back the receipt, which is drawn as
+   a CRV-style picture by the desk's own drawer, fetched only now. The refs this
+   phone sent are kept in localStorage so the rep can see each one turn
+   verified or rejected. */
+var RCVV = false, RCV = null;
+function readRcv() { try { return JSON.parse(localStorage.getItem('avail.rcv') || '[]') || []; } catch (e) { return []; } }
+function writeRcv(l) { try { localStorage.setItem('avail.rcv', JSON.stringify(l.slice(0, 30))); } catch (e) {} }
+function rcvToday() { return payToday(); }
+function rcvPKR(n) { return 'PKR ' + Math.round(Number(n) || 0).toLocaleString('en-US'); }
+function withDesk(cb) {
+  if (typeof window.RDPaymentCard === 'function') return cb();
+  var sc = document.createElement('script');
+  sc.src = DESK_SRC;
+  sc.onload = function () { DESK_UP = true; cb(); };
+  sc.onerror = function () { toast('Could not reach the office — try again.', 'err'); };
+  document.head.appendChild(sc);
+}
+
+function renderRcv() {
+  ['home', 'floor', 'all', 'mine', 'rep', 'price', 'payplan'].forEach(function (id) { $(id).hidden = true; });
+  REPV = false; PRICEV = false; PAYV = false;
+  $('units').innerHTML = ''; $('all-body').innerHTML = '';
+  RCVV = true;
+  $('rcvsec').hidden = false;
+  if (!RCV) RCV = { no: '', amt: 0, mode: '', ref: '', payer: '', date: rcvToday(), note: '', earl: null, busy: false };
+  $('rcv-body').innerHTML =
+    '<div class="pl-form">' +
+      '<div class="pl-c">' +
+        '<div class="pl-l">1 · Unit</div>' +
+        '<div class="pl-uw">' +
+          '<input id="rc-u" class="pl-i" autocomplete="off" autocapitalize="characters" spellcheck="false" ' +
+            'placeholder="Type the unit no. — e.g. GF-39" aria-label="Unit">' +
+          '<div id="rc-sg" class="pl-sg" hidden></div>' +
+        '</div>' +
+        '<div id="rc-uf" class="pl-uf"></div>' +
+      '</div>' +
+      '<div class="pl-c">' +
+        '<div class="pl-l">2 · Amount and how it was paid</div>' +
+        '<label class="pl-f"><span>Amount received (PKR)</span>' +
+          '<input id="rc-amt" class="pl-i" inputmode="numeric" autocomplete="off" placeholder="e.g. 250,000"></label>' +
+        '<div id="rc-words" class="rc-words"></div>' +
+        '<div class="pl-ch" id="rc-mode" style="margin:12px 0 0">' +
+          '<button type="button" data-m="cash">Cash</button>' +
+          '<button type="button" data-m="bank">Bank</button>' +
+          '<button type="button" data-m="online">Online</button>' +
+        '</div>' +
+        '<label class="pl-f" id="rc-refw" hidden style="margin-top:10px"><span>Reference / transaction no.</span>' +
+          '<input id="rc-ref" class="pl-i" autocomplete="off" placeholder="e.g. TRX-12345"></label>' +
+      '</div>' +
+      '<div class="pl-c">' +
+        '<div class="pl-l">3 · From whom, and when</div>' +
+        '<div class="pl-2">' +
+          '<label class="pl-f"><span>Received from</span>' +
+            '<input id="rc-payer" class="pl-i" autocomplete="off" placeholder="Customer name"></label>' +
+          '<label class="pl-f"><span>Date received</span>' +
+            '<input id="rc-date" class="pl-i" type="date"></label>' +
+        '</div>' +
+        '<label class="pl-f" style="margin-top:10px"><span>Note (optional)</span>' +
+          '<input id="rc-note" class="pl-i" autocomplete="off" maxlength="300"></label>' +
+      '</div>' +
+      '<div class="pl-c"><div class="pl-l">4 · Received by</div><div id="rc-by" class="rc-by"></div></div>' +
+    '</div>' +
+    '<div id="rc-err" class="rc-err" hidden></div>' +
+    '<div class="pl-act"><button class="prc-go" id="rc-go">Send to the office</button></div>' +
+    '<div id="rc-mine" class="rc-mine"></div>';
+  $('rc-u').value = RCV.no; $('rc-amt').value = RCV.amt ? Math.round(RCV.amt).toLocaleString('en-US') : '';
+  $('rc-ref').value = RCV.ref; $('rc-payer').value = RCV.payer; $('rc-date').value = RCV.date; $('rc-note').value = RCV.note;
+  rcvWire(); rcvPaint(); rcvMine();
+}
+
+function rcvPaint() {
+  var h = RCV.no ? findUnit(RCV.no) : null;
+  $('rc-uf').innerHTML = !h ? (RCV.no ? '' : 'Pick the unit the money is for.')
+    : esc(h.f.floor_label) + (h.u.t ? ' · ' + esc(h.u.t) : '') + (area(h.u) ? ' · <b>' + esc(area(h.u)) + '</b>' : '') +
+      (RCV.earl === 'loading' ? '<div class="rc-earl">Checking earlier entries…</div>'
+       : RCV.earl ? '<div class="rc-earl">Earlier on this unit: <b>' +
+            (RCV.earl.recorded_count ? esc(rcvPKR(RCV.earl.recorded_total)) + '</b> (' + RCV.earl.recorded_count +
+              ' entr' + (RCV.earl.recorded_count === 1 ? 'y' : 'ies') + ')' : 'nothing recorded</b>') +
+            (Number(RCV.earl.hold_token) ? ' · Token on the hold: <b>' + esc(rcvPKR(RCV.earl.hold_token)) + '</b>' : '') +
+          '</div>' : '');
+  var w = RCV.amt > 0 ? (window.RDWords ? window.RDWords(RCV.amt) + ' Rupees Only' : rcvPKR(RCV.amt)) : '';
+  $('rc-words').textContent = w;
+  [].forEach.call($('rc-mode').children, function (b) { b.classList.toggle('on', b.getAttribute('data-m') === RCV.mode); });
+  $('rc-refw').hidden = !(RCV.mode === 'bank' || RCV.mode === 'online');
+  $('rc-by').innerHTML = NAME && PHONE
+    ? '<b>' + esc(NAME) + '</b> · ' + esc(PHONE) + '<div class="pl-n">From the name and mobile saved on this phone.</div>'
+    : '<span style="color:#b3123c;font-weight:650">Save your name and mobile at the top of the page first.</span>';
+  $('rc-go').disabled = RCV.busy;
+}
+
+function rcvPick(no) {
+  var h = findUnit(no); if (!h) return;
+  RCV.no = h.u.n; $('rc-u').value = h.u.n; $('rc-sg').hidden = true;
+  RCV.earl = 'loading'; rcvPaint();
+  var want = RCV.no;
+  sb.rpc('get_link_unit_receipts', { p_token: LINK, p_unit_no: want }).then(function (r) {
+    if (RCV.no !== want) return;
+    var d = r && r.data;
+    RCV.earl = d && d.success ? d : null; rcvPaint();
+  }, function () { if (RCV.no === want) { RCV.earl = null; rcvPaint(); } });
+}
+
+function rcvSuggest() {
+  var k = norm($('rc-u').value), box = $('rc-sg');
+  if (!k) { box.hidden = true; box.innerHTML = ''; return; }
+  var hits = [];
+  (P.floors || []).forEach(function (f) {
+    (f.units || []).forEach(function (u) {
+      var n = norm(u.n);
+      if (n.indexOf(k) === 0) hits.push({ u: u, f: f, r: 0 });
+      else if (n.indexOf(k) > 0) hits.push({ u: u, f: f, r: 1 });
+    });
+  });
+  hits.sort(function (a, b) { return a.r - b.r || String(a.u.n).localeCompare(String(b.u.n), 'en', { numeric: true }); });
+  box.innerHTML = hits.length ? hits.slice(0, 8).map(function (x, i) {
+      var s = stat(x.u);
+      return '<button type="button" data-u="' + esc(x.u.n) + '"' + (i === 0 ? ' class="on"' : '') + '>' +
+        '<span><b>' + esc(x.u.n) + '</b> · ' + esc(x.f.floor_label) + '</span>' +
+        '<small>' + esc(s.free ? 'Available' : s.label) + '</small></button>';
+    }).join('')
+    : '<div class="pl-x">No unit matches “' + esc($('rc-u').value) + '”</div>';
+  box.hidden = false;
+}
+
+function rcvWire() {
+  $('rc-u').addEventListener('input', function () { RCV.no = ''; RCV.earl = null; rcvSuggest(); rcvPaint(); });
+  $('rc-u').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); var b = $('rc-sg').querySelector('button[data-u]'); if (b) rcvPick(b.getAttribute('data-u')); }
+    else if (e.key === 'Escape') $('rc-sg').hidden = true;
+  });
+  $('rc-sg').addEventListener('mousedown', function (e) { e.preventDefault(); });
+  $('rc-sg').addEventListener('click', function (e) { var b = e.target.closest('button[data-u]'); if (b) rcvPick(b.getAttribute('data-u')); });
+  $('rc-u').addEventListener('blur', function () { $('rc-sg').hidden = true; });
+  $('rc-amt').addEventListener('input', function () { RCV.amt = payNum($('rc-amt').value); rcvPaint(); });
+  $('rc-amt').addEventListener('blur', function () { if (RCV.amt) $('rc-amt').value = Math.round(RCV.amt).toLocaleString('en-US'); });
+  $('rc-mode').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-m]'); if (!b) return; RCV.mode = b.getAttribute('data-m'); rcvPaint();
+  });
+  $('rc-ref').addEventListener('input', function () { RCV.ref = $('rc-ref').value; });
+  $('rc-payer').addEventListener('input', function () { RCV.payer = $('rc-payer').value; });
+  $('rc-date').addEventListener('input', function () { RCV.date = $('rc-date').value; });
+  $('rc-note').addEventListener('input', function () { RCV.note = $('rc-note').value; });
+  /* a message about the form goes as soon as the form is touched again */
+  ['rc-u', 'rc-amt', 'rc-ref', 'rc-payer', 'rc-date', 'rc-note'].forEach(function (id) {
+    $(id).addEventListener('input', function () { rcvErr(''); });
+  });
+  $('rc-mode').addEventListener('click', function () { rcvErr(''); });
+  $('rc-go').addEventListener('click', rcvSend);
+  $('rc-mine').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-rshare]'); if (!b) return;
+    var x = readRcv().filter(function (r) { return r.ref === b.getAttribute('data-rshare'); })[0];
+    if (x) withDesk(function () { window.RDPaymentCard(x); });
+  });
+  /* the drawer also knows how to say a number in words; fetch it early so the
+     words appear under the amount while it is typed */
+  withDesk(function () { rcvPaint(); });
+}
+
+function rcvErr(msg) { var e = $('rc-err'); e.textContent = msg || ''; e.hidden = !msg; }
+
+async function rcvSend() {
+  rcvErr('');
+  if (!NAME || !PHONE) return rcvErr('Save your name and mobile at the top of the page first.');
+  if (!RCV.no || !findUnit(RCV.no)) return rcvErr('Pick the unit from the list.');
+  if (!(RCV.amt > 0)) return rcvErr('Enter the amount received.');
+  if (!RCV.mode) return rcvErr('Choose Cash, Bank or Online.');
+  if (!String(RCV.payer || '').trim()) return rcvErr('Enter who paid.');
+  if (!RCV.date) return rcvErr('Enter the date the money was received.');
+  RCV.busy = true; $('rc-go').textContent = 'Sending…'; rcvPaint();
+  var d = null;
+  try {
+    var r = await sb.rpc('submit_link_payment', {
+      p_token: LINK, p_unit_no: RCV.no, p_amount: RCV.amt, p_mode: RCV.mode,
+      p_reference: (RCV.mode === 'cash' ? '' : RCV.ref) || null, p_payer: String(RCV.payer).trim(),
+      p_paid_on: RCV.date, p_note: String(RCV.note || '').trim() || null, p_name: NAME, p_phone: PHONE });
+    d = r && r.data;
+  } catch (e) { d = null; }
+  RCV.busy = false; $('rc-go').textContent = 'Send to the office'; rcvPaint();
+  if (!d || !d.success) return rcvErr((d && d.message) || 'That did not reach the office. Nothing was recorded — try again.');
+  var row = { ref: d.ref, unit_no: d.unit_no, floor: d.floor, amount: d.amount, mode: d.mode, reference: d.reference,
+              payer: d.payer, paid_on: d.paid_on, note: d.note, received_by: d.received_by,
+              received_by_phone: d.received_by_phone, status: d.status, created_at: d.created_at,
+              before: d.before, project: P.project };
+  var list = readRcv().filter(function (x) { return x.ref !== row.ref; });
+  list.unshift(row); writeRcv(list);
+  toast(d.already ? 'Already recorded as ' + d.ref + '.' : 'Sent to the office as ' + d.ref + '.', 'ok');
+  /* a fresh form for the next one; the unit stays, it is often paid in parts */
+  RCV.amt = 0; RCV.ref = ''; RCV.note = ''; RCV.earl = null;
+  renderRcv();
+  if (RCV.no) rcvPick(RCV.no);
+  withDesk(function () { window.RDPaymentCard(row); });
+}
+
+function rcvMine() {
+  var list = readRcv(), box = $('rc-mine');
+  if (!list.length) { box.innerHTML = ''; return; }
+  var draw = function () {
+    box.innerHTML = '<div class="pl-c"><div class="pl-l">Sent from this phone</div>' +
+      list.slice(0, 15).map(function (x) {
+        var st = x.status || 'pending';
+        return '<div class="rc-row"><span><b>' + esc(x.ref) + '</b> · ' + esc(x.unit_no) + ' · ' +
+          esc(rcvPKR(x.amount)) + '</span><span><span class="rc-st ' + esc(st) + '">' +
+          esc(st === 'verified' ? 'Verified' : st === 'rejected' ? 'Rejected' : 'Pending') + '</span> ' +
+          '<button type="button" data-rshare="' + esc(x.ref) + '">Receipt</button></span></div>';
+      }).join('') + '</div>';
+  };
+  draw();
+  sb.rpc('get_link_payment_status', { p_token: LINK, p_refs: list.slice(0, 50).map(function (x) { return x.ref; }) })
+    .then(function (r) {
+      var d = r && r.data; if (!d || !d.success) return;
+      var by = {}; (d.rows || []).forEach(function (x) { by[x.ref] = x; });
+      list.forEach(function (x) { if (by[x.ref]) { x.status = by[x.ref].status; } });
+      writeRcv(list);
+      if (RCVV) draw();
+    }, function () {});
+}
+
+$('planrow').addEventListener('click', function (e) {
+  if (!e.target.closest('[data-rcv]')) return;
+  ALLV = false; MINEV = false; FLOOR = null;
+  renderRcv(); window.scrollTo(0, 0);
+});
+$('rcv-back').onclick = function () {
+  RCVV = false;
+  $('rcvsec').hidden = true; BACKING = true; renderHome(); window.scrollTo(0, 0);
+};
 $('prc-open').onclick = function () {
   $('prc-err').hidden = true; $('prc-pw').value = '';
   /* A REMEMBERED PHONE IS NOT ASKED AGAIN. Same key, same door — the price
@@ -7637,8 +7913,8 @@ function repTools(title) {
 
 function showRep() {
   REPV = true;
-  ['home', 'all', 'mine', 'floor', 'payplan'].forEach(function (id) { $(id).hidden = true; });
-  PAYV = false;
+  ['home', 'all', 'mine', 'floor', 'payplan', 'rcvsec'].forEach(function (id) { $(id).hidden = true; });
+  PAYV = false; RCVV = false;
   /* and the desk, if the room is being reached from on top of it */
   $('desk').hidden = true; DESKV = false;
   /* the card that asks a dealer's name is screen one's furniture, and a
@@ -7727,7 +8003,7 @@ async function repOpen() {
 var TOKEN = '';           // the SALES SESSION. The link is LINK, up above.
 var ME = null;
 var TAB = 'desk';
-var DESK_SRC = '/js/portal-reserve-desk.js?v=20261005relcard';
+var DESK_SRC = '/js/portal-reserve-desk.js?v=20261006rcv';
 var DESK_UP = false, DESKV = false;
 /* the portal's own key, on purpose: same origin, same phone, so a director
    already signed into the CRM here is not asked twice */
@@ -7805,8 +8081,8 @@ function sessionGone() {
    walks straight in over here. */
 async function openDesk() {
   DESKV = true; TAB = 'desk';
-  ['home', 'all', 'mine', 'floor', 'price', 'rep', 'payplan'].forEach(function (id) {
-    PAYV = false;
+  ['home', 'all', 'mine', 'floor', 'price', 'rep', 'payplan', 'rcvsec'].forEach(function (id) {
+    PAYV = false; RCVV = false;
     var e = $(id); if (e) e.hidden = true;
   });
   $('name-ask').hidden = true;

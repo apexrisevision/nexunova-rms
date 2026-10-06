@@ -278,6 +278,21 @@
       ".rq{margin-bottom:16px}" +
       ".rq-h{font-weight:700;margin:0 2px 8px;display:flex;align-items:center;gap:8px}" +
       ".rq-n{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--fk-warning-tint,#FFF4E5);color:#8A5300}" +
+      /* payments from the link */
+      ".pay-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}" +
+      ".pay-h b{font-size:18px;font-weight:800;color:var(--fk-text)}" +
+      ".pay-m{font-size:13px;font-weight:650;color:var(--fk-text)}" +
+      ".pay-r{margin-left:auto;font-size:11.5px;color:var(--fk-text-muted);font-weight:650}" +
+      ".pay-l{font-size:12.5px;color:var(--fk-text-muted);margin-top:4px;line-height:1.45}" +
+      ".pay-l b{color:var(--fk-text)}" +
+      ".pay-n{font-style:italic}" +
+      ".pay-c .rq-a{margin-top:9px}" +
+      ".pay-done{opacity:.86}" +
+      ".pay-s{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px}" +
+      ".pay-s.verified{background:#E8F7EF;color:#0F7A38}" +
+      ".pay-s.rejected{background:var(--fk-danger-surface);color:var(--fk-danger)}" +
+      ".pay-none{font-size:12.5px;color:var(--fk-text-muted);padding:4px 2px 10px}" +
+      ".pay-sub{font-size:11px;font-weight:750;letter-spacing:.08em;text-transform:uppercase;color:var(--fk-text-muted);margin:12px 0 6px}" +
       ".rq-c{border:1px solid var(--fk-border);border-radius:11px;background:var(--fk-bg-card);padding:12px 13px;margin-bottom:8px}" +
       ".rq-top{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}" +
       ".rq-u{font-weight:700;font-size:var(--fs-section)}" +
@@ -714,7 +729,7 @@
        seeing nothing, a second before three cards appear, would trust the
        nothing. It is awaited but not gated on: if it fails the desk still
        renders, just without the queue. */
-    await _loadReqs();
+    await Promise.all([_loadReqs(), _loadPays()]);
     if (!_alive('desk')) return;
     _paint(host);
   };
@@ -847,6 +862,7 @@
         '</div>' +
 
         '<div id="rd-reqs" class="rq"></div>' +
+        '<div id="rd-pays" class="rq"></div>' +
 
         '<div class="rd-bar">' +
           '<div class="rd-lb">Unit</div>' +
@@ -932,6 +948,7 @@
        but a refresh in the middle of pasting forty numbers must not. */
     _paintCart();
     _paintReqs();
+    _paintPays();
     _paintToday();
     _paintUnalloc();
     var u = _q('#rd-unit'); if (u) { try { u.focus(); } catch (e) {} }
@@ -2310,7 +2327,11 @@
     cx.fillText(spec.label || 'UNIT', W / 2, y + 62);
     cx.fillStyle = RC.ink; cx.font = F('800', bigPx);
     cx.fillText(String(spec.big || ''), W / 2, y + 170);
-    if (spec.small) { cx.fillStyle = RC.mut; cx.font = F('400', 26); cx.fillText(spec.small, W / 2, y + 212); }
+    if (spec.small) {
+      var sp = 26; cx.font = F('400', sp);
+      while (sp > 16 && cx.measureText(spec.small).width > IW) { sp -= 2; cx.font = F('400', sp); }
+      cx.fillStyle = RC.mut; cx.fillText(spec.small, W / 2, y + 212);
+    }
     if (spec.stamp) {
       var ink = spec.stampInk || _tagInk(spec.stampTag || spec.stamp), stx = String(spec.stamp).toUpperCase();
       cx.font = F('800', 28);
@@ -2358,6 +2379,67 @@
     cx.textAlign = 'left';
     return cv;
   }
+  /* ── THE PAYMENT RECEIPT (CRV-style) ─────────────────────────────────────
+     Rashid: "aik proper receipt type banao, like CRV". The amount is the hero,
+     in figures and in words; the stamp says where it stands (pending until a
+     director verifies it); the foot says plainly what it is not. Used by the
+     link right after a rep records money, and by the desk to share it again. */
+  function _pkWords(n) {
+    n = Math.round(Number(n) || 0);
+    if (!n) return 'Zero';
+    var ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve',
+                'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    var tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    var two = function (x) { return x < 20 ? ones[x] : tens[Math.floor(x / 10)] + (x % 10 ? ' ' + ones[x % 10] : ''); };
+    var three = function (x) {
+      return (x >= 100 ? ones[Math.floor(x / 100)] + ' Hundred' + (x % 100 ? ' ' : '') : '') + (x % 100 ? two(x % 100) : '');
+    };
+    var out = [], cr = Math.floor(n / 1e7), lk = Math.floor(n / 1e5) % 100, th = Math.floor(n / 1e3) % 100, rest = n % 1000;
+    if (cr) out.push((cr >= 100 ? three(cr) : two(cr)) + ' Crore');
+    if (lk) out.push(two(lk) + ' Lakh');
+    if (th) out.push(two(th) + ' Thousand');
+    if (rest) out.push(three(rest));
+    return out.join(' ');
+  }
+  window.RDWords = _pkWords;
+  /* the receipt prints PKR the same way on every page it is drawn from */
+  function _pkrRc(n) { return 'PKR ' + Math.round(Number(n) || 0).toLocaleString('en-US'); }
+  window.RDPaymentCard = function (x) {
+    if (!x) return;
+    var st = x.status || 'pending';
+    var stamp = st === 'verified' ? 'Verified' : st === 'rejected' ? 'Rejected' : 'Pending verification';
+    var ink = st === 'verified' ? '#0F7A38' : st === 'rejected' ? '#B3123C' : '#C2760A';
+    var rows = [['Receipt no.', x.ref || '—'],
+                ['Unit', (x.unit_no || '') + (x.floor ? ' · ' + x.floor : '')],
+                ['Received from', x.payer || '—'],
+                ['Mode', (PAY_MODE[x.mode] || x.mode || '') + (x.reference ? ' · Ref ' + x.reference : '')],
+                ['Paid on', x.paid_on ? _trDay(x.paid_on + 'T12:00:00Z') : '—']];
+    var b = x.before;
+    if (b) {
+      var bt = Number(b.recorded_total) || 0, bc = Number(b.recorded_count) || 0, ht = Number(b.hold_token) || 0;
+      rows.push(['Earlier on this unit', bc ? _pkrRc(bt) + ' (' + bc + ' entr' + (bc === 1 ? 'y' : 'ies') + ')' : 'Nothing recorded']);
+      if (ht) rows.push(['Token on the hold', _pkrRc(ht)]);
+    }
+    if (x.note) rows.push(['Note', x.note]);
+    if (st !== 'pending') rows.push([st === 'verified' ? 'Verified by' : 'Rejected by', x.decided_by || '—', st === 'verified' ? 'good' : 'warn']);
+    var when = _nowStamp(x.created_at);
+    var spec = {
+      project: x.project || _projName(), title: 'Payment Received',
+      sub: 'Collected by sales rep · ' + (st === 'pending' ? 'awaiting verification' : st),
+      label: 'AMOUNT', big: _pkrRc(x.amount), small: _pkWords(x.amount) + ' Rupees Only',
+      stamp: stamp, stampInk: ink, rows: rows,
+      byLabel: 'Received by', by: (x.received_by || '—') + (x.received_by_phone ? '  ' + x.received_by_phone : ''),
+      when: when,
+      foot: 'Not an official company receipt · valid only after verification by the management'
+    };
+    var cv;
+    try { cv = _drawCard(spec); } catch (e) { cv = null; }
+    var text = 'Payment received ' + (x.ref || '') + ': ' + _pkrRc(x.amount) + ' for ' + (x.unit_no || '') +
+               ' from ' + (x.payer || '') + ' (' + (PAY_MODE[x.mode] || x.mode) + ') - ' + stamp;
+    _imgSheet(cv, (x.ref || 'Payment') + ' ' + (x.unit_no || ''), 'Share the receipt',
+              'The receipt as a picture, ready for WhatsApp.', text, null);
+  };
+
   /* for pages outside the desk (the Directors' Room): draw the card and open
      the same share sheet the desk uses */
   window.RDShareCard = function (spec, name, title, sub, text) {
@@ -3389,10 +3471,90 @@
       if (!_alive('desk')) return;
       if (okd === 'expired') return sessionGone();
     }
-    await _loadReqs();
+    await Promise.all([_loadReqs(), _loadPays()]);
     if (!_alive('desk')) return;
     if (full) { _paint(document.getElementById('app-body')); }
-    else { _paintReqs(); }
+    else { _paintReqs(); _paintPays(); }
+  }
+
+  /* ══ PAYMENTS FROM THE LINK ═══════════════════════════════════════════════
+     Rashid: "hamaray sale rep amount receive kar laitay hain different loogo
+     se phir unhe bhool jata hai ... send karnay pe entry director panel mai
+     pending aa jai". A rep records money collected against a unit on the
+     availability link; it waits here. Verify is a mark only (decided with him
+     2026-10-06): nothing is written to a hold, the token flag or the books.
+     Read and decided through list_link_payments / decide_link_payment, which
+     refuse anybody who is not a director. */
+  var PAY_MODE = { cash: 'Cash', bank: 'Bank', online: 'Online' };
+  async function _loadPays() {
+    var r;
+    try { r = await sb.rpc('list_link_payments', { p_session_token: TOKEN }); } catch (e) { return false; }
+    var d = r && r.data;
+    if (!d || !d.success) { DESK.pays = []; return false; }
+    DESK.pays = d.rows || [];
+    return true;
+  }
+  function _paintPays() {
+    var box = _q('#rd-pays'); if (!box) return;
+    var rows = DESK.pays || [];
+    if (!rows.length) { box.innerHTML = ''; return; }
+    var waiting = rows.filter(function (x) { return x.status === 'pending'; });
+    var done = rows.filter(function (x) { return x.status !== 'pending'; });
+    var card = function (x) {
+      var pend = x.status === 'pending';
+      return '<div class="rq-c pay-c' + (pend ? '' : ' pay-done') + '" data-pay="' + esc(x.id) + '">' +
+        '<div class="pay-h"><b>' + esc(pkrFull(x.amount)) + '</b>' +
+          '<span class="pay-m">' + esc(PAY_MODE[x.mode] || x.mode) + (x.reference ? ' · ' + esc(x.reference) : '') + '</span>' +
+          '<span class="pay-r">' + esc(x.ref) + '</span></div>' +
+        '<div class="pay-l"><b>' + esc(x.unit_no) + '</b> · ' + esc(x.floor || '') +
+          ' · from <b>' + esc(x.payer) + '</b> · paid ' + esc(_trDay(x.paid_on + 'T12:00:00Z')) + '</div>' +
+        '<div class="pay-l">Received by ' + esc(x.received_by) +
+          (x.received_by_phone ? ' · <a href="tel:' + esc(x.received_by_phone) + '">' + esc(x.received_by_phone) + '</a>' : '') +
+          ' · sent ' + esc(_pkTime(x.created_at)) + '</div>' +
+        (x.note ? '<div class="pay-l pay-n">' + esc(x.note) + '</div>' : '') +
+        (pend
+          ? '<div class="rq-a"><button class="ok" data-pact="verify">Verify</button>' +
+            '<button data-pact="share">Share</button>' +
+            '<button data-pact="reject">Reject</button></div>'
+          : '<div class="pay-l"><span class="pay-s ' + esc(x.status) + '">' + esc(x.status === 'verified' ? 'Verified' : 'Rejected') +
+            '</span> by ' + esc(x.decided_by || '—') + (x.decision_note ? ' — ' + esc(x.decision_note) : '') +
+            ' <button class="rd-undo rd-shr" data-pact="share">Share</button></div>') +
+      '</div>';
+    };
+    box.innerHTML =
+      '<div class="rq-h">Payments from the link <span class="rq-n">' + waiting.length + '</span></div>' +
+      (waiting.length ? waiting.map(card).join('') : '<div class="pay-none">Nothing waiting.</div>') +
+      (done.length ? '<div class="pay-sub">Decided in the last 3 days</div>' + done.map(card).join('') : '');
+    if (!box.__payBound) { box.addEventListener('click', _payClick); box.__payBound = true; }
+  }
+  async function _payClick(e) {
+    var b = e.target.closest('[data-pact]'); if (!b) return;
+    var c = b.closest('[data-pay]'); if (!c) return;
+    var x = (DESK.pays || []).filter(function (p) { return String(p.id) === c.getAttribute('data-pay'); })[0];
+    if (!x) return;
+    var act = b.getAttribute('data-pact');
+    if (act === 'share') { if (window.RDPaymentCard) window.RDPaymentCard(x); return; }
+    var note = null;
+    if (act === 'reject') {
+      var ok = await _askOk('Reject this payment?', [
+        '<b>' + esc(pkrFull(x.amount)) + '</b> on <b>' + esc(x.unit_no) + '</b> from ' + esc(x.payer),
+        'Received by ' + esc(x.received_by) + ' — the rep will see it as rejected on the link.'
+      ], 'Reject', true);
+      if (!ok) return;
+    }
+    b.disabled = true; b.textContent = act === 'verify' ? 'Verifying…' : 'Rejecting…';
+    var r;
+    try { r = await sb.rpc('decide_link_payment', { p_session_token: TOKEN, p_id: x.id, p_action: act, p_note: note }); }
+    catch (e2) { r = null; }
+    var d = r && r.data;
+    if (d && d.error === 'session_expired') return sessionGone();
+    if (!d || !d.success) {
+      toast((d && d.message) || 'That did not go through.', 'err');
+    } else {
+      toast(x.ref + ' ' + (d.status === 'verified' ? 'verified.' : 'rejected.'), 'ok');
+    }
+    await _loadPays();
+    if (_alive('desk')) _paintPays();
   }
 
   /* SHARE, FROM BOOKED TODAY. Rashid: "agar reservation k time picture share
