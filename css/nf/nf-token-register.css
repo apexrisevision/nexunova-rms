@@ -1,12 +1,11 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   NexuFinance v1 — Token Money Register. Reuses .sheet/.hdr/.brand/.mark/
-   .co/.docfoot/.rsec/.rtiles-wrap/.rtile/.status.ok/.status.bad from
-   nf.css and nf-report.css.
+   NexuFinance v1 — Unit-wise Token Ledger, Receipt Register and Group &
+   Director Balances (20261007b). Reuses .sheet/.hdr/.brand/.mark/.co/
+   .docfoot/.rsec/.rsh/.rtiles-wrap/.rtile/.rsig from nf.css and
+   nf-report.css.
 
-   .tkrtab/.tkrow is a CSS Grid table look-alike, not a <table> — see
-   nf-token-register.js's own header comment (docs/PLAN.md §16.3).
-   Column widths/nowrap follow the same rule as every report since the
-   Journal fix: fixed-format columns are nowrap, only free text wraps.
+   The tables are CSS Grid table look-alikes, not <table>s (docs/PLAN.md
+   §16.3). Fixed-format columns are nowrap, only free text wraps.
    ═══════════════════════════════════════════════════════════════════════ */
 
 .tkrsheet{padding-bottom:6px}
@@ -15,12 +14,36 @@
 .tkrfilter label{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2)}
 .tkrfilter input[type=date]{border:1px solid var(--line2);border-radius:6px;padding:5px 8px;font-size:12.5px;background:var(--card)}
 
-.tkrtab{width:100%;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:12px}
-.tkrow{display:grid;grid-template-columns:8% 6% 14% 8% 9.5% 9.5% 11% 9% 10% 15%;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line);align-items:center}
-.tkrow:last-child{border-bottom:0}
-.tkrhead{background:var(--soft);font-weight:600;font-size:11px;color:var(--ink2)}
-.tkrow span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tkrow span.wrap{white-space:normal;overflow:visible;text-overflow:clip}
-.tkrow span.r{text-align:right;font-variant-numeric:tabular-nums}
-.tkrow.returned{opacity:.65}
-.tkrow .status{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:600;text-align:center;white-space:nowrap}
+.tktab{width:100%;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:12px}
+.tkl,.tkline,.tkna,.rcrow,.rcnone,.grrow{display:grid;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line);align-items:center}
+.tkl{grid-template-columns:66px 92px minmax(110px,1.5fr) minmax(90px,1.2fr) 82px 82px repeat(5,minmax(80px,1fr))}
+.tkline{grid-template-columns:90px 92px minmax(120px,1.4fr) minmax(120px,1.4fr) 110px;padding:4px 10px 4px 34px;background:var(--soft);font-size:11.5px;cursor:default}
+.tkna{grid-template-columns:minmax(120px,1.1fr) 86px 96px minmax(200px,3fr) 110px}
+.rcrow{grid-template-columns:70px 86px minmax(140px,1.6fr) minmax(110px,1.3fr) minmax(120px,1.5fr) 104px 86px}
+.rcnone{grid-template-columns:86px 96px minmax(110px,1fr) minmax(220px,3fr) 110px}
+.grrow{grid-template-columns:minmax(160px,1.5fr) 120px 110px 110px 130px minmax(200px,2fr)}
+.tktab > :last-child,.tkunit:last-child > .tkl{border-bottom:0}
+.tkhead{background:var(--soft);font-weight:600;font-size:11px;color:var(--ink2)}
+.tktab span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tktab span.wrap{white-space:normal;overflow:visible;text-overflow:clip}
+.tktab span.r{text-align:right;font-variant-numeric:tabular-nums}
+.tkunit .tkl{cursor:pointer}
+.tkunit.off .tkl{background:var(--neg-soft)}
+.tknote{padding:3px 10px 6px 34px;font-size:11px;color:var(--neg);background:var(--neg-soft);border-bottom:1px solid var(--line)}
+.tkflag{color:var(--neg);font-weight:700}
+.tkok{color:var(--pos)}
+.tktot{background:var(--soft);font-weight:600}
+.tksub{font-size:11.5px;color:var(--ink2)}
+.rtile em{display:block;font-style:normal;font-size:11px;margin-top:3px}
+.rtile.tkbad{border-color:var(--neg)}
+.tkgrand{display:flex;gap:12px;flex-wrap:wrap}
+.tkgrand div{flex:1 1 200px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.tkgrand span{font-size:12px;color:var(--ink2)}
+.rcrow.dup{background:var(--neg-soft)}
+.rcgaps{display:flex;flex-wrap:wrap;gap:6px}
+.rcgaps span{border:1px solid var(--neg);color:var(--neg);border-radius:99px;padding:2px 10px;font-size:12px;font-weight:600}
+.rcv{cursor:default}
+.growes.we b{color:var(--neg)}
+.growes.they b{color:var(--pos)}
+.grrow.nf-drill{cursor:pointer}
+.grrow.nf-drill:hover,.tkunit .tkl:hover{background:var(--soft)}

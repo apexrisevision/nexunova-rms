@@ -156,6 +156,8 @@
       head('Sales — customer token money held <small class="muted" style="font-weight:400">· ' +
            buyers + (buyers === 1 ? ' buyer' : ' buyers') + ' · ' +
            bookings + (bookings === 1 ? ' unit booking' : ' unit bookings') + '</small>', tk.held) +
+      (tk.not_allocated != null ? row('Token money not yet allocated to a unit or buyer', tk.not_allocated) +
+        row('Total token money held', tk.total_held) : '') +
       row('Refunded', tk.refunded) +
       head('This month <small class="muted" style="font-weight:400">(' + F.ddMonYyyy(mo.from) + ' to ' + F.ddMonYyyy(mo.to) + ')</small>') +
       row('Money received', mo.received) +

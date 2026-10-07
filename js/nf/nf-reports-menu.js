@@ -38,7 +38,9 @@
       { key: 'journal', label: 'General Journal' },
       { key: 'ledger', label: 'General Ledger' },
       { key: 'party', label: 'Party Statement' },
-      { key: 'token', label: 'Token Register' },
+      { key: 'token', label: 'Token Ledger (unit-wise)' },
+      { key: 'receipts', label: 'Receipt Register' },
+      { key: 'group', label: 'Group & Director Balances' },
       { key: 'cashbank', label: 'Cash & Bank Movement' },
       { key: 'floor', label: 'Floor/Class Summary' },
       { key: 'projectcost', label: 'Project Cost Summary' },
@@ -51,7 +53,7 @@
       jv: global.NfJournalVoucher,
       pl: global.NfPL, bs: global.NfBalanceSheet, tb: global.NfTrialBalance,
       journal: global.NfJournal, ledger: global.NfLedger, party: global.NfPartyStatement,
-      token: global.NfTokenRegister, cashbank: global.NfCashBank, floor: global.NfFloorSummary,
+      token: global.NfTokenRegister, receipts: global.NfReceiptRegister, group: global.NfGroupBalances, cashbank: global.NfCashBank, floor: global.NfFloorSummary,
       projectcost: global.NfProjectCost, trend: global.NfMonthlyTrend,
     }[key];
   }

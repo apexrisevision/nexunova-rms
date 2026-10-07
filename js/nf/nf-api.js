@@ -149,6 +149,14 @@
       getTokenRegister: function (companyId, from, to) {
         return call('nf_get_token_register', { p_company_id: companyId, p_from: from || null, p_to: to || null });
       },
+      // Token / receipt numbers used, used twice, missing (20261007b)
+      getReceiptRegister: function (companyId, from, to) {
+        return call('nf_get_receipt_register', { p_company_id: companyId, p_from: from || null, p_to: to || null });
+      },
+      // Group companies (22000) and directors (12600): who owes whom
+      getGroupBalances: function (companyId, from, to) {
+        return call('nf_get_group_balances', { p_company_id: companyId, p_from: from || null, p_to: to || null });
+      },
       getCashBankMovement: function (companyId, from, to) {
         return call('nf_get_cash_bank_movement', { p_company_id: companyId, p_from: from || null, p_to: to || null });
       },
