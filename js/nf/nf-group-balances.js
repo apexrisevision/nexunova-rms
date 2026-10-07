@@ -43,15 +43,15 @@
 
   function owes(a, company) {
     var c = F.n(a.closing), who = shortName(a.name);
-    if (c > 0) return esc(who) + ' owes ' + esc(company) + ' <b>Rs ' + F.fmt(c) + '</b>';
-    if (c < 0) return esc(company) + ' owes ' + esc(who) + ' <b>Rs ' + F.fmt(-c) + '</b>';
+    if (c > 0) return esc(who) + ' owes ' + esc(company) + ' <b>Rs ' + F.fmtLakh(c) + '</b>';
+    if (c < 0) return esc(company) + ' owes ' + esc(who) + ' <b>Rs ' + F.fmtLakh(-c) + '</b>';
     return '<span class="muted">Settled — nothing owed either way</span>';
   }
 
   function side(v) {
     var x = F.n(v);
     if (!x) return '0';
-    return F.fmt(Math.abs(x)) + ' <small class="muted">' + (x > 0 ? 'Dr' : 'Cr') + '</small>';
+    return F.fmtLakh(Math.abs(x)) + ' <small class="muted">' + (x > 0 ? 'Dr' : 'Cr') + '</small>';
   }
 
   function rows(list, company) {
@@ -59,8 +59,8 @@
       return '<div class="grrow nf-drill" data-code="' + esc(a.code) + '" title="Open this account\'s ledger">' +
         '<span><b>' + esc(a.name) + '</b><br><small class="muted">' + esc(a.code) + '</small></span>' +
         '<span class="r">' + side(a.opening) + '</span>' +
-        '<span class="r">' + F.fmt(a.given) + '</span>' +
-        '<span class="r">' + F.fmt(a.received) + '</span>' +
+        '<span class="r">' + F.fmtLakh(a.given) + '</span>' +
+        '<span class="r">' + F.fmtLakh(a.received) + '</span>' +
         '<span class="r"><b>' + side(a.closing) + '</b></span>' +
         '<span class="wrap growes ' + (F.n(a.closing) < 0 ? 'we' : F.n(a.closing) > 0 ? 'they' : '') + '">' + owes(a, company) + '</span>' +
         '</div>';
@@ -77,8 +77,8 @@
       '<span class="r">Received (Cr)</span><span class="r">Closing</span><span>Who owes whom</span></div>';
     return '' +
       '<section class="rsec rtiles-wrap"><div class="rtiles">' +
-      '<div class="rtile"><small>' + esc(company) + ' owes group companies</small><b>Rs ' + F.fmt(payable) + '</b></div>' +
-      '<div class="rtile"><small>Directors owe ' + esc(company) + '</small><b>Rs ' + F.fmt(due) + '</b></div>' +
+      '<div class="rtile"><small>' + esc(company) + ' owes group companies</small><b>Rs ' + F.fmtLakh(payable) + '</b></div>' +
+      '<div class="rtile"><small>Directors owe ' + esc(company) + '</small><b>Rs ' + F.fmtLakh(due) + '</b></div>' +
       '</div></section>' +
       '<section class="rsec"><div class="rsh"><h2>Group companies</h2><span class="muted">Given = paid by ' + esc(company) + ' to or for them · Received = paid by them to or for ' + esc(company) + '</span></div>' +
       '<div class="tktab">' + head + (rows(grp, company) || '<div class="grrow muted"><span style="grid-column:1/-1;text-align:center;padding:12px">No group company accounts</span></div>') + '</div></section>' +

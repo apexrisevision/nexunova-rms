@@ -36,6 +36,22 @@
     return (r < 0 ? '(' : '') + s + (r < 0 ? ')' : '');
   }
 
+  // fmtLakh(): same rules as fmt(), but grouped in lakh/crore (7,15,55,000).
+  // Owner's ask (2026-10-07) for the Token Ledger, Receipt Register and
+  // Group Balances only; every other screen stays on fmt(). Grouped by hand,
+  // not by a locale, so it never depends on the browser's locale data.
+  function fmtLakh(v) {
+    var x = n(v);
+    var r = Math.round(x * 100) / 100;
+    if (r === 0) return '–';
+    var abs = Math.abs(r);
+    var parts = abs.toFixed(hasPaisa(abs) ? 2 : 0).split('.');
+    var ip = parts[0];
+    var last3 = ip.slice(-3), rest = ip.slice(0, -3);
+    var s = (rest ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' : '') + last3 + (parts[1] ? '.' + parts[1] : '');
+    return (r < 0 ? '(' : '') + s + (r < 0 ? ')' : '');
+  }
+
   // grp(): what an input shows after you leave it — grouped, no currency
   // symbol, blank stays blank (blank is never a zero — R8).
   function grp(v) {
@@ -120,5 +136,5 @@
       'alt="' + esc(mark || 'Awami Market') + '">';
   }
 
-  global.NfFmt = { n: n, fmt: fmt, grp: grp, words: words, esc: esc, ddMonYyyy: ddMonYyyy, weekday: weekday, longDate: longDate, brandMark: brandMark };
+  global.NfFmt = { n: n, fmt: fmt, fmtLakh: fmtLakh, grp: grp, words: words, esc: esc, ddMonYyyy: ddMonYyyy, weekday: weekday, longDate: longDate, brandMark: brandMark };
 })(window);

@@ -52,7 +52,7 @@
       '<span class="wrap">' + vouchers(n.vouchers) + '</span>' +
       '<span class="wrap">' + esc(n.buyer || '') + '</span>' +
       '<span class="wrap">' + esc(n.units || '') + '</span>' +
-      '<span class="r">' + F.fmt(n.amount) + '</span>' +
+      '<span class="r">' + F.fmtLakh(n.amount) + '</span>' +
       '<span>' + (n.duplicate ? '<b class="tkflag">Used twice</b>' : '') + '</span>' +
       '</div>';
   }
@@ -72,7 +72,7 @@
       '<div class="rtile' + (gaps.length ? ' tkbad' : '') + '"><small>Missing numbers</small><b>' + gaps.length + '</b>' +
         '<em class="' + (gaps.length ? 'tkflag' : 'tkok') + '">' + (gaps.length ? 'between #' + esc(r.lowest) + ' and #' + esc(r.highest) : 'none') + '</em></div>' +
       '<div class="rtile' + (none.length ? ' tkbad' : '') + '"><small>Receipts with no number</small><b>' + none.length + '</b>' +
-        '<em class="' + (none.length ? 'tkflag' : 'tkok') + '">Rs ' + F.fmt(t.no_number_amount) + '</em></div>' +
+        '<em class="' + (none.length ? 'tkflag' : 'tkok') + '">Rs ' + F.fmtLakh(t.no_number_amount) + '</em></div>' +
       '</div></section>' +
 
       (dups.length ? '<section class="rsec"><div class="rsh"><h2>Used twice</h2><span class="muted">The same number on vouchers of different buyers</span></div><div class="tktab">' +
@@ -87,11 +87,11 @@
       (none.map(function (x) {
         return '<div class="rcnone" data-vno="' + esc(x.system_no || x.voucher_no) + '" data-date="' + esc(x.date) + '" title="Double-click to open this voucher">' +
           '<span>' + F.ddMonYyyy(x.date) + '</span><span><b>' + esc(x.voucher_no) + '</b></span><span class="wrap">' + esc(x.buyer || '') + '</span>' +
-          '<span class="wrap">' + esc(x.narration || '') + '</span><span class="r">' + F.fmt(x.amount) + '</span></div>';
+          '<span class="wrap">' + esc(x.narration || '') + '</span><span class="r">' + F.fmtLakh(x.amount) + '</span></div>';
       }).join('') || '<div class="rcnone muted"><span style="grid-column:1/-1;text-align:center;padding:12px">Every token receipt has a number</span></div>') +
       '</div></section>' +
 
-      '<section class="rsec"><div class="rsh"><h2>All numbers</h2><span class="muted">' + F.n(t.receipts) + ' token receipts · Rs ' + F.fmt(t.amount) + '</span></div><div class="tktab">' +
+      '<section class="rsec"><div class="rsh"><h2>All numbers</h2><span class="muted">' + F.n(t.receipts) + ' token receipts · Rs ' + F.fmtLakh(t.amount) + '</span></div><div class="tktab">' +
       head + ((r.numbers || []).map(numRow).join('') || '<div class="rcrow muted"><span style="grid-column:1/-1;text-align:center;padding:16px">No token receipts in this range</span></div>') +
       '</div></section>';
   }

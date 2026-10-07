@@ -47,3 +47,6 @@
 .growes.they b{color:var(--pos)}
 .grrow.nf-drill{cursor:pointer}
 .grrow.nf-drill:hover,.tkunit .tkl:hover{background:var(--soft)}
+/* rounding (|difference| ≤ Rs 10): grey, not red (owner, 2026-10-07) */
+.tkround{color:var(--muted)}
+.tknote.grey{color:var(--muted);background:var(--soft)}

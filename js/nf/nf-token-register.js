@@ -20,7 +20,10 @@
   'use strict';
   var F = global.NfFmt;
   function esc(s) { return F.esc(s); }
-  function money(v) { return F.fmt(v); }
+  function money(v) { return F.fmtLakh(v); }  // lakh/crore grouping (owner, 2026-10-07)
+  // |net − reservation token| up to this many rupees is rounding, not a
+  // mismatch: grey note, not a red flag (owner, 2026-10-07)
+  var ROUNDING = 10;
 
   function mount(root, ctx) {
     var gen = 0;
@@ -62,8 +65,9 @@
   function unitRows(list, compare) {
     return (list || []).map(function (u) {
       var diff = F.n(u.difference);
-      var off = compare && diff !== 0;
-      return '<div class="tkunit' + (off ? ' off' : '') + '">' +
+      var round = compare && diff !== 0 && Math.abs(diff) <= ROUNDING;
+      var off = compare && Math.abs(diff) > ROUNDING;
+      return '<div class="tkunit' + (off ? ' off' : round ? ' round' : '') + '">' +
         '<div class="tkl nf-drill" data-toggle title="Show the vouchers behind this unit">' +
         '<span><b>' + esc(u.unit_code) + '</b></span>' +
         '<span>' + esc(u.floor || '') + '</span>' +
@@ -75,9 +79,10 @@
         '<span class="r">' + (F.n(u.returned) ? money(u.returned) : '') + '</span>' +
         '<span class="r"><b>' + money(u.net) + '</b></span>' +
         '<span class="r">' + (compare ? money(u.reservation_token) : '') + '</span>' +
-        '<span class="r">' + (compare ? (off ? '<b class="tkflag">' + money(diff) + '</b>' : '<span class="tkok">0</span>') : '') + '</span>' +
+        '<span class="r">' + (compare ? (off ? '<b class="tkflag">' + money(diff) + '</b>' : round ? '<span class="tkround">' + money(diff) + '</span>' : '<span class="tkok">0</span>') : '') + '</span>' +
         '</div>' +
         (off && u.note ? '<div class="tknote">' + esc(u.note) + '</div>' : '') +
+        (round ? '<div class="tknote grey">Rounding: a receipt shared by several units was split differently here and on the reservations (Rs ' + money(Math.abs(diff)) + ')</div>' : '') +
         lines(u.lines) +
         '</div>';
     }).join('');
@@ -101,14 +106,18 @@
     var nil = r.not_in_unit_list || [];
     var nu = r.no_unit || { net: 0, lines: [] };
     var na = r.not_allocated || [];
+    var diffs = (r.units || []).map(function (u) { return Math.abs(F.n(u.difference)); });
+    var nOff = diffs.filter(function (d) { return d > ROUNDING; }).length;
+    var nRound = diffs.filter(function (d) { return d > 0 && d <= ROUNDING; }).length;
 
     var out = '<section class="rsec rtiles-wrap"><div class="rtiles">' +
       '<div class="rtile"><small>Units holding token money</small><b>' + F.n(t.units) + '</b></div>' +
       tie('Unit net total', t.unit_net_total, t.gl_21100, '21100') +
       tie('Not allocated', t.not_allocated_total, t.gl_21150, '21150') +
       (compare
-        ? '<div class="rtile' + (F.n(t.units_off) ? ' tkbad' : '') + '"><small>Units that differ from the reservation</small><b>' + F.n(t.units_off) + '</b>' +
-          '<em class="' + (F.n(t.units_off) ? 'tkflag' : 'tkok') + '">Reservations total Rs ' + money(t.reservations) + '</em></div>'
+        ? '<div class="rtile' + (nOff ? ' tkbad' : '') + '"><small>Units that differ from the reservation</small><b>' + nOff + '</b>' +
+          '<em class="' + (nOff ? 'tkflag' : 'tkok') + '">Reservations total Rs ' + money(t.reservations) + '</em>' +
+          (nRound ? '<em class="tkround">' + nRound + (nRound === 1 ? ' unit' : ' units') + ' off by rupee rounding only</em>' : '') + '</div>'
         : '<div class="rtile"><small>Reservation check</small><b>—</b><em class="muted">Only for "All time" or a range that starts at the beginning</em></div>') +
       '</div></section>';
 
