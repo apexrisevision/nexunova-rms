@@ -3145,7 +3145,7 @@ function _applyLeadAccess(){
   show('[data-eng]',      role==='engineer');           // the site engineer's floors           // the accounts desk's day   // the officer's own book
   show('[data-le]',       isLE);                            // operator apps (Add lead / sources)
   show('[data-main]',     !isLE);                           // Home — everybody but the operator
-  show('[data-ess]',      !ESS_HIDDEN);                     // self-service pages (switched off for now)
+  document.querySelectorAll('[data-ess]').forEach(t=>{ t.style.display = _ESS_OFF.includes(t.dataset.tab) ? 'none' : ''; });   // self-service pages (only Leave is on for now)
   show('[data-sell]',     sell);                            // Workspace group
   show('[data-mgr]',      isMgr && !isOff);                           // Management group
   show('[data-dir]',      isDir);                           // Live Map / Facebook Leads
@@ -3364,6 +3364,8 @@ const TAB_TITLES={home:'Dashboard',alerts:'Alerts',leadentry:'Add Manual Lead',m
 // was deleted — set this back to false to bring all of it back as it was.
 const ESS_HIDDEN=true;
 const _ESS_TABS=['myrecord','ess-att','ess-leave','ess-visit','ess-pay','ess-docs','ess-file'];
+// Leave came back on its own (2026-10-08); the rest stay off while ESS_HIDDEN is on.
+const _ESS_OFF=ESS_HIDDEN ? _ESS_TABS.filter(t=>t!=='ess-leave') : [];
 // With the dashboard off, the office side lands on the screen of its own work.
 function _officeLanding(r){ return ({recovery_officer:'torecover',accounts:'collection',engineer:'site'})[r]||'updates'; }
 let NAV_HIST=[];   // section history so the appbar Back works on every page
@@ -3373,7 +3375,7 @@ function setTab(t,_back){
   // own record, the company's notices and their profile — which for a guard or
   // an office boy is not a lesser app, it is the whole one.
   if(ME && _isOfficeRole(ME.role) && !['myrecord','ess-att','ess-leave','ess-visit','ess-pay','ess-docs','ess-file','project','board','unitmap','home','updates','profile','torecover','collection','site'].includes(t)) t='myrecord';
-  if(ESS_HIDDEN && _ESS_TABS.includes(t)) t='home';
+  if(_ESS_OFF.includes(t)) t='home';
   if(t==='desk' && !CAN_AUTH) t='board';
   if(ESS_HIDDEN && t==='home' && ME && _isOfficeRole(ME.role)) t=_officeLanding(ME.role);
   NAV.seq++;                                  // every navigation gets its own token
@@ -9038,7 +9040,7 @@ function _notifBuild(){
   });
 
   out.sort((x, y) => new Date(y.at || 0) - new Date(x.at || 0));
-  NOTIF.items = (ESS_HIDDEN ? out.filter(x => !_ESS_TABS.includes(x.go)) : out).slice(0, 40);
+  NOTIF.items = out.filter(x => !_ESS_OFF.includes(x.go)).slice(0, 40);
   return NOTIF.items;
 }
 
