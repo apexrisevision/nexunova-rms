@@ -2854,7 +2854,7 @@ async function printAllotmentLetter() {
 // the reference print and a test print. If the whole body sits high or low,
 // change AF_DY only; don't rebuild the layout. Print at scale 100%.
 const AF_DY = 0.30;     // in — shifts the body up (−) or down (+); 0.30 since the 2026-10-09 test print sat on the gold band
-const AF_SQ = 0.89;     // below the top grid, gaps AND box heights are pulled in by this much so the signatures get room (2026-10-09)
+const AF_SQ = 0.82;     // below the top grid, gaps AND box heights are pulled in by this much so the signatures get room (2026-10-09)
 const AF_SIG = 12.38;   // in — the signature line, fixed: it does not move with AF_DY or AF_SQ
 
 async function printApplicationForm() {
@@ -2932,18 +2932,18 @@ async function printApplicationForm() {
     '.sh{position:absolute;left:0;top:0;width:8.5in;height:14in;transform-origin:0 0;transform:scale(' + k + ')}' +
     '.sh>*{position:absolute}' +
     '.tt{left:1.05in;font-size:21px;font-weight:bold;color:#1c2633;line-height:0.36in}' +
-    '.lb{display:flex;align-items:center;font-size:15px;color:#222;line-height:1.15}' +
-    '.bx{border:1.3px solid #555;border-radius:3px;padding:0 8px;display:flex;align-items:center;justify-content:space-between;font-size:15.5px;color:#111;overflow:hidden}' +
+    '.lb{display:flex;align-items:center;font-size:13.5px;color:#222;line-height:1.15}' +
+    '.bx{border:1.3px solid #555;border-radius:3px;padding:0 8px;display:flex;align-items:center;justify-content:space-between;font-size:14px;color:#111;overflow:hidden}' +
     '.bx span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
-    '.bx.tall{align-items:flex-start;padding-top:7px}.bx.tall span{white-space:normal;line-height:1.3}' +
+    '.bx.tall{align-items:flex-start;padding-top:5px}.bx.tall span{white-space:normal;line-height:1.3}' +
     '.bx em{font-style:normal;color:#222;flex:none;padding-left:8px}' +
     '.ph{border:1.3px solid #555;border-radius:3px;padding:6px;display:flex;align-items:center;justify-content:center;overflow:hidden}' +
     '.ph img{width:100%;height:100%;object-fit:cover}' +
     '.ph i{font-style:normal;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;text-align:center}' +
     '.rl{left:0.7in;width:7.4in;border-top:1.3px solid #444}' +
-    '.hd{left:0.85in;font-size:16.5px;font-weight:bold;text-decoration:underline;color:#111}' +
-    '.dt{left:0.7in;width:5.55in;font-size:15px;line-height:1.45;color:#111}' +
-    '.sg{width:2.5in;border-top:1.3px solid #222;padding-top:5px;font-size:15px;text-align:center;color:#111}';
+    '.hd{left:0.85in;font-size:15px;font-weight:bold;text-decoration:underline;color:#111}' +
+    '.dt{left:0.7in;width:5.55in;font-size:13.5px;line-height:1.4;color:#111}' +
+    '.sg{width:2.5in;border-top:1.3px solid #222;padding-top:5px;font-size:14px;text-align:center;color:#111}';
 
   // columns: single rows + photo, then the two-up rows
   const L = 0.85, BX = 1.95, MAINW = 4.55, PX = 6.75, PW = 1.3;
