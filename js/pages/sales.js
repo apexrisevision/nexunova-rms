@@ -2854,7 +2854,8 @@ async function printAllotmentLetter() {
 // the reference print and a test print. If the whole body sits high or low,
 // change AF_DY only; don't rebuild the layout. Print at scale 100%.
 const AF_DY = 0.30;     // in — shifts the body up (−) or down (+); 0.30 since the 2026-10-09 test print sat on the gold band
-const AF_SQ = 0.952;    // below the top grid, gaps are pulled in by this much so the signatures clear the footer (2026-10-09 print)
+const AF_SQ = 0.89;     // below the top grid, gaps AND box heights are pulled in by this much so the signatures get room (2026-10-09)
+const AF_SIG = 12.38;   // in — the signature line, fixed: it does not move with AF_DY or AF_SQ
 
 async function printApplicationForm() {
   const d = _salCurrentDetail;
@@ -2911,12 +2912,14 @@ async function printApplicationForm() {
   // a label at lx and its box from bx, bw wide — the label sits on the box's middle
   const row = (label, lx, bx, bw, y, val, h, extra) => {
     h = h || 0.36;
+    const tall = h > 0.4;
+    if (y > 3.6) h *= AF_SQ;
     return '<div class="lb" style="left:' + X(lx) + ';top:' + Y(y) + ';width:' + X(bx - lx - 0.08) + ';height:' + X(h) + '">' + label + '</div>' +
-      '<div class="bx' + (h > 0.4 ? ' tall' : '') + '" style="left:' + X(bx) + ';top:' + Y(y) + ';width:' + X(bw) + ';height:' + X(h) + '">' +
+      '<div class="bx' + (tall ? ' tall' : '') + '" style="left:' + X(bx) + ';top:' + Y(y) + ';width:' + X(bw) + ';height:' + X(h) + '">' +
         '<span>' + val + '</span>' + (extra || '') + '</div>';
   };
   const photo = (x, y, w, h, url, ph) =>
-    '<div class="ph" style="left:' + X(x) + ';top:' + Y(y) + ';width:' + X(w) + ';height:' + X(h) + '">' +
+    '<div class="ph" style="left:' + X(x) + ';top:' + Y(y) + ';width:' + X(w) + ';height:' + X(y > 3.6 ? h * AF_SQ : h) + '">' +
       (url ? '<img src="' + esc(url) + '">' : '<i>' + ph + '</i>') + '</div>';
   const rule = y => '<div class="rl" style="top:' + Y(y) + '"></div>';
   const head = (t, y) => '<div class="hd" style="top:' + Y(y) + '">' + t + '</div>';
@@ -2984,8 +2987,8 @@ async function printApplicationForm() {
   b += '<div class="dt" style="top:' + Y(11.64) + '">I further agree to pay all the dues (down payment and installments) and abide by all the existing rules and regulations agreed with the terms which may be prescribed by the management of the project from time to time.</div>';
 
   // signatures — left of the footer's "A project of" logo
-  b += '<div class="sg" style="left:0.7in;top:' + Y(12.48) + '">Signature of Applicant</div>';
-  b += '<div class="sg" style="left:3.6in;top:' + Y(12.48) + '">Authorized Signature</div>';
+  b += '<div class="sg" style="left:0.7in;top:' + AF_SIG + 'in">Signature of Applicant</div>';
+  b += '<div class="sg" style="left:3.6in;top:' + AF_SIG + 'in">Authorized Signature</div>';
   b += '</div></div>';
 
   const docHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Application Form — ' +
