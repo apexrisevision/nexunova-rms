@@ -2840,14 +2840,21 @@ async function printAllotmentLetter() {
 }
 
 
-// ══ PRINT: KBH APPLICATION / BOOKING FORM ══════════════════════════════
-// Body-only generator for the pre-printed KBH legal sheet (8.5in × 14in). The
-// physical sheet already carries the green header (logo) at top and the
-// sayadeveloper.com footer at bottom, so we print ONLY the body between them —
-// the @page top/bottom margins (AF.marginTop / AF.marginBottom) reserve those
-// pre-printed bands. CALIBRATE those two constants against a real test print.
-// Every field is populated from RMS (sale + unit + full client row); empty
-// fields render as open ruled boxes. Sent via NXPrint.emit (race-free).
+// ══ PRINT: APPLICATION / BOOKING FORM ══════════════════════════════════
+// Overlay for the PRE-PRINTED project sheet (Legal, 8.5in × 14in). The sheet
+// already carries the logo + building photo header, the gold band and the
+// "A project of" footer, so only the data prints — every piece absolutely
+// placed on a zero-margin page, like the allotment letter. Layout copied from
+// the owner's reference (Sajid Jahangir, booking 280, 2026-10-09): label on the
+// left, value in a box, photo boxes on the right, "Application Form" in the
+// gold band, body running down to the signatures beside the footer logo.
+//
+// ── CALIBRATION ────────────────────────────────────────────────────────
+// Every y below is inches from the sheet's top edge, measured off photos of
+// the reference print and a test print. If the whole body sits high or low,
+// change AF_DY only; don't rebuild the layout. Print at scale 100%.
+const AF_DY = 0;        // in — shifts everything up (−) or down (+)
+
 async function printApplicationForm() {
   const d = _salCurrentDetail;
   if (!d) { toast('No sale loaded', 'warn'); return; }
@@ -2865,26 +2872,31 @@ async function printApplicationForm() {
     } catch (e) { /* fall back to blank boxes */ }
   }
 
-  // ── CALIBRATION CONSTANTS — tune to the real pre-printed KBH sheet ──────
-  // _mTop reserves the pre-printed green header band; _mBot the footer band. The
-  // body stretches to fill everything between them (AF.bodyH) so the signatures
-  // sit at the bottom — no awkward empty gap. Adjust _mTop / _mBot to a test print.
-  const _pageH = size === 'A4' ? 11.69 : 14;
-  const _pageW = size === 'A4' ? 8.27  : 8.5;
-  const _mTop  = size === 'A4' ? 2.5   : 3.0;   // pre-printed green header gap (pushed down so body clears the header band)
-  const _mBot  = 0.4;                            // pre-printed footer gap (nudged down slightly for more body room)
-  const _mSide = 0.22;
-  const AF = {
-    pageW: _pageW + 'in', pageH: _pageH + 'in',
-    marginTop: _mTop + 'in', marginBottom: _mBot + 'in', marginSide: _mSide + 'in',
-    bodyH: (_pageH - _mTop - _mBot).toFixed(2) + 'in'   // printable area = the body fills it
-  };
+  // The layout is drawn once on a Legal sheet; A4 gets the same sheet scaled.
+  const pageW = size === 'A4' ? 8.27  : 8.5;
+  const pageH = size === 'A4' ? 11.69 : 14;
+  const k     = size === 'A4' ? Math.min(8.27 / 8.5, 11.69 / 14) : 1;
 
-  const saleDate = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : '';
-  const v     = x => (x === null || x === undefined || x === '') ? '&nbsp;' : esc(String(x));
-  const money = x => (x === null || x === undefined || x === '' || isNaN(Number(x))) ? '&nbsp;' : 'PKR ' + Number(x).toLocaleString('en-US');
+  const v = x => (x === null || x === undefined || String(x).trim() === '') ? '' : esc(String(x));
+  const saleDate = (() => {
+    if (!d.sale_date) return '';
+    const t = new Date(String(d.sale_date).slice(0, 10) + 'T00:00:00');
+    if (isNaN(t)) return '';
+    return String(t.getDate()).padStart(2, '0') + '-' + t.toLocaleDateString('en-GB', { month: 'long' }) + '-' + t.getFullYear();
+  })();
+  // 03109192367 → 0310-9192367, as written on the reference; anything else as-is
+  const phone = x => {
+    const raw = String(x || '').trim(); if (!raw) return '';
+    let n = raw.replace(/[^\d]/g, '');
+    if (/^92\d{10}$/.test(n)) n = '0' + n.slice(2);
+    return /^0\d{10}$/.test(n) ? n.slice(0, 4) + '-' + n.slice(4) : esc(raw);
+  };
+  const money = x => (x === null || x === undefined || x === '' || isNaN(Number(x))) ? '' : 'PKR ' + Number(x).toLocaleString('en-US');
   const nat   = c.country ? (c.country === 'Pakistan' ? 'Pakistani' : c.country) : 'Pakistani';
-  const addr  = v(c.address);
+  const area  = d.area_sqft ? Number(d.area_sqft).toFixed(2) : '';
+  const ut    = String(d.unit_type || '');
+  const kind  = /bed|apartment|flat|studio|penthouse|residen/i.test(ut) ? 'Residential'
+              : /shop|office|commercial|kiosk|showroom|counter/i.test(ut) ? 'Commercial' : '';
 
   // Nominee: prefer the client's next-of-kin (the booking-nominee template);
   // fall back to the sale-level nominee fields for legacy sales.
@@ -2893,84 +2905,87 @@ async function printApplicationForm() {
   const nomRel   = c.next_of_kin_relation || d.nominee_relation || '';
   const nomPhoto = c.next_of_kin_photo_url || '';
 
-  // BOXED REDESIGN: every field outlined (border only, NO fill), bold + larger text,
-  // strong solid-green section bars, full-width — covers the page on one Legal sheet.
+  const Y = y => (y + AF_DY).toFixed(3) + 'in';
+  const X = x => x.toFixed(3) + 'in';
+  // a label at lx and its box from bx, bw wide — the label sits on the box's middle
+  const row = (label, lx, bx, bw, y, val, h, extra) => {
+    h = h || 0.36;
+    return '<div class="lb" style="left:' + X(lx) + ';top:' + Y(y) + ';width:' + X(bx - lx - 0.08) + ';height:' + X(h) + '">' + label + '</div>' +
+      '<div class="bx' + (h > 0.4 ? ' tall' : '') + '" style="left:' + X(bx) + ';top:' + Y(y) + ';width:' + X(bw) + ';height:' + X(h) + '">' +
+        '<span>' + val + '</span>' + (extra || '') + '</div>';
+  };
+  const photo = (x, y, w, h, url, ph) =>
+    '<div class="ph" style="left:' + X(x) + ';top:' + Y(y) + ';width:' + X(w) + ';height:' + X(h) + '">' +
+      (url ? '<img src="' + esc(url) + '">' : '<i>' + ph + '</i>') + '</div>';
+  const rule = y => '<div class="rl" style="top:' + Y(y) + '"></div>';
+  const head = (t, y) => '<div class="hd" style="top:' + Y(y) + '">' + t + '</div>';
+
   const css =
-    '@page{size:' + AF.pageW + ' ' + AF.pageH + ';margin:' + AF.marginTop + ' ' + AF.marginSide + ' ' + AF.marginBottom + ' ' + AF.marginSide + '}' +
+    '@page{size:' + pageW + 'in ' + pageH + 'in;margin:0}' +
     '*{box-sizing:border-box}html,body{margin:0;padding:0}' +
-    'body{font-family:"Times New Roman",Times,Georgia,serif;color:#111;font-size:13px;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-    '.af-sheet{display:flex;flex-direction:column;min-height:' + AF.bodyH + '}' +
-    '.fb{border:1.4px solid #434a52;border-radius:3px;padding:4px 9px 5px;display:flex;flex-direction:column;justify-content:center;min-height:0.45in;overflow:hidden}' +
-    '.fb-l{font-size:8.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.8px;color:#5b6770;margin-bottom:2px;white-space:nowrap}' +
-    '.fb-v{font-size:15px;font-weight:bold;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:16px}' +
-    '.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}' +
-    '.g2{display:grid;grid-template-columns:1fr 1fr;gap:7px}' +
-    '.sec{background:#15412e;color:#fff;font-size:11.5px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;padding:5px 12px;border-radius:3px;margin:11px 0 7px}' +
-    '.cib{display:flex;gap:7px;align-items:stretch}' +
-    '.cib-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px}' +
-    '.photo{width:33mm;border:1.4px solid #434a52;border-radius:3px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none;text-align:center}' +
-    '.photo img{width:100%;height:100%;object-fit:cover}' +
-    '.photo span{font-size:8.5px;font-weight:bold;color:#9aa3ab;text-transform:uppercase;letter-spacing:1px}' +
-    '.decl{border:1.4px solid #434a52;border-radius:3px;padding:8px 12px;margin-top:9px}' +
-    '.decl-t{font-size:11px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#15412e;margin-bottom:5px}' +
-    '.decl-p{font-size:12px;font-weight:bold;line-height:1.5;color:#1f2937;text-align:justify}' +
-    '.sp{flex:1 1 auto;min-height:0.18in}' +
-    '.sigs{display:grid;grid-template-columns:1fr 1fr;gap:14px;page-break-inside:avoid}' +
-    '.sig{border:1.4px solid #434a52;border-radius:3px;min-height:0.72in;display:flex;flex-direction:column;justify-content:flex-end;padding:6px 10px}' +
-    '.sig-t{font-size:9.5px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#444;text-align:center;border-top:1px solid #b9c0c7;padding-top:5px}';
+    'body{font-family:Arial,Helvetica,sans-serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.pg{width:' + pageW + 'in;height:' + pageH + 'in;overflow:hidden;position:relative}' +
+    '.sh{position:absolute;left:0;top:0;width:8.5in;height:14in;transform-origin:0 0;transform:scale(' + k + ')}' +
+    '.sh>*{position:absolute}' +
+    '.tt{left:1.05in;font-size:21px;font-weight:bold;color:#1c2633;line-height:0.36in}' +
+    '.lb{display:flex;align-items:center;font-size:15px;color:#222;line-height:1.15}' +
+    '.bx{border:1.3px solid #555;border-radius:3px;padding:0 8px;display:flex;align-items:center;justify-content:space-between;font-size:15.5px;color:#111;overflow:hidden}' +
+    '.bx span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '.bx.tall{align-items:flex-start;padding-top:7px}.bx.tall span{white-space:normal;line-height:1.3}' +
+    '.bx em{font-style:normal;color:#222;flex:none;padding-left:8px}' +
+    '.ph{border:1.3px solid #555;border-radius:3px;padding:6px;display:flex;align-items:center;justify-content:center;overflow:hidden}' +
+    '.ph img{width:100%;height:100%;object-fit:cover}' +
+    '.ph i{font-style:normal;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;text-align:center}' +
+    '.rl{left:0.7in;width:7.4in;border-top:1.3px solid #444}' +
+    '.hd{left:0.85in;font-size:16.5px;font-weight:bold;text-decoration:underline;color:#111}' +
+    '.dt{left:0.7in;width:7.35in;font-size:15px;line-height:1.45;color:#111}' +
+    '.sg{width:2.5in;border-top:1.3px solid #222;padding-top:5px;font-size:15px;text-align:center;color:#111}';
 
-  // ── Boxed field helpers: outlined box (no fill), bold label + bold value ──
-  const F  = (l, val) => '<div class="fb"><div class="fb-l">' + l + '</div><div class="fb-v">' + v(val) + '</div></div>';
-  const Fm = (l, val) => '<div class="fb"><div class="fb-l">' + l + '</div><div class="fb-v">' + money(val) + '</div></div>';
+  // columns: single rows + photo, then the two-up rows
+  const L = 0.85, BX = 1.95, MAINW = 4.55, PX = 6.75, PW = 1.3;
+  const RL = 4.15, RB = 5.25, LW = 2.0, RW = 2.8;
 
-  let b = '<div class="af-sheet">';
+  let b = '<div class="pg"><div class="sh">';
+  b += '<div class="tt" style="top:' + Y(1.72) + '">Application Form</div>';
 
-  // top meta — boxed
-  b += '<div class="g3">' +
-    F('Booking No', d.sale_number) + F('MID #', c.client_code) + F('Date', saleDate) +
-    F('Unit Address', d.unit_no) + F('Floor', d.floor_label) + F('Category', d.unit_type) +
-    F('Size', d.area_sqft ? Number(d.area_sqft).toLocaleString('en-US') + ' Sqft' : '') + F('Type', '') + '<div></div>' +
-  '</div>';
+  // top grid — three columns, three rows
+  const g1 = (l, val, y, ex) => row(l, 0.85, 1.85, 1.52, y, val, 0.36, ex);
+  const g2 = (l, val, y) => row(l, 3.5, 4.04, 1.45, y, val);
+  const g3 = (l, val, y) => row(l, 5.63, 6.47, 1.63, y, val);
+  b += g1('Booking No', v(d.sale_number), 2.28) + g2('MID #', v(c.client_code), 2.28) + g3('Date', saleDate, 2.28);
+  b += g1('Unit Address', v(d.unit_no), 2.74)   + g2('Floor', v(d.floor_label), 2.74) + g3('Categorie', v(ut), 2.74);
+  b += g1('Size', area, 3.20, area ? '<em>Sqft</em>' : '') + g2('Type', kind, 3.20);
 
-  // ── Client Information ──
-  b += '<div class="sec">Client Information</div>';
-  b += '<div class="cib"><div class="cib-main">';
-  b += F('Name', c.full_name || d.client_name);
-  b += '<div class="g2">' + F('S / O', c.father_name) + F('C.N.I.C. #', c.cnic) + '</div>';
-  b += F('Postal Address', c.address);
-  b += F('Residential Address', c.address);
-  b += '</div>';
-  b += '<div class="photo">' + (c.client_photo_url ? '<img src="' + esc(c.client_photo_url) + '">' : '<span>Affix<br>Photograph</span>') + '</div>';
-  b += '</div>';
+  // client
+  b += rule(3.72) + head('Client Information', 3.80);
+  b += row('Name', L, BX, MAINW, 4.20, v(c.full_name || d.client_name));
+  b += row('S/O', L, BX, MAINW, 4.66, v(c.father_name));
+  b += row('C.N.I.C. #', L, BX, MAINW, 5.12, v(c.cnic));
+  b += row('Postal<br>Address', L, BX, MAINW, 5.58, v(c.address), 0.58);
+  b += row('Residential<br>Address', L, BX, MAINW, 6.26, v(c.address), 0.58);
+  b += photo(PX, 4.20, PW, 1.72, c.client_photo_url, 'Affix<br>Photograph');
 
-  b += '<div class="g2" style="margin-top:7px">' +
-    F('Phone (Office)', '') + F('Phone (Residence)', c.phone_secondary) +
-    F('Mobile #', c.phone_primary) + F('Email', c.email) +
-    F('Occupation', c.occupation) + F('Nationality', nat) +
-    Fm('Monthly Income', c.monthly_income) + F('NTN #', c.ntn) +
-  '</div>';
+  b += row('Phone Off.', L, BX, LW, 6.98, '') + row('Phone Res #', RL, RB, RW, 6.98, phone(c.phone_secondary));
+  b += row('Mobile #', L, BX, LW, 7.44, phone(c.phone_primary)) + row('Email Id', RL, RB, RW, 7.44, v(c.email));
+  b += row('Occupation', L, BX, LW, 7.90, v(c.occupation)) + row('Nationality', RL, RB, RW, 7.90, v(nat));
+  b += row('Monthly Income', 0.7, BX, LW, 8.36, money(c.monthly_income)) + row('NTN#', RL, RB, RW, 8.36, v(c.ntn));
 
-  // ── Nominee Information ──
-  b += '<div class="sec">Nominee Information</div>';
-  b += '<div class="cib"><div class="cib-main">';
-  b += F('Name', nomName);
-  b += '<div class="g2">' + F('C.N.I.C No.', nomCnic) + F('Relation', nomRel) + '</div>';
-  b += F('Address', '');
-  b += '</div>';
-  b += '<div class="photo" style="width:30mm">' + (nomPhoto ? '<img src="' + esc(nomPhoto) + '">' : '<span>Photo /<br>Thumb</span>') + '</div>';
-  b += '</div>';
+  // nominee
+  b += rule(8.84) + head('Nominee Information', 8.92);
+  b += row('Name', L, BX, MAINW, 9.30, v(nomName));
+  b += row('C.N.I.C No.', L, BX, MAINW, 9.74, v(nomCnic));
+  b += row('Relation', L, BX, MAINW, 10.18, v(nomRel));
+  b += row('Address', L, BX, MAINW, 10.62, '', 0.58);
+  b += photo(PX, 9.30, PW, 1.90, nomPhoto, 'Photo /<br>Thumb');
 
-  // ── Declaration (boxed) ──
-  b += '<div class="decl"><div class="decl-t">Declaration</div>' +
-    '<div class="decl-p">I further agree to pay all the dues (down-payment and installments) and abide by all the existing rules and regulations, agreed with the terms and conditions prescribed by the management of the project from time to time. I hereby solemnly declare that all the particulars furnished above are true and correct to the best of my knowledge and belief, and I fully understand that any incorrect information, or default in payment of any installment on the agreed schedule, shall render this booking liable to cancellation and forfeiture of the amounts paid, in accordance with the policy and sole discretion of the management.</div></div>';
+  // declaration — the reference's own words
+  b += '<div class="hd" style="left:0.7in;top:' + Y(11.36) + '">Declaration</div>';
+  b += '<div class="dt" style="top:' + Y(11.64) + '">I further agree to pay all the dues (down payment and installments) and abide by all the existing rules and regulations agreed with the terms which may be prescribed by the management of the project from time to time.</div>';
 
-  // ── Signatures (boxed, anchored to the bottom) ──
-  b += '<div class="sp"></div>';
-  b += '<div class="sigs">' +
-    '<div class="sig"><div class="sig-t">Signature of Applicant</div></div>' +
-    '<div class="sig"><div class="sig-t">Authorized Signature</div></div>' +
-  '</div>';
-  b += '</div>';   // close .af-sheet
+  // signatures — left of the footer's "A project of" logo
+  b += '<div class="sg" style="left:0.7in;top:' + Y(12.48) + '">Signature of Applicant</div>';
+  b += '<div class="sg" style="left:3.6in;top:' + Y(12.48) + '">Authorized Signature</div>';
+  b += '</div></div>';
 
   const docHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Application Form — ' +
     esc(d.sale_number || '') + '</title><style>' + css + '</style></head><body>' + b + '</body></html>';
