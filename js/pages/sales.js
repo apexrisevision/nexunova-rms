@@ -2854,6 +2854,7 @@ async function printAllotmentLetter() {
 // the reference print and a test print. If the whole body sits high or low,
 // change AF_DY only; don't rebuild the layout. Print at scale 100%.
 const AF_DY = 0.30;     // in — shifts the body up (−) or down (+); 0.30 since the 2026-10-09 test print sat on the gold band
+const AF_SQ = 0.952;    // below the top grid, gaps are pulled in by this much so the signatures clear the footer (2026-10-09 print)
 
 async function printApplicationForm() {
   const d = _salCurrentDetail;
@@ -2905,7 +2906,7 @@ async function printApplicationForm() {
   const nomRel   = c.next_of_kin_relation || d.nominee_relation || '';
   const nomPhoto = c.next_of_kin_photo_url || '';
 
-  const Y = y => (y + AF_DY).toFixed(3) + 'in';
+  const Y = y => ((y > 3.6 ? 3.6 + (y - 3.6) * AF_SQ : y) + AF_DY).toFixed(3) + 'in';
   const X = x => x.toFixed(3) + 'in';
   // a label at lx and its box from bx, bw wide — the label sits on the box's middle
   const row = (label, lx, bx, bw, y, val, h, extra) => {
@@ -2953,28 +2954,28 @@ async function printApplicationForm() {
   const g2 = (l, val, y) => row(l, 3.5, 4.04, 1.45, y, val);
   const g3 = (l, val, y) => row(l, 5.63, 6.47, 1.63, y, val);
   b += g1('Booking No', v(d.sale_number), 2.28) + g2('MID #', v(c.client_code), 2.28) + g3('Date', saleDate, 2.28);
-  b += g1('Unit Address', v(d.unit_no), 2.74)   + g2('Floor', v(d.floor_label), 2.74) + g3('Categorie', v(ut), 2.74);
+  b += g1('Unit Address', v(d.unit_no), 2.74)   + g2('Floor', v(d.floor_label), 2.74) + g3('Category', v(ut), 2.74);
   b += g1('Size', area, 3.20, area ? '<em>Sqft</em>' : '') + g2('Type', kind, 3.20);
 
   // client
   b += rule(3.72) + head('Client Information', 3.80);
   b += row('Name', L, BX, MAINW, 4.20, v(c.full_name || d.client_name));
-  b += row('S/O', L, BX, MAINW, 4.66, v(c.father_name));
-  b += row('C.N.I.C. #', L, BX, MAINW, 5.12, v(c.cnic));
+  b += row('S/O D/O W/O', L, BX, MAINW, 4.66, v(c.father_name));
+  b += row('CNIC #', L, BX, MAINW, 5.12, v(c.cnic));
   b += row('Postal<br>Address', L, BX, MAINW, 5.58, v(c.address), 0.58);
   b += row('Residential<br>Address', L, BX, MAINW, 6.26, v(c.address), 0.58);
   b += photo(PX, 4.20, PW, 1.72, c.client_photo_url, 'Affix<br>Photograph');
 
   b += row('Phone Off.', L, BX, LW, 6.98, '') + row('Phone Res #', RL, RB, RW, 6.98, phone(c.phone_secondary));
-  b += row('Mobile #', L, BX, LW, 7.44, phone(c.phone_primary)) + row('Email Id', RL, RB, RW, 7.44, v(c.email));
+  b += row('Mobile #', L, BX, LW, 7.44, phone(c.phone_primary)) + row('Email ID:', RL, RB, RW, 7.44, v(c.email));
   b += row('Occupation', L, BX, LW, 7.90, v(c.occupation)) + row('Nationality', RL, RB, RW, 7.90, v(nat));
   b += row('Monthly Income', 0.7, BX, LW, 8.36, money(c.monthly_income)) + row('NTN#', RL, RB, RW, 8.36, v(c.ntn));
 
   // nominee
   b += rule(8.84) + head('Nominee Information', 8.92);
   b += row('Name', L, BX, MAINW, 9.30, v(nomName));
-  b += row('C.N.I.C No.', L, BX, MAINW, 9.74, v(nomCnic));
-  b += row('Relation', L, BX, MAINW, 10.18, v(nomRel));
+  b += row('CNIC No.', L, BX, MAINW, 9.74, v(nomCnic));
+  b += row('Relation with<br>Buyer', L, BX, MAINW, 10.18, v(nomRel));
   b += row('Address', L, BX, MAINW, 10.62, '', 0.58);
   b += photo(PX, 9.30, PW, 1.90, nomPhoto, 'Photo /<br>Thumb');
 
