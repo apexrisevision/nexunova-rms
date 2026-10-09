@@ -2853,7 +2853,7 @@ async function printAllotmentLetter() {
 // Every y below is inches from the sheet's top edge, measured off photos of
 // the reference print and a test print. If the whole body sits high or low,
 // change AF_DY only; don't rebuild the layout. Print at scale 100%.
-const AF_DY = 0;        // in — shifts everything up (−) or down (+)
+const AF_DY = 0.30;     // in — shifts the body up (−) or down (+); 0.30 since the 2026-10-09 test print sat on the gold band
 
 async function printApplicationForm() {
   const d = _salCurrentDetail;
@@ -2938,7 +2938,7 @@ async function printApplicationForm() {
     '.ph i{font-style:normal;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;text-align:center}' +
     '.rl{left:0.7in;width:7.4in;border-top:1.3px solid #444}' +
     '.hd{left:0.85in;font-size:16.5px;font-weight:bold;text-decoration:underline;color:#111}' +
-    '.dt{left:0.7in;width:7.35in;font-size:15px;line-height:1.45;color:#111}' +
+    '.dt{left:0.7in;width:5.55in;font-size:15px;line-height:1.45;color:#111}' +
     '.sg{width:2.5in;border-top:1.3px solid #222;padding-top:5px;font-size:15px;text-align:center;color:#111}';
 
   // columns: single rows + photo, then the two-up rows
@@ -2946,7 +2946,7 @@ async function printApplicationForm() {
   const RL = 4.15, RB = 5.25, LW = 2.0, RW = 2.8;
 
   let b = '<div class="pg"><div class="sh">';
-  b += '<div class="tt" style="top:' + Y(1.72) + '">Application Form</div>';
+  b += '<div class="tt" style="top:1.72in">Application Form</div>';
 
   // top grid — three columns, three rows
   const g1 = (l, val, y, ex) => row(l, 0.85, 1.85, 1.52, y, val, 0.36, ex);
