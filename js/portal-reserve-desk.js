@@ -548,6 +548,68 @@
     document.head.appendChild(st);
   })();
 
+  /* ── PORTIONS, EACH ITS OWN PANEL, AND A TIGHTER DESK (2026-10-13) ────────
+     The Directors' Room got the same: "har cheez white white hai ...
+     portions define karo k alag hun" and "tight it more". Each part of the
+     desk sits in a tinted panel with a coloured top edge and heading:
+     requests red, link tokens amber, booking blue, booked today green, not
+     allocated violet (folded, its total on the fold). Later rules than the
+     first block, so they win where they overlap. */
+  (function () {
+    if (document.getElementById('rd-style2')) return;
+    var st = document.createElement('style');
+    st.id = 'rd-style2';
+    st.textContent =
+      ".rds{--sc:#2563EB;margin:0 0 12px;padding:10px 12px 12px;border-radius:14px;" +
+        "background:color-mix(in srgb, var(--sc) 7%, var(--fk-bg-page, var(--bg, #F5F5F4)));" +
+        "border:1px solid color-mix(in srgb, var(--sc) 20%, transparent);border-top:3px solid var(--sc)}" +
+      ".rds-req{--sc:#DC2626}.rds-pay{--sc:#D97706}.rds-book{--sc:#2563EB}.rds-today{--sc:#059669}.rds-un{--sc:#7C3AED}" +
+      ".rds:has(> #rd-reqs:empty), .rds:has(> #rd-unalloc:empty){display:none}" +
+      ".rds .rq{margin:0}" +
+      ".rds .rq-h, .rds .rd-h, .rds .rds-t{color:var(--sc);font-size:11px;font-weight:750;letter-spacing:.08em;" +
+        "text-transform:uppercase;margin:0 0 8px;display:flex;align-items:center;gap:7px}" +
+      ".rds .rq-h::before, .rds .rd-h::before, .rds .rds-t::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--sc);flex:0 0 auto}" +
+      ".rds .rq-n, .rds .rd-h span.n{letter-spacing:0;text-transform:none}" +
+      ".rds .rq-h .pay-reg{margin-left:auto;letter-spacing:0;text-transform:none}" +
+      ".rds .rd-bar{margin:0;padding:12px;box-shadow:none}" +
+      ".rds .rd-row{margin-bottom:5px;padding:9px 11px}" +
+      ".rds .rd-row:last-child{margin-bottom:0}" +
+      ".rds-today #rd-today .card{margin:0}" +
+      /* tighter controls */
+      ".rds .rd-in{height:44px;font-size:16px}" +
+      ".rds .rd-in.rq{font-size:14px}" +
+      ".rds .rd-lb{margin-bottom:4px}" +
+      ".rds .rd-go{height:42px}" +
+      ".rds .rq-a{margin-top:8px;gap:6px}" +
+      ".rds .rq-a button{height:32px;border-radius:8px;font-size:12.5px}" +
+      /* not allocated: folded, the total on the fold */
+      ".rds-un details > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:7px}" +
+      ".rds-un details > summary::-webkit-details-marker{display:none}" +
+      ".rds-un details > summary .rd-h{margin:0;flex:1}" +
+      ".rds-un details > summary .x-c{width:7px;height:7px;border-right:2px solid var(--sc);border-bottom:2px solid var(--sc);transform:rotate(45deg);margin:-4px 3px 0}" +
+      ".rds-un details[open] > summary .x-c{transform:rotate(-135deg);margin-top:3px}" +
+      ".rds-un details[open] > summary{margin-bottom:8px}" +
+      ".rds-un .card{margin:0;padding:0;background:none;box-shadow:none;border:0}" +
+      "@media (max-width:600px){" +
+        ".rds{padding:8px 9px 10px;margin-bottom:10px;border-radius:12px}" +
+        ".rds .rd-bar{padding:10px}" +
+        ".rds .rd-in{height:40px;font-size:15px}" +
+        ".rds .rd-chip{padding:0 10px;height:30px;font-size:12.5px}" +
+        ".rds .rd-go{height:40px}" +
+        "#rd-unalloc .rd-row{flex-wrap:wrap;row-gap:2px}" +
+        "#rd-unalloc .rd-row .u{max-width:none;flex:1}" +
+        "#rd-unalloc .rd-row .w{order:3;flex-basis:100%;font-size:12px}" +
+        /* booked today: the row wraps rather than pushing Undo off the screen */
+        ".rds-today .rd-row{flex-wrap:wrap;gap:6px 8px}" +
+        ".rds-today .rd-row .u{min-width:0}" +
+        ".rds-today .rd-row .w{flex:1 1 100%;order:5;font-size:12px}" +
+        ".rds-today .rd-row .t{margin-left:auto}" +
+        ".rds .rd-undo{height:28px;padding:0 9px;font-size:12px;border-radius:8px}" +
+      "}";
+    document.head.appendChild(st);
+  })();
+  var UNOPEN = false;   // is the not-allocated fold open, across repaints
+
   /* ── scoped DOM access. Never document.getElementById from in here. ─────── */
   function _root() { return document.getElementById('rd-root'); }
   function _q(sel) { var r = _root(); return r ? r.querySelector(sel) : null; }
@@ -878,9 +940,10 @@
           '<button class="rd-chip" id="rd-daybook">' + li('fileText', 15) + ' Daybook</button>' +
         '</div>' +
 
-        '<div id="rd-reqs" class="rq"></div>' +
-        '<div id="rd-pays" class="rq"></div>' +
+        '<section class="rds rds-req"><div id="rd-reqs" class="rq"></div></section>' +
+        '<section class="rds rds-pay"><div id="rd-pays" class="rq"></div></section>' +
 
+        '<section class="rds rds-book"><div class="rds-t">Book a unit</div>' +
         '<div class="rd-bar">' +
           '<div class="rd-lb">Unit</div>' +
           '<input class="rd-in" id="rd-unit" autocomplete="off" autocapitalize="characters" ' +
@@ -951,12 +1014,12 @@
 
           '<button class="rd-go" id="rd-go" disabled>' + esc(_goLabel()) + '</button>' +
           '<div id="rd-out"></div>' +
-        '</div>' +
+        '</div></section>' +
 
-        '<div class="rd-h">Booked today ' +
+        '<section class="rds rds-today"><div class="rd-h">Booked today ' +
           '<span class="n" id="rd-count">' + ((d.today || []).length) + '</span></div>' +
-        '<div id="rd-today"></div>' +
-        '<div id="rd-unalloc"></div>' +
+        '<div id="rd-today"></div></section>' +
+        '<section class="rds rds-un"><div id="rd-unalloc"></div></section>' +
       '</div>';
 
     _wire();
@@ -3201,8 +3264,8 @@
     var d = r && r.data;
     if (!d || d.success !== true || !(d.parties || []).length) { box.innerHTML = ''; return; }
     box.innerHTML =
-      '<div class="rd-h">Other — not allocated ' +
-        '<span class="n">' + pkrFull(d.total) + '</span></div>' +
+      '<details' + (UNOPEN ? ' open' : '') + '><summary><span class="rd-h">Other — not allocated ' +
+        '<span class="n">' + pkrFull(d.total) + ' · ' + d.parties.length + '</span></span><span class="x-c"></span></summary>' +
       '<div class="card">' +
         d.parties.map(function (p) {
           return '<div class="rd-row">' +
@@ -3211,7 +3274,9 @@
             '<span class="t">' + pkrFull(p.amount) + '</span>' +
           '</div>';
         }).join('') +
-      '</div>';
+      '</div></details>';
+    var det = box.querySelector('details');
+    if (det) det.addEventListener('toggle', function () { UNOPEN = det.open; });
   }
 
   function _paintToday() {
