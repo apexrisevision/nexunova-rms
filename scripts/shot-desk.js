@@ -72,6 +72,12 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
       }, C);
       await pg.waitForSelector('#rd-root', { timeout: 20000 });
       await new Promise(r => setTimeout(r, 1200));
+      // REQ="name": type a requester, and print what the WhatsApp line says
+      if (process.env.REQ) {
+        await pg.type('#rd-req', process.env.REQ);
+        await new Promise(r => setTimeout(r, 300));
+        console.log(name, 'whatsapp line for', process.env.REQ + ':', await pg.$eval('#rd-wahit', e => e.textContent));
+      }
       await pg.screenshot({ path: path.join(OUT, TAG + '-' + name + '.png'), fullPage: true });
       console.log(name, 'page height', await pg.evaluate(() => document.documentElement.scrollHeight));
       if (process.env.MEASURE) console.log(await pg.evaluate(() => {

@@ -960,6 +960,13 @@
                  'enterkeyhint="done" placeholder="Type a name">' +
           '<datalist id="rd-reqlist">' + reqOpts + '</datalist>' +
           '<div id="rd-reqhit" class="rd-meta" style="margin-top:5px;font-size:var(--fs-caption)"></div>' +
+          /* NO HOLD WITHOUT A WHATSAPP NUMBER (20261013d). The server refuses a
+             booking when the person who asked has none on record; this box is
+             where it is given, and it is saved to the hold contacts the
+             Directors' Room sends its reminders to. */
+          '<div class="rd-lb" style="margin-top:13px">Their WhatsApp number</div>' +
+          '<input class="rd-in rq" id="rd-wa" inputmode="tel" autocomplete="off" enterkeyhint="done" placeholder="03001234567">' +
+          '<div id="rd-wahit" class="rd-meta" style="margin-top:5px;font-size:var(--fs-caption)"></div>' +
 
           /* WHAT KIND OF HOLD. The list comes from the RPC, which reads the
              project's own category_unit_statuses — never hardcoded here, so a
@@ -1625,9 +1632,47 @@
     return { kind: 'free', id: null, name: raw, _label: raw };
   }
 
+  /* 03001234567 / +92 300 1234567 / 923001234567 -> 923001234567, else null */
+  function _waNorm(v) {
+    var d = String(v || '').replace(/[^0-9]/g, '');
+    if (/^03\d{9}$/.test(d)) d = '92' + d.slice(1);
+    return /^923\d{9}$/.test(d) ? d : null;
+  }
+  function _waEcho(r) {
+    var out = _q('#rd-wahit'); if (!out) return;
+    if (!r || r.kind === 'ambiguous') { out.textContent = ''; return; }
+    // on the person's own record, or saved for this name earlier in this visit
+    var saved = DESK.waSaved && DESK.waSaved[String(r.name).toLowerCase()];
+    var rec = _waNorm(r.phone) ? r.phone : (saved ? '0' + String(saved).slice(2) : null);
+    out.innerHTML = rec
+      ? 'On record: <b>' + esc(_phoneDisp(rec)) + '</b> \u2014 type a number only to use a different one'
+      : '<span style="color:var(--fk-warning)">Required \u2014 no number on record for ' + esc(r.name) +
+        ' (leave it empty only if it was saved before)</span>';
+  }
+  /* Before a booking: a typed number is saved for this name; with none typed
+     and none on record the server decides (it may already have one saved). */
+  async function _waGate(r) {
+    var box = _q('#rd-wa'); var typed = String((box || {}).value || '').trim();
+    if (!typed) return true;
+    if (!_waNorm(typed)) { toast('Enter an 11-digit WhatsApp number, e.g. 03001234567.', 'err'); if (box) box.focus(); return false; }
+    var pid = DESK.projectId || (DESK.data && DESK.data.scope_project_id) || null;
+    var res; try { res = await sb.rpc('set_hold_contact_desk', { p_session_token: TOKEN, p_project_id: pid, p_name: r.name, p_phone: typed }); } catch (e) { res = null; }
+    var d = res && res.data;
+    if (!d || !d.success) { toast((d && d.message) || 'The WhatsApp number could not be saved. Nothing was booked.', 'err'); if (box) box.focus(); return false; }
+    DESK.waSaved = DESK.waSaved || {};
+    DESK.waSaved[String(r.name).toLowerCase()] = d.phone;
+    return true;
+  }
+  function _waMissing() {
+    var box = _q('#rd-wa'); var out = _q('#rd-wahit');
+    if (out) out.innerHTML = '<span style="color:var(--fk-danger)">Add their WhatsApp number \u2014 a unit is not held without one.</span>';
+    if (box) { try { box.focus(); } catch (e) {} }
+  }
+
   function _reqEcho() {
     var out = _q('#rd-reqhit'); if (!out) return;
     var r = _resolveReq();
+    _waEcho(r);
     if (!r) { out.textContent = ''; return; }
     // On a colliding name the confirmation line carries the phone too. This is
     // the last thing read before Enter, so it must name the person the same way
@@ -2980,6 +3025,7 @@
     /* the history first, then the sentence read back */
     if (!(await _trailGateUnits(units, r.name, 'Continue'))) return;
     if (DESK.busy) return;
+    if (!(await _waGate(r))) return;
 
     var cname = String((_q('#rd-cname') || {}).value || '').trim() || null;
     var _t = _armedTag(), _perm = _armedPermanent();
@@ -3056,6 +3102,7 @@
     _paintCart();
     _paintToday();
     _refreshReqs();
+    if (rows.some(function (x) { return x.error === 'whatsapp_required'; })) _waMissing();
 
     if (d.failed) {
       toast(d.done + ' booked, ' + d.failed + ' refused \u2014 see the list below.',
@@ -3077,7 +3124,7 @@
       }
       /* A clean batch leaves nothing behind but the requester, exactly as the
          single path does: the next ask from the same rep needs no retyping. */
-      var ids = ['#rd-cname', '#rd-cphone', '#rd-tamt', '#rd-note'];
+      var ids = ['#rd-cname', '#rd-cphone', '#rd-tamt', '#rd-note', '#rd-wa'];
       for (i = 0; i < ids.length; i++) { var el = _q(ids[i]); if (el) el.value = ''; }
       var ub = _q('#rd-unit'); if (ub) { ub.value = ''; try { ub.focus(); } catch (e) {} }
     }
@@ -3130,6 +3177,7 @@
     if (!(await _trailGateUnits([u], r.name,
         String((_q('#rd-go') || {}).textContent || '').trim() || 'Save'))) return;
     if (DESK.busy) return;
+    if (!(await _waGate(r))) return;
 
     var go = _q('#rd-go');
     DESK.busy = true; if (go) { go.disabled = true; go.textContent = 'Saving…'; }
@@ -3174,6 +3222,7 @@
     if (!d || !d.success) {
       var msg = (d && (d.message || d.error)) || 'Could not reserve. Please try again.';
       toast(msg, 'err');
+      if (d && d.error === 'whatsapp_required') _waMissing();
       // the cache disagreed with the database — the database is right
       if (d && (d.error === 'unit_unavailable' || d.error === 'already_reserved')) {
         await _load(DESK.projectId, true);
@@ -3227,7 +3276,9 @@
   }
 
   function _clearLine() {
-    var ids = ['#rd-unit', '#rd-cname', '#rd-cphone', '#rd-tamt', '#rd-note'];
+    // the typed WhatsApp number goes too: it was saved for this requester, and
+    // left in the box it would be saved again for whoever is typed next
+    var ids = ['#rd-unit', '#rd-cname', '#rd-cphone', '#rd-tamt', '#rd-note', '#rd-wa'];
     for (var i = 0; i < ids.length; i++) { var el = _q(ids[i]); if (el) el.value = ''; }
     DESK.sel = null;
     var hit = _q('#rd-hit'); if (hit) { hit.className = ''; hit.innerHTML = ''; }
