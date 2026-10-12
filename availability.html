@@ -1450,6 +1450,36 @@ body.splash .fl::before{opacity:0}
 .rp-desk:active{transform:scale(.97)}
 .rp-desk i{font-style:normal;opacity:.7}
 .rp details.rx{margin-top:15px}
+@media (max-width:600px){
+  #rep .fh{margin:4px 0 10px}
+  #rep .fh h1{font-size:20px}
+  .rp h2{margin:12px 0 5px}
+  .rp-bar{margin:0 0 8px}
+  .rp-desk{height:30px;padding:0 12px;font-size:12px;width:100%;justify-content:center}
+  .dc-g{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+  .dc-c{padding:8px 8px 8px 10px}
+  .dc-h{flex-direction:column;gap:0}
+  .dc-w{font-size:12.5px;width:100%}
+  .dc-h .dc-t{font-size:10px;white-space:normal}
+  .dc-p{font-size:10.5px}
+  .dc-wa, .dc-tr, .dc-lg{display:none}
+  .dc-u{gap:3px;margin:5px 0 6px}
+  .dc-u button{padding:1px 5px;font-size:10.5px}
+  .dc-a{gap:4px;justify-content:stretch}
+  .dc-a button, .dc-a a{flex:1 1 0;height:28px;padding:0 6px;font-size:11.5px}
+  .dc-d button{height:28px;padding:0 8px;font-size:11.5px}
+  .dc-d input{width:56px;height:28px}
+  .dc-by{font-size:11px}
+  .dc-by input{height:28px;font-size:12px}
+  .rp .big .b{padding:8px 10px}
+  .rp .big .bn{font-size:18px}
+  .rp details.rx{margin-top:10px}
+  .rp details.rx > summary{padding:9px 11px}
+  .rp .trs{padding:9px 11px}
+  .rp .trs-say{display:none}
+  .rp .trs-f{margin-top:6px}
+  .dis{margin:12px 0 18px;padding:9px 11px}
+}
 .rp details.rx > summary{list-style:none;display:flex;align-items:center;gap:10px;cursor:pointer;
   background:var(--card);border-radius:var(--r);padding:10px 13px;user-select:none}
 .rp details.rx > summary::-webkit-details-marker{display:none}
@@ -1583,8 +1613,15 @@ body.splash .fl::before{opacity:0}
    to be read, so it is not grey six-point mouse type. */
 .dis{margin:15px 0 26px;padding:11px 13px 12px;border:1px solid var(--hair);
      border-radius:var(--r);background:#FFFBFB}
-.dis-h{font-size:11px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;
-       color:#b3123c;margin-bottom:7px}
+.dis-h{display:block;font-size:11px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;
+       color:#b3123c;margin-bottom:4px}
+.dis > summary{list-style:none;cursor:pointer}
+.dis > summary::-webkit-details-marker{display:none}
+.dis-s{display:block;font-size:11.5px;color:var(--soft);line-height:1.45}
+.dis-s b{color:var(--ink)}
+.dis-s u{color:var(--accent,#1d4ed8);text-decoration:none;font-weight:650;white-space:nowrap}
+.dis[open] .dis-s{display:none}
+.dis[open] > summary{margin-bottom:3px}
 /* the disclaimer kept a light ground in the dark theme, and its light-grey
    text vanished on it — found on the Unit trail, true of every room page */
 :root[data-theme="dark"] .dis{background:#1F1418}
@@ -7967,8 +8004,13 @@ function endingSoon() {
    It goes at the foot of every page in this room, including the printed one —
    there is no page a director can share that does not carry it. */
 function disclaimer(d) {
-  return '<div class="dis">' +
-    '<div class="dis-h">Read this before you act on anything above</div>' +
+  /* FOLDED, NOT REMOVED (2026-10-13, "tight it more"). The two lines that
+     matter in a screenshot stay on the fold; the full notes open on a tap and
+     always open for printing. */
+  return '<details class="dis">' +
+    '<summary><span class="dis-h">Read this before you act on anything above</span>' +
+      '<span class="dis-s"><b>Not a confirmation, allotment, receipt or agreement.</b> Internal use only. ' +
+      '<u>Read all notes</u></span></summary>' +
     '<ul>' +
       '<li>This is <b>not a confirmation, an allotment, a receipt or an agreement</b>. ' +
         'It confirms nothing to anybody and creates no right over any unit.</li>' +
@@ -7998,7 +8040,7 @@ function disclaimer(d) {
     '</ul>' +
     '<div class="dis-f">' + esc(d.project) + ' · ' + esc(d.company) +
       ' · snapshot ' + new Date(d.as_of).toLocaleString('en-US') + '</div>' +
-  '</div>';
+  '</details>';
 }
 
 /* the head of the printed sheet — invisible on screen, the letterhead on paper */
@@ -8581,10 +8623,10 @@ function decCard(g) {
   H.push('<div class="dc-h"><span class="dc-w">' + esc(g.who || 'No name on the hold') + '</span>' +
          '<span class="dc-t">' + esc(decWhen(first.x)) + '</span></div>');
   H.push('<div class="dc-p">' + g.units.length + ' unit' + (g.units.length === 1 ? '' : 's') +
-         ' · ' + esc(first.k || 'Hold') + ' · ' +
-         (decPhone(g.phone)
+         ' · ' + esc(first.k || 'Hold') +
+         '<span class="dc-wa"> · ' + (decPhone(g.phone)
            ? 'WhatsApp ' + esc(decShowPhone(g.phone)) + ' <button data-dc="ph">change</button>'
-           : '<button data-dc="ph">Add WhatsApp number</button>') + '</div>');
+           : '<button data-dc="ph">Add WhatsApp number</button>') + '</span></div>');
   if (open === 'ph') {
     H.push('<div class="dc-f"><input id="dc-ph" type="tel" inputmode="tel" ' +
       'placeholder="03xx-xxxxxxx" value="' + esc(decShowPhone(g.phone)) + '"></div>' +
@@ -8624,7 +8666,7 @@ function decCard(g) {
     var remind = decMsg('remind', g.who, ns, lapseWhen(first.x));
     H.push('<div class="dc-a">' +
       (g.due ? '<button class="rel" data-dc="rel"' + (ns.length ? '' : ' disabled') + '>Release</button>'
-             : '<a class="wa" target="_blank" rel="noopener" href="' + esc(decWa(g.phone, remind)) + '">Remind on WhatsApp</a>') +
+             : '<a class="wa" target="_blank" rel="noopener" href="' + esc(decWa(g.phone, remind)) + '">Remind<span class="dc-lg">&nbsp;on WhatsApp</span></a>') +
       '<button class="ext" data-dc="ext"' + (ns.length ? '' : ' disabled') + '>Extend</button></div>');
   }
   if (DEC.err[g.g]) H.push('<div class="dc-e">' + esc(DEC.err[g.g]) + '</div>');
@@ -8962,7 +9004,7 @@ function roomSaf() {
   if (ROOMSAF.loading) return;
   ROOMSAF.loading = true;
   var sc = document.createElement('script');
-  sc.src = '/js/desk-saf.js?v=20261013pw';
+  sc.src = '/js/desk-saf.js?v=20261013tight';
   sc.onload = function () { ROOMSAF.loading = false; if (window.DeskSaf) go(); };
   sc.onerror = function () { ROOMSAF.loading = false; };
   document.head.appendChild(sc);
@@ -8983,10 +9025,10 @@ document.addEventListener('toggle', function (e) {
 }, true);
 window.addEventListener('beforeprint', function () {
   ROOMX._print = true;
-  [].forEach.call(document.querySelectorAll('details.rx'), function (d) { d.setAttribute('data-was', d.open ? '1' : ''); d.open = true; });
+  [].forEach.call(document.querySelectorAll('details.rx, details.dis'), function (d) { d.setAttribute('data-was', d.open ? '1' : ''); d.open = true; });
 });
 window.addEventListener('afterprint', function () {
-  [].forEach.call(document.querySelectorAll('details.rx'), function (d) { d.open = d.getAttribute('data-was') === '1'; });
+  [].forEach.call(document.querySelectorAll('details.rx, details.dis'), function (d) { d.open = d.getAttribute('data-was') === '1'; });
   setTimeout(function () { ROOMX._print = false; }, 0);
 });
 
@@ -9538,7 +9580,7 @@ function trailSearch(v) {
     '<div class="trs-f"><input id="trail-q" type="text" inputmode="text" autocapitalize="characters" ' +
       'spellcheck="false" maxlength="20" placeholder="Unit code, e.g. GF-248" value="' + esc(v) + '">' +
       '<button type="submit">Show</button></div>' +
-    '<div class="say">Everything that happened to one unit, from the day it was created — ' +
+    '<div class="say trs-say">Everything that happened to one unit, from the day it was created — ' +
       'who held it, who released it, the sale, every payment and every rupee of token against it.</div>' +
   '</div></form>';
 }

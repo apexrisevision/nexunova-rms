@@ -66,6 +66,13 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
       await pg.screenshot({ path: path.join(OUT, TAG + '-' + name + '.png'), fullPage: true });
       const tall = await pg.evaluate(() => document.documentElement.scrollHeight);
       console.log(name, 'page height', tall);
+      // MEASURE=1: how tall each block of the room's first screen is
+      if (process.env.MEASURE) console.log(await pg.evaluate(() => {
+        const out = []; const rp = document.querySelector('#rep-body .rp');
+        out.push('above room body: ' + Math.round(document.getElementById('rep-body').getBoundingClientRect().top + scrollY));
+        [].forEach.call(rp.children, c => out.push(Math.round(c.getBoundingClientRect().height) + '  ' +
+          (c.id || c.className || c.tagName) + '  ' + (c.textContent || '').trim().slice(0, 40).replace(/\s+/g, ' ')));
+        return out.join('\n'); }));
       if (name === 'desktop') {
         /* a fold opened stays open when the room redraws itself */
         await pg.click('details.rx[data-x="who"] > summary');

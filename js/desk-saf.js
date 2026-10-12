@@ -66,7 +66,10 @@
       '.dsaf-m{color:var(--fk-text-muted);font-size:12.5px;margin-top:8px;line-height:1.45}' +
       '.dsaf-steps{list-style:none;margin:0;padding:0;font-size:13px}' +
       '.dsaf-steps li{padding:5px 0;border-bottom:1px dashed var(--fk-border)}' +
-      '.dsaf-steps li span{color:var(--fk-text-muted)}';
+      '.dsaf-steps li span{color:var(--fk-text-muted)}' +
+      '@media(max-width:600px){.dsaf{padding:10px 11px;margin-bottom:8px}.dsaf-intro{display:none}' +
+        '.dsaf-row{padding:8px 10px;margin-top:5px}.dsaf-row .t{font-size:13px}.dsaf-row .s{font-size:11.5px}' +
+        '.dsaf-h{margin-bottom:4px}.dsaf-h b{font-size:14px}.dsaf .dsaf-m{font-size:11.5px;margin-top:6px}}';
     document.head.appendChild(st);
   })();
 
@@ -155,7 +158,7 @@
       var wait = I.rows.filter(isWaiting), done = I.rows.filter(function (r) { return !isWaiting(r); });
       var h = '<div class="dsaf"><div class="dsaf-h"><b>' + e(ctx.title || 'Sale approvals') + '</b>' +
         (wait.length ? '<span class="dsaf-n">' + wait.length + ' waiting</span>' : '<span class="dsaf-m" style="margin:0">Nothing waiting</span>') + '</div>';
-      if (wait.length) h += '<div class="dsaf-m" style="margin:0 0 2px">Accounts has prepared these with a discount. Open one, check it, then approve or decline it with your own approval password.</div>';
+      if (wait.length) h += '<div class="dsaf-m dsaf-intro" style="margin:0 0 2px">Accounts has prepared these with a discount. Open one, check it, then approve or decline it with your own approval password.</div>';
       h += wait.map(row).join('');
       if (done.length) {
         h += '<button type="button" class="dsaf-more" data-recent="1">' + (I.recent ? 'Hide' : 'Show') + ' recently decided (' + done.length + ')</button>';
