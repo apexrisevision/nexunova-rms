@@ -498,7 +498,8 @@ function _safEligible(){
 window._safRefreshBadge = function(r){
   if (!r || !r.success || !r.me) return;
   const w = r.waiting || {}, m = r.me;
-  const n = m.approve ? (w.director||0) : m.prepare ? 0 : m.filing ? (w.filing||0) : 0;
+  // Rashid signs on the Reserve Desk; the RMS owner only reads, so no count for them
+  const n = m.filing ? (w.filing||0) : 0;
   if ((window._safWaiting||0) !== n) { window._safWaiting = n; try { buildSB(); } catch (e) {} }
 };
 

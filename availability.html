@@ -8074,7 +8074,7 @@ async function repOpen() {
 var TOKEN = '';           // the SALES SESSION. The link is LINK, up above.
 var ME = null;
 var TAB = 'desk';
-var DESK_SRC = '/js/portal-reserve-desk.js?v=20261006rules';
+var DESK_SRC = '/js/portal-reserve-desk.js?v=20261013desk';
 var DESK_UP = false, DESKV = false;
 /* the portal's own key, on purpose: same origin, same phone, so a director
    already signed into the CRM here is not asked twice */
@@ -8249,16 +8249,25 @@ function deskErr(m) {
    desk call carries the session and is checked there — but this link is a
    different room from the CRM, and "sirf mere login pe" is the rule it was
    asked for. A seller signing in here is told plainly rather than shown a desk
-   that will refuse them. */
-var DESK_ROLES = ['director', 'admin', 'cfo'];
-function deskIn() {
+   that will refuse them.
+   A role was not enough: other directors were let in and saw the pending
+   queue with Approve and Decline under it. The desk opens only for the one
+   sign-in the server allows to authorize a reservation (the same
+   can_authorize_reservation the CRM asks), and fails closed. */
+async function deskIn() {
   $('dk-out').hidden = false;
   $('dk-who').textContent = ((ME && ME.sales_user_name) || 'Signed in') +
     (ME && ME.company_name ? ' \u00b7 ' + ME.company_name : '');
-  if (ME && ME.role && DESK_ROLES.indexOf(ME.role) < 0) {
-    $('app-body').innerHTML = '<div class="card"><div class="dk-s">Booking from ' +
-      'the link is a director\u2019s desk. Your sign-in reads the building; it ' +
-      'does not book from here.</div></div>';
+  $('app-body').innerHTML = '<div class="card"><div class="dk-s">Opening the desk\u2026</div></div>';
+  var may = false;
+  try {
+    var r = await sb.rpc('can_authorize_reservation', { p_session_token: TOKEN });
+    may = !!(r && r.data === true);
+  } catch (e) { may = false; }
+  if (!may) {
+    $('app-body').innerHTML = '<div class="card"><div class="dk-s">The Reserve Desk ' +
+      'does not open on this sign-in. Your sign-in can view the building; booking ' +
+      'and approving are not done from here.</div></div>';
     return;
   }
   deskRun();

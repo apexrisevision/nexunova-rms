@@ -73,7 +73,7 @@
 
     queue: ['js/pages/recovery-queue.js?v=20260615en'],
 
-    saf: ['js/pages/saf.js?v=20261013saf'],
+    saf: ['js/pages/saf.js?v=20261013desk'],
 
     newsale: SALES, editsale: SALES, sales: SALES, salesdetail: SALES,
     projects: PROJECTS, projectdetail: PROJECTS,
