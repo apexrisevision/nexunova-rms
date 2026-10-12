@@ -1449,8 +1449,36 @@ body.splash .fl::before{opacity:0}
   box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .rp-desk:active{transform:scale(.97)}
 .rp-desk i{font-style:normal;opacity:.7}
-.rp details.rx{margin-top:15px}
+/* ── PORTIONS, EACH ITS OWN PANEL (2026-10-13) ─────────────────────────────
+   "Har cheez white white hai ... portions define karo k alag hun." Each part
+   of the first screen sits in a tinted panel with a coloured top edge and a
+   coloured heading; the white cards inside stand off it. One colour per
+   part: approvals violet, decisions red, the building blue, worth a look
+   green, the unit trail amber. Paper gets plain sections. */
+.rp .rsec{--sc:#2563EB;margin-top:12px;padding:10px 12px 12px;border-radius:14px;
+  background:color-mix(in srgb, var(--sc) 7%, var(--bg, #F5F5F4));
+  border:1px solid color-mix(in srgb, var(--sc) 20%, transparent);border-top:3px solid var(--sc)}
+.rp .rsec > h2:first-child, .rp .rsec .dc > h2:first-child{margin-top:0}
+.rp .rsec h2{display:flex;align-items:center;gap:7px;color:var(--sc);margin:12px 0 7px}
+.rp .rsec h2::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--sc);flex:0 0 auto}
+.rp .rsec-saf{--sc:#7C3AED}
+.rp .rsec-dec{--sc:#DC2626}
+.rp .rsec-bld{--sc:#2563EB}
+.rp .rsec-look{--sc:#059669}
+.rp .rsec-trail{--sc:#D97706}
+.rp .rsec-saf:has(#rep-saf:empty), .rp .rsec-dec:has(.dc:empty){display:none}
+/* inside a panel the approvals list drops its own card: the panel is the card */
+.rp .rsec .dsaf{background:transparent;border:0;box-shadow:none;padding:0;margin:0}
+.rp .rsec .dsaf-h > b{display:none}
+.rp .rsec .dsaf-row{background:var(--card,#fff)}
+.rp .rsec .trs-l{display:none}
+.rp .rsec .trs{margin:0}
+.rp .rsec details.rx:first-of-type{margin-top:8px}
+.rp .rsec .dc-none{background:var(--card,#fff)}
+@media print{ .rp .rsec{background:none;border:0;padding:0;margin-top:6px} .rp .rsec h2{color:#333} .rp .rsec h2::before{display:none} }
+.rp details.rx{margin-top:6px}
 @media (max-width:600px){
+  .rp .rsec{padding:8px 9px 10px;margin-top:10px;border-radius:12px}
   #rep .fh{margin:4px 0 10px}
   #rep .fh h1{font-size:20px}
   .rp h2{margin:12px 0 5px}
@@ -1473,7 +1501,7 @@ body.splash .fl::before{opacity:0}
   .dc-by input{height:28px;font-size:12px}
   .rp .big .b{padding:8px 10px}
   .rp .big .bn{font-size:18px}
-  .rp details.rx{margin-top:10px}
+  .rp details.rx{margin-top:5px}
   .rp details.rx > summary{padding:9px 11px}
   .rp .trs{padding:9px 11px}
   .rp .trs-say{display:none}
@@ -9059,9 +9087,10 @@ function repHome(d) {
   H.push('<div class="rp-bar no-print"><button type="button" class="rp-desk" id="rd-door">' +
     'Open the Reserve Desk <i>\u2192</i></button></div>');
   /* first, what is waiting for a director; the rest of the room is reading */
-  H.push('<div id="rep-saf" class="no-print">' + (ROOMSAF.inst ? ROOMSAF.inst.html() : '') + '</div>');
-  H.push(decPanel());
-  H.push('<h2>Where the building stands</h2><div class="big">' +
+  H.push('<section class="rsec rsec-saf no-print"><h2>Sale approvals</h2>' +
+    '<div id="rep-saf">' + (ROOMSAF.inst ? ROOMSAF.inst.html() : '') + '</div></section>');
+  H.push('<section class="rsec rsec-dec">' + decPanel() + '</section>');
+  H.push('<section class="rsec rsec-bld"><h2>Where the building stands</h2><div class="big">' +
     '<div class="b"><div class="bn">' + num(t.available) + '</div>' +
       '<div class="bl">still available, of ' + num(t.units) + '</div>' +
       '<div class="bs">PKR ' + pkr(t.value_free) + ' unsold</div></div>' +
@@ -9094,9 +9123,9 @@ function repHome(d) {
           '<span class="r-s">PKR ' + pkr(p.value) + ' · ' + share + '% of what is taken</span>' +
           '<span class="sh"><i style="width:' + share + '%"></i></span></span>' +
         '<span class="r-n">' + num(p.units) + '</span><span class="r-a"></span></button>';
-    }).join('') + '</div></details>');
+    }).join('') + '</div></details></section>');
 
-  H.push('<h2>Worth a look</h2><div class="wk">' +
+  H.push('<section class="rsec rsec-look"><h2>Worth a look</h2><div class="wk">' +
     '<button class="wk-c" data-go="ending"><b>' + num(soon.length) + '</b>' +
       '<span>' + (soon.length === 1 ? 'hold ends' : 'holds end') + ' within 7 days</span>' +
       '<small>' + (soon.length ? 'PKR ' + pkr(sum(soon, 'v')) + ' back unless renewed' : 'nothing runs out this week') + '</small></button>' +
@@ -9104,11 +9133,11 @@ function repHome(d) {
       '<span>Floors, worth each</span><small>worth, on the shelf, committed</small></button>' +
     '<button class="wk-c" data-go="tokens"><b>PKR</b>' +
       '<span>Token received</span><small>from the books, checked against units</small></button>' +
-    '</div>');
+    '</div></section>');
   /* ONE UNIT'S WHOLE HISTORY, asked for by its code. A form, not a button-row:
      the thing pressed here is a code being typed, and Enter on a phone keyboard
      should be enough to open it. */
-  H.push('<div style="margin-top:4px">' + trailSearch('') + '</div>');
+  H.push('<section class="rsec rsec-trail"><h2>Unit trail</h2>' + trailSearch('') + '</section>');
   TOKR = { room: null, money: null, busy: false, err: '' };   // the page reads fresh each time it is opened
 
   /* ── AND THE DESK, FOR WHOEVER ALSO TAKES THE BOOKINGS ──────────────────
