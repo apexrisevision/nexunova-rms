@@ -484,6 +484,24 @@ function _grantedExtraGroup(navGroups){
   return extras.length ? { label:'Extra access', items: extras } : null;
 }
 
+// Who has a part in Sale Approval: the owner/admin (director), Accounts, and
+// anyone ticked 'Sale Approval — Filing'. DEFAULT-CLOSED on the flag, like
+// Daily Closing: an explicit === true, never hasFeature().
+function _safEligible(){
+  if (!(window._featureFlags && window._featureFlags.sale_approval_form === true)) return false;
+  if (typeof S === 'undefined' || !S) return false;
+  const r = S.role;
+  return r === 'owner' || r === 'admin' || r === 'accounts' || r === 'finance' ||
+         !!(S.permissions && S.permissions.saf_filing);
+}
+// What is waiting for this login, on the sidebar item; redraws only on change.
+window._safRefreshBadge = function(r){
+  if (!r || !r.success || !r.me) return;
+  const w = r.waiting || {}, m = r.me;
+  const n = m.approve ? (w.director||0) : m.prepare ? 0 : m.filing ? (w.filing||0) : 0;
+  if ((window._safWaiting||0) !== n) { window._safWaiting = n; try { buildSB(); } catch (e) {} }
+};
+
 function buildSB(){
   // Did this build happen before the feature flags were known? If so, any
   // DEFAULT-CLOSED item (Daily Closing) was left out on a false negative, and
@@ -729,6 +747,17 @@ function buildSB(){
     }
   }
 
+  // Sale Approval (Awami): Accounts prepares, the owner/admin approves, Filing
+  // files. Only those three see it, and only with the company flag on.
+  if (_safEligible()) {
+    const _safItem = { id:'saf', ic:'file-check', lb:'Sale Approval', bdg:(window._safWaiting||null), bdgType:(window._safWaiting?'warn':null) };
+    const _safHome = navGroups.find(function(g){ return g.label === 'Sales & Money' || g.label === 'Sales'; });
+    if (_safHome) _safHome.items.splice(Math.min(3, _safHome.items.length), 0, _safItem);
+    else navGroups.push({ label:'Sale Approval', items:[_safItem] });
+    if (!window._safBadgeAsked) { window._safBadgeAsked = true;
+      try { supabase.rpc('saf_list', { p_status:'__none__' }).then(function(r){ if (r && r.data) window._safRefreshBadge(r.data); }); } catch (e) {} }
+  }
+
   // Explicit Users & Roles grants that this role's curated sidebar doesn't cover.
   if (isR || isAc || isM) {
     const _extra = _grantedExtraGroup(navGroups);
@@ -750,7 +779,7 @@ function buildSB(){
     'Transfer & Cancel':'repeat', 'Reports & Ledgers':'bar-chart-3', 'Team & Approvals':'shield',
     'Documents':'printer', 'Setup & Settings':'settings',
     'Inventory':'home', 'Sales':'file-text', 'Reports':'bar-chart-3', 'Inbox':'inbox', 'My Modules':'layout-grid',
-    'Extra access':'shield'
+    'Extra access':'shield', 'Sale Approval':'file-check'
   };
   let html = '';
   navGroups.forEach(function(g){
@@ -923,8 +952,11 @@ function nav(pg,x){
   if(pg==='addpayment') pg='receipts';
   // ── Online Portal: the 4 module pages are now sub-tabs of one "Online Portal" tab ──
   if(pg==='salesaccess'||pg==='salesubmissions'||pg==='reservations'||pg==='dealeragreement'){ window._opPendingSub=pg; pg='onlineportal'; }
+  // Sale Approval has its own three-way rule (see _safEligible) and the
+  // server re-checks every call; the role allow-lists below do not apply to it.
+  if(pg==='saf'&&!_safEligible())pg='dashboard';
   // ── Permission guard ──
-  if(S&&S.role!=='admin'&&S.role!=='owner'){
+  if(S&&S.role!=='admin'&&S.role!=='owner'&&pg!=='saf'){
     const r=effectiveRole();
     // Always-allowed pages for any authenticated non-admin user
     const _alwaysAllow=['dashboard','changepassword'];
@@ -975,7 +1007,7 @@ function nav(pg,x){
     if(moreTail&&moreTail.dataset.gid&&typeof toggleNavMore==='function') toggleNavMore(moreTail.dataset.gid);
   }
   document.querySelector('.sb')?.setAttribute('data-pg', pg);
-  const ts={dashboard:'Dashboard',onlineportal:'Online Portal',queue:'Morning List',addunit:'Add Inventory',newsale:'New Sale',editsale:'Edit Sale',projects:'Projects',projectdetail:'Project Detail',units:'Inventory',unitdetail:'Unit Detail',clients:'All Clients',clientdetail:'Client Detail',agents:'Sales Agents',agentdetail:'Agent Detail',sales:'Sales',salesdetail:'Sale Detail',recovery:'Payments',callreport:'Daily Call Report',callsheet:'Recovery Call Sheet',addpayment:'Add Payment',receipts:'Receipt Vouchers',pdc:'PDC Register',cancelledunits:'Cancelled Units Ledger',transferunits:'Transferred Units Ledger',officerledger:'Officer Ledger',receivingledger:'Receiving Ledger',ledgers:'Ledgers','ledger-client':'Client Ledger','ledger-unit':'Unit Ledger','ledger-agent':'Agent Ledger','ledger-project':'Project Ledger',commissions:'Pay Commission',reminders:'Reminders',contacts:'Call Logs',search:'Find Unit',reports:'Reports & Export',recoveryiq:'Recovery Intelligence',myrecovery:'My Recovery',agentrecovery:'Agent Recovery Book',documents:'Documents & Print',statements:'Account Statements',backup:'Data Backup',admin:'Admin Panel',approvals:'Approvals',team:'Team Performance',categories:'Categories',users:'User Management',healthcenter:'Client Health Center',paylinks:'Payment Links','paylink-detail':'Payment Link Detail','payment-methods':'Payment Methods',unitchain:'Ownership Chain',unittransfer:'Transfer Unit',unitchange:'Change Unit',unitcancel:'Cancel Unit',banks:'Banks Master',blacklist:'Blacklist Register',payables:'Payables',receivables:'Additional Receivables',escalations:'Escalation Register',legalcases:'Legal Cases',agenttransactions:'Agent Transactions',campaigns:'Recovery Campaigns',forecasting:'Recovery Forecasting',commscenter:'Communications Center',executive:'Executive Dashboard',noc:'NOC Management',fieldvisits:'Field Visits',reservations:'Reservations',salesaccess:'Portal Access',salesubmissions:'Booking Submissions',dealeragreement:'Dealer Agreement',dailyclosing:'Daily Closing'};
+  const ts={dashboard:'Dashboard',onlineportal:'Online Portal',queue:'Morning List',addunit:'Add Inventory',newsale:'New Sale',editsale:'Edit Sale',projects:'Projects',projectdetail:'Project Detail',units:'Inventory',unitdetail:'Unit Detail',clients:'All Clients',clientdetail:'Client Detail',agents:'Sales Agents',agentdetail:'Agent Detail',sales:'Sales',salesdetail:'Sale Detail',recovery:'Payments',callreport:'Daily Call Report',callsheet:'Recovery Call Sheet',addpayment:'Add Payment',receipts:'Receipt Vouchers',pdc:'PDC Register',cancelledunits:'Cancelled Units Ledger',transferunits:'Transferred Units Ledger',officerledger:'Officer Ledger',receivingledger:'Receiving Ledger',ledgers:'Ledgers','ledger-client':'Client Ledger','ledger-unit':'Unit Ledger','ledger-agent':'Agent Ledger','ledger-project':'Project Ledger',commissions:'Pay Commission',reminders:'Reminders',contacts:'Call Logs',search:'Find Unit',reports:'Reports & Export',recoveryiq:'Recovery Intelligence',myrecovery:'My Recovery',agentrecovery:'Agent Recovery Book',documents:'Documents & Print',statements:'Account Statements',backup:'Data Backup',admin:'Admin Panel',approvals:'Approvals',team:'Team Performance',categories:'Categories',users:'User Management',healthcenter:'Client Health Center',paylinks:'Payment Links','paylink-detail':'Payment Link Detail','payment-methods':'Payment Methods',unitchain:'Ownership Chain',unittransfer:'Transfer Unit',unitchange:'Change Unit',unitcancel:'Cancel Unit',banks:'Banks Master',blacklist:'Blacklist Register',payables:'Payables',receivables:'Additional Receivables',escalations:'Escalation Register',legalcases:'Legal Cases',agenttransactions:'Agent Transactions',campaigns:'Recovery Campaigns',forecasting:'Recovery Forecasting',commscenter:'Communications Center',executive:'Executive Dashboard',noc:'NOC Management',fieldvisits:'Field Visits',reservations:'Reservations',salesaccess:'Portal Access',salesubmissions:'Booking Submissions',dealeragreement:'Dealer Agreement',dailyclosing:'Daily Closing',saf:'Sale Approval'};
   const tbTitle=document.getElementById('tb-t');
   if(tbTitle)tbTitle.textContent=ts[pg]||pg;
   if(typeof atbSyncCurrent==='function')atbSyncCurrent(pg);
@@ -998,7 +1030,7 @@ function nav(pg,x){
   // page's module is loaded before we dispatch. Arrow entries resolve at call
   // time — also safe once their module is in.
   const W=window;
-  const fns={dashboard:W.rDash,onlineportal:W.rOnlinePortal,queue:W.rQueue,newsale:W.rNewSale,editsale:W.rEditSale,projects:W.rProjects,projectdetail:W.rProjectDetail,units:W.rUnits,unitmap:W.rUnitMap,unitdetail:()=>rUD(_uid),clients:W.rClients,clientdetail:W.rClientDetail,agents:W.rAgents,agentdetail:W.rAgentDetail,sales:W.rSales,salesdetail:W.rSaleDetail,recovery:W.rRec,callreport:W.rCallReport,callsheet:W.rCallSheet,addpayment:W.rAddPayment,receipts:W.rReceipts,pdc:W.rPDC,cancelledunits:W.rCancelLedger,transferunits:W.rTransferLedger,officerledger:W.rOfficerLedger,receivingledger:W.rReceivingLedger,ledgers:W.rLedgers,'ledger-client':W.rLedgerClient,'ledger-unit':W.rLedgerUnit,'ledger-agent':W.rLedgerAgent,'ledger-project':W.rLedgerProject,commissions:W.rCommissions,unittransfer:W.rUnitTransfer,unitcancel:W.rUnitCancel,unitchange:W.rUnitChange,unitchain:W.rUnitChain,reminders:W.rReminders,contacts:W.rCons,search:W.rSearch,reports:W.rReports,recoveryiq:W.rRecoveryIQ,myrecovery:W.rMyRecovery,agentrecovery:W.rAgentRecovery,documents:W.rDocs,statements:W.rStatements,backup:W.rBackup,admin:W.rAdmin,categories:W.rCategories,users:W.rUsers,healthcenter:()=>openClientsTab('health'),promises:W.rPromises,audit:W.rAudit,approvals:W.rApprovals,team:W.rTeam,paylinks:W.rPayLinks,'paylink-detail':W.rPayLinkDetail,'payment-methods':W.rPaymentMethods,changepassword:W.rChangepassword,banks:W.rBanks,blacklist:()=>openClientsTab('blacklist'),payables:W.rPayables,receivables:W.rReceivables,escalations:W.rEscalations,legalcases:W.rLegalCases,agenttransactions:W.rAgentTransactions,campaigns:W.rCampaigns,forecasting:W.rForecasting,commscenter:W.rCommsCenter,noc:W.rNOC,fieldvisits:W.rFieldVisits,reservations:W.rReservations,salesaccess:W.rSalesAccess,salesubmissions:W.rSaleSubmissions,dealeragreement:W.rDealerAgreement,dailyclosing:W.rDailyClosing};
+  const fns={dashboard:W.rDash,onlineportal:W.rOnlinePortal,queue:W.rQueue,newsale:W.rNewSale,editsale:W.rEditSale,projects:W.rProjects,projectdetail:W.rProjectDetail,units:W.rUnits,unitmap:W.rUnitMap,unitdetail:()=>rUD(_uid),clients:W.rClients,clientdetail:W.rClientDetail,agents:W.rAgents,agentdetail:W.rAgentDetail,sales:W.rSales,salesdetail:W.rSaleDetail,recovery:W.rRec,callreport:W.rCallReport,callsheet:W.rCallSheet,addpayment:W.rAddPayment,receipts:W.rReceipts,pdc:W.rPDC,cancelledunits:W.rCancelLedger,transferunits:W.rTransferLedger,officerledger:W.rOfficerLedger,receivingledger:W.rReceivingLedger,ledgers:W.rLedgers,'ledger-client':W.rLedgerClient,'ledger-unit':W.rLedgerUnit,'ledger-agent':W.rLedgerAgent,'ledger-project':W.rLedgerProject,commissions:W.rCommissions,unittransfer:W.rUnitTransfer,unitcancel:W.rUnitCancel,unitchange:W.rUnitChange,unitchain:W.rUnitChain,reminders:W.rReminders,contacts:W.rCons,search:W.rSearch,reports:W.rReports,recoveryiq:W.rRecoveryIQ,myrecovery:W.rMyRecovery,agentrecovery:W.rAgentRecovery,documents:W.rDocs,statements:W.rStatements,backup:W.rBackup,admin:W.rAdmin,categories:W.rCategories,users:W.rUsers,healthcenter:()=>openClientsTab('health'),promises:W.rPromises,audit:W.rAudit,approvals:W.rApprovals,team:W.rTeam,paylinks:W.rPayLinks,'paylink-detail':W.rPayLinkDetail,'payment-methods':W.rPaymentMethods,changepassword:W.rChangepassword,banks:W.rBanks,blacklist:()=>openClientsTab('blacklist'),payables:W.rPayables,receivables:W.rReceivables,escalations:W.rEscalations,legalcases:W.rLegalCases,agenttransactions:W.rAgentTransactions,campaigns:W.rCampaigns,forecasting:W.rForecasting,commscenter:W.rCommsCenter,noc:W.rNOC,fieldvisits:W.rFieldVisits,reservations:W.rReservations,salesaccess:W.rSalesAccess,salesubmissions:W.rSaleSubmissions,dealeragreement:W.rDealerAgreement,dailyclosing:W.rDailyClosing,saf:W.rSaf};
   const _PAGE_FLAG = {
     noc:'noc', campaigns:'campaigns', forecasting:'forecasting',
     commscenter:'comms_center', executive:'executive_dashboard',

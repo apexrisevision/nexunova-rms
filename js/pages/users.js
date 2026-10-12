@@ -355,9 +355,12 @@ function _umModalMarkup(mode, u) {
   }
 
   const perms = (isEdit && u && u.module_permissions) ? u.module_permissions : {};
-  const moduleList = _umDailyClosingOn()
+  let moduleList = _umDailyClosingOn()
     ? MODULE_LIST.concat([{ key: 'dailyclosing', label: 'Daily Closing' }])
     : MODULE_LIST;
+  // Sale Approval: the Filing step is a person, not a role — ticked here.
+  if (window._featureFlags && window._featureFlags.sale_approval_form === true)
+    moduleList = moduleList.concat([{ key: 'saf_filing', label: 'Sale Approval — Filing' }]);
   const permCbs = moduleList.map(function(m){
     const ck = perms[m.key] ? ' checked' : '';
     return '<label style="display:inline-flex;align-items:center;gap:7px;font-size:var(--fk-fs-body);color:var(--fk-text);cursor:pointer">' +
