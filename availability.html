@@ -1346,7 +1346,7 @@ body.splash .fl::before{opacity:0}
 /* a unit code that opens its trail */
 .tr-u{border:0;background:none;padding:0;font:inherit;color:inherit;cursor:pointer;
       text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
-.dc-tr{font-size:11.5px;color:var(--mut);margin:-4px 0 9px;line-height:1.6}
+.dc-tr{font-size:11px;color:var(--mut);margin:-2px 0 8px;line-height:1.55}
 .dc-tr .tr-u{color:var(--soft);margin-right:7px}
 .rel-tr{display:block;margin-top:10px;border:0;background:none;padding:0;font:inherit;
         font-size:13px;color:var(--accent);font-weight:600;cursor:pointer}
@@ -1391,29 +1391,33 @@ body.splash .fl::before{opacity:0}
    arrive in batches — twelve of Waqar's end on the same afternoon.
    Red is the page's own red for "look at this"; nothing new is invented. */
 .dc{margin-top:4px}
-.dc-by{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mut);margin:0 0 8px}
-.dc-by input{flex:1;min-width:0;height:34px;padding:0 10px;border:1px solid var(--line);
-  border-radius:8px;background:var(--card);color:var(--ink);font:inherit;font-size:13.5px}
-.dc-c{background:var(--card);border-radius:var(--r);padding:11px 12px;margin-bottom:6px;
-  box-shadow:inset 3px 0 0 var(--dc,#B3123C)}
+.dc-by{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mut);margin:0 0 6px}
+.dc-by input{flex:1;min-width:0;max-width:260px;height:30px;padding:0 10px;border:1px solid var(--line);
+  border-radius:8px;background:var(--card);color:var(--ink);font:inherit;font-size:13px}
+.dc-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px;margin-bottom:6px}
+.dc-c{background:var(--card);border-radius:var(--r);padding:9px 11px 9px 12px;min-width:0;
+  display:flex;flex-direction:column;box-shadow:inset 3px 0 0 var(--dc,#B3123C)}
+.dc-c > .dc-a:last-child, .dc-c > .dc-a:nth-last-child(2){margin-top:auto}
+.dc-h .dc-t{font-size:10.5px}
 .dc-c.soon{--dc:#c2760a}
 .dc-h{display:flex;align-items:baseline;gap:8px}
-.dc-w{font-size:14.5px;font-weight:700;letter-spacing:-.015em;flex:1;min-width:0;
+.dc-w{font-size:13.5px;font-weight:700;letter-spacing:-.015em;flex:1;min-width:0;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dc-t{font-size:11.5px;font-weight:650;color:var(--dc,#B3123C);white-space:nowrap}
 .dc-p{font-size:11.5px;color:var(--mut);margin-top:2px}
 .dc-p button{border:0;background:none;padding:0;color:var(--accent,#1d4ed8);
   font:inherit;font-weight:650;text-decoration:underline;cursor:pointer}
-.dc-u{display:flex;flex-wrap:wrap;gap:5px;margin:9px 0 10px}
+.dc-u{display:flex;flex-wrap:wrap;gap:4px;margin:7px 0 6px}
 .dc-u button{border:1px solid var(--line);background:var(--sunk);color:var(--mut);
-  border-radius:7px;padding:5px 8px;font:inherit;font-size:12px;font-weight:650;
+  border-radius:6px;padding:2px 7px;font:inherit;font-size:11.5px;font-weight:650;
   text-decoration:line-through;opacity:.7}
 .dc-u button.on{background:var(--card);color:var(--ink);text-decoration:none;opacity:1;
   border-color:var(--dc,#B3123C)}
-.dc-a{display:flex;gap:6px;flex-wrap:wrap}
-.dc-a button, .dc-a a{flex:1;min-width:0;height:38px;border-radius:9px;border:0;
-  font:inherit;font-size:13px;font-weight:700;display:flex;align-items:center;
-  justify-content:center;text-decoration:none;cursor:pointer;white-space:nowrap;padding:0 10px;
+/* small, quiet actions on the right: a decision is two taps, not two slabs */
+.dc-a{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.dc-a button, .dc-a a{flex:0 0 auto;min-width:0;height:30px;border-radius:8px;border:0;
+  font:inherit;font-size:12.5px;font-weight:650;display:inline-flex;align-items:center;
+  justify-content:center;text-decoration:none;cursor:pointer;white-space:nowrap;padding:0 13px;
   overflow:hidden;text-overflow:ellipsis}
 .dc-a .rel{background:#B3123C;color:#fff}
 .dc-a .ext{background:var(--ink);color:var(--bg,#fff)}
@@ -1422,20 +1426,51 @@ body.splash .fl::before{opacity:0}
 .dc-a button:disabled{opacity:.5}
 .dc-q{font-size:12.5px;line-height:1.45;margin:0 0 8px;color:var(--soft)}
 .dc-d{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
-.dc-d button{flex:1 1 0;min-width:0;white-space:nowrap;padding:0 4px;height:36px;border-radius:8px;border:1px solid var(--line);
-  background:var(--card);color:var(--ink);font:inherit;font-size:13px;font-weight:700}
+.dc-d button{flex:0 0 auto;min-width:0;white-space:nowrap;padding:0 11px;height:30px;border-radius:8px;border:1px solid var(--line);
+  background:var(--card);color:var(--ink);font:inherit;font-size:12.5px;font-weight:650}
 .dc-d button.on{background:var(--ink);color:var(--bg,#fff);border-color:var(--ink)}
-.dc-d input{width:74px;height:36px;border-radius:8px;border:1px solid var(--line);
+.dc-d input{width:70px;height:30px;border-radius:8px;border:1px solid var(--line);
   background:var(--card);color:var(--ink);font:inherit;font-size:13px;text-align:center}
 .dc-f{display:flex;gap:6px;margin:8px 0}
-.dc-f input{flex:1;min-width:0;height:36px;padding:0 10px;border:1px solid var(--line);
+.dc-f input{flex:1;min-width:0;max-width:260px;height:30px;padding:0 10px;border:1px solid var(--line);
   border-radius:8px;background:var(--card);color:var(--ink);font:inherit;font-size:14px}
 .dc-e{font-size:12px;color:#B3123C;margin-top:6px}
-.dc-ok{background:var(--card);border-radius:var(--r);padding:11px 12px;margin-bottom:6px;
+.dc-ok{background:var(--card);border-radius:var(--r);padding:9px 11px;margin-bottom:5px;
   box-shadow:inset 3px 0 0 #1FA855;font-size:13px;line-height:1.45}
 .dc-ok .dc-a{margin-top:8px}
-.dc-none{font-size:12.5px;color:var(--mut);background:var(--card);border-radius:var(--r);
-  padding:11px 12px}
+.dc-none{font-size:12px;color:var(--mut);background:var(--card);border-radius:var(--r);
+  padding:8px 11px}
+/* ── the room's first screen, refined ──────────────────────────────────────
+   The desk is a button at the top; the two long lists fold away with their
+   totals on the fold; Worth a look is three small cards. */
+.rp-bar{display:flex;justify-content:flex-end;margin:0 0 10px}
+.rp-desk{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 15px;border-radius:999px;
+  border:0;background:var(--ink);color:var(--bg,#fff);font:inherit;font-size:13px;font-weight:650;cursor:pointer;
+  box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.rp-desk:active{transform:scale(.97)}
+.rp-desk i{font-style:normal;opacity:.7}
+.rp details.rx{margin-top:15px}
+.rp details.rx > summary{list-style:none;display:flex;align-items:center;gap:10px;cursor:pointer;
+  background:var(--card);border-radius:var(--r);padding:10px 13px;user-select:none}
+.rp details.rx > summary::-webkit-details-marker{display:none}
+.rp details.rx > summary .x-t{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--mut)}
+.rp details.rx > summary .x-m{flex:1;min-width:0;text-align:right;font-size:12.5px;font-weight:650;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rp details.rx > summary .x-c{width:8px;height:8px;border-right:2px solid var(--mut);border-bottom:2px solid var(--mut);
+  transform:rotate(45deg);margin:-4px 2px 0 4px;transition:transform var(--t-fast) var(--ease)}
+.rp details.rx[open] > summary .x-c{transform:rotate(-135deg);margin-top:4px}
+.rp details.rx[open] > summary{border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:4px}
+.rp .wk{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.rp .wk-c{display:flex;flex-direction:column;gap:2px;text-align:left;background:var(--card);border:0;
+  border-radius:var(--r);padding:10px 12px;font:inherit;color:inherit;cursor:pointer;min-width:0;
+  transition:background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease)}
+@media (hover:hover){ .rp .wk-c:hover{background:#FDFDFD} }
+:root[data-theme="dark"] .rp .wk-c:hover{background:#1E2228}
+.rp .wk-c:active{transform:scale(.98)}
+.rp .wk-c b{font-size:18px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.rp .wk-c span{font-size:12px;font-weight:650;line-height:1.3}
+.rp .wk-c small{font-size:11px;color:var(--mut);line-height:1.3}
+@media (max-width:520px){ .rp .wk-c small{display:none} .rp .wk-c{padding:9px 10px} .rp .wk-c b{font-size:16px} }
 .rp .p-p{margin-top:5px}
 
 /* ── THE UNIT TABLE ───────────────────────────────────────────────────────
@@ -7995,7 +8030,7 @@ function showRep() {
   $('rep-gate').hidden = !!REP;
   $('rep-body').innerHTML = REP ? repRender() : '';
   $('rep-as').textContent = REP ? 'as of ' + hhmm(new Date(REP.as_of).getTime()) : '';
-  if (REP) return;
+  if (REP) { roomSaf(); return; }
   /* A REMEMBERED PHONE WALKS IN. The door is drawn first and then opens by
      itself, rather than the page sitting on a blank while it asks: if the key
      has been thrown away at the other end, what is already on screen is the
@@ -8074,7 +8109,7 @@ async function repOpen() {
 var TOKEN = '';           // the SALES SESSION. The link is LINK, up above.
 var ME = null;
 var TAB = 'desk';
-var DESK_SRC = '/js/portal-reserve-desk.js?v=20261013desk';
+var DESK_SRC = '/js/portal-reserve-desk.js?v=20261013pw';
 var DESK_UP = false, DESKV = false;
 /* the portal's own key, on purpose: same origin, same phone, so a director
    already signed into the CRM here is not asked twice */
@@ -8606,7 +8641,7 @@ function decPanel() {
   var H = ['<div class="dc">'];
   H.push('<h2>' + (nDue ? nDue + (nDue === 1 ? ' hold needs' : ' holds need') + ' your decision'
                         : 'Holds waiting for a decision') + '</h2>');
-  H.push('<div class="dc-by">Deciding as <input id="dc-by" type="text" maxlength="60" ' +
+  if (gs.length) H.push('<div class="dc-by">Deciding as <input id="dc-by" type="text" maxlength="60" ' +
          'autocomplete="name" placeholder="Your name" value="' + esc(decBy()) + '"></div>');
   DEC.done.forEach(function (x, i) {
     H.push('<div class="dc-ok">' + x.say + (x.who ? ' Tell <b>' + esc(x.who) + '</b>:' : '') +
@@ -8615,12 +8650,11 @@ function decPanel() {
       (x.card ? '<button class="ext" data-dc="card" data-i="' + i + '">Share picture</button>' : '') +
       '<button class="no" data-dc="dismiss" data-i="' + i + '">Done</button></div></div>');
   });
-  if (due.length) H.push(due.map(decCard).join(''));
-  else H.push('<div class="dc-none">No hold is waiting. When a hold’s time is over it stays held and ' +
-              'appears here for Release or Extend.</div>');
+  if (due.length) H.push('<div class="dc-g">' + due.map(decCard).join('') + '</div>');
+  else H.push('<div class="dc-none">No hold is waiting for a decision.</div>');
   if (soon.length) {
     H.push('<h2>Ending within 24 hours</h2>');
-    H.push(soon.map(decCard).join(''));
+    H.push('<div class="dc-g">' + soon.map(decCard).join('') + '</div>');
   }
   H.push('</div>');
   return H.join('');
@@ -8882,6 +8916,80 @@ function repSubject() {
   if (REPP.view === 'trail')  return 'Unit trail' + (REPP.key ? ' — ' + REPP.key : '');
   return 'Director Level Report';
 }
+/* ── SALE APPROVALS IN THE ROOM ─────────────────────────────────────────────
+   Forms Accounts submitted with a discount. The room password reads them;
+   Approve and Decline ask the director's own approval password, and the
+   server knows from it which director signed. A director sets that password
+   here once, proving who they are with their CRM mobile + PIN (sales_login).
+   js/desk-saf.js draws it; the server decides. */
+var ROOMSAF = { inst: null, loading: false };
+function roomSaf() {
+  if (!REP || !REPPW) return;
+  function go() {
+    if (!ROOMSAF.inst) ROOMSAF.inst = window.DeskSaf.create({
+      sb: sb, esc: esc, toast: toast, title: 'Sale approvals',
+      list: async function () { var r = await sb.rpc('saf_room_list', { p_token: LINK, p_password: REPPW }); return r.data; },
+      get: async function (id) { var r = await sb.rpc('saf_room_get', { p_token: LINK, p_password: REPPW, p_id: id }); return r.data; },
+      phone: function () {
+        try { return localStorage.getItem('nx.portal.remember') === '1' ? (localStorage.getItem('nx.portal.phone') || '') : ''; }
+        catch (e) { return ''; }
+      },
+      approve: async function (id, sign) {
+        var r = await sb.rpc('saf_room_approve', { p_token: LINK, p_password: REPPW, p_id: id, p_sign: sign }); return r.data;
+      },
+      reject: async function (id, why, sign) {
+        var r = await sb.rpc('saf_room_reject', { p_token: LINK, p_password: REPPW, p_id: id, p_reason: why, p_sign: sign }); return r.data;
+      },
+      setPassword: async function (ph, pin, pw) {
+        ph = String(ph).replace(/[\s()\-\.]/g, '');
+        if (/^0\d{10}$/.test(ph)) ph = '+92' + ph.slice(1);
+        else if (/^3\d{9}$/.test(ph)) ph = '+92' + ph;
+        else if (/^92\d{10}$/.test(ph)) ph = '+' + ph;
+        if (!/^\+92\d{10}$/.test(ph)) return { success: false, message: 'Enter your mobile, e.g. 03001234567.' };
+        try {
+          var r = await sb.rpc('sales_login', { p_company_code: deskCo(), p_phone: ph, p_pin: pin });
+          var d = r && r.data;
+          if (!d || !d.success) return { success: false, message: (d && (d.message || d.error)) || 'That mobile and PIN did not work.' };
+          var s = await sb.rpc('saf_room_set_password', { p_token: LINK, p_password: REPPW, p_session_token: d.session_token, p_new: pw });
+          return s.data || { success: false };
+        } catch (e) { return { success: false, message: 'Could not reach the office. Try again.' }; }
+      }
+    });
+    ROOMSAF.inst.bind($('rep-body'));
+    ROOMSAF.inst.mount(document.getElementById('rep-saf'), function () { return document.getElementById('rep-saf'); });
+  }
+  if (window.DeskSaf) { go(); return; }
+  if (ROOMSAF.loading) return;
+  ROOMSAF.loading = true;
+  var sc = document.createElement('script');
+  sc.src = '/js/desk-saf.js?v=20261013pw';
+  sc.onload = function () { ROOMSAF.loading = false; if (window.DeskSaf) go(); };
+  sc.onerror = function () { ROOMSAF.loading = false; };
+  document.head.appendChild(sc);
+}
+
+/* THE LONG LISTS FOLD. Closed by default so the first screen is short; the
+   totals sit on the fold. The room repaints its whole body often, so which
+   folds are open is remembered here, and printing opens them all. */
+var ROOMX = { kind: false, who: false };
+function roomFold(key, title, meta) {
+  return '<details class="rx" data-x="' + key + '"' + (ROOMX[key] ? ' open' : '') + '>' +
+    '<summary><span class="x-t">' + esc(title) + '</span><span class="x-m">' + esc(meta) + '</span>' +
+    '<span class="x-c"></span></summary>';
+}
+document.addEventListener('toggle', function (e) {
+  var d = e.target;
+  if (d && d.matches && d.matches('details.rx[data-x]') && !ROOMX._print) ROOMX[d.getAttribute('data-x')] = d.open;
+}, true);
+window.addEventListener('beforeprint', function () {
+  ROOMX._print = true;
+  [].forEach.call(document.querySelectorAll('details.rx'), function (d) { d.setAttribute('data-was', d.open ? '1' : ''); d.open = true; });
+});
+window.addEventListener('afterprint', function () {
+  [].forEach.call(document.querySelectorAll('details.rx'), function (d) { d.open = d.getAttribute('data-was') === '1'; });
+  setTimeout(function () { ROOMX._print = false; }, 0);
+});
+
 function repRender() {
   var d = REP;
   var t = $('rep-ttl');
@@ -8905,7 +9013,11 @@ function repHome(d) {
   var H = ['<div class="rp">'];
 
   H.push(printHead(d, 'Position summary'));
+  /* the desk, one tap from the top (it used to sit at the foot, under Booking) */
+  H.push('<div class="rp-bar no-print"><button type="button" class="rp-desk" id="rd-door">' +
+    'Open the Reserve Desk <i>\u2192</i></button></div>');
   /* first, what is waiting for a director; the rest of the room is reading */
+  H.push('<div id="rep-saf" class="no-print">' + (ROOMSAF.inst ? ROOMSAF.inst.html() : '') + '</div>');
   H.push(decPanel());
   H.push('<h2>Where the building stands</h2><div class="big">' +
     '<div class="b"><div class="bn">' + num(t.available) + '</div>' +
@@ -8917,7 +9029,8 @@ function repHome(d) {
       '<div class="bs">PKR ' + pkr(t.value_held) + ' committed</div></div>' +
     '</div>');
 
-  H.push('<h2>What is holding it</h2><div class="rows">' +
+  H.push(roomFold('kind', 'What is holding it',
+    by.length + (by.length === 1 ? ' kind' : ' kinds') + ' \u00b7 ' + num(gone) + ' units') + '<div class="rows">' +
     by.map(function (s) {
       return '<button class="row" data-go="kind" data-key="' + esc(s.kind) + '" ' +
         'style="--t:' + tint(skey(s.kind)) + '">' +
@@ -8928,9 +9041,10 @@ function repHome(d) {
     }).join('') + '</div>' +
     (gone ? '<div class="say">' + ((i.ageing && Number(i.ageing.d31_60) + Number(i.ageing.d60) > 0)
         ? 'PKR <b>' + pkr(i.ageing.value_over_30) + '</b> has been off the market for more than a month.'
-        : 'Nothing has been held longer than a month.') + '</div>' : ''));
+        : 'Nothing has been held longer than a month.') + '</div>' : '') + '</details>');
 
-  H.push('<h2>Who is holding it</h2><div class="rows">' +
+  H.push(roomFold('who', 'Who is holding it',
+    num(people.length) + (people.length === 1 ? ' name' : ' names') + ' \u00b7 ' + num(gone) + ' units') + '<div class="rows">' +
     people.map(function (p) {
       var share = gone ? Math.round(p.units * 1000 / gone) / 10 : 0;
       return '<button class="row" data-go="person" data-key="' + esc(p.who) + '">' +
@@ -8938,25 +9052,16 @@ function repHome(d) {
           '<span class="r-s">PKR ' + pkr(p.value) + ' · ' + share + '% of what is taken</span>' +
           '<span class="sh"><i style="width:' + share + '%"></i></span></span>' +
         '<span class="r-n">' + num(p.units) + '</span><span class="r-a"></span></button>';
-    }).join('') + '</div>');
+    }).join('') + '</div></details>');
 
-  H.push('<h2>Worth a look</h2><div class="rows">' +
-    '<button class="row" data-go="ending">' +
-      '<span class="r-m"><span class="r-t">' +
-        (soon.length ? soon.length + ' hold' + (soon.length === 1 ? '' : 's') + ' end within 7 days'
-                     : 'Nothing ends within 7 days') + '</span>' +
-        '<span class="r-s">' + (soon.length
-          ? 'PKR ' + pkr(sum(soon, 'v')) + ' comes back to the floor unless renewed'
-          : 'no hold runs out this week') + '</span></span>' +
-      '<span class="r-a"></span></button>' +
-    '<button class="row" data-go="floors">' +
-      '<span class="r-m"><span class="r-t">What each floor is worth</span>' +
-        '<span class="r-s">floor by floor: worth, what is on the shelf, what is committed</span></span>' +
-      '<span class="r-a"></span></button>' +
-    '<button class="row" data-go="tokens">' +
-      '<span class="r-m"><span class="r-t">Token received</span>' +
-        '<span class="r-s">token money from the books, checked against the unit list</span></span>' +
-      '<span class="r-a"></span></button>' +
+  H.push('<h2>Worth a look</h2><div class="wk">' +
+    '<button class="wk-c" data-go="ending"><b>' + num(soon.length) + '</b>' +
+      '<span>' + (soon.length === 1 ? 'hold ends' : 'holds end') + ' within 7 days</span>' +
+      '<small>' + (soon.length ? 'PKR ' + pkr(sum(soon, 'v')) + ' back unless renewed' : 'nothing runs out this week') + '</small></button>' +
+    '<button class="wk-c" data-go="floors"><b>' + num((d.by_floor || []).length) + '</b>' +
+      '<span>Floors, worth each</span><small>worth, on the shelf, committed</small></button>' +
+    '<button class="wk-c" data-go="tokens"><b>PKR</b>' +
+      '<span>Token received</span><small>from the books, checked against units</small></button>' +
     '</div>');
   /* ONE UNIT'S WHOLE HISTORY, asked for by its code. A form, not a button-row:
      the thing pressed here is a code being typed, and Enter on a phone keyboard
@@ -8972,14 +9077,6 @@ function repHome(d) {
      and it asks to know who is booking before it shows anything. It sits here
      rather than on screen one so that a dealer reading the link never meets
      it — this side of the password is where the people who book are. */
-  H.push('<h2>Booking</h2><div class="rows">' +
-    '<button class="row" id="rd-door">' +
-      '<span class="r-m"><span class="r-t">Open the Reserve Desk</span>' +
-        '<span class="r-s">book, hold, change or release \u2014 the same desk as ' +
-          'the CRM, signed in as you</span></span>' +
-      '<span class="r-a"></span></button>' +
-    '</div>');
-
   H.push(repTools('Position summary'));
   /* AND THE WAY OUT OF BEING REMEMBERED. A phone that lets its owner in
      without asking has to let them take that back, in the room itself, where
@@ -9227,7 +9324,7 @@ function repFloorPage(d) {
 
   return '<div class="rp">' + printHead(d, 'What each floor is worth') +
     '<h2>Director Level Report</h2>' +
-    '<div class="wl">' + f.map(function (r) {
+    '<div class="wk">' + f.map(function (r) {
       var share = big ? Math.round((Number(r.value) || 0) * 100 / big) : 0;
       var takenPc = r.units ? Math.round(r.held * 1000 / r.units) / 10 : 0;
       return '<div class="wf">' +

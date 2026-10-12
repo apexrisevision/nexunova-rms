@@ -4,8 +4,11 @@
    One line of hands, each seeing only their part:
      Accounts  prepares the form and submits it (submit = Accounts confirms
                the money; the NexuFinance lines are re-read at that moment)
-     Director  Rashid signs on his Reserve Desk (js/desk-saf.js), not here.
-               The owner / admin login sees the forms read-only.
+     Director  only when a discount is given: one of the three directors signs
+               in the Directors' Room on the reservation link with their own
+               approval password (js/desk-saf.js), or declines with a reason.
+               At full price, submit approves it and it goes straight to Filing.
+               The owner / admin login here only reads.
      Filing    (Users & Roles → "Sale Approval — Filing") prints the approved
                PDF, marks the file done, and makes the sale entry from it
 
@@ -286,9 +289,7 @@
         (f.plan_type === 'half_50' ? inp('installment_count', 'Number of installments', f.installment_count, 'number', 'min="1" max="120"') : '') +
         (f.plan_type !== 'custom' && f.plan_type !== 'full_100' ? inp('balloon_amount', 'Possession amount (optional)', f.balloon_amount || '', 'number', 'min="0"') : '') +
         inp('discount_amount', 'Discount (PKR)', f.discount_amount, 'number', 'min="0"') + '</div>';
-    if (Number(f.discount_amount) > 0) html += '<div class="sf-grid" style="margin-top:10px">' + inp('discount_reason', 'Discount reason', f.discount_reason || '') +
-      (f.discount_beyond_standard ? sel('discount_approved_by', 'Discount allowed by (director)', f.discount_approved_by,
-         [['', '— pick a director —']].concat(((S2.list && S2.list.directors) || []).map(function (d) { return [d.id, d.name]; }))) : '') + '</div>';
+    if (Number(f.discount_amount) > 0) html += '<div class="sf-grid" style="margin-top:10px">' + inp('discount_reason', 'Discount reason', f.discount_reason || '') + '</div>';
     if (f.plan_type === 'custom') html += customEditor(f);
     html += '<div class="sf-grid" style="margin-top:12px">' + kv('Plan', esc((PLAN[f.plan_type] || [f.plan_type])[0])) +
       kv('Discount', pkr(f.discount_amount) + ' <span class="sf-m">(' + pct(f.discount_pct) + ', plan ' + pct(f.standard_discount_pct) + ')</span>', f.discount_beyond_standard ? 'sf-red' : '') +
@@ -317,9 +318,12 @@
       '<div class="sf-grid" style="margin-top:12px">' + kv('Commission', pct(f.commission_pct) + ' = ' + pkr(f.commission_amount)) + kv('Payable', esc(f.commission_payable_when)) + '</div></div>';
 
     html += '<div class="sf-acts">' + NX.button('Save draft', { variant: 'secondary', onclick: '_safSave()' }) +
-      NX.button('Submit to director', { variant: 'primary', icon: 'send', onclick: '_safAct(\'submit\')' }) +
+      NX.button(Number(f.discount_amount) > 0 ? 'Submit for director approval' : 'Submit to Filing', { variant: 'primary', icon: 'send', onclick: '_safAct(\'submit\')' }) +
       NX.button('Discard draft', { variant: 'ghost', onclick: '_safAct(\'cancel\')' }) +
-      '<span class="sf-m">Submitting confirms the money above matches NexuFinance, in your name.</span></div>';
+      '<span class="sf-m">' + (Number(f.discount_amount) > 0
+        ? 'A discount is given, so a director must approve it before Filing.'
+        : 'Full list price: no director approval is needed, it goes straight to Filing.') +
+      ' Submitting confirms the money above matches NexuFinance, in your name.</span></div>';
     $('sf-body').innerHTML = html;
   }
 
@@ -328,12 +332,12 @@
     var me = S2.me || {};
     var html = '<div class="sf-h">' + NX.button('‹ All forms', { variant: 'ghost', size: 'sm', onclick: 'rSaf()' }) +
       '<h2>' + esc(f.saf_no) + '</h2>' + st(f) + '<span class="sf-m">' + esc(f.unit_code) + ' · ' + esc(f.buyer_name || '') + '</span></div>';
-    if (f.status === 'rejected') html += '<div class="sf-flag"><b>Sent back</b> by ' + esc(f.rejected_by_name) + ', ' + dt(f.rejected_at) + ': ' + esc(f.reject_reason) + '</div>';
+    if (f.status === 'rejected') html += '<div class="sf-flag"><b>Declined</b> by ' + esc(f.rejected_by_name) + ', ' + dt(f.rejected_at) + ': ' + esc(f.reject_reason) + '</div>';
     html += '<div class="sf-doc"><div><iframe class="sf-pdf" id="sf-pdf" title="Sale Approval Form"></iframe></div><div class="sf-side">';
 
     var a = [];
     if (f.status === 'submitted' || f.status === 'verified')
-      a.push('<div class="sf-m">Waiting for Rashid. He approves or sends it back on his Reserve Desk.</div>');
+      a.push('<div class="sf-m">Waiting for a director. They approve or send it back in the Directors\' Room on the reservation link.</div>');
     if (me.filing && f.status === 'approved') {
       a.push(NX.button('Print / download PDF', { variant: f.filed_at ? 'secondary' : 'primary', icon: 'printer', onclick: '_safPrint()' }));
       if (!f.filed_at) a.push(NX.button('Mark as filed', { variant: 'secondary', icon: 'check', onclick: '_safAct(\'filed\')' }));
@@ -348,7 +352,8 @@
     var steps = [
       ['Prepared', f.prepared_by_name, f.prepared_at],
       ['Submitted · money confirmed', f.accounts_verified_by_name || f.submitted_by_name, f.accounts_verified_at || f.submitted_at],
-      ['Approved · digitally signed', f.approved_by_name, f.approved_at],
+      f.approval_route === 'plan' ? ['Approved · full price, no director needed', 'At the list price', f.approved_at]
+                                  : ['Approved · digitally signed', f.approved_by_name, f.approved_at],
       ['Printed and filed', f.filed_by_name, f.filed_at],
       ['Sale entry', f.sale_number, f.sale_id ? ' ' : null]
     ];
@@ -406,7 +411,7 @@
     var f = S2.cur, r;
     if (what === 'submit') {
       if (Object.keys(S2.draft).length && !(await window._safSave())) return;
-      if (!confirm('Submit ' + f.saf_no + ' to Rashid for approval? You confirm the money on it matches NexuFinance.')) return;
+      if (!confirm('Submit ' + f.saf_no + (Number(f.discount_amount) > 0 ? ' for director approval?' : ' to Filing? It is at the full list price, so no director approval is needed.') + ' You confirm the money on it matches NexuFinance.')) return;
       r = await rpc('saf_submit', { p_id: f.id });
     } else if (what === 'cancel') {
       if (!confirm('Discard draft ' + f.saf_no + '?')) return;
@@ -424,7 +429,7 @@
     }
     if (r && r.saf) { S2.cur = r.saf; S2.draft = {}; draw(); }
     if (!r || !r.success) { say((r && (r.message || r.error)) || 'That did not work.', 'err'); return; }
-    say({ submit: 'Submitted. It is waiting on Rashid\'s desk.', supersede: 'New draft started', filed: 'Marked as filed' }[what] || 'Done');
+    say({ submit: r.saf && r.saf.status === 'approved' ? 'Submitted. Full price, so it has gone straight to Filing.' : 'Submitted. It is waiting for a director.', supersede: 'New draft started', filed: 'Marked as filed' }[what] || 'Done');
     refreshBadge();
   };
 
@@ -432,7 +437,7 @@
   async function loadShared() {
     if (window.SafPdf) return;
     await new Promise(function (res, rej) {
-      var x = document.createElement('script'); x.src = 'js/saf-pdf.js?v=20261013desk';
+      var x = document.createElement('script'); x.src = 'js/saf-pdf.js?v=20261013pw';
       x.onload = res; x.onerror = function () { rej(new Error('The PDF drawing did not load.')); };
       document.head.appendChild(x);
     });

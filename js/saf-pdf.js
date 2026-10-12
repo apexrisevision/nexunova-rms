@@ -73,9 +73,11 @@
     // where the form stands, in one line
     var state, stateCol;
     if (f.status === 'superseded') { state = 'SUPERSEDED by ' + (f.superseded_by_no || 'a newer form') + ' - not valid'; stateCol = RED; }
+    else if (f.status === 'approved' && f.approval_route === 'plan') { state = 'APPROVED - full list price, no director approval needed - ' + pdate(f.approved_at, true); stateCol = GREEN; }
     else if (f.status === 'approved') { state = 'APPROVED - digitally signed by ' + f.approved_by_name + ' on ' + pdate(f.approved_at, true); stateCol = GREEN; }
-    else if (f.status === 'rejected') { state = 'SENT BACK by ' + f.rejected_by_name + ': ' + String(f.reject_reason || '').slice(0, 70); stateCol = RED; }
-    else { state = 'AWAITING DIRECTOR APPROVAL - not valid until signed'; stateCol = AMBER; }
+    else if (f.status === 'rejected') { state = 'DECLINED by ' + f.rejected_by_name + ': ' + String(f.reject_reason || '').slice(0, 70); stateCol = RED; }
+    else if (f.status === 'submitted' || f.status === 'verified') { state = 'AWAITING DIRECTOR APPROVAL (discount given) - not valid until signed'; stateCol = AMBER; }
+    else { state = 'DRAFT - not submitted'; stateCol = AMBER; }
     page.drawRectangle({ x: M, y: y - 6, width: W - 2 * M, height: 20, borderColor: stateCol, borderWidth: 1 });
     t(state, M + 8, y, 9, bold, stateCol); y -= 26;
 
@@ -88,8 +90,7 @@
     pairs([['Plan', (PLAN[f.plan_type] || [f.plan_type])[0]], ['Discount', pnum(f.discount_amount) + ' (' + (Math.round(f.discount_pct * 100) / 100) + '%)', beyond ? RED : null],
            ['Net price', pnum(f.net_price), INK], ['Sale date', pdate(f.sale_date)]]);
     if (Number(f.discount_amount) > 0)
-      pairs([['Discount reason', f.discount_reason || '-', beyond ? RED : null], ['Plan discount', f.standard_discount_pct + '%'],
-             ['Discount allowed by', f.discount_approved_by_name || (beyond ? '-' : 'Price poster'), beyond ? RED : null], null]);
+      pairs([['Discount reason (director approval needed)', String(f.discount_reason || '-').slice(0, 95), RED]], 1);
 
     head('Buyer');
     pairs([['Name', f.buyer_name, INK], [f.buyer_relation || 'S/O', f.buyer_father], ['CNIC', f.buyer_cnic], ['Phone', f.buyer_phone]]);
@@ -133,11 +134,13 @@
     y -= 8; var bw = (W - 2 * M - 20) / 3, bh = 70;
     [['Agent', f.agent_name, null, false],
      ['Accounts (money confirmed)', f.accounts_verified_by_name || f.submitted_by_name, f.accounts_verified_at || f.submitted_at, true],
-     ['Director (approved)', f.approved_by_name, f.approved_at, true]]
-      .forEach(function (b, i) { var x = M + i * (bw + 10), signed = b[3] && b[2];
+     ['Director (approved)', f.approval_route === 'plan' ? 'Not needed' : f.approved_by_name, f.approved_at, true]]
+      .forEach(function (b, i) { var x = M + i * (bw + 10), signed = b[3] && b[2],
+            byPlan = i === 2 && f.approval_route === 'plan' && b[2];
         page.drawRectangle({ x: x, y: y - bh, width: bw, height: bh, borderColor: signed ? GREEN : LINE, borderWidth: signed ? 1 : 0.8 });
         t(b[0].toUpperCase(), x + 8, y - 13, 7, bold, MUTE);
-        if (signed) { t('DIGITALLY SIGNED', x + 8, y - 30, 8, bold, GREEN); }
+        if (byPlan) { t('FULL PRICE - NOT NEEDED', x + 8, y - 30, 8, bold, GREEN); }
+        else if (signed) { t('DIGITALLY SIGNED', x + 8, y - 30, 8, bold, GREEN); }
         page.drawLine({ start: { x: x + 8, y: y - bh + 24 }, end: { x: x + bw - 8, y: y - bh + 24 }, thickness: 0.5, color: LINE });
         t(b[1] || '', x + 8, y - bh + 12, 8.5, signed ? bold : reg);
         t(b[2] ? pdate(b[2], true) : 'Date:', x + 8, y - bh + 3, 7, reg, MUTE); });

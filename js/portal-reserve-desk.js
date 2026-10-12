@@ -878,7 +878,6 @@
           '<button class="rd-chip" id="rd-daybook">' + li('fileText', 15) + ' Daybook</button>' +
         '</div>' +
 
-        '<div id="rd-saf"></div>' +
         '<div id="rd-reqs" class="rq"></div>' +
         '<div id="rd-pays" class="rq"></div>' +
 
@@ -967,7 +966,6 @@
     _paintCart();
     _paintReqs();
     _paintPays();
-    _mountSaf();
     _paintToday();
     _paintUnalloc();
     var u = _q('#rd-unit'); if (u) { try { u.focus(); } catch (e) {} }
@@ -3751,7 +3749,6 @@
   var WATCH = { t: null, on: false, stop: false };
 
   function _badge(n) {
-    n = (n || 0) + (SAFN.n || 0);
     var b = document.getElementById('nav-badge-requests');
     if (!b) return;
     if (n > 0) {
@@ -3768,30 +3765,6 @@
        set somewhere nobody can see. A dot says there is something in there. */
     var burger = document.querySelector('.sb-toggle');
     if (burger) burger.classList.toggle('has-req', n > 0);
-  }
-
-  /* SALE APPROVALS. Forms Accounts submitted in the RMS wait here for Rashid's
-     signature (js/desk-saf.js, fetched the first time the desk paints). The
-     count rides on this badge; a sign-in the server refuses is not asked again. */
-  var SAFN = { n: 0, off: false };
-  async function _safTick() {
-    if (SAFN.off) return;
-    try {
-      var r = await sb.rpc('saf_desk_list', { p_session_token: TOKEN });
-      var d = r && r.data;
-      if (d && d.success) SAFN.n = Number(d.waiting || 0);
-      else if (d && d.error === 'forbidden') { SAFN.off = true; SAFN.n = 0; }
-    } catch (e) {}
-  }
-  function _mountSaf() {
-    var el = _q('#rd-saf'); if (!el || SAFN.off) return;
-    var ctx = { sb: sb, token: function () { return TOKEN; }, esc: esc, toast: toast,
-                onCount: function (n) { SAFN.n = n; _badge((DESK.reqs || []).length); } };
-    if (window.DeskSaf) { window.DeskSaf.mount(el, ctx); return; }
-    var sc = document.createElement('script');
-    sc.src = '/js/desk-saf.js?v=20261013desk';
-    sc.onload = function () { if (window.DeskSaf && _q('#rd-saf')) window.DeskSaf.mount(_q('#rd-saf'), ctx); };
-    document.head.appendChild(sc);
   }
 
   async function _watchTick() {
@@ -3817,7 +3790,6 @@
 
     var was = (DESK.reqs || []).map(function (x) { return x.id; }).join(',');
     DESK.reqs = d.requests || [];
-    await _safTick();
     _badge(DESK.reqs.length);
 
     /* Repaint only if the desk is on screen AND the set actually changed —
