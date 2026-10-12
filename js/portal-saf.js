@@ -78,7 +78,7 @@
       ".sf-pick div{padding:9px 12px;border-bottom:1px solid var(--fk-border);cursor:pointer;display:flex;gap:10px}" +
       ".sf-pick div:hover{background:var(--fk-bg-subtle)}" +
       ".sf-sig{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}" +
-      ".sf-sig div{border:1px solid var(--fk-border);border-radius:10px;padding:10px 12px;min-height:64px}" +
+      ".sf-sig>div{border:1px solid var(--fk-border);border-radius:10px;padding:10px 12px;min-height:64px}" +
       ".sf-sig span{display:block;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--fk-text-muted)}";
     document.head.appendChild(st);
   })();
@@ -579,4 +579,5 @@
     } catch (e) { say('The PDF could not be made: ' + e.message, 'err'); }
   };
   window._safBuildPdf = buildPdf;   // for the verification script
+  window._safCur = function () { return S.cur; };
 })();
