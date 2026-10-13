@@ -582,6 +582,8 @@
       ".rds .rd-go{height:42px}" +
       ".rds .rq-a{margin-top:8px;gap:6px}" +
       ".rds .rq-a button{height:32px;border-radius:8px;font-size:12.5px}" +
+      ".rq-sold{margin-top:8px;font-size:12px;line-height:1.4;color:var(--fk-warning,#b45309);" +
+        "background:var(--fk-warning-surface,#fffbeb);border:1px solid var(--fk-warning-edge,#fcd34d);border-radius:8px;padding:6px 9px}" +
       /* not allocated: folded, the total on the fold */
       ".rds-un details > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:7px}" +
       ".rds-un details > summary::-webkit-details-marker{display:none}" +
@@ -3416,6 +3418,20 @@
      kia hai". A card speaks for several units only when they all asked for the
      same status; and the status has to be one this desk may apply, or the one
      tap would be a tap that fails. */
+  /* SOLD WAITS FOR ITS FORM (Rashid, 2026-10-13: keep the guard, give a V.Hold
+     button). Where Sale Approval Forms are on, a unit is not moved to Sold -
+     Entry Pending, Sold or Booked without a buyer and agent on its hold or an
+     approved form, and a link request carries neither. So a request asking
+     for one of those is offered as V.Hold in one tap; Other\u2026 still lists
+     every tag, and the server still decides. */
+  var SOLD_LIKE = { SOLD_ENTRY_PENDING: 1, SOLD: 1, BOOKED: 1 };
+  function _tagById(id) { return _tags().filter(function (x) { return x.id === id; })[0] || null; }
+  function _holdTag() { return _tags().filter(function (x) { return String(x.code).toUpperCase() === 'HOLD'; })[0] || null; }
+  function _holdFor(askId) {
+    var t = askId && _tagById(askId);
+    return (t && SOLD_LIKE[String(t.code).toUpperCase()]) ? _holdTag() : null;
+  }
+
   function _askOf(rows) {
     var id = rows[0] && rows[0].asked_status_id;
     if (!id) return null;
@@ -3469,6 +3485,7 @@
                    (DESK.reqSel[g.key] ? ' checked' : '') + '>';
         var ask = _askOf(g.rows);
         var askTxt = ask ? ask.tag + (ask.when ? ' · ' + ask.when : '') : '';
+        var hold = ask && _holdFor(ask.id);   // a Sold-like ask is offered as V.Hold
 
         return '<div class="rq-c' + (isChg ? ' chg' : '') +
                (DESK.reqSel[g.key] ? ' sel' : '') + '" data-r="' + esc(ids) +
@@ -3528,8 +3545,16 @@
              director's only decision is yes or no. "Other\u2026" still opens the
              full list for the rare time the answer is "yes, but as something
              else". */
+          (hold ? '<div class="rq-sold">' + esc(ask.tag) + ' needs an approved Sale Approval Form. ' +
+                  'Hold it as V.Hold now; Sold comes when the form is approved.</div>' : '') +
           '<div class="rq-a">' +
-            (ask
+            (hold
+              ? '<button class="ok" data-act="approveask" data-tag="' + esc(hold.id) + '"' +
+                  ((isChg || free) ? '' : ' disabled') + '>Approve' + (many ? ' ' + free : '') +
+                  ' as ' + esc(hold.name) + '</button>' +
+                '<button class="alt" data-act="approve"' + ((isChg || free) ? '' : ' disabled') +
+                  ' title="Approve as a different status">Other\u2026</button>'
+            : ask
               ? '<button class="ok" data-act="approveask" data-tag="' + esc(ask.id) + '"' +
                   ((isChg || free) ? '' : ' disabled') + '>Approve' + (many ? ' ' + free : '') +
                   ' as ' + esc(askTxt) + '</button>' +
@@ -3684,8 +3709,9 @@
       var byTag = {}, order = [];
       gs.forEach(function (g) {
         var a = _askOf(g.rows); if (!a) return;
-        if (!byTag[a.id]) { byTag[a.id] = []; order.push(a.id); }
-        g.rows.forEach(function (x) { byTag[a.id].push(x.id); });
+        var h = _holdFor(a.id), tid = h ? h.id : a.id;
+        if (!byTag[tid]) { byTag[tid] = []; order.push(tid); }
+        g.rows.forEach(function (x) { byTag[tid].push(x.id); });
       });
       /* Every call first, then ONE reload. Reloading between them repainted
          the queue under the loop and the second status was never sent. */
