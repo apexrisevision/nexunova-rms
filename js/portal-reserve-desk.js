@@ -1632,6 +1632,16 @@
     return { kind: 'free', id: null, name: raw, _label: raw };
   }
 
+  /* WHAT THE SERVER ACTUALLY SAID. A refusal raised inside the database (the
+     Sold guard, for one) comes back as an error with no data; it used to be
+     shown as "Could not reach the server", which sent people hunting for a
+     network problem that was not there. Only a call that never got an answer
+     is a connection problem. */
+  function _rpcWhy(res, fallback) {
+    var m = res && res.error && (res.error.message || res.error.details);
+    return m ? String(m) : fallback;
+  }
+
   /* 03001234567 / +92 300 1234567 / 923001234567 -> 923001234567, else null */
   function _waNorm(v) {
     var d = String(v || '').replace(/[^0-9]/g, '');
@@ -3063,7 +3073,7 @@
 
     var d = res && res.data;
     if (!d) {
-      toast('Could not reach the server. Nothing was booked.', 'err');
+      toast(_rpcWhy(res, 'Could not reach the server.') + ' Nothing was booked.', 'err');
       if (_alive('desk')) _paintCart();
       return;
     }
@@ -3220,7 +3230,7 @@
     }
 
     if (!d || !d.success) {
-      var msg = (d && (d.message || d.error)) || 'Could not reserve. Please try again.';
+      var msg = (d && (d.message || d.error)) || _rpcWhy(res, 'Could not reserve. Please try again.');
       toast(msg, 'err');
       if (d && d.error === 'whatsapp_required') _waMissing();
       // the cache disagreed with the database — the database is right
@@ -3768,7 +3778,7 @@
     if (d && d.error === 'session_expired') return sessionGone();
     var rows = (d && d.results) || [];
     if (rows[0] && rows[0].error === 'session_expired') return sessionGone();
-    if (!d) { toast('Could not reach the server.', 'err'); return _refreshReqs(); }
+    if (!d) { toast(_rpcWhy(res, 'Could not reach the server.'), 'err'); return _refreshReqs(); }
 
     /* Named, not counted. Which two of the eight failed is the only part of
        this answer somebody has to act on. */
@@ -3817,7 +3827,7 @@
     var d = res && res.data;
 
     if (d && d.error === 'session_expired') return sessionGone();
-    if (!d) { toast('Could not reach the server.', 'err'); return _refreshReqs(); }
+    if (!d) { toast(_rpcWhy(res, 'Could not reach the server.'), 'err'); return _refreshReqs(); }
 
     if (d.success && d.status === 'approved') {
       var bk = d.booking || {};
