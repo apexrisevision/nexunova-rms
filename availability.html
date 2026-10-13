@@ -8632,6 +8632,11 @@ function decMsg(kind, who, ns, until) {
     return hi + 'Your hold on ' + decList(ns) + ' ends ' + until + '. ' +
            'Kindly convert ' + (ns.length === 1 ? 'it' : 'them') + ' to a sale, ' +
            'or ask the office for more time.' + by;
+  /* the hold's time is over and it is still held, waiting on the room */
+  if (kind === 'overdue')
+    return hi + 'Your hold on ' + decList(ns) + ' has run out and is waiting for a decision. ' +
+           'Kindly convert ' + (ns.length === 1 ? 'it' : 'them') + ' to a sale today, ' +
+           'or ask the office for more time.' + by;
   if (kind === 'extend')
     return hi + 'Your hold on ' + decList(ns) + ' has been extended until ' + until + '. ' +
            'Kindly convert ' + (ns.length === 1 ? 'it' : 'them') + ' to a sale before then.' + by;
@@ -8656,6 +8661,7 @@ function decCard(g) {
            ? 'WhatsApp ' + esc(decShowPhone(g.phone)) + ' <button data-dc="ph">change</button>'
            : '<button data-dc="ph">Add WhatsApp number</button>') + '</span></div>');
   if (open === 'ph') {
+    if (!decPhone(g.phone)) H.push('<div class="dc-q">Add ' + esc(g.who || 'their') + '\u2019s WhatsApp number to send a reminder.</div>');
     H.push('<div class="dc-f"><input id="dc-ph" type="tel" inputmode="tel" ' +
       'placeholder="03xx-xxxxxxx" value="' + esc(decShowPhone(g.phone)) + '"></div>' +
       '<div class="dc-a" style="margin-bottom:8px"><button class="ext" data-dc="ph-save">Save number</button>' +
@@ -8691,10 +8697,17 @@ function decCard(g) {
              d + (d === 1 ? ' day' : ' days') + '</button>' +
            '<button class="no" data-dc="close">Cancel</button></div>');
   } else if (open !== 'ph') {
-    var remind = decMsg('remind', g.who, ns, lapseWhen(first.x));
-    H.push('<div class="dc-a">' +
-      (g.due ? '<button class="rel" data-dc="rel"' + (ns.length ? '' : ' disabled') + '>Release</button>'
-             : '<a class="wa" target="_blank" rel="noopener" href="' + esc(decWa(g.phone, remind)) + '">Remind<span class="dc-lg">&nbsp;on WhatsApp</span></a>') +
+    /* REMIND ON EVERY CARD (Rashid, 2026-10-13: "i can't remind them on
+       whatsapp"). A hold whose time is over gets the overdue message; with
+       no number on record the button asks for the number first, and once
+       it is saved the card offers the message. */
+    var msgs = (ns.length ? ns : g.units.map(function (u) { return u.n; }));
+    var remind = g.due ? decMsg('overdue', g.who, msgs) : decMsg('remind', g.who, msgs, lapseWhen(first.x));
+    var waBtn = decPhone(g.phone)
+      ? '<a class="wa" target="_blank" rel="noopener" href="' + esc(decWa(g.phone, remind)) + '">Remind<span class="dc-lg">&nbsp;on WhatsApp</span></a>'
+      : '<button class="wa" data-dc="ph" title="Add their WhatsApp number to send a reminder">Remind<span class="dc-lg">&nbsp;on WhatsApp</span></button>';
+    H.push('<div class="dc-a">' + waBtn +
+      (g.due ? '<button class="rel" data-dc="rel"' + (ns.length ? '' : ' disabled') + '>Release</button>' : '') +
       '<button class="ext" data-dc="ext"' + (ns.length ? '' : ' disabled') + '>Extend</button></div>');
   }
   if (DEC.err[g.g]) H.push('<div class="dc-e">' + esc(DEC.err[g.g]) + '</div>');

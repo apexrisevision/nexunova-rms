@@ -74,6 +74,18 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
           (c.id || c.className || c.tagName) + '  ' + (c.textContent || '').trim().slice(0, 40).replace(/\s+/g, ' ')));
         return out.join('\n'); }));
       if (name === 'desktop') {
+        /* every hold card can remind: a number opens WhatsApp with the
+           message, no number opens the number box */
+        console.log('remind:', JSON.stringify(await pg.evaluate(() => [].map.call(document.querySelectorAll('.dc-c'), c => {
+          const w = c.querySelector('.dc-a .wa');
+          return { who: c.querySelector('.dc-w').textContent, remind: w ? (w.tagName === 'A' ? decodeURIComponent((w.getAttribute('href') || '').split('?text=')[1] || '').slice(0, 70) : 'asks for the number') : 'NONE' };
+        }))));
+        const noPhone = await pg.$('.dc-c button.wa[data-dc="ph"]');
+        if (noPhone) {
+          await noPhone.click(); await new Promise(r => setTimeout(r, 300));
+          console.log('no-number remind opens:', await pg.evaluate(() => { const f = document.getElementById('dc-ph'); const q = f && f.closest('.dc-c').querySelector('.dc-q'); return f ? 'number box · ' + (q ? q.textContent : '') : 'nothing'; }));
+          await pg.evaluate(() => decPaint());
+        }
         /* a fold opened stays open when the room redraws itself */
         await pg.click('details.rx[data-x="who"] > summary');
         const kept = await pg.evaluate(() => { decPaint(); const d = document.querySelector('details.rx[data-x="who"]'); return { open: d.open, rows: d.querySelectorAll('.row').length, other: document.querySelector('details.rx[data-x="kind"]').open }; });
