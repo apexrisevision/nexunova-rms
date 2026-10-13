@@ -72,6 +72,22 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
       }, C);
       await pg.waitForSelector('#rd-root', { timeout: 20000 });
       await new Promise(r => setTimeout(r, 1200));
+      // CHG="UNIT": open the Change panel on that held unit and pick Sold - Entry Pending
+      if (process.env.CHG) {
+        await pg.type('#rd-unit', process.env.CHG);
+        await new Promise(r => setTimeout(r, 500));
+        await pg.click('[data-chg]');
+        await new Promise(r => setTimeout(r, 300));
+        const picked = await pg.evaluate(() => {
+          const b = [].find.call(document.querySelectorAll('[data-chgtag]'), x => /Sold - Entry Pending/.test(x.textContent));
+          if (b) b.click();
+          const by = document.querySelector('[data-chgbuyer]');
+          return { tag: b ? b.textContent : null, buyerBoxShown: by ? !by.hidden : null };
+        });
+        console.log(name, 'change panel:', JSON.stringify(picked));
+        await new Promise(r => setTimeout(r, 300));
+        await pg.screenshot({ path: path.join(OUT, TAG + '-' + name + '-change.png') });
+      }
       // REQ="name": type a requester, and print what the WhatsApp line says
       if (process.env.REQ) {
         await pg.type('#rd-req', process.env.REQ);

@@ -1549,6 +1549,14 @@
             esc((u && u.h && u.h.who) || '') + '">' +
           '<input type="number" data-chgdays min="1" max="365" placeholder="days" hidden>' +
         '</div>' +
+        /* SOLD NEEDS A BUYER (the Sold guard): shown only for Sold - Entry
+           Pending, Sold or Booked, where the server refuses a hold with no
+           buyer name and no linked agent. */
+        '<div class="rd-chgr" data-chgbuyer hidden>' +
+          '<input type="text" data-chgcname placeholder="Buyer name (needed for Sold)" value="' +
+            esc((u && u.h && u.h.client) || '') + '">' +
+          '<input type="tel" data-chgcphone inputmode="tel" placeholder="Buyer phone">' +
+        '</div>' +
         '<div class="rd-chgr">' +
           '<button type="button" data-chgdo disabled>Change</button>' +
           '<button type="button" data-chgno class="rd-chip">Cancel</button>' +
@@ -1565,6 +1573,8 @@
     var temp = btn.getAttribute('data-nature') === 'temporary';
     var days = _q('[data-chgdays]');
     if (days) { days.hidden = !temp; if (temp && !days.value) days.value = 7; }
+    var buyer = _q('[data-chgbuyer]');
+    if (buyer) buyer.hidden = !_holdFor(DESK.chg.tag);   // a Sold-like tag asks for the buyer
     var go = _q('[data-chgdo]'); if (go) go.disabled = false;
   }
 
@@ -1575,11 +1585,22 @@
     var whoEl = _q('[data-chgwho]');
     var days = (daysEl && !daysEl.hidden && Number(daysEl.value) > 0) ? Number(daysEl.value) : null;
     var who = whoEl ? String(whoEl.value || '').trim() : '';
+    var soldLike = !!_holdFor(c.tag);
+    var cname = soldLike ? String((_q('[data-chgcname]') || {}).value || '').trim() : '';
+    var cphone = soldLike ? String((_q('[data-chgcphone]') || {}).value || '').trim() : '';
+    if (soldLike && !cname) {
+      toast('Write the buyer\u2019s name \u2014 a unit is not marked Sold without one.', 'err');
+      var ce = _q('[data-chgcname]'); if (ce) ce.focus();
+      return;
+    }
+    /* the name, matched to exactly one agent or member, links the hold to them */
+    var hit = who ? (DESK.reqByLabel[who.toLowerCase()] || []) : [];
+    var rq = hit.length === 1 ? hit[0] : null;
     var picked = _q('[data-chgtag].on');
     var permNow = picked && picked.getAttribute('data-nature') === 'permanent';
     var okc = await _askOk('Change this unit?',
       _sayWhat([c.n], picked ? picked.textContent.replace(/\s*∞$/, '').trim() : null,
-               permNow, days, who, null)
+               permNow, days, who, cname || null)
         .concat(['Whatever is on it now ends with this change']),
       'OK, change');
     if (!okc) return;
@@ -1588,14 +1609,17 @@
     try {
       res = await sb.rpc('change_unit_status_desk', {
         p_session_token: TOKEN, p_unit_id: c.id, p_unit_status_id: c.tag,
-        p_expiry_days: days, p_requested_by_name: who || null
+        p_expiry_days: days, p_requested_by_name: who || null,
+        p_requested_by_agent_id: rq && rq.kind === 'agent' ? rq.id : null,
+        p_requested_by_sales_user_id: rq && rq.kind === 'user' ? rq.id : null,
+        p_client_name: cname || null, p_client_phone: cphone || null
       });
     } catch (e) { res = null; }
     var d = res && res.data;
     if (d && d.error === 'session_expired') return sessionGone();
     if (!d || !d.success) {
       if (go) { go.disabled = false; go.textContent = 'Change'; }
-      return toast((d && (d.message || d.error)) || ('Could not change ' + c.n), 'err');
+      return toast((d && (d.message || d.error)) || _rpcWhy(res, 'Could not change ' + c.n), 'err');
     }
     toast(c.n + ' is now ' + (d.tag || 'changed') +
           (d.expiry_days ? ' for ' + d.expiry_days + ' days' : ''), 'ok');
