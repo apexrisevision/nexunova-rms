@@ -1401,6 +1401,17 @@ function printPaymentStatement(data) {
   if (!w) return;
 
   var h = _lh('PAYMENT ACCOUNT STATEMENT');
+  // Printed black and white (Rashid, 2026-10-14): every word in black, no pale
+  // or coloured text; the TOTAL row black on white with a heavy rule above it
+  h += '<style>' +
+    '.body,.body *{color:#000 !important}' +
+    '.body th{background:#e5e7eb !important;color:#000 !important;border-bottom:1.5px solid #000}' +
+    '.body td{border-bottom:1px solid #9ca3af}' +
+    '.body .badge{background:none !important;border:1px solid #000;color:#000 !important}' +
+    '.body tr.ps-total td{background:#fff !important;color:#000 !important;font-weight:700;font-size:11px;border-top:2px solid #000;border-bottom:2px solid #000}' +
+    '.body .ig-lbl{color:#000 !important}' +
+    '.body .info-grid{background:#fff;border:1px solid #000}' +
+    '</style>';
   h += '<div class="body">';
 
   // Title
@@ -1473,11 +1484,11 @@ function printPaymentStatement(data) {
     h += '<td><span class="badge badge-'+(rStat==='paid'?'ok':rStat==='overdue'?'err':'warn')+'">'+(statusLabel[rStat]||rStat)+'</span></td></tr>';
   });
   // Totals row
-  h += '<tr style="background:#1E2D47;color:#fff;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">';
-  h += '<td colspan="4" style="color:#fff">TOTAL</td>';
-  h += '<td class="r" style="color:#fff">'+totalDueCol.toLocaleString('en-US')+'</td>';
-  h += '<td class="r" style="color:#86efac">'+totalPaidCol.toLocaleString('en-US')+'</td>';
-  h += '<td class="r" style="color:'+(totalOutCol>0?'#fca5a5':'#86efac')+'">'+totalOutCol.toLocaleString('en-US')+'</td>';
+  h += '<tr class="ps-total">';
+  h += '<td colspan="4">TOTAL</td>';
+  h += '<td class="r">'+totalDueCol.toLocaleString('en-US')+'</td>';
+  h += '<td class="r">'+totalPaidCol.toLocaleString('en-US')+'</td>';
+  h += '<td class="r">'+totalOutCol.toLocaleString('en-US')+'</td>';
   h += '<td></td></tr>';
   h += '</tbody></table>';
 
