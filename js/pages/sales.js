@@ -2687,6 +2687,7 @@ async function deleteSaleDoc(id) {
 const AL_TOP  = 3.30;   // in — sheet top edge → top of the blank band
 const AL_SIDE = 1.10;   // in — left/right margin, matched to the printed text block
 const AL_BAND = 2.60;   // in — height of the blank band (title bottom → "Dear Member,")
+const AL_PAD  = 0.25;   // in — the text starts this far down the band (2026-10-14: lower, larger, no box round MID/Unit/Floor/Area)
 
 const AL_PAGE_W = 8.5;
 const AL_PAGE_H = 14.5;
@@ -2699,13 +2700,13 @@ function _alCSS() {
     '.al-page{position:relative;width:' + AL_PAGE_W + 'in;height:' + AL_PAGE_H + 'in;overflow:hidden;page-break-after:always}' +
     '.al-page:last-child{page-break-after:auto}' +
     // The data band — the only thing that prints on pre-printed stock.
-    '.al-band{position:absolute;left:' + AL_SIDE + 'in;right:' + AL_SIDE + 'in;top:' + AL_TOP + 'in;height:' + AL_BAND + 'in;overflow:hidden}' +
-    '.al-box{float:right;border:1.3px solid #111;border-radius:3px;padding:6px 11px 7px;min-width:2.2in;margin:0 0 7px 16px}' +
+    '.al-band{position:absolute;left:' + AL_SIDE + 'in;right:' + AL_SIDE + 'in;top:' + AL_TOP + 'in;height:' + AL_BAND + 'in;padding-top:' + AL_PAD + 'in;overflow:hidden}' +
+    '.al-box{float:right;padding:0 0 0 4px;min-width:2.3in;margin:0 0 7px 16px}' +
     '.al-br{display:flex;align-items:baseline;justify-content:space-between;gap:16px;line-height:1.55}' +
-    '.al-br span{font-size:9.5px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#555;flex:none}' +
-    '.al-br b{font-size:13.5px;text-align:right}' +
-    '.al-l{display:flex;font-size:13.5px;line-height:1.66}' +
-    '.al-l .k{width:1.3in;flex:none;color:#333}' +
+    '.al-br span{font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#555;flex:none}' +
+    '.al-br b{font-size:16px;text-align:right}' +
+    '.al-l{display:flex;font-size:16px;line-height:1.6}' +
+    '.al-l .k{width:1.45in;flex:none;color:#333}' +
     '.al-l .v{font-weight:bold;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '.al-l .v.wrap{white-space:normal}' +
     '.al-split{display:flex;gap:18px}.al-split>*{flex:1;min-width:0}';
