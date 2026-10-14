@@ -84,7 +84,8 @@ function _lh(docType, projectName, opts){
   opts=opts||{};
   var br=window._cobranding||{};
   var co=br.company_name||S?.coName||'Nexunova';
-  var sub=opts.sub||br.letterhead_subtitle||'Recovery Management System';
+  // Awami's printouts say 'By 14 Group of Companies' under the name (2026-10-14)
+  var sub=opts.sub||((typeof S!=='undefined'&&S&&S.cid==='96d210e7-e63b-4ef0-b1d0-74e622eac7ce')?'By 14 Group of Companies':'')||br.letterhead_subtitle||'Recovery Management System';
   var A=br.accent_color||'#C9A84C';
   var logo=typeof getCoLogo==='function'?getCoLogo():null;
   var dt=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
