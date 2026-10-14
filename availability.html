@@ -9018,7 +9018,9 @@ function roomSaf() {
         catch (e) { return ''; }
       },
       approve: async function (id, sign) {
-        var r = await sb.rpc('saf_room_approve', { p_token: LINK, p_password: REPPW, p_id: id, p_sign: sign }); return r.data;
+        var r = await sb.rpc('saf_room_approve', { p_token: LINK, p_password: REPPW, p_id: id, p_sign: sign });
+        // the approval makes the sale; if that fails the server says why (and nothing is approved)
+        return r.error ? { success: false, message: r.error.message } : r.data;
       },
       reject: async function (id, why, sign) {
         var r = await sb.rpc('saf_room_reject', { p_token: LINK, p_password: REPPW, p_id: id, p_reason: why, p_sign: sign }); return r.data;
@@ -9045,7 +9047,7 @@ function roomSaf() {
   if (ROOMSAF.loading) return;
   ROOMSAF.loading = true;
   var sc = document.createElement('script');
-  sc.src = '/js/desk-saf.js?v=20261013tight';
+  sc.src = '/js/desk-saf.js?v=20261014sale';
   sc.onload = function () { ROOMSAF.loading = false; if (window.DeskSaf) go(); };
   sc.onerror = function () { ROOMSAF.loading = false; };
   document.head.appendChild(sc);

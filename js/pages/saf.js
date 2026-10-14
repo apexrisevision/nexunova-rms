@@ -1,16 +1,17 @@
 /* ════════════════════════════════════════════════════════════════════════
    Sale Approval Form (SAF) — Awami Market, in the RMS.
 
-   One line of hands, each seeing only their part:
-     Accounts  prepares the form and submits it (submit = Accounts confirms
-               the money; the NexuFinance lines are re-read at that moment)
-     Director  only when a discount is given: one of the three directors signs
-               in the Directors' Room on the reservation link with their own
-               approval password (js/desk-saf.js), or declines with a reason.
-               At full price, submit approves it and it goes straight to Filing.
-               The owner / admin login here only reads.
-     Filing    (Users & Roles → "Sale Approval — Filing") prints the approved
-               PDF, marks the file done, and makes the sale entry from it
+   One line of hands, each seeing only their part (20261014b):
+     Filing    naseer@awami (by name) prepares the form, with the buyer's and
+               the nominee's photos, and submits it (submit = he confirms the
+               money; the NexuFinance lines are re-read at that moment).
+               At full price, Submit makes the sale at once, with the money
+               already received recorded on it.
+     Director  only when a discount is given or the price is lower: one of the
+               three directors signs in the Directors' Room on the reservation
+               link with their own approval password (js/desk-saf.js); that
+               approval makes the sale. Or declines with a reason, and the
+               form comes back here. The owner / admin login only reads.
 
    Nothing here does arithmetic: the unit and money blocks are the server's,
    and the live preview is the server's own saf_save(..., p_commit = false).
@@ -86,7 +87,14 @@
       '.sf-steps i{font-style:normal;width:18px;height:18px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:11px;' +
         'background:var(--fk-bg-subtle);color:var(--fk-text-muted)}' +
       '.sf-steps li.done i{background:#16A34A;color:#fff}' +
-      '.sf-steps small{display:block;color:var(--fk-text-muted)}';
+      '.sf-steps small{display:block;color:var(--fk-text-muted)}' +
+      '.sf-bph{display:flex;gap:16px;align-items:flex-start}' +
+      '@media(max-width:600px){.sf-bph{flex-direction:column}}' +
+      '.sf-ph{display:flex;flex-direction:column;gap:6px;align-items:center;flex:none;width:120px}' +
+      '.sf-ph-i{width:120px;height:146px;border:1px dashed var(--fk-border);border-radius:10px;overflow:hidden;background:var(--fk-bg-subtle);' +
+        'display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--fk-text-muted)}' +
+      '.sf-ph-i img{width:100%;height:100%;object-fit:cover}' +
+      '.sf-ph-b{cursor:pointer;width:120px;justify-content:center;text-align:center;font-size:12px}';
     document.head.appendChild(st);
   })();
 
@@ -103,9 +111,9 @@
       x.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
   function say(m, k) { if (typeof toast === 'function') toast(m, k || 'ok'); }
   function host() { return $('pg-saf'); }
-  function stLabel(f) { return f.status === 'approved' && f.filed_at ? 'filed' : f.status; }
+  function stLabel(f) { return f.status === 'approved' && f.sale_number ? 'filed' : f.status; }
   function st(f) { var s = typeof f === 'string' ? f : stLabel(f);
-    var t = { submitted: 'With director', verified: 'With director', approved: 'Approved', filed: 'Filed' }[s] || s;
+    var t = { submitted: 'With director', verified: 'With director', approved: 'Approved', filed: 'Sale made' }[s] || s;
     return '<span class="sf-st st-' + esc(s) + '">' + esc(t) + '</span>'; }
   var PLAN = {
     standard: ['Standard', '30% DP + 36 monthly'],
@@ -127,7 +135,7 @@
     accounts: [['draft', 'Drafts', function (x) { return x.status === 'draft'; }],
                ['rejected', 'Sent back', function (x) { return x.status === 'rejected'; }],
                ['submitted', 'With director', function (x) { return x.status === 'submitted' || x.status === 'verified'; }],
-               ['approved', 'Approved', function (x) { return x.status === 'approved'; }],
+               ['approved', 'Sale made', function (x) { return x.status === 'approved'; }],
                ['all', 'All', function () { return true; }]],
     director: [['submitted', 'Waiting on the desk', function (x) { return x.status === 'submitted' || x.status === 'verified'; }],
                ['approved', 'Approved', function (x) { return x.status === 'approved'; }],
@@ -156,20 +164,20 @@
       var n = rows.filter(t[2]).length;
       return '<button class="sf-tab' + (S2.tab === t[0] ? ' on' : '') + '" onclick="_safTab(\'' + t[0] + '\')">' + esc(t[1]) + ' <b>' + n + '</b></button>'; }).join('');
     var intro = {
-      accounts: 'You prepare the form: the unit and the money fill themselves; you add the buyer, the plan and the agent, then submit. Submitting sends it straight to the director.',
-      director: 'Forms Accounts has submitted. Open one to read it as the PDF, then approve it (your digital signature) or send it back with a reason.',
-      filing: 'Forms the director has approved. Print the PDF for the file, mark it filed, then make the sale entry from it.'
+      accounts: 'You prepare the form: the unit and the money fill themselves; you add the buyer, the photos, the plan and the agent, then submit. At the full price Submit makes the sale at once; with a discount it goes to a director, and their approval makes the sale.',
+      director: 'Forms submitted for a sale. Open one to read it as the PDF, then approve it (your digital signature) or send it back with a reason.',
+      filing: 'Approved forms. Print the PDF for the file; the sale entry is made from it.'
     }[who];
     var sel = tabs.filter(function (t) { return t[0] === S2.tab; })[0];
     var list = rows.filter(sel[2]);
     var html = '<div class="sf-h"><span class="sf-m">' + esc(S2.me.name) + ' · ' +
-      { accounts: 'Accounts', director: 'Director', filing: 'Filing' }[who] + '</span><span style="flex:1"></span>' +
+      { accounts: 'Prepares and files', director: 'Director (read only)', filing: 'Filing' }[who] + '</span><span style="flex:1"></span>' +
       (who === 'accounts' ? NX.button('New Sale Approval Form', { variant: 'primary', icon: 'plus', onclick: '_safPick()' }) : '') + '</div>' +
       '<p class="sf-sub">' + esc(intro) + '</p><div class="sf-tabs">' + tabHtml + '</div>';
     if (!list.length) html += NX.card(NX.empty({ icon: 'file-check', message: 'Nothing here.' }));
     list.forEach(function (x) {
       html += '<div class="sf-row" onclick="_safOpen(\'' + x.id + '\')">' +
-        '<div><div class="sf-no">' + esc(x.saf_no) + '</div>' + st(x.status === 'approved' && x.filed_at ? 'filed' : x.status) + '</div>' +
+        '<div><div class="sf-no">' + esc(x.saf_no) + '</div>' + st(x.status === 'approved' && x.sale_number ? 'filed' : x.status) + '</div>' +
         '<div><b>' + esc(x.unit_code) + '</b> <span class="sf-m">' + esc(x.floor_label || '') + '</span>' +
           '<div class="sf-m">' + esc(x.buyer_name || 'buyer not named') + '</div></div>' +
         '<div class="sf-hide"><div>' + esc(x.agent_name || '-') + '</div><div class="sf-m">by ' + esc(x.prepared_by_name || '-') +
@@ -218,6 +226,11 @@
   function inp(key, label, val, type, extra) {
     return '<div class="sf-f"><label>' + esc(label) + '</label><input class="sf-in" data-k="' + key + '" type="' + (type || 'text') +
       '" value="' + esc(val == null ? '' : val) + '" ' + (extra || '') + ' oninput="_safEdit(this)"></div>'; }
+  // a photo box: the picture (or an empty frame) and an Upload button
+  function photo(key, label, url) {
+    return '<div class="sf-ph"><div class="sf-ph-i">' + (url ? '<img src="' + esc(url) + '" alt="">' : '<span>No photo</span>') + '</div>' +
+      '<label class="btn btn-secondary btn-sm sf-ph-b"><input type="file" accept="image/jpeg,image/png" style="display:none" onchange="_safPhoto(this,\'' + key + '\')">' +
+      '<span>' + (url ? 'Change ' : 'Upload ') + esc(label) + '</span></label></div>'; }
   function sel(key, label, val, opts) {
     return '<div class="sf-f"><label>' + esc(label) + '</label><select class="sf-sel" data-k="' + key + '" onchange="_safEdit(this)">' +
       opts.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (String(val || '') === String(o[0]) ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') +
@@ -300,18 +313,17 @@
       kv('Discount', pkr(f.discount_amount) + ' <span class="sf-m">(' + pct(f.discount_pct) + ', plan ' + pct(f.standard_discount_pct) + ')</span>', f.discount_beyond_standard ? 'sf-red' : '') +
       kv('Net price', pkr(f.net_price)) + '</div><div style="margin-top:12px">' + scheduleBlock(f) + '</div></div>';
 
-    var cb = f.co_buyer || {}, nm = f.nominee || {};
-    html += '<div class="sf-card"><h3>Buyer</h3><div class="sf-grid">' + inp('buyer_name', 'Full name', f.buyer_name) +
+    var nm = f.nominee || {};
+    html += '<div class="sf-card"><h3>Buyer</h3><div class="sf-bph">' + photo('buyer_photo_url', 'buyer photo', f.buyer_photo_url) + '<div class="sf-grid" style="flex:1">' + inp('buyer_name', 'Full name', f.buyer_name) +
       sel('buyer_relation', 'S/O, D/O or W/O', f.buyer_relation || 'S/O', rel) + inp('buyer_father', 'Father / husband', f.buyer_father) +
       inp('buyer_cnic', 'CNIC (13 digits)', f.buyer_cnic, 'text', 'inputmode="numeric" placeholder="17301-1234567-1"') +
-      inp('buyer_phone', 'Phone', f.buyer_phone, 'tel') + inp('buyer_address', 'Address', f.buyer_address) + '</div>';
+      inp('buyer_phone', 'Phone', f.buyer_phone, 'tel') + inp('buyer_address', 'Address', f.buyer_address) + '</div></div>';
     if (f.reservation_buyer_name && String(f.buyer_name || '').trim().toLowerCase() !== String(f.reservation_buyer_name).trim().toLowerCase())
       html += '<div class="sf-grid" style="margin-top:10px">' + inp('buyer_name_reason', 'Why not "' + f.reservation_buyer_name + '" (the name on the hold)?', f.buyer_name_reason) + '</div>';
-    html += '<details style="margin-top:10px"' + (cb.name || nm.name ? ' open' : '') + '><summary class="sf-m" style="cursor:pointer">Co-buyer and nominee (optional)</summary>' +
-      '<div class="sf-grid" style="margin-top:8px">' + inp('co_buyer.name', 'Co-buyer name', cb.name) + inp('co_buyer.cnic', 'Co-buyer CNIC', cb.cnic) +
-      inp('co_buyer.share', 'Co-buyer share %', cb.share, 'number') + '</div><div class="sf-grid" style="margin-top:8px">' +
+    html += '</div><div class="sf-card"><h3>Nominee <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional; with a name, the photo is needed)</span></h3>' +
+      '<div class="sf-bph">' + photo('nominee_photo_url', 'nominee photo', f.nominee_photo_url) + '<div class="sf-grid" style="flex:1">' +
       inp('nominee.name', 'Nominee name', nm.name) + inp('nominee.relation', 'Relation', nm.relation) + inp('nominee.cnic', 'Nominee CNIC', nm.cnic) +
-      inp('nominee.phone', 'Nominee phone', nm.phone) + '</div></details></div>';
+      inp('nominee.phone', 'Nominee phone', nm.phone) + '</div></div></div>';
 
     html += moneyBlock(f);
 
@@ -323,11 +335,11 @@
       '<div class="sf-grid" style="margin-top:12px">' + kv('Commission', pct(f.commission_pct) + ' = ' + pkr(f.commission_amount)) + kv('Payable', esc(f.commission_payable_when)) + '</div></div>';
 
     html += '<div class="sf-acts">' + NX.button('Save draft', { variant: 'secondary', onclick: '_safSave()' }) +
-      NX.button(Number(f.discount_amount) > 0 ? 'Submit for director approval' : 'Submit to Filing', { variant: 'primary', icon: 'send', onclick: '_safAct(\'submit\')' }) +
+      NX.button(Number(f.discount_amount) > 0 ? 'Submit for director approval' : 'Submit and make the sale', { variant: 'primary', icon: 'send', onclick: '_safAct(\'submit\')' }) +
       NX.button('Discard draft', { variant: 'ghost', onclick: '_safAct(\'cancel\')' }) +
       '<span class="sf-m">' + (Number(f.discount_amount) > 0
-        ? 'A discount is given, so a director must approve it before Filing.'
-        : 'Full list price: no director approval is needed, it goes straight to Filing.') +
+        ? 'A discount is given, so a director must approve it; their approval makes the sale.'
+        : 'Full list price: no director approval is needed, Submit makes the sale with the money received.') +
       ' Submitting confirms the money above matches NexuFinance, in your name.</span></div>';
     $('sf-body').innerHTML = html;
   }
@@ -344,9 +356,8 @@
     if (f.status === 'submitted' || f.status === 'verified')
       a.push('<div class="sf-m">Waiting for a director. They approve or send it back in the Directors\' Room on the reservation link.</div>');
     if (me.filing && f.status === 'approved') {
-      a.push(NX.button('Print / download PDF', { variant: f.filed_at ? 'secondary' : 'primary', icon: 'printer', onclick: '_safPrint()' }));
-      if (!f.filed_at) a.push(NX.button('Mark as filed', { variant: 'secondary', icon: 'check', onclick: '_safAct(\'filed\')' }));
-      if (f.filed_at && !f.sale_id) a.push(NX.button('Make the sale entry', { variant: 'primary', icon: 'file-text', onclick: '_safAct(\'sale\')' }));
+      a.push(NX.button('Print / download PDF', { variant: f.sale_id ? 'primary' : 'secondary', icon: 'printer', onclick: '_safPrint()' }));
+      if (!f.sale_id) a.push(NX.button('Make the sale entry', { variant: 'primary', icon: 'file-text', onclick: '_safAct(\'sale\')' }));
       if (f.sale_id) a.push(NX.button('Open sale ' + (f.sale_number || ''), { variant: 'secondary', onclick: 'openSaleDetail(\'' + f.sale_id + '\')' }));
     }
     if (me.prepare && (f.status === 'rejected' || (f.status === 'approved' && !f.sale_id)))
@@ -359,8 +370,7 @@
       ['Submitted · money confirmed', f.accounts_verified_by_name || f.submitted_by_name, f.accounts_verified_at || f.submitted_at],
       f.approval_route === 'plan' ? ['Approved · full price, no director needed', 'At the list price', f.approved_at]
                                   : ['Approved · digitally signed', f.approved_by_name, f.approved_at],
-      ['Printed and filed', f.filed_by_name, f.filed_at],
-      ['Sale entry', f.sale_number, f.sale_id ? ' ' : null]
+      ['Sale entry, with the money received', f.sale_number, f.sale_id ? (f.filed_at || ' ') : null]
     ];
     html += '<div class="sf-card"><h3>Trail</h3><ul class="sf-steps">' + steps.map(function (s, i) {
       return '<li class="' + (s[2] ? 'done' : '') + '"><i>' + (s[2] ? '✓' : (i + 1)) + '</i><div>' + esc(s[0]) +
@@ -382,6 +392,34 @@
     setPath(S2.draft, k, v); setPath(S2.cur, k, v);
     clearTimeout(S2.timer);
     S2.timer = setTimeout(preview, /^(plan_type|discount_amount|installment_count|first_due_date|sale_date|balloon_amount|agent_id|commission_pct|discount_approved_by|buyer_name)$/.test(k) ? 350 : 900);
+  };
+  // a photo: shrunk to 512px, into the company's folder (as the client form does), then on the form
+  function shrink(file, max) {
+    return new Promise(function (res, rej) {
+      var u = URL.createObjectURL(file), img = new Image();
+      img.onload = function () {
+        var w = img.width, h = img.height;
+        if (w > max || h > max) { var k = Math.min(max / w, max / h); w = Math.round(w * k); h = Math.round(h * k); }
+        var cv = document.createElement('canvas'); cv.width = w; cv.height = h; cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(u); cv.toBlob(function (b) { b ? res(b) : rej(new Error('resize failed')); }, 'image/jpeg', 0.85);
+      };
+      img.onerror = function () { URL.revokeObjectURL(u); rej(new Error('not a picture')); };
+      img.src = u;
+    });
+  }
+  window._safPhoto = async function (input, key) {
+    var file = input.files && input.files[0]; if (!file) return;
+    if (!/^image\/(jpeg|png)$/.test(file.type)) { say('JPG or PNG only', 'warn'); input.value = ''; return; }
+    var lb = input.parentNode && input.parentNode.querySelector('span'); if (lb) lb.textContent = 'Uploading…';
+    try {
+      var blob = await shrink(file, 512);
+      var path = S.cid + '/clients/photos/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '.jpg';
+      var up = await supabase.storage.from('rms-documents').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+      if (up.error) throw up.error;
+      var url = supabase.storage.from('rms-documents').getPublicUrl(path).data.publicUrl;
+      S2.draft[key] = url; S2.cur[key] = url;
+      await window._safSave();
+    } catch (e) { say('Upload failed: ' + (e.message || e), 'err'); drawEditor(S2.cur); }
   };
   window._safPlan = function (k) { S2.draft.plan_type = k; if (k !== 'custom') delete S2.draft.schedule_json;
     if (k === 'custom' && !S2.draft.schedule_json) S2.draft.schedule_json = (S2.cur.schedule_json || []).slice();
@@ -416,7 +454,7 @@
     var f = S2.cur, r;
     if (what === 'submit') {
       if (Object.keys(S2.draft).length && !(await window._safSave())) return;
-      if (!confirm('Submit ' + f.saf_no + (Number(f.discount_amount) > 0 ? ' for director approval?' : ' to Filing? It is at the full list price, so no director approval is needed.') + ' You confirm the money on it matches NexuFinance.')) return;
+      if (!confirm('Submit ' + f.saf_no + (Number(f.discount_amount) > 0 ? ' for director approval? Their approval makes the sale.' : '? It is at the full list price, so the sale for ' + f.unit_code + ' is made now.') + ' You confirm the money on it matches NexuFinance.')) return;
       r = await rpc('saf_submit', { p_id: f.id });
     } else if (what === 'cancel') {
       if (!confirm('Discard draft ' + f.saf_no + '?')) return;
@@ -430,11 +468,11 @@
     } else if (what === 'sale') {
       if (!confirm('Make the sale entry for ' + f.unit_code + ' from ' + f.saf_no + '? The buyer, price, plan and agent come from the approved form exactly.')) return;
       r = await rpc('saf_create_sale', { p_id: f.id });
-      if (r.success) { say('Sale ' + r.sale_number + ' made from ' + r.saf_no); window._safOpen(f.id); refreshBadge(); return; }
+      if (r.success) { say('Sale ' + r.sale_number + ' made from ' + r.saf_no + (r.payments ? ', with ' + r.payments + ' receipt(s) recorded' : '')); window._safOpen(f.id); refreshBadge(); return; }
     }
     if (r && r.saf) { S2.cur = r.saf; S2.draft = {}; draw(); }
     if (!r || !r.success) { say((r && (r.message || r.error)) || 'That did not work.', 'err'); return; }
-    say({ submit: r.saf && r.saf.status === 'approved' ? 'Submitted. Full price, so it has gone straight to Filing.' : 'Submitted. It is waiting for a director.', supersede: 'New draft started', filed: 'Marked as filed' }[what] || 'Done');
+    say({ submit: r.saf && r.saf.status === 'approved' ? 'Sale ' + (r.saf.sale_number || '') + ' made from ' + r.saf.saf_no + '.' : 'Submitted. It is waiting for a director.', supersede: 'New draft started', filed: 'Marked as filed' }[what] || 'Done');
     refreshBadge();
   };
 
@@ -442,7 +480,7 @@
   async function loadShared() {
     if (window.SafPdf) return;
     await new Promise(function (res, rej) {
-      var x = document.createElement('script'); x.src = 'js/saf-pdf.js?v=20261013pw';
+      var x = document.createElement('script'); x.src = 'js/saf-pdf.js?v=20261014photo';
       x.onload = res; x.onerror = function () { rej(new Error('The PDF drawing did not load.')); };
       document.head.appendChild(x);
     });

@@ -16,7 +16,7 @@
     half_50:  ['50% payment', '50% DP, 5% off, rest monthly'],
     custom:   ['Custom', 'Schedule written by hand']
   };
-  // ── the PDF ─────────────────────────────────────────────────────────────
+  // ── the PDF (20261014b: the buyer's and nominee's photos; no co-buyer) ──
   function loadPdfLib() {
     if (window.PDFLib) return Promise.resolve();
     return new Promise(function (res, rej) {
@@ -40,6 +40,19 @@
   function pnum(n) { if (n == null || n === '') return '-'; var v = Math.round(Number(n)), neg = v < 0; v = String(Math.abs(v));
     return (neg ? '-' : '') + v.replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 
+  // a photo on the form: the stored JPG (or PNG) bytes, or null if it cannot be read
+  async function photoBytes(url) {
+    if (!url) return null;
+    try { var r = await fetch(url, { cache: 'force-cache' }); if (!r.ok) return null; return new Uint8Array(await r.arrayBuffer()); }
+    catch (e) { return null; }
+  }
+  async function embedPhoto(doc, bytes) {
+    if (!bytes) return null;
+    try { return await doc.embedJpg(bytes); } catch (e) {}
+    try { return await doc.embedPng(bytes); } catch (e) {}
+    return null;
+  }
+
   async function buildPdf(f) {
     await loadPdfLib();
     var L = window.PDFLib;
@@ -56,10 +69,13 @@
     function head(s) { y -= 8; page.drawRectangle({ x: M, y: y - 5, width: W - 2 * M, height: 17, color: TINT });
       page.drawRectangle({ x: M, y: y - 5, width: 3, height: 17, color: BRAND });
       t(s.toUpperCase(), M + 9, y, 8, bold, BRAND); y -= 18; }
-    function pairs(list, cols) { cols = cols || 4; var cw = (W - 2 * M) / cols;
+    function pairs(list, cols, width) { cols = cols || 4; var cw = (width || (W - 2 * M)) / cols;
       for (var i = 0; i < list.length; i += cols) {
         for (var j = 0; j < cols && i + j < list.length; j++) { var p = list[i + j]; if (!p) continue;
-          t(p[0], M + j * cw + 4, y, 7, reg, MUTE); t(p[1], M + j * cw + 4, y - 11, 10, p[2] ? bold : reg, p[2] || INK); }
+          var fnt = p[2] ? bold : reg, sz = 10, v = String(p[1] == null ? '' : p[1]);
+          while (sz > 7 && tw(v, sz, fnt) > cw - 8) sz -= 0.5;
+          while (v.length > 4 && tw(v, sz, fnt) > cw - 8) v = v.slice(0, -2);
+          t(p[0], M + j * cw + 4, y, 7, reg, MUTE); t(v, M + j * cw + 4, y - 11, sz, fnt, p[2] || INK); }
         y -= 26; } }
 
     // banner
@@ -93,11 +109,22 @@
       pairs([['Discount reason (director approval needed)', String(f.discount_reason || '-').slice(0, 95), RED]], 1);
 
     head('Buyer');
-    pairs([['Name', f.buyer_name, INK], [f.buyer_relation || 'S/O', f.buyer_father], ['CNIC', f.buyer_cnic], ['Phone', f.buyer_phone]]);
-    pairs([['Address', f.buyer_address || '-'],
-           f.buyer_name_reason ? ['Not the name on the hold (' + (f.reservation_buyer_name || '') + ')', f.buyer_name_reason, RED] : null,
-           f.co_buyer && f.co_buyer.name ? ['Co-buyer', f.co_buyer.name + ' ' + (f.co_buyer.cnic || '') + (f.co_buyer.share ? ' ' + f.co_buyer.share + '%' : '')] : null,
-           f.nominee && f.nominee.name ? ['Nominee', f.nominee.name + ' (' + (f.nominee.relation || '') + ') ' + (f.nominee.cnic || '')] : null], 2);
+    var PW = 60, PH = 74, PG = 8, ptop = y + 6, px = W - M - 2 * PW - PG;
+    var phB = await embedPhoto(doc, await photoBytes(f.buyer_photo_url)),
+        phN = await embedPhoto(doc, await photoBytes(f.nominee_photo_url));
+    [[phB, 'BUYER', px], [phN, 'NOMINEE', px + PW + PG]].forEach(function (b) {
+      page.drawRectangle({ x: b[2], y: ptop - PH, width: PW, height: PH, borderColor: LINE, borderWidth: 0.8 });
+      if (b[0]) { var k = Math.min(PW / b[0].width, PH / b[0].height), iw = b[0].width * k, ih = b[0].height * k;
+        // the whole picture, centred in its frame
+        page.drawImage(b[0], { x: b[2] + (PW - iw) / 2, y: ptop - PH + (PH - ih) / 2, width: iw, height: ih }); }
+      else t('No photo', b[2] + 12, ptop - PH / 2 - 3, 7, reg, MUTE);
+      t(b[1], b[2] + (PW - tw(b[1], 6.5, bold)) / 2, ptop - PH - 9, 6.5, bold, MUTE); });
+    var bwid = px - M - 8;
+    pairs([['Name', f.buyer_name, INK], [f.buyer_relation || 'S/O', f.buyer_father], ['CNIC', f.buyer_cnic], ['Phone', f.buyer_phone],
+           ['Address', f.buyer_address || '-'],
+           f.nominee && f.nominee.name ? ['Nominee', f.nominee.name + ' (' + (f.nominee.relation || '') + ') ' + (f.nominee.cnic || '')] : ['Nominee', '-']], 2, bwid);
+    if (f.buyer_name_reason) pairs([['Not the name on the hold (' + (f.reservation_buyer_name || '') + ')', f.buyer_name_reason, RED]], 1, bwid);
+    y = Math.min(y, ptop - PH - 18);
 
     head('Money received' + (f.token_numbers ? ' - token ' + f.token_numbers : ''));
     var xs = [M + 4, M + 84, M + 170, M + 228];
@@ -133,7 +160,7 @@
     // the signatures: Accounts and the director are recorded; the agent signs the paper
     y -= 8; var bw = (W - 2 * M - 20) / 3, bh = 70;
     [['Agent', f.agent_name, null, false],
-     ['Accounts (money confirmed)', f.accounts_verified_by_name || f.submitted_by_name, f.accounts_verified_at || f.submitted_at, true],
+     ['Prepared (money confirmed)', f.accounts_verified_by_name || f.submitted_by_name, f.accounts_verified_at || f.submitted_at, true],
      ['Director (approved)', f.approval_route === 'plan' ? 'Not needed' : f.approved_by_name, f.approved_at, true]]
       .forEach(function (b, i) { var x = M + i * (bw + 10), signed = b[3] && b[2],
             byPlan = i === 2 && f.approval_route === 'plan' && b[2];

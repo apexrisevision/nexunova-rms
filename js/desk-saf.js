@@ -1,6 +1,6 @@
 /* ══ Sale Approvals in the Directors' Room ══════════════════════════════════
-   Accounts prepares and submits in the RMS. Full price goes straight to
-   Filing; any discount waits here for a director.
+   Filing (naseer@awami) prepares and submits in the RMS. Full price makes
+   the sale at once; any discount waits here, and a director's Approve makes it.
 
    The room password reads the list. Approve and Decline ask the director's
    OWN approval password, and the server knows from it which of the three
@@ -104,7 +104,7 @@
   async function loadPdfDrawing() {
     if (window.SafPdf) return;
     await new Promise(function (res, rej) {
-      var s = document.createElement('script'); s.src = '/js/saf-pdf.js?v=20261013pw';
+      var s = document.createElement('script'); s.src = '/js/saf-pdf.js?v=20261014photo';
       s.onload = res; s.onerror = function () { rej(new Error('The PDF drawing did not load.')); };
       document.head.appendChild(s);
     });
@@ -158,7 +158,7 @@
       var wait = I.rows.filter(isWaiting), done = I.rows.filter(function (r) { return !isWaiting(r); });
       var h = '<div class="dsaf"><div class="dsaf-h"><b>' + e(ctx.title || 'Sale approvals') + '</b>' +
         (wait.length ? '<span class="dsaf-n">' + wait.length + ' waiting</span>' : '<span class="dsaf-m" style="margin:0">Nothing waiting</span>') + '</div>';
-      if (wait.length) h += '<div class="dsaf-m dsaf-intro" style="margin:0 0 2px">Accounts has prepared these with a discount. Open one, check it, then approve or decline it with your own approval password.</div>';
+      if (wait.length) h += '<div class="dsaf-m dsaf-intro" style="margin:0 0 2px">These were prepared with a discount or below the list price. Open one, check it, then approve or decline it with your own approval password.</div>';
       h += wait.map(row).join('');
       if (done.length) {
         h += '<button type="button" class="dsaf-more" data-recent="1">' + (I.recent ? 'Hide' : 'Show') + ' recently decided (' + done.length + ')</button>';
@@ -216,7 +216,7 @@
       return '<div id="dsaf-act">' +
         '<button type="button" class="dsaf-btn go" data-act="ask-ok">Approve and sign</button>' +
         '<button type="button" class="dsaf-btn no" data-act="ask-no">Decline</button>' +
-        '<div class="dsaf-m">Approving puts your name, the time and the form\u2019s fingerprint on the PDF, and sends it to Filing at this price. Declining sends it back to Accounts with your reason.</div></div>';
+        '<div class="dsaf-m">Approving puts your name, the time and the form\u2019s fingerprint on the PDF and makes the sale at this price, with the money already received. Declining sends it back with your reason.</div></div>';
     }
     // the director's own approval password: the server knows from it who is signing
     function signBox() {
@@ -233,7 +233,7 @@
       else if (f.status === 'approved') {
         h += '<div class="dsaf-ok"><b>Approved</b> ' + (f.approval_route === 'plan' ? 'at the list price (no director needed)' : 'by ' + e(f.approved_by_name)) +
           ', ' + when(f.approved_at) + '.<br>' +
-          (f.sale_number ? 'Sale ' + e(f.sale_number) + ' made.' : f.filed_at ? 'Filed by ' + e(f.filed_by_name) + '; sale entry next.' : 'With Filing.') + '</div>';
+          (f.sale_number ? 'Sale ' + e(f.sale_number) + ' made.' : 'Sale entry not made yet.') + '</div>';
       } else if (f.status === 'rejected') {
         h += '<div class="dsaf-warn"><b>Declined</b> by ' + e(f.rejected_by_name) + ', ' + when(f.rejected_at) + ':<br>' + e(f.reject_reason) + '</div>';
       }
@@ -242,7 +242,7 @@
         [['Prepared', f.prepared_by_name, f.prepared_at],
          ['Submitted · money confirmed', f.accounts_verified_by_name || f.submitted_by_name, f.accounts_verified_at || f.submitted_at],
          ['Approved · signed', f.approval_route === 'plan' ? 'Full price, no director needed' : f.approved_by_name, f.approved_at],
-         ['Filed', f.filed_by_name, f.filed_at]].map(function (s) {
+         ['Sale made', f.sale_number, f.sale_number ? (f.filed_at || f.approved_at) : null]].map(function (s) {
           return '<li>' + e(s[0]) + '<br><span>' + (s[2] ? e(s[1] || '') + ' · ' + when(s[2]) : '—') + '</span></li>'; }).join('') + '</ul></div>';
       return h;
     }
@@ -352,7 +352,7 @@
         return;
       }
       if (act === 'ask-no') {
-        box.innerHTML = '<div class="dsaf-m" style="margin:0">Why is it declined? Accounts sees this reason.</div>' +
+        box.innerHTML = '<div class="dsaf-m" style="margin:0">Why is it declined? Whoever prepared it sees this reason.</div>' +
           '<textarea class="dsaf-ta" id="dsaf-why" maxlength="400"></textarea>' + signBox() +
           '<div class="dsaf-err" id="dsaf-err"></div>' +
           '<button type="button" class="dsaf-btn no" data-act="no">Decline and send back</button>' +
@@ -374,8 +374,8 @@
         var r; try { r = act === 'ok' ? await ctx.approve(f.id, sign) : await ctx.reject(f.id, why, sign); } catch (x) { r = null; }
         r = r || { success: false, message: 'Could not reach the office. Try again.' };
         if (!r.success) { boxErr(r.message || 'That did not go through.'); return; }
-        say(act === 'ok' ? f.saf_no + ' approved and signed by ' + (r.saf.approved_by_name || 'you') + '. It has gone to Filing.'
-                         : f.saf_no + ' declined by ' + (r.saf.rejected_by_name || 'you') + ' and sent back to Accounts.');
+        say(act === 'ok' ? f.saf_no + ' approved and signed by ' + (r.saf.approved_by_name || 'you') + '. ' + (r.sale_number ? 'Sale ' + r.sale_number + ' made.' : 'It is approved.')
+                         : f.saf_no + ' declined by ' + (r.saf.rejected_by_name || 'you') + ' and sent back with your reason.');
         I.cur = r.saf; drawOpen(r.saf);
         await load(); paint();
       } finally {
