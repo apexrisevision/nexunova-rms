@@ -335,7 +335,7 @@ async function load(){
         </div>
         <div class="info-card">
           <div class="info-card-title">Financial Summary</div>
-          <div class="info-row"><span class="info-key">Total Sale Price</span><span class="info-val">${fmtPKR(totalAmt)}</span></div>
+          <div class="info-row"><span class="info-key">Final Price</span><span class="info-val">${fmtPKR(totalAmt)}</span></div>
           <div class="info-row"><span class="info-key">Down Payment</span><span class="info-val">${fmtPKR(downPay)}</span></div>
           <div class="info-row"><span class="info-key">Total Installments</span><span class="info-val">${schedule.length}</span></div>
           <div class="info-row"><span class="info-key">Total Paid</span><span class="info-val" style="color:#16a34a">${fmtPKR(totalPaid)}</span></div>
@@ -453,7 +453,7 @@ function exportExcel(){
   const aoa = [
     ['Installment Schedule — ' + coName],
     ['Sale: ' + (sale.sale_number||'') + '   Unit: ' + (sale.unit_no||'') + '   Client: ' + (sale.client_name||'')],
-    ['Net Amount: PKR ' + fmtN(sale.net_amount).toLocaleString('en-IN')],
+    ['Final Price: PKR ' + fmtN(sale.net_amount).toLocaleString('en-IN')],
     [''],
     header,
     ...schedule.map(r => [
