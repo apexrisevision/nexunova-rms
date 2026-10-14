@@ -2853,7 +2853,9 @@ async function printAllotmentLetter() {
 // Every y below is inches from the sheet's top edge, measured off photos of
 // the reference print and a test print. If the whole body sits high or low,
 // change AF_DY only; don't rebuild the layout. Print at scale 100%.
-const AF_DY = 0.30;     // in — shifts the body up (−) or down (+); 0.30 since the 2026-10-09 test print sat on the gold band
+const AF_DY = 0.63;     // in — shifts the body up (−) or down (+); 0.30 since the 2026-10-09 test print sat on the gold band;
+                        // 0.63 since 2026-10-14, when the title came down by the same 0.33 (Rashid: lower, centred)
+const AF_TT = 2.05;     // in — the "Application Form" title, centred across the sheet (was 1.72, at the left)
 const AF_SQ = 0.82;     // below the top grid, gaps AND box heights are pulled in by this much so the signatures get room (2026-10-09)
 const AF_SIG = 12.38;   // in — the signature line, fixed: it does not move with AF_DY or AF_SQ
 
@@ -2931,7 +2933,7 @@ async function printApplicationForm() {
     '.pg{width:' + pageW + 'in;height:' + pageH + 'in;overflow:hidden;position:relative}' +
     '.sh{position:absolute;left:0;top:0;width:8.5in;height:14in;transform-origin:0 0;transform:scale(' + k + ')}' +
     '.sh>*{position:absolute}' +
-    '.tt{left:1.05in;font-size:21px;font-weight:bold;color:#1c2633;line-height:0.36in}' +
+    '.tt{left:0;width:8.5in;text-align:center;font-size:21px;font-weight:bold;color:#1c2633;line-height:0.36in}' +
     '.lb{display:flex;align-items:center;font-size:13.5px;color:#222;line-height:1.15}' +
     '.bx{border:1.3px solid #555;border-radius:3px;padding:0 8px;display:flex;align-items:center;justify-content:space-between;font-size:14px;color:#111;overflow:hidden}' +
     '.bx span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
@@ -2950,7 +2952,7 @@ async function printApplicationForm() {
   const RL = 4.15, RB = 5.25, LW = 2.0, RW = 2.8;
 
   let b = '<div class="pg"><div class="sh">';
-  b += '<div class="tt" style="top:1.72in">Application Form</div>';
+  b += '<div class="tt" style="top:' + AF_TT + 'in">Application Form</div>';
 
   // top grid — three columns, three rows
   const g1 = (l, val, y, ex) => row(l, 0.85, 1.85, 1.52, y, val, 0.36, ex);
