@@ -2701,11 +2701,13 @@ function _alCSS() {
     '.al-page:last-child{page-break-after:auto}' +
     // The data band — the only thing that prints on pre-printed stock.
     '.al-band{position:absolute;left:' + AL_SIDE + 'in;right:' + AL_SIDE + 'in;top:' + AL_TOP + 'in;height:' + AL_BAND + 'in;padding-top:' + AL_PAD + 'in;overflow:hidden}' +
-    '.al-box{float:right;padding:0 0 0 4px;min-width:2.3in;margin:0 0 7px 16px}' +
-    '.al-br{display:flex;align-items:baseline;justify-content:space-between;gap:16px;line-height:1.55}' +
+    // one block round all the data (2026-10-14); flow-root keeps the floated MID column inside it
+    '.al-wrap{display:flow-root;border:1.3px solid #111;border-radius:4px;padding:8px 14px 9px}' +
+    '.al-box{float:right;padding:0 0 0 4px;min-width:2.0in;margin:0 0 4px 14px}' +
+    '.al-br{display:flex;align-items:baseline;justify-content:space-between;gap:16px;line-height:1.45}' +
     '.al-br span{font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#555;flex:none}' +
     '.al-br b{font-size:16px;text-align:right}' +
-    '.al-l{display:flex;font-size:16px;line-height:1.6}' +
+    '.al-l{display:flex;font-size:16px;line-height:1.45}' +
     '.al-l .k{width:1.45in;flex:none;color:#333}' +
     '.al-l .v{font-weight:bold;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '.al-l .v.wrap{white-space:normal}' +
@@ -2727,7 +2729,7 @@ function _alBand(d, c) {
   const area = d.area_sqft ? Number(d.area_sqft).toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' sft' : '—';
   const br   = (l, x) => '<div class="al-br"><span>' + l + '</span><b>' + v(x) + '</b></div>';
 
-  return '<div class="al-band">' +
+  return '<div class="al-band"><div class="al-wrap">' +
     '<div class="al-box">' +
       br('MID',   mid) +
       br('Unit',  d.unit_no) +
@@ -2743,7 +2745,7 @@ function _alBand(d, c) {
       '<div class="al-l"><div class="k">Net Price</div><div class="v">' + money(d.net_amount) + '</div></div>' +
       '<div class="al-l"><div class="k" style="width:0.7in">Dated</div><div class="v">' + dated + '</div></div>' +
     '</div>' +
-  '</div>';
+  '</div></div>';
 }
 
 // Full letter for plain paper — same sheet size, so it reads identically to the
