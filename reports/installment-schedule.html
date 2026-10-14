@@ -297,7 +297,7 @@ async function load(){
           : `<div class="lh-initials">${(b.company_name||'RE').substring(0,2).toUpperCase()}</div>`}
         <div class="lh-company">
           <div class="lh-name">${b.company_name||'Real Estate Company'}</div>
-          <div class="lh-sub">${b.letterhead_subtitle||'Real Estate Management'}</div>
+          <div class="lh-sub">${cid === '96d210e7-e63b-4ef0-b1d0-74e622eac7ce' ? 'By 14 Group of Companies' : (b.letterhead_subtitle||'Real Estate Management')}</div>
         </div>
       </div>
       <div class="lh-right">
