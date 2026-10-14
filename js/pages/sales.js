@@ -2855,7 +2855,7 @@ async function printAllotmentLetter() {
 // change AF_DY only; don't rebuild the layout. Print at scale 100%.
 const AF_DY = 0.63;     // in — shifts the body up (−) or down (+); 0.30 since the 2026-10-09 test print sat on the gold band;
                         // 0.63 since 2026-10-14, when the title came down by the same 0.33 (Rashid: lower, centred)
-const AF_TT = 2.05;     // in — the "Application Form" title, centred across the sheet (was 1.72, at the left)
+const AF_TT = 2.25;     // in — the "Application Form" title, centred across the sheet (was 1.72, at the left; 2.05, then 2.25 on 2026-10-14, title only)
 const AF_SQ = 0.82;     // below the top grid, gaps AND box heights are pulled in by this much so the signatures get room (2026-10-09)
 const AF_SIG = 12.38;   // in — the signature line, fixed: it does not move with AF_DY or AF_SQ
 
