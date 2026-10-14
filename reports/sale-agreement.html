@@ -29,7 +29,7 @@ body.lang-ur .lh,.body.lang-ur .agr-refs,.body.lang-ur .parties-grid{direction:r
 .page{width:210mm;background:#fff;box-shadow:0 4px 40px rgba(0,0,0,.14);border-radius:4px;overflow:hidden}
 
 /* ── Letterhead ── */
-.lh{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.lh{display:flex;align-items:center;justify-content:space-between;padding:12px 22px;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .lh-left{display:flex;align-items:center;gap:14px}
 .lh-logo{height:50px;max-width:140px;object-fit:contain;display:block}
 .lh-initials{width:50px;height:50px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;flex-shrink:0}
@@ -41,45 +41,47 @@ body.lang-ur .lh,.body.lang-ur .agr-refs,.body.lang-ur .parties-grid{direction:r
 .gold-bar{height:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 
 /* ── Body ── */
-.body{padding:20px 24px}
+.body{padding:12px 22px}
 
 /* ── Agreement title ── */
-.agr-title-row{text-align:center;margin-bottom:16px;padding-bottom:14px;border-bottom:2px solid}
+.agr-title-row{text-align:center;margin-bottom:8px;padding-bottom:8px;border-bottom:2px solid}
 .agr-main-title{font-size:17px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
 .agr-subtitle{font-size:10px;color:#6b7280;margin-bottom:6px}
 .agr-refs{display:flex;justify-content:center;gap:20px;font-size:10px;color:#374151}
 .agr-refs b{font-weight:700}
 
 /* ── Section header ── */
-.sec-hd{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#fff;padding:6px 12px;margin:14px 0 8px;-webkit-print-color-adjust:exact;print-color-adjust:exact;border-left:4px solid}
+.sec-hd{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#fff;padding:4px 12px;margin:9px 0 6px;-webkit-print-color-adjust:exact;print-color-adjust:exact;border-left:4px solid}
 .sec-hd-inner{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding-left:8px;margin:14px 0 7px;border-left:3px solid}
 
 /* ── Parties ── */
 .parties-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px}
-.party-box{border:1.5px solid #e5e7eb;border-radius:8px;padding:12px 14px}
+.party-box{border:1.5px solid #e5e7eb;border-radius:8px;padding:8px 12px}
 .party-label{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;margin-bottom:6px}
 .party-name{font-size:13px;font-weight:800;color:#111827;margin-bottom:4px}
-.party-meta{font-size:10px;color:#6b7280;line-height:1.8}
+.party-meta{font-size:10px;color:#6b7280;line-height:1.55}
 
 /* ── Property details grid ── */
 .prop-grid{display:grid;grid-template-columns:repeat(3,1fr);border:1.5px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;overflow:hidden;margin-bottom:4px}
-.prop-cell{padding:8px 12px;border-right:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb}
+.prop-cell{padding:5px 12px;border-right:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb}
 .prop-cell:nth-child(3n){border-right:none}
 .prop-cell-lbl{font-size:8px;text-transform:uppercase;letter-spacing:.6px;color:#9ca3af;font-weight:600;margin-bottom:3px}
 .prop-cell-val{font-size:11px;font-weight:700;color:#111827}
 
 /* ── Financial summary ── */
-.fin-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
-.fin-card{border:1.5px solid #e5e7eb;border-radius:8px;padding:10px 12px;text-align:center}
+.fin-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:4px}
+.fin-card{border:1.5px solid #e5e7eb;border-radius:8px;padding:6px 10px;text-align:center}
 .fin-lbl{font-size:8px;text-transform:uppercase;letter-spacing:.6px;color:#9ca3af;font-weight:600;margin-bottom:4px}
 .fin-val{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
-.fin-words{font-size:9px;color:#6b7280;font-style:italic;text-align:center;padding:8px 0 4px}
+.fin-words{font-size:9px;color:#6b7280;font-style:italic;text-align:center;padding:3px 0 2px}
 
 /* ── Installment table ── */
-.inst-table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:4px}
-.inst-table th{padding:7px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.inst-table{width:100%;border-collapse:collapse;font-size:9.5px;margin-bottom:4px}
+/* the schedule in two columns side by side */
+.inst-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+.inst-table th{padding:4px 7px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .inst-table th.r{text-align:right}
-.inst-table td{padding:5px 8px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+.inst-table td{padding:2.5px 7px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
 .inst-table td.r{text-align:right;font-variant-numeric:tabular-nums}
 .inst-table tr:nth-child(even) td{background:#fafafa}
 .inst-tfoot td{background:#f8fafc!important;font-weight:700;border-top:2px solid #e5e7eb;font-size:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -90,7 +92,7 @@ body.lang-ur .lh,.body.lang-ur .agr-refs,.body.lang-ur .parties-grid{direction:r
 
 /* ── Terms ── */
 .terms-list{padding-left:16px;margin:0}
-.terms-list li{font-size:10px;color:#374151;line-height:1.8;padding-bottom:3px}
+.terms-list li{font-size:9.5px;color:#374151;line-height:1.5;padding-bottom:1px}
 
 /* ── Co-buyer / nominee ── */
 .side-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px}
@@ -98,14 +100,14 @@ body.lang-ur .lh,.body.lang-ur .agr-refs,.body.lang-ur .parties-grid{direction:r
 .side-lbl{font-size:8px;text-transform:uppercase;letter-spacing:.6px;color:#9ca3af;font-weight:600;margin-bottom:6px}
 
 /* ── Signatures ── */
-.sig-section{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:18px;padding-top:14px;border-top:1px solid #e5e7eb;page-break-inside:avoid}
-.sig-box{padding-top:28px;border-top:1.5px solid #374151}
+.sig-section{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:12px;padding-top:8px;border-top:1px solid #e5e7eb;page-break-inside:avoid}
+.sig-box{padding-top:24px;border-top:1.5px solid #374151}
 .sig-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#9ca3af}
 .sig-name{font-size:11px;font-weight:700;color:#111827;margin-top:4px;min-height:16px}
 .sig-role{font-size:9px;color:#9ca3af;margin-top:2px}
 
 /* ── Footer ── */
-.doc-footer{margin-top:16px;padding-top:10px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#9ca3af}
+.doc-footer{margin-top:10px;padding-top:6px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#9ca3af}
 
 /* ── Fixed print footer (repeats on every printed page) ── */
 .print-footer{display:none}
@@ -117,7 +119,7 @@ body.lang-ur .lh,.body.lang-ur .agr-refs,.body.lang-ur .parties-grid{direction:r
 /* ── Print ── */
 @media print{
   @page{size:A4;margin:10mm 12mm;@bottom-right{content:"Page " counter(page) " of " counter(pages)}}
-  body{background:#fff;padding-bottom:22mm}
+  body{background:#fff;padding-bottom:10mm}
   .toolbar{display:none!important}
   .page-wrap{padding:0}
   .page{width:100%;box-shadow:none;border-radius:0}
@@ -215,7 +217,8 @@ async function loadReport(){
       : `<div class="lh-initials">${esc(coName.charAt(0).toUpperCase())}</div>`;
 
     // Build installment rows
-    let instRows = '';
+    // A sale agreement shows the plan only: no paid, balance or status (2026-10-14)
+    const instRowList = [];
     let totalAmtDue = 0, totalAmtPaid = 0, totalBal = 0;
     installments.forEach((i, idx) => {
       const amtDue  = Number(i.amount_due  || 0);
@@ -237,18 +240,23 @@ async function loadReport(){
           : '<span class="badge-due">Pending</span>';
       const typeBadge = isDP ? '<span class="badge-dp">Down Pmnt</span>' : '';
 
-      instRows += `
+      instRowList.push(`
       <tr>
         <td style="font-family:monospace;font-weight:700;color:#374151">${instNum}</td>
-        <td>${typeBadge}</td>
+        <td>${typeBadge || (i.installment_type === 'possession' ? 'Possession' : 'Installment')}</td>
         <td>${fmtD(i.due_date)}</td>
         <td class="r" style="font-weight:600">${fmt(amtDue)}</td>
-        <td class="r" style="color:#16a34a;font-weight:${amtPaid>0?'700':'400'}">${amtPaid > 0 ? fmt(amtPaid) : '—'}</td>
-        <td class="r" style="color:${bal>0?(isOver?'#dc2626':'#d97706'):'#16a34a'};font-weight:${bal>0?'700':'400'}">${bal > 0 ? fmt(bal) : '—'}</td>
-        <td>${badge}</td>
-        ${i.notes ? `<td style="font-size:9px;color:#6b7280">${esc(i.notes)}</td>` : '<td></td>'}
-      </tr>`;
+      </tr>`);
     });
+    const half = Math.ceil(instRowList.length / 2);
+    const instTable = (rows, foot) => `
+      <table class="inst-table">
+        <thead><tr style="background:${primary};color:#fff">
+          <th style="width:34px">#</th><th>Type</th><th>Due Date</th><th class="r">Amount (PKR)</th>
+        </tr></thead>
+        <tbody>${rows.join('')}</tbody>
+        ${foot ? `<tfoot><tr class="inst-tfoot"><td colspan="3">Total</td><td class="r">PKR ${fmt(totalAmtDue)}</td></tr></tfoot>` : ''}
+      </table>`;
 
     // Terms
     const terms = [
@@ -304,7 +312,7 @@ async function loadReport(){
           <div class="party-label">Seller / Developer</div>
           <div class="party-name">${esc(coName)}</div>
           <div class="party-meta">
-            ${esc(br.letterhead_subtitle||'Real Estate Developer')}<br>
+            ${cid === '96d210e7-e63b-4ef0-b1d0-74e622eac7ce' ? 'By 14 Group of Companies' : esc(br.letterhead_subtitle||'Real Estate Developer')}<br>
             ${br.address_full ? esc(br.address_full)+'<br>' : ''}
             ${br.business_phone ? esc(br.business_phone)+'<br>' : ''}
             ${br.ntn_number ? 'NTN: '+esc(br.ntn_number) : ''}
@@ -353,61 +361,20 @@ async function loadReport(){
         </div>
         ${s.wht_amount ? `<div class="fin-card"><div class="fin-lbl">WHT</div><div class="fin-val" style="color:#374151">PKR ${fmt(s.wht_amount)}</div></div>` : ''}
         ${s.cvt_amount ? `<div class="fin-card"><div class="fin-lbl">CVT</div><div class="fin-val" style="color:#374151">PKR ${fmt(s.cvt_amount)}</div></div>` : ''}
-        <div class="fin-card">
-          <div class="fin-lbl">Total Paid</div>
-          <div class="fin-val" style="color:#16a34a">PKR ${fmt(totalPaid)}</div>
-        </div>
-        <div class="fin-card">
-          <div class="fin-lbl">Outstanding</div>
-          <div class="fin-val" style="color:${outstanding>0?'#dc2626':'#16a34a'}">PKR ${fmt(outstanding)}</div>
-        </div>
       </div>
       <div class="fin-words">Net Sale Price in Words: <b>${amtWords(netAmt)}</b></div>
 
       ${installments.length > 0 ? `
       <div class="sec-hd" style="background:${primary};border-color:${accent}">Payment Schedule (${installments.length} installments)</div>
-      <table class="inst-table">
-        <thead>
-          <tr style="background:${primary};color:#fff">
-            <th style="width:36px">#</th>
-            <th style="width:80px">Type</th>
-            <th style="width:80px">Due Date</th>
-            <th class="r" style="width:85px">Amount Due</th>
-            <th class="r" style="width:80px">Paid</th>
-            <th class="r" style="width:80px">Balance</th>
-            <th style="width:65px">Status</th>
-            <th>Notes</th>
-          </tr>
-        </thead>
-        <tbody>${instRows}</tbody>
-        <tfoot>
-          <tr class="inst-tfoot">
-            <td colspan="3" style="font-size:9px;color:#6b7280;font-style:italic">Recovery: ${pct}% (${fmt(totalPaid)} of ${fmt(netAmt)})</td>
-            <td class="r">PKR ${fmt(totalAmtDue)}</td>
-            <td class="r" style="color:#16a34a">PKR ${fmt(totalAmtPaid)}</td>
-            <td class="r" style="color:${totalBal>0?'#dc2626':'#16a34a'}">PKR ${fmt(totalBal)}</td>
-            <td colspan="2"></td>
-          </tr>
-        </tfoot>
-      </table>` : ''}
+      <div class="inst-cols">${instTable(instRowList.slice(0, half), false)}${instTable(instRowList.slice(half), true)}</div>` : ''}
 
-      ${(s.co_buyer_name || s.nominee_name) ? `
-      <div class="sec-hd" style="background:${primary};border-color:${accent}">Co-Buyer &amp; Nominee Details</div>
-      <div class="side-grid">
-        ${s.co_buyer_name ? `
-        <div class="side-box">
-          <div class="side-lbl">Co-Buyer</div>
-          <div style="font-size:11px;font-weight:700;color:#111827;margin-bottom:4px">${esc(s.co_buyer_name)}</div>
-          ${s.co_buyer_cnic ? `<div style="font-size:10px;color:#6b7280">CNIC: ${esc(s.co_buyer_cnic)}</div>` : ''}
-          ${s.co_buyer_share_pct ? `<div style="font-size:10px;color:#6b7280">Share: ${s.co_buyer_share_pct}%</div>` : ''}
-        </div>` : '<div></div>'}
-        ${s.nominee_name ? `
-        <div class="side-box">
-          <div class="side-lbl">Nominee</div>
-          <div style="font-size:11px;font-weight:700;color:#111827;margin-bottom:4px">${esc(s.nominee_name)}</div>
-          ${s.nominee_cnic ? `<div style="font-size:10px;color:#6b7280">CNIC: ${esc(s.nominee_cnic)}</div>` : ''}
-          ${s.nominee_relation ? `<div style="font-size:10px;color:#6b7280">Relation: ${esc(s.nominee_relation)}</div>` : ''}
-        </div>` : '<div></div>'}
+      ${s.nominee_name ? `
+      <!-- nominee only: co-buyer is no longer taken (2026-10-14) -->
+      <div class="sec-hd" style="background:${primary};border-color:${accent}">Nominee Details</div>
+      <div class="side-box" style="display:flex;gap:28px;flex-wrap:wrap;align-items:baseline">
+        <div style="font-size:11px;font-weight:700;color:#111827">${esc(s.nominee_name)}</div>
+        ${s.nominee_cnic ? `<div style="font-size:10px;color:#6b7280">CNIC: ${esc(s.nominee_cnic)}</div>` : ''}
+        ${s.nominee_relation ? `<div style="font-size:10px;color:#6b7280">Relation: ${esc(s.nominee_relation)}</div>` : ''}
       </div>` : ''}
 
       <div class="sec-hd" style="background:${primary};border-color:${accent}">Terms &amp; Conditions</div>
