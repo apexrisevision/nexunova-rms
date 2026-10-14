@@ -128,7 +128,8 @@ function _sigBlock(extraCol){
     ?'<div class="sig-box"><div class="sig-lbl">'+extraCol.label+'</div><div class="sig-name">'+esc(extraCol.value||'')+'</div></div>'
     :'';
   return '<div class="sig-row">'
-    +'<div class="sig-box"><div class="sig-lbl">Authorized Signatory</div><div class="sig-name" style="min-height:20px">'+esc(sigName)+'</div><div class="sig-lbl" style="margin-top:3px">'+esc(sigTitle)+'</div></div>'
+    +'<div class="sig-box"><div class="sig-lbl">Authorized Signatory</div><div class="sig-name" style="min-height:20px">'+esc(sigName)+'</div>'
+    +(/^\s*authori[sz]ed signatory\s*$/i.test(sigTitle)?'':'<div class="sig-lbl" style="margin-top:3px">'+esc(sigTitle)+'</div>')+'</div>'
     +cols
     +'</div>'
     +_footer();

@@ -1720,7 +1720,7 @@ function _renderSaleDetail(d, docs, amendments, client) {
     + `<div class="sd-ops-row" style="flex-wrap:wrap"><div style="min-width:0"><div class="sd-ops-t">Demand Notice</div><div class="sd-ops-s">For a specific overdue installment</div></div><div style="display:flex;gap:8px;align-items:center;flex:1;justify-content:flex-end;min-width:220px"><select id="sd-demand-inst" class="nx-select" style="flex:1;max-width:280px;font-size:12px">${pendingInstOpts || '<option value="">— No pending installments —</option>'}</select>${NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printDemandNotice()' })}</div></div>`
     + opRow('Payment Statement', 'Outstanding balance view', NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'_salPrintPaymentStatement()' }))
     + (isA ? `<div class="sd-ops-row" style="flex-wrap:wrap"><div style="min-width:0"><div class="sd-ops-t">Provisional Allotment Letter</div><div class="sd-ops-s">Data only, for the pre-printed sheet (8.5&times;14.5in) &mdash; margins None, scale 100%</div></div><div style="display:flex;gap:8px;align-items:center"><select id="sd-allot-mode" class="nx-select" style="width:auto;font-size:12px"><option value="member" selected>Member Copy</option><option value="office">Office Copy</option><option value="both">Both copies</option><option value="full">Full letter (plain paper)</option></select>${NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printAllotmentLetter()' })}</div></div>` : '')
-    + (isA ? opRow('Possession Letter', 'Unit handover document', NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printPossessionLetter()' })) : '')
+    + (isA ? `<div class="sd-ops-row" style="flex-wrap:wrap"><div style="min-width:0"><div class="sd-ops-t">Possession Letter</div><div class="sd-ops-s">Unit handover document &mdash; enter the possession date</div></div><div style="display:flex;gap:8px;align-items:center"><input type="date" id="sd-poss-date" class="nx-input" style="width:auto;font-size:12px" title="Possession date">${NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printPossessionLetter()' })}</div></div>` : '')
     + (isA ? opDivider + opRow('Log Amendment', 'Record a price or schedule change', NX.button('Log', { variant:'ghost', size:'sm', icon:'pencil', onclick:`openSaleAmendmentModal('${d.id}')` })) : '')
     + (isA && d.status !== 'cancelled' ? opRow('<span style="color:var(--fk-danger)">Cancel Unit</span>', 'Full cancellation — reverses the unit, agent commission &amp; logs the refund', NX.button('Cancel Unit', { variant:'danger-soft', size:'sm', icon:'x-circle', onclick:`nav('unitcancel','${d.unit_id}')` })) : '')
     + (isA && d.status === 'cancelled' ? '<div class="sd-ops-row" style="color:var(--fk-text-muted);font-style:italic;font-size:12px">This sale has been cancelled.</div>' : ''),
@@ -3067,6 +3067,10 @@ function printPossessionLetter() {
   const printDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
   const fmtPKR    = n => 'PKR ' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
   const saleDate  = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
+  // The possession date is entered by hand beside Print (2026-10-14), never today's date
+  const possIn    = (document.getElementById('sd-poss-date') || {}).value || '';
+  if (!possIn) { toast('Enter the possession date first', 'warn'); const el = document.getElementById('sd-poss-date'); if (el) el.focus(); return; }
+  const possDate  = new Date(possIn + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
 
   const html = `<!DOCTYPE html>
 <html>
@@ -3102,7 +3106,7 @@ function printPossessionLetter() {
     ${d.unit_type ? `<tr><td>Unit Type</td><td>${esc(d.unit_type)}</td></tr>` : ''}
     ${d.area_sqft ? `<tr><td>Area</td><td>${Number(d.area_sqft).toLocaleString('en-US')} sq ft</td></tr>` : ''}
     <tr><td>Original Sale Date</td><td>${saleDate}</td></tr>
-    <tr><td>Possession Date</td><td style="font-weight:700;color:${H}">${printDate}</td></tr>
+    <tr><td>Possession Date</td><td style="font-weight:700;color:${H}">${possDate}</td></tr>
     <tr><td>Total Sale Value</td><td style="font-weight:700">${fmtPKR(d.net_amount)}</td></tr>
   </table>
 
