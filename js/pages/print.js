@@ -79,10 +79,12 @@ function _pCSS(sz){
 // (optional) project/site name + user on the right. Company address / NTN /
 // phone live in the FOOTER (see _footer), not here.
 // Uses window._cobranding for company info + colors.
-function _lh(docType, projectName){
+// opts (optional): { sub: the line under the name, plain: true = nothing on the right }
+function _lh(docType, projectName, opts){
+  opts=opts||{};
   var br=window._cobranding||{};
   var co=br.company_name||S?.coName||'Nexunova';
-  var sub=br.letterhead_subtitle||'Recovery Management System';
+  var sub=opts.sub||br.letterhead_subtitle||'Recovery Management System';
   var A=br.accent_color||'#C9A84C';
   var logo=typeof getCoLogo==='function'?getCoLogo():null;
   var dt=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
@@ -95,7 +97,7 @@ function _lh(docType, projectName){
      +'<p style="margin:0;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:'+A+'">'+esc(sub)+'</p>';
   return '<div class="lh">'+
     '<div class="lh-l">'+leftContent+'</div>'+
-    '<div class="lh-r">'+rightParts.join('<br>')+'<br>'+esc(S?S.name||'System':'System')+'</div>'+
+    (opts.plain?'':'<div class="lh-r">'+rightParts.join('<br>')+'<br>'+esc(S?S.name||'System':'System')+'</div>')+
   '</div><div class="gold-bar"></div>';
 }
 

@@ -3089,7 +3089,9 @@ function printPossessionLetter() {
 </style>
 </head>
 <body>
-  ${_lh('Possession Letter', d.project_name)}
+  ${_lh('Possession Letter', d.project_name, (typeof S !== 'undefined' && S && S.cid === '96d210e7-e63b-4ef0-b1d0-74e622eac7ce')
+       // Awami (2026-10-14): "By 14 Group of Companies" under the name; nothing on the right
+       ? { sub: 'By 14 Group of Companies', plain: true } : null)}
   <div style="font-size:11px;color:#57606a;margin:8px 0 14px">Date: ${printDate} &nbsp;|&nbsp; Ref: ${esc(d.sale_number || '—')}</div>
 
   <div class="doc-title">Possession / Handover Letter</div>
