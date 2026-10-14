@@ -238,8 +238,8 @@ async function loadReport(){
 
       <div class="sig-section">
         <div class="sig-box">
-          <div class="sig-lbl">User${p.created_by_name ? ' — ' + esc(p.created_by_name) : ''}</div>
-          <div class="sig-role">Received / Recorded by</div>
+          <div class="sig-lbl">User${p.printed_by_name ? ' — ' + esc(p.printed_by_name) : ''}</div>
+          <div class="sig-role">Printed by</div>
         </div>
         <div class="sig-box">
           <div class="sig-lbl">${esc(br.signature_name||'Accountant')}</div>
