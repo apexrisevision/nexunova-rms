@@ -83,11 +83,13 @@ body.lang-ur .page{direction:rtl;text-align:right}
 
 /* ── Print ── */
 @media print{
-  @page{size:A4;margin:10mm 12mm;@bottom-right{content:"Page " counter(page) " of " counter(pages)}}
-  body{background:#fff;padding-bottom:22mm}
+  /* margin 0: the browser then prints no date, time, title or link round the
+     sheet (Rashid, 2026-10-14); the page's own padding keeps the text in */
+  @page{size:A4;margin:0}
+  body{background:#fff}
   .toolbar{display:none!important}
   .page-wrap{padding:0}
-  .page{width:100%;box-shadow:none;border-radius:0}
+  .page{width:100%;box-shadow:none;border-radius:0;padding:12mm 14mm}
   .lh,.gold-bar,.vtitle,.vamtcell{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .print-footer{display:block;position:fixed;bottom:0;left:0;right:0;font-size:8px;line-height:1.5;color:#6b7280;text-align:center;padding:4px 0;border-top:1px solid #e5e7eb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
@@ -200,28 +202,8 @@ async function loadReport(){
       ? `<img class="lh-logo" src="${esc(br.logo_url)}" alt="${esc(coName)}">`
       : `<div class="lh-initials">${esc(coName.charAt(0).toUpperCase())}</div>`;
 
+    // 2026-10-14 (Rashid): no letterhead banner; the voucher starts at the top
     const html = `
-    <div class="lh" style="background:${primary}">
-      <div class="lh-left">
-        ${logoHtml}
-        <div class="lh-company">
-          <div class="lh-name">${esc(coName)}</div>
-          <div class="lh-sub">${esc(br.letterhead_subtitle||'Recovery Management System')}</div>
-        </div>
-      </div>
-      <div class="lh-right">
-        <div class="lh-doctype">Payment Receipt</div>
-        <div style="font-size:11px;font-weight:700;color:#fff;letter-spacing:.3px;margin-bottom:5px;opacity:.92">${esc(s.project_name || s.unit_no || s.sale_number || rcptNo)}</div>
-        <div class="lh-meta">
-          ${fmtD(p.payment_date)}<br>
-          ${br.address_full ? esc(br.address_full)+'<br>' : ''}
-          ${br.business_phone ? esc(br.business_phone)+'<br>' : ''}
-          ${br.business_email ? esc(br.business_email) : ''}
-        </div>
-      </div>
-    </div>
-    <div class="gold-bar" style="background:linear-gradient(90deg,${accent},#f0e09a,${accent})"></div>
-
     <div class="body">
 
       <div class="vtitle">Receipt Voucher</div>
@@ -239,30 +221,24 @@ async function loadReport(){
         <div class="vcell"><div class="vlabel">Name</div><div class="vval">${esc(s.client_name||'—')}</div></div>
       </div>
       <div class="vgrid2">
-        <div class="vcell"><div class="vlabel">By Cash / Pay Order / Cheque No.</div><div class="vval">${esc(byLine)}</div></div>
+        <div class="vcell"><div class="vlabel">Unit Address</div><div class="vval">${esc(unitAddr)}</div></div>
         <div class="vcell"><div class="vlabel">Amount of</div><div class="vval">${esc(amountOf)}</div></div>
+      </div>
+      <div class="vgrid1">
+        <div class="vcell" style="margin-right:0"><div class="vlabel">By Cash / Pay Order / Cheque No.</div><div class="vval">${esc(byLine)}</div></div>
       </div>
 
       <div class="vamtgrid">
         <div class="vamtcell"><div class="vlabel">Rs.</div><div class="vamt">${fmt(amt)}/-</div></div>
         <div class="vamtcell"><div class="vlabel">Rs. In Words</div><div class="vwords">${amtWords(amt)}</div></div>
       </div>
-
-      <div class="vgrid2">
-        <div class="vcell"><div class="vlabel">Remarks</div><div class="vval">${esc(p.notes||'—')}</div></div>
-        <div class="vcell"><div class="vlabel">Unit Address</div><div class="vval">${esc(unitAddr)}</div></div>
+      <div class="vgrid1">
+        <div class="vcell" style="margin-right:0"><div class="vlabel">Remarks</div><div class="vval">${esc(p.notes||'—')}</div></div>
       </div>
-
-      ${netAmt > 0 ? `
-      <div class="vacct">
-        <span>Total: <b>PKR ${fmt(netAmt)}</b></span>
-        <span>Paid to date: <b style="color:#16a34a">PKR ${fmt(totalPaid)}</b></span>
-        <span>Outstanding: <b style="color:${outstanding>0?'#dc2626':'#16a34a'}">PKR ${fmt(outstanding)}</b></span>
-      </div>` : ''}
 
       <div class="sig-section">
         <div class="sig-box">
-          <div class="sig-lbl">User${p.created_by ? ' — ' + esc(p.created_by) : ''}</div>
+          <div class="sig-lbl">User${p.created_by_name ? ' — ' + esc(p.created_by_name) : ''}</div>
           <div class="sig-role">Received / Recorded by</div>
         </div>
         <div class="sig-box">
@@ -271,15 +247,6 @@ async function loadReport(){
         </div>
       </div>
 
-      <div class="doc-footer">
-        <span>
-          ${[br.address_full, br.business_phone, br.ntn_number ? 'NTN: '+br.ntn_number : '', br.footer_text].filter(Boolean).map(esc).join(' · ') || 'Computer-generated receipt. Nexunova RMS.'}
-        </span>
-        <span>Printed: ${new Date().toLocaleString('en-IN')}</span>
-      </div>
-    </div>
-    <div class="print-footer">
-      ${[br.address_full, br.business_phone, br.ntn_number ? 'NTN: '+br.ntn_number : '', br.footer_text].filter(Boolean).map(esc).join(' · ') || esc(coName)}
     </div>`;
 
     page.innerHTML = html;
