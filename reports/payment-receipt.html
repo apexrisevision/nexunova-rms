@@ -82,16 +82,19 @@ body.lang-ur .page{direction:rtl;text-align:right}
 .error-state{margin:24px;padding:20px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#dc2626;font-size:13px;text-align:center}
 
 /* ── Print ── */
+/* margin 0 at the top level (not only inside @media print), so no browser
+   puts its date, time, title or link round the sheet */
+@page{size:A4;margin:0}
+@page :first{margin:0}
 @media print{
   /* margin 0: the browser then prints no date, time, title or link round the
      sheet (Rashid, 2026-10-14); the page's own padding keeps the text in */
-  @page{size:A4;margin:0}
   body{background:#fff}
   .toolbar{display:none!important}
   .page-wrap{padding:0}
   /* printed on letterhead stock whose header is already printed: the voucher
      starts below it (2026-10-14). To move it, change the first value only. */
-  .page{width:100%;box-shadow:none;border-radius:0;padding:50mm 14mm 12mm}
+  .page{width:100%;box-shadow:none;border-radius:0;padding:30mm 14mm 12mm}
   .lh,.gold-bar,.vtitle,.vamtcell{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .print-footer{display:block;position:fixed;bottom:0;left:0;right:0;font-size:8px;line-height:1.5;color:#6b7280;text-align:center;padding:4px 0;border-top:1px solid #e5e7eb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
