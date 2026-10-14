@@ -271,6 +271,11 @@
   // Accounts' editor
   function drawEditor(f) {
     var rel = [['S/O', 'S/O'], ['D/O', 'D/O'], ['W/O', 'W/O']];
+    // The box shows S/O when nothing is stored, and only changed boxes are
+    // saved, so an untouched S/O was never saved and Submit said "Father /
+    // husband name (S/O, D/O or W/O) is required" (Amar, SAF-0002, 2026-10-14).
+    // Save what the box shows.
+    if (!f.buyer_relation && S2.draft.buyer_relation == null) { S2.draft.buyer_relation = 'S/O'; f.buyer_relation = 'S/O'; }
     var html = '<div class="sf-h">' + NX.button('‹ All forms', { variant: 'ghost', size: 'sm', onclick: 'rSaf()' }) +
       '<h2>' + esc(f.saf_no) + '</h2>' + st(f) + (f.supersedes_no ? '<span class="sf-m">redoes ' + esc(f.supersedes_no) + '</span>' : '') + '</div>';
     if ((f.flags || []).length) html += '<div class="sf-flag"><b>The director will see these as differences from the standard plan</b><ul style="margin:4px 0 0 18px;padding:0">' +
