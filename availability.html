@@ -8179,7 +8179,9 @@ async function repOpen() {
 var TOKEN = '';           // the SALES SESSION. The link is LINK, up above.
 var ME = null;
 var TAB = 'desk';
-var DESK_SRC = '/js/portal-reserve-desk.js?v=20261013buyer';
+var DESK_SRC = '/js/portal-reserve-desk.js?v=20261016decider';
+/* Read by the desk script: false = queue only (20261016a, a named decider). */
+var CAN_AUTH = false;
 var DESK_UP = false, DESKV = false;
 /* the portal's own key, on purpose: same origin, same phone, so a director
    already signed into the CRM here is not asked twice */
@@ -8364,11 +8366,21 @@ async function deskIn() {
   $('dk-who').textContent = ((ME && ME.sales_user_name) || 'Signed in') +
     (ME && ME.company_name ? ' \u00b7 ' + ME.company_name : '');
   $('app-body').innerHTML = '<div class="card"><div class="dk-s">Opening the desk\u2026</div></div>';
+  /* 20261016a: a named decider (Iqra) also gets in, to the request queue only;
+     CAN_AUTH stays false for her, so the desk hides booking. */
   var may = false;
+  CAN_AUTH = false;
   try {
     var r = await sb.rpc('can_authorize_reservation', { p_session_token: TOKEN });
-    may = !!(r && r.data === true);
-  } catch (e) { may = false; }
+    CAN_AUTH = !!(r && r.data === true);
+  } catch (e) { CAN_AUTH = false; }
+  may = CAN_AUTH;
+  if (!may) {
+    try {
+      var r2 = await sb.rpc('can_decide_reservation_requests', { p_session_token: TOKEN });
+      may = !!(r2 && r2.data === true);
+    } catch (e) { may = false; }
+  }
   if (!may) {
     $('app-body').innerHTML = '<div class="card"><div class="dk-s">The Reserve Desk ' +
       'does not open on this sign-in. Your sign-in can view the building; booking ' +
