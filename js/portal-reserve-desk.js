@@ -638,6 +638,13 @@
     return true;
   }
 
+  /* QUEUE ONLY (20261016a). A named decider (Iqra) may Approve / Decline link
+     requests but not book, re-tag or release, so the desk shows her the queue
+     and nothing else. Hiding is cosmetic: every booking RPC refuses her. */
+  function _queueOnly() {
+    try { return typeof CAN_AUTH !== 'undefined' && !CAN_AUTH; } catch (e) { return false; }
+  }
+
   function _pkTime(iso) {
     if (!iso) return '';
     try {
@@ -935,17 +942,20 @@
       return '<option value="' + esc(r._label) + '"></option>';
     }).join('');
 
+    // queue-only: the rest is still drawn (so _wire finds its nodes) but hidden
+    var qo = _queueOnly(), hid = qo ? ' style="display:none"' : '';
+
     host.innerHTML =
       '<div class="rd" id="rd-root">' +
         '<div class="rd-top">' + projSel +
           '<button class="rd-chip" id="rd-refresh" title="Reload the unit list">' + li('search', 15) + '</button>' +
-          '<button class="rd-chip" id="rd-daybook">' + li('fileText', 15) + ' Daybook</button>' +
+          '<button class="rd-chip" id="rd-daybook"' + hid + '>' + li('fileText', 15) + ' Daybook</button>' +
         '</div>' +
 
         '<section class="rds rds-req"><div id="rd-reqs" class="rq"></div></section>' +
-        '<section class="rds rds-pay"><div id="rd-pays" class="rq"></div></section>' +
+        '<section class="rds rds-pay"' + hid + '><div id="rd-pays" class="rq"></div></section>' +
 
-        '<section class="rds rds-book"><div class="rds-t">Book a unit</div>' +
+        '<section class="rds rds-book"' + hid + '><div class="rds-t">Book a unit</div>' +
         '<div class="rd-bar">' +
           '<div class="rd-lb">Unit</div>' +
           '<input class="rd-in" id="rd-unit" autocomplete="off" autocapitalize="characters" ' +
@@ -1025,10 +1035,10 @@
           '<div id="rd-out"></div>' +
         '</div></section>' +
 
-        '<section class="rds rds-today"><div class="rd-h">Booked today ' +
+        '<section class="rds rds-today"' + hid + '><div class="rd-h">Booked today ' +
           '<span class="n" id="rd-count">' + ((d.today || []).length) + '</span></div>' +
         '<div id="rd-today"></div></section>' +
-        '<section class="rds rds-un"><div id="rd-unalloc"></div></section>' +
+        '<section class="rds rds-un"' + hid + '><div id="rd-unalloc"></div></section>' +
       '</div>';
 
     _wire();
@@ -1040,7 +1050,7 @@
     _paintPays();
     _paintToday();
     _paintUnalloc();
-    var u = _q('#rd-unit'); if (u) { try { u.focus(); } catch (e) {} }
+    var u = qo ? null : _q('#rd-unit'); if (u) { try { u.focus(); } catch (e) {} }
   }
 
   function _wire() {
@@ -3474,7 +3484,11 @@
   function _paintReqs() {
     var box = _q('#rd-reqs'); if (!box) return;
     var rows = DESK.reqs || [];
-    if (!rows.length) { box.innerHTML = ''; DESK.reqSel = {}; return; }
+    if (!rows.length) {
+      // queue-only has nothing else on screen, so say the queue is empty
+      box.innerHTML = _queueOnly() ? '<div class="rd-empty">No requests waiting.</div>' : '';
+      DESK.reqSel = {}; return;
+    }
     var groups = _reqGroups();
 
     /* A tick on a card that has since been answered would count towards a
