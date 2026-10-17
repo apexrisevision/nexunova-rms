@@ -7,11 +7,10 @@
                money; the NexuFinance lines are re-read at that moment).
                At full price, Submit makes the sale at once, with the money
                already received recorded on it.
-     Director  only when a discount is given or the price is lower: one of the
-               three directors signs in the Directors' Room on the reservation
-               link with their own approval password (js/desk-saf.js); that
-               approval makes the sale. Or declines with a reason, and the
-               form comes back here. The owner / admin login only reads.
+               With a discount too (20261017a): no director step any more —
+               Submit approves the form and makes the sale either way. The
+               reasons (discount, commission, buyer name) are still asked for
+               and printed. The owner / admin login only reads.
 
    Nothing here does arithmetic: the unit and money blocks are the server's,
    and the live preview is the server's own saf_save(..., p_commit = false).
@@ -164,7 +163,7 @@
       var n = rows.filter(t[2]).length;
       return '<button class="sf-tab' + (S2.tab === t[0] ? ' on' : '') + '" onclick="_safTab(\'' + t[0] + '\')">' + esc(t[1]) + ' <b>' + n + '</b></button>'; }).join('');
     var intro = {
-      accounts: 'You prepare the form: the unit and the money fill themselves; you add the buyer, the photos, the plan and the agent, then submit. At the full price Submit makes the sale at once; with a discount it goes to a director, and their approval makes the sale.',
+      accounts: 'You prepare the form: the unit and the money fill themselves; you add the buyer, the photos, the plan and the agent, then submit. Submit makes the sale at once, with or without a discount.',
       director: 'Forms submitted for a sale. Open one to read it as the PDF, then approve it (your digital signature) or send it back with a reason.',
       filing: 'Approved forms. Print the PDF for the file; the sale entry is made from it.'
     }[who];
@@ -291,7 +290,7 @@
     if (!f.buyer_relation && S2.draft.buyer_relation == null) { S2.draft.buyer_relation = 'S/O'; f.buyer_relation = 'S/O'; }
     var html = '<div class="sf-h">' + NX.button('‹ All forms', { variant: 'ghost', size: 'sm', onclick: 'rSaf()' }) +
       '<h2>' + esc(f.saf_no) + '</h2>' + st(f) + (f.supersedes_no ? '<span class="sf-m">redoes ' + esc(f.supersedes_no) + '</span>' : '') + '</div>';
-    if ((f.flags || []).length) html += '<div class="sf-flag"><b>The director will see these as differences from the standard plan</b><ul style="margin:4px 0 0 18px;padding:0">' +
+    if ((f.flags || []).length) html += '<div class="sf-flag"><b>Differences from the standard plan (printed on the form)</b><ul style="margin:4px 0 0 18px;padding:0">' +
       f.flags.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
     if ((f.problems || []).length) html += '<div class="sf-prob"><b>Before it can be submitted</b><ul style="margin:4px 0 0 18px;padding:0">' +
       f.problems.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
@@ -335,11 +334,11 @@
       '<div class="sf-grid" style="margin-top:12px">' + kv('Commission', pct(f.commission_pct) + ' = ' + pkr(f.commission_amount)) + kv('Payable', esc(f.commission_payable_when)) + '</div></div>';
 
     html += '<div class="sf-acts">' + NX.button('Save draft', { variant: 'secondary', onclick: '_safSave()' }) +
-      NX.button(Number(f.discount_amount) > 0 ? 'Submit for director approval' : 'Submit and make the sale', { variant: 'primary', icon: 'send', onclick: '_safAct(\'submit\')' }) +
+      NX.button('Submit and make the sale', { variant: 'primary', icon: 'send', onclick: '_safAct(\'submit\')' }) +
       NX.button('Discard draft', { variant: 'ghost', onclick: '_safAct(\'cancel\')' }) +
       '<span class="sf-m">' + (Number(f.discount_amount) > 0
-        ? 'A discount is given, so a director must approve it; their approval makes the sale.'
-        : 'Full list price: no director approval is needed, Submit makes the sale with the money received.') +
+        ? 'Discount given: no approval is needed, Submit makes the sale with the money received.'
+        : 'Full list price: Submit makes the sale with the money received.') +
       ' Submitting confirms the money above matches NexuFinance, in your name.</span></div>';
     $('sf-body').innerHTML = html;
   }
@@ -368,7 +367,7 @@
     var steps = [
       ['Prepared', f.prepared_by_name, f.prepared_at],
       ['Submitted · money confirmed', f.accounts_verified_by_name || f.submitted_by_name, f.accounts_verified_at || f.submitted_at],
-      f.approval_route === 'plan' ? ['Approved · full price, no director needed', 'At the list price', f.approved_at]
+      f.approval_route === 'plan' ? ['Approved on submit', Number(f.discount_amount) > 0 ? 'Discount ' + pkr(f.discount_amount) : 'At the list price', f.approved_at]
                                   : ['Approved · digitally signed', f.approved_by_name, f.approved_at],
       ['Sale entry, with the money received', f.sale_number, f.sale_id ? (f.filed_at || ' ') : null]
     ];
@@ -454,13 +453,13 @@
     var f = S2.cur, r;
     if (what === 'submit') {
       if (Object.keys(S2.draft).length && !(await window._safSave())) return;
-      if (!confirm('Submit ' + f.saf_no + (Number(f.discount_amount) > 0 ? ' for director approval? Their approval makes the sale.' : '? It is at the full list price, so the sale for ' + f.unit_code + ' is made now.') + ' You confirm the money on it matches NexuFinance.')) return;
+      if (!confirm('Submit ' + f.saf_no + '? The sale for ' + f.unit_code + ' is made now' + (Number(f.discount_amount) > 0 ? ', with the discount of ' + pkr(f.discount_amount) + '.' : ', at the full list price.') + ' You confirm the money on it matches NexuFinance.')) return;
       r = await rpc('saf_submit', { p_id: f.id });
     } else if (what === 'cancel') {
       if (!confirm('Discard draft ' + f.saf_no + '?')) return;
       r = await rpc('saf_cancel', { p_id: f.id }); if (r.success) { say('Draft discarded'); window.rSaf(); return; }
     } else if (what === 'supersede') {
-      if (!confirm('Start a new form to replace ' + f.saf_no + '? The old one stays on record and is marked SUPERSEDED once the director approves the new one.')) return;
+      if (!confirm('Start a new form to replace ' + f.saf_no + '? The old one stays on record and is marked SUPERSEDED once the new one is submitted.')) return;
       r = await rpc('saf_supersede', { p_id: f.id });
     } else if (what === 'filed') {
       if (!confirm('Mark ' + f.saf_no + ' as printed and filed?')) return;
@@ -480,7 +479,7 @@
   async function loadShared() {
     if (window.SafPdf) return;
     await new Promise(function (res, rej) {
-      var x = document.createElement('script'); x.src = 'js/saf-pdf.js?v=20261014photo';
+      var x = document.createElement('script'); x.src = 'js/saf-pdf.js?v=20261017report';
       x.onload = res; x.onerror = function () { rej(new Error('The PDF drawing did not load.')); };
       document.head.appendChild(x);
     });
