@@ -100,6 +100,9 @@ body.lang-ur .page{direction:rtl;text-align:right}
   /* printed on letterhead stock whose header is already printed: the voucher
      starts below it (2026-10-14). To move it, change the first value only. */
   .page{width:100%;box-shadow:none;border-radius:0;padding:6mm 14mm 12mm}
+  /* Awami's stock has its header printed at the top; 6mm landed on it
+     (Rashid, 2026-10-17). To move Awami's only, change this value. */
+  body.co-awami .page{padding-top:30mm}
   .body{padding-top:0}
   .lh,.gold-bar,.vtitle,.vamtcell{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .print-footer{display:block;position:fixed;bottom:0;left:0;right:0;font-size:8px;line-height:1.5;color:#6b7280;text-align:center;padding:4px 0;border-top:1px solid #e5e7eb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -137,6 +140,7 @@ const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 const P = new URLSearchParams(location.search);
 const paymentId = P.get('id');
 const cid       = P.get('cid');
+if (cid === '96d210e7-e63b-4ef0-b1d0-74e622eac7ce') document.body.classList.add('co-awami');  // Awami: print starts below the pre-printed header
 
 const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const fmt = n  => Number(n||0).toLocaleString('en-IN');
