@@ -101,8 +101,8 @@ body.lang-ur .page{direction:rtl;text-align:right}
      starts below it (2026-10-14). To move it, change the first value only. */
   .page{width:100%;box-shadow:none;border-radius:0;padding:6mm 14mm 12mm}
   /* Awami's stock has its header printed at the top; 6mm landed on it
-     (Rashid, 2026-10-17). To move Awami's only, change this value. */
-  body.co-awami .page{padding-top:30mm}
+     (Rashid, 2026-10-17; 30mm still too high). To move Awami's only, change this value. */
+  body.co-awami .page{padding-top:40mm}
   .body{padding-top:0}
   .lh,.gold-bar,.vtitle,.vamtcell{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .print-footer{display:block;position:fixed;bottom:0;left:0;right:0;font-size:8px;line-height:1.5;color:#6b7280;text-align:center;padding:4px 0;border-top:1px solid #e5e7eb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -191,6 +191,9 @@ async function loadReport(){
         installments = sRes.data.installments|| [];
       }
     }
+
+    // Awami by its project too, not only by the cid in the link (umbrella logins)
+    if (/awami/i.test(String(s.project_name || p.project_name || ''))) document.body.classList.add('co-awami');
 
     const totalPaid   = installments.reduce((sum,i) => sum + Number(i.amount_paid||0), 0);
     const netAmt      = Number(s.net_amount || s.total_amount || 0);
