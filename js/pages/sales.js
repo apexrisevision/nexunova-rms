@@ -2742,10 +2742,12 @@ function _alBand(d, c, noteNo) {
     '<div class="al-l"><div class="k">S/O, D/O, W/O</div><div class="v">' + v(c.father_name) + '</div></div>' +
     '<div class="al-l"><div class="k">CNIC</div><div class="v">' + v(c.cnic) + '</div></div>' +
     '<div class="al-l"><div class="k">Mobile</div><div class="v">' + v(c.phone_primary) + '</div></div>' +
-    '<div class="al-split al-addr">' +
-      '<div class="al-l"><div class="k" style="width:1.0in">Address</div><div class="v wrap">' + v(c.address) + '</div></div>' +
-      '<div class="al-l al-note"><div class="k" style="width:1.2in">Currency Note</div><div class="v">' + v(noteNo) + '</div></div>' +
-    '</div>' +
+    (noteNo === undefined
+      ? '<div class="al-l"><div class="k">Address</div><div class="v wrap">' + v(c.address) + '</div></div>'
+      : '<div class="al-split al-addr">' +
+          '<div class="al-l"><div class="k" style="width:1.0in">Address</div><div class="v wrap">' + v(c.address) + '</div></div>' +
+          '<div class="al-l al-note"><div class="k" style="width:1.2in">Currency Note</div><div class="v">' + v(noteNo) + '</div></div>' +
+        '</div>') +
     '<div class="al-split">' +
       '<div class="al-l"><div class="k">Net Price</div><div class="v">' + money(d.net_amount) + '</div></div>' +
       '<div class="al-l"><div class="k" style="width:0.7in">Dated</div><div class="v">' + dated + '</div></div>' +
@@ -2821,23 +2823,29 @@ async function printAllotmentLetter() {
   const sel  = document.getElementById('sd-allot-mode');
   const mode = (sel && sel.value) || 'member';
 
-  // The currency note number is asked every time and is required (2026-10-22);
-  // it prints beside the Address line. It is saved on the sale and one note can
-  // belong to one sale only (20261022a), so a reprint offers the saved number.
-  let saved = '';
-  try {
-    const g = await supabase.rpc('sale_currency_note', { p_sale_id: d.id, p_company_id: S.cid });
-    if (!g.error && g.data && g.data.success) saved = g.data.note || '';
-  } catch (e) { /* ask with an empty box */ }
-  const noteIn = window.prompt('Currency note number:', saved);
-  if (noteIn === null) return;
-  if (!noteIn.trim()) { toast('Enter the currency note number to print the allotment letter', 'warn'); return; }
-  const sv = await supabase.rpc('sale_currency_note', { p_sale_id: d.id, p_company_id: S.cid, p_note: noteIn });
-  if (sv.error || !sv.data || !sv.data.success) {
-    toast((sv.data && sv.data.message) || (sv.error && sv.error.message) || 'Could not save the currency note number', 'err');
-    return;
+  // Awami only (Rashid, 2026-10-22): the currency note number is asked every
+  // time and is required; it prints beside the Address line. It is saved on the
+  // sale and one note can belong to one sale only (20261022a), so a reprint
+  // offers the saved number. Other companies print the letter as before.
+  // Awami by its project too, not only by the cid (umbrella logins).
+  const isAwami = S.cid === '96d210e7-e63b-4ef0-b1d0-74e622eac7ce' || /awami/i.test(String(d.project_name || ''));
+  let noteNo;
+  if (isAwami) {
+    let saved = '';
+    try {
+      const g = await supabase.rpc('sale_currency_note', { p_sale_id: d.id, p_company_id: S.cid });
+      if (!g.error && g.data && g.data.success) saved = g.data.note || '';
+    } catch (e) { /* ask with an empty box */ }
+    const noteIn = window.prompt('Currency note number:', saved);
+    if (noteIn === null) return;
+    if (!noteIn.trim()) { toast('Enter the currency note number to print the allotment letter', 'warn'); return; }
+    const sv = await supabase.rpc('sale_currency_note', { p_sale_id: d.id, p_company_id: S.cid, p_note: noteIn });
+    if (sv.error || !sv.data || !sv.data.success) {
+      toast((sv.data && sv.data.message) || (sv.error && sv.error.message) || 'Could not save the currency note number', 'err');
+      return;
+    }
+    noteNo = sv.data.note;
   }
-  const noteNo = sv.data.note;
 
   // Full client row — father_name / cnic / phone_primary / address only exist on
   // the clients table, not on the sale detail payload.
