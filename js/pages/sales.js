@@ -2376,7 +2376,8 @@ async function saveEditSale() {
       ? bits.join('  ·  ')
       : 'Changes to price/discount or the installment schedule require Admin approval.';
     _reason = await _salMakerCommentPrompt(
-      _isAdminUser ? 'Reason required for this change' : 'Approval Required', detail);
+      _isAdminUser ? 'Reason required for this change' : 'Approval Required', detail,
+      _isAdminUser ? 'Save' : 'Submit for Approval');
     if (!_reason) return;   // cancelled
   }
 
@@ -2418,7 +2419,9 @@ async function saveEditSale() {
 
 // ── Maker-comment prompt for approval-gated actions ───────────────────
 // Returns the comment string (min 10 chars) or null if cancelled.
-function _salMakerCommentPrompt(title, detail) {
+// okLabel: 'Save' when the caller's change applies directly (admin/owner);
+// only a non-admin's change goes to Approvals.
+function _salMakerCommentPrompt(title, detail, okLabel) {
   return new Promise(resolve => {
     document.getElementById('_sal-comment-overlay')?.remove();
     const ov = document.createElement('div');
@@ -2436,7 +2439,7 @@ function _salMakerCommentPrompt(title, detail) {
         <div id="_sal-cm-err" style="font-size:11px;color:var(--err,#f43f5e);min-height:16px;margin-top:4px"></div>
         <div style="display:flex;gap:8px;margin-top:14px">
           <button id="_sal-cm-cancel" style="flex:1;padding:9px;background:transparent;border:1.5px solid rgba(255,255,255,.15);border-radius:8px;color:var(--t2,rgba(255,255,255,.6));font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button>
-          <button id="_sal-cm-ok" style="flex:2;padding:9px;background:#6366f1;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Submit for Approval</button>
+          <button id="_sal-cm-ok" style="flex:2;padding:9px;background:#6366f1;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">${esc(okLabel || 'Submit for Approval')}</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
@@ -2495,13 +2498,13 @@ function _salSaveConfirmPopup() {
     el.id = '_sal-confirm-overlay';
     el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
     el.innerHTML = `
-      <div style="background:var(--bg,#fff);border:1px solid var(--line,#e5e7eb);border-radius:16px;padding:32px 28px;max-width:380px;width:100%;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.2)">
-        <div style="margin-bottom:10px"><svg width="36" height="36" fill="none" stroke="var(--t2,#444)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></div>
-        <div style="font-size:16px;font-weight:700;color:var(--t1,#111);margin-bottom:8px">Save Changes?</div>
-        <div style="font-size:12px;color:var(--t3,#888);margin-bottom:24px">This will update the sale record and all schedule changes in the database.</div>
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:32px 28px;max-width:380px;width:100%;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.2)">
+        <div style="margin-bottom:10px"><svg width="36" height="36" fill="none" stroke="#444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></div>
+        <div style="font-size:16px;font-weight:700;color:#111;margin-bottom:8px">Save Changes?</div>
+        <div style="font-size:12px;color:#555;margin-bottom:24px">This will update the sale record and all schedule changes in the database.</div>
         <div style="display:flex;gap:10px;justify-content:center">
           <button id="_sal-confirm-no"
-            style="background:transparent;border:1px solid var(--line,#ccc);border-radius:8px;padding:9px 22px;font-size:13px;font-weight:500;cursor:pointer;color:var(--t2,#444)">
+            style="background:transparent;border:1px solid #ccc;border-radius:8px;padding:9px 22px;font-size:13px;font-weight:500;cursor:pointer;color:#444">
             Cancel
           </button>
           <button id="_sal-confirm-yes"
