@@ -2822,11 +2822,22 @@ async function printAllotmentLetter() {
   const mode = (sel && sel.value) || 'member';
 
   // The currency note number is asked every time and is required (2026-10-22);
-  // it prints beside the Address line.
-  const noteIn = window.prompt('Currency note number:', '');
+  // it prints beside the Address line. It is saved on the sale and one note can
+  // belong to one sale only (20261022a), so a reprint offers the saved number.
+  let saved = '';
+  try {
+    const g = await supabase.rpc('sale_currency_note', { p_sale_id: d.id, p_company_id: S.cid });
+    if (!g.error && g.data && g.data.success) saved = g.data.note || '';
+  } catch (e) { /* ask with an empty box */ }
+  const noteIn = window.prompt('Currency note number:', saved);
   if (noteIn === null) return;
-  const noteNo = noteIn.trim();
-  if (!noteNo) { toast('Enter the currency note number to print the allotment letter', 'warn'); return; }
+  if (!noteIn.trim()) { toast('Enter the currency note number to print the allotment letter', 'warn'); return; }
+  const sv = await supabase.rpc('sale_currency_note', { p_sale_id: d.id, p_company_id: S.cid, p_note: noteIn });
+  if (sv.error || !sv.data || !sv.data.success) {
+    toast((sv.data && sv.data.message) || (sv.error && sv.error.message) || 'Could not save the currency note number', 'err');
+    return;
+  }
+  const noteNo = sv.data.note;
 
   // Full client row — father_name / cnic / phone_primary / address only exist on
   // the clients table, not on the sale detail payload.
