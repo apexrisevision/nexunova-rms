@@ -2711,12 +2711,14 @@ function _alCSS() {
     '.al-l .k{width:1.45in;flex:none;color:#333}' +
     '.al-l .v{font-weight:bold;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '.al-l .v.wrap{white-space:normal}' +
-    '.al-split{display:flex;gap:18px}.al-split>*{flex:1;min-width:0}';
+    '.al-split{display:flex;gap:18px}.al-split>*{flex:1;min-width:0}' +
+    // Address shares its line with the currency note number (2026-10-22)
+    '.al-addr{clear:both}.al-addr .al-note{flex:none;width:2.4in}';
 }
 
 // The data band — identical on every mode, so the overlay and the full letter
 // can never disagree about what was allotted.
-function _alBand(d, c) {
+function _alBand(d, c, noteNo) {
   const v     = x => (x === null || x === undefined || String(x).trim() === '') ? '—' : esc(String(x));
   const money = x => (x === null || x === undefined || x === '' || isNaN(Number(x)))
     ? '—' : 'PKR ' + Number(x).toLocaleString('en-US', { maximumFractionDigits: 0 });
@@ -2740,7 +2742,10 @@ function _alBand(d, c) {
     '<div class="al-l"><div class="k">S/O, D/O, W/O</div><div class="v">' + v(c.father_name) + '</div></div>' +
     '<div class="al-l"><div class="k">CNIC</div><div class="v">' + v(c.cnic) + '</div></div>' +
     '<div class="al-l"><div class="k">Mobile</div><div class="v">' + v(c.phone_primary) + '</div></div>' +
-    '<div class="al-l"><div class="k">Address</div><div class="v wrap">' + v(c.address) + '</div></div>' +
+    '<div class="al-split al-addr">' +
+      '<div class="al-l"><div class="k" style="width:1.0in">Address</div><div class="v wrap">' + v(c.address) + '</div></div>' +
+      '<div class="al-l al-note"><div class="k" style="width:1.2in">Currency Note</div><div class="v">' + v(noteNo) + '</div></div>' +
+    '</div>' +
     '<div class="al-split">' +
       '<div class="al-l"><div class="k">Net Price</div><div class="v">' + money(d.net_amount) + '</div></div>' +
       '<div class="al-l"><div class="k" style="width:0.7in">Dated</div><div class="v">' + dated + '</div></div>' +
@@ -2751,7 +2756,7 @@ function _alBand(d, c) {
 // Full letter for plain paper — same sheet size, so it reads identically to the
 // pre-printed stock. Company address / phone / website come from the company
 // record; whatever is blank there simply prints blank (never invented).
-function _alFullPage(d, c, copyLabel) {
+function _alFullPage(d, c, copyLabel, noteNo) {
   const br      = window._cobranding || {};
   let logo = br.logo_url || null;
   try { if (typeof getCoLogo === 'function') logo = getCoLogo() || logo; } catch (e) { /* branding not loaded */ }
@@ -2779,7 +2784,7 @@ function _alFullPage(d, c, copyLabel) {
 
   // The band is absolutely positioned against the PAGE, so it lands in exactly
   // the same spot as on the pre-printed sheet.
-  h += _alBand(d, c);
+  h += _alBand(d, c, noteNo);
 
   h += '<div style="margin-top:' + (AL_TOP + AL_BAND - 1.55).toFixed(2) + 'in;font-size:14px;line-height:1.62;text-align:justify">';
   h += '<p style="margin:0 0 11px"><b>Dear Member,</b></p>';
@@ -2816,6 +2821,13 @@ async function printAllotmentLetter() {
   const sel  = document.getElementById('sd-allot-mode');
   const mode = (sel && sel.value) || 'member';
 
+  // The currency note number is asked every time and is required (2026-10-22);
+  // it prints beside the Address line.
+  const noteIn = window.prompt('Currency note number:', '');
+  if (noteIn === null) return;
+  const noteNo = noteIn.trim();
+  if (!noteNo) { toast('Enter the currency note number to print the allotment letter', 'warn'); return; }
+
   // Full client row — father_name / cnic / phone_primary / address only exist on
   // the clients table, not on the sale detail payload.
   let c = {};
@@ -2828,12 +2840,12 @@ async function printAllotmentLetter() {
 
   let body;
   if (mode === 'full') {
-    body = _alFullPage(d, c, 'MEMBER COPY') + _alFullPage(d, c, 'OFFICE COPY');
+    body = _alFullPage(d, c, 'MEMBER COPY', noteNo) + _alFullPage(d, c, 'OFFICE COPY', noteNo);
   } else if (mode === 'both') {
-    body = '<div class="al-page">' + _alBand(d, c) + '</div>' +
-           '<div class="al-page">' + _alBand(d, c) + '</div>';
+    body = '<div class="al-page">' + _alBand(d, c, noteNo) + '</div>' +
+           '<div class="al-page">' + _alBand(d, c, noteNo) + '</div>';
   } else {
-    body = '<div class="al-page">' + _alBand(d, c) + '</div>';
+    body = '<div class="al-page">' + _alBand(d, c, noteNo) + '</div>';
   }
 
   const title = 'Provisional Allotment Letter — ' + (d.sale_number || '');
