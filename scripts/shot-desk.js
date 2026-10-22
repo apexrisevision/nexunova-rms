@@ -58,7 +58,11 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
       await pg.waitForFunction(() => typeof window._availPreview === 'function', { timeout: 20000 });
       await pg.evaluate(p => window._availPreview(p), C.p);
       await pg.evaluate(C => {
-        sb.rpc = async function (fn) {
+        window.__calls = [];
+        sb.rpc = async function (fn, args) {
+          window.__calls.push({ fn: fn, args: args || {} });
+          if (fn === 'set_hold_contact_desk') return { data: { success: true, phone: '923139851347' } };
+          if (fn === 'change_unit_status_desk') return { data: { success: true, tag: 'V.Hold', expiry_days: 7 } };
           if (fn === 'get_my_profile') return { data: { success: true, profile: { role: 'director', name: 'Rashid Manzoor', company_name: 'Awami Market' } } };
           if (fn === 'can_authorize_reservation') return { data: true };
           if (fn === 'get_reserve_desk') return { data: C.d };
@@ -87,6 +91,29 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
         console.log(name, 'change panel:', JSON.stringify(picked));
         await new Promise(r => setTimeout(r, 300));
         await pg.screenshot({ path: path.join(OUT, TAG + '-' + name + '-change.png') });
+      }
+      // CHGWA="UNIT|name|tag|wa": change a held unit with a WhatsApp number in
+      // the Change panel; prints the calls the page made (all stubbed)
+      if (process.env.CHGWA) {
+        const [unit, who, tag, wa] = process.env.CHGWA.split('|');
+        await pg.evaluate(() => { const b = document.getElementById('rd-unit'); b.value = ''; });
+        await pg.type('#rd-unit', unit);
+        await new Promise(r => setTimeout(r, 500));
+        await pg.click('[data-chg]');
+        await new Promise(r => setTimeout(r, 300));
+        await pg.evaluate(t => { const b = [].find.call(document.querySelectorAll('[data-chgtag]'), x => x.textContent.trim() === t); if (b) b.click(); }, tag);
+        await pg.evaluate(() => { document.querySelector('[data-chgwho]').value = ''; });
+        await pg.type('[data-chgwho]', who);
+        if (wa) await pg.type('[data-chgwa]', wa);
+        await pg.screenshot({ path: path.join(OUT, TAG + '-' + name + '-chgwa.png') });
+        await pg.evaluate(() => { window.__calls = []; });
+        await pg.click('[data-chgdo]');
+        await new Promise(r => setTimeout(r, 400));
+        const ok = await pg.$('[data-askok]'); if (ok) await ok.click();
+        await new Promise(r => setTimeout(r, 800));
+        console.log(name, 'calls:', JSON.stringify(await pg.evaluate(() => window.__calls
+          .filter(c => /contact|change_unit/.test(c.fn))
+          .map(c => ({ fn: c.fn, name: c.args.p_name || c.args.p_requested_by_name, phone: c.args.p_phone, agent: c.args.p_requested_by_agent_id, days: c.args.p_expiry_days })))));
       }
       // REQ="name": type a requester, and print what the WhatsApp line says
       if (process.env.REQ) {

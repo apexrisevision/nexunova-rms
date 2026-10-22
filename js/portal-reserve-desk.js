@@ -1559,6 +1559,12 @@
             esc((u && u.h && u.h.who) || '') + '">' +
           '<input type="number" data-chgdays min="1" max="365" placeholder="days" hidden>' +
         '</div>' +
+        /* A change is a booking too, so it needs the asker's WhatsApp
+           (whatsapp_required). It used to have no box: a number typed in the
+           booking form never reached a change, and the refusal repeated. */
+        '<div class="rd-chgr">' +
+          '<input type="tel" data-chgwa inputmode="tel" autocomplete="off" placeholder="Their WhatsApp (if not on record)">' +
+        '</div>' +
         /* SOLD NEEDS A BUYER (the Sold guard): shown only for Sold - Entry
            Pending, Sold or Booked, where the server refuses a hold with no
            buyer name and no linked agent. */
@@ -1606,6 +1612,18 @@
     /* the name, matched to exactly one agent or member, links the hold to them */
     var hit = who ? (DESK.reqByLabel[who.toLowerCase()] || []) : [];
     var rq = hit.length === 1 ? hit[0] : null;
+    var waEl = _q('[data-chgwa]');
+    var waTyped = String((waEl || {}).value || '').trim();
+    if (waTyped && !_waNorm(waTyped)) {
+      toast('Enter an 11-digit WhatsApp number, e.g. 03001234567.', 'err');
+      if (waEl) waEl.focus();
+      return;
+    }
+    if (waTyped && !who) {
+      toast('Write on whose word first — the WhatsApp number is saved for that person.', 'err');
+      if (whoEl) whoEl.focus();
+      return;
+    }
     var picked = _q('[data-chgtag].on');
     var permNow = picked && picked.getAttribute('data-nature') === 'permanent';
     var okc = await _askOk('Change this unit?',
@@ -1615,6 +1633,21 @@
       'OK, change');
     if (!okc) return;
     if (go) { go.disabled = true; go.textContent = 'Changing…'; }
+    /* the typed number is saved for the person first, under the name the
+       server checks: the picked agent's/member's own name, else what was typed */
+    if (waTyped) {
+      var pid = DESK.projectId || (DESK.data && DESK.data.scope_project_id) || null;
+      var wr; try { wr = await sb.rpc('set_hold_contact_desk', { p_session_token: TOKEN, p_project_id: pid, p_name: rq ? rq.name : who, p_phone: waTyped }); } catch (e) { wr = null; }
+      var wd = wr && wr.data;
+      if (wd && wd.error === 'session_expired') return sessionGone();
+      if (!wd || !wd.success) {
+        if (go) { go.disabled = false; go.textContent = 'Change'; }
+        if (waEl) waEl.focus();
+        return toast((wd && wd.message) || 'The WhatsApp number could not be saved. Nothing was changed.', 'err');
+      }
+      DESK.waSaved = DESK.waSaved || {};
+      DESK.waSaved[String(rq ? rq.name : who).toLowerCase()] = wd.phone;
+    }
     var res;
     try {
       res = await sb.rpc('change_unit_status_desk', {
@@ -1629,6 +1662,7 @@
     if (d && d.error === 'session_expired') return sessionGone();
     if (!d || !d.success) {
       if (go) { go.disabled = false; go.textContent = 'Change'; }
+      if (d && d.error === 'whatsapp_required' && waEl) waEl.focus();
       return toast((d && (d.message || d.error)) || _rpcWhy(res, 'Could not change ' + c.n), 'err');
     }
     toast(c.n + ' is now ' + (d.tag || 'changed') +
