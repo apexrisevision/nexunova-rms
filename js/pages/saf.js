@@ -479,7 +479,7 @@
   async function loadShared() {
     if (window.SafPdf) return;
     await new Promise(function (res, rej) {
-      var x = document.createElement('script'); x.src = 'js/saf-pdf.js?v=20261024nomaddr';
+      var x = document.createElement('script'); x.src = 'js/saf-pdf.js?v=20261024nomaddr2';
       x.onload = res; x.onerror = function () { rej(new Error('The PDF drawing did not load.')); };
       document.head.appendChild(x);
     });

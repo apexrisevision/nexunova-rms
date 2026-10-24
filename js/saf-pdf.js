@@ -162,8 +162,10 @@
     var bwid = px - M - 10;
     cells([['Name', f.buyer_name, INK], [(f.buyer_relation || 'S/O') + ' (father / husband)', f.buyer_father], ['CNIC', f.buyer_cnic],
            ['Phone', f.buyer_phone], ['Address', f.buyer_address],
-           ['Nominee', f.nominee && f.nominee.name ? f.nominee.name + (f.nominee.relation ? ' (' + f.nominee.relation + ')' : '') + (f.nominee.cnic ? ' ' + f.nominee.cnic : '') : ''],
-           ['Nominee address', f.nominee && f.nominee.name ? f.nominee.address : '']], 3, M, bwid);
+           ['Nominee', f.nominee && f.nominee.name ? f.nominee.name + (f.nominee.relation ? ' (' + f.nominee.relation + ')' : '') + (f.nominee.cnic ? ' ' + f.nominee.cnic : '') : '']], 3, M, bwid);
+    // full width, and only when there is one: forms approved before 20261024a
+    // must draw to the same bytes as their recorded fingerprint
+    if (f.nominee && f.nominee.name && f.nominee.address) cells([['Nominee address', f.nominee.address]], 1, M, bwid);
     if (f.buyer_name_reason) { t(fit('Not the name on the hold (' + (f.reservation_buyer_name || '') + '): ' + f.buyer_name_reason, bwid, 7.5), M + 2, y + 1, 7.5, reg, RED); y -= 10; }
     y = Math.min(y, ptop - PH - 16);
 
