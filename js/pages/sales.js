@@ -2304,6 +2304,15 @@ async function saveEditSale() {
   const net      = Math.max(0, pSqft * area - discount);
   const schedule = window._salEditSchedule || [];
 
+  // A row added with "Add row" starts with no date; the server cannot store it
+  // and answered "invalid input syntax for type date" after the sale itself had
+  // saved (LG-135, 2026-10-24). Stop here and say which row.
+  const _noDate = schedule.find(r => !r._deleted && !r.due_date);
+  if (_noDate) {
+    err.textContent = `Installment #${_noDate.installment_number} has no due date. Pick a date, or remove the row with the bin button.`;
+    return;
+  }
+
   // Auto-balance: absorb any shortfall/excess into the LAST installment so the
   // schedule always equals net — no manual re-balancing needed.
   if (schedule.filter(r => !r._deleted).length > 0) {
