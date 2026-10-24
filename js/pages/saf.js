@@ -55,6 +55,7 @@
       '.sf-card h3{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--fk-text-muted);margin:0 0 11px;font-weight:600}' +
       '.sf-ro{background:var(--fk-bg-subtle)}' +
       '.sf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:11px 15px}' +
+      '.sf-f.sf-wide{grid-column:1/-1}' +
       '.sf-kv span{display:block;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--fk-text-muted);margin-bottom:3px}' +
       '.sf-kv b{font-weight:500;font-variant-numeric:tabular-nums;color:var(--fk-text)}' +
       '.sf-f label{display:block;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--fk-text-muted);margin-bottom:4px}' +
@@ -225,6 +226,8 @@
   function inp(key, label, val, type, extra) {
     return '<div class="sf-f"><label>' + esc(label) + '</label><input class="sf-in" data-k="' + key + '" type="' + (type || 'text') +
       '" value="' + esc(val == null ? '' : val) + '" ' + (extra || '') + ' oninput="_safEdit(this)"></div>'; }
+  // an address: the whole row, so it can be read while it is typed
+  function wide(h) { return h.replace('class="sf-f"', 'class="sf-f sf-wide"'); }
   // a photo box: the picture (or an empty frame) and an Upload button
   function photo(key, label, url) {
     return '<div class="sf-ph"><div class="sf-ph-i">' + (url ? '<img src="' + esc(url) + '" alt="">' : '<span>No photo</span>') + '</div>' +
@@ -316,13 +319,13 @@
     html += '<div class="sf-card"><h3>Buyer</h3><div class="sf-bph">' + photo('buyer_photo_url', 'buyer photo', f.buyer_photo_url) + '<div class="sf-grid" style="flex:1">' + inp('buyer_name', 'Full name', f.buyer_name) +
       sel('buyer_relation', 'S/O, D/O or W/O', f.buyer_relation || 'S/O', rel) + inp('buyer_father', 'Father / husband', f.buyer_father) +
       inp('buyer_cnic', 'CNIC (13 digits)', f.buyer_cnic, 'text', 'inputmode="numeric" placeholder="17301-1234567-1"') +
-      inp('buyer_phone', 'Phone', f.buyer_phone, 'tel') + inp('buyer_address', 'Address', f.buyer_address) + '</div></div>';
+      inp('buyer_phone', 'Phone', f.buyer_phone, 'tel') + wide(inp('buyer_address', 'Address', f.buyer_address)) + '</div></div>';
     if (f.reservation_buyer_name && String(f.buyer_name || '').trim().toLowerCase() !== String(f.reservation_buyer_name).trim().toLowerCase())
       html += '<div class="sf-grid" style="margin-top:10px">' + inp('buyer_name_reason', 'Why not "' + f.reservation_buyer_name + '" (the name on the hold)?', f.buyer_name_reason) + '</div>';
     html += '</div><div class="sf-card"><h3>Nominee <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional; with a name, the photo and address are needed)</span></h3>' +
       '<div class="sf-bph">' + photo('nominee_photo_url', 'nominee photo', f.nominee_photo_url) + '<div class="sf-grid" style="flex:1">' +
       inp('nominee.name', 'Nominee name', nm.name) + inp('nominee.relation', 'Relation', nm.relation) + inp('nominee.cnic', 'Nominee CNIC', nm.cnic) +
-      inp('nominee.phone', 'Nominee phone', nm.phone) + inp('nominee.address', 'Nominee address', nm.address) + '</div></div></div>';
+      inp('nominee.phone', 'Nominee phone', nm.phone) + wide(inp('nominee.address', 'Nominee address', nm.address)) + '</div></div></div>';
 
     html += moneyBlock(f);
 
