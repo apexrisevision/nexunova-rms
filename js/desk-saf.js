@@ -104,7 +104,7 @@
   async function loadPdfDrawing() {
     if (window.SafPdf) return;
     await new Promise(function (res, rej) {
-      var s = document.createElement('script'); s.src = '/js/saf-pdf.js?v=20261017report';
+      var s = document.createElement('script'); s.src = '/js/saf-pdf.js?v=20261024nomaddr';
       s.onload = res; s.onerror = function () { rej(new Error('The PDF drawing did not load.')); };
       document.head.appendChild(s);
     });

@@ -95,7 +95,7 @@
         ${fld({ label: 'Passport no', name: 'cfm-passport_no', value: c?.passportNo || '' })}
       </div>
       ${isEdit ? '' : `<div id="cfm-project-wrap" style="${lockProject ? 'display:none' : ''}">${fld({ label: 'Project', name: 'cfm-project', el: 'select', required: true, options: projOpts, value: projId })}</div>`}
-      <details style="margin-top:var(--fk-sp-2)"${c && (c.address || c.city || c.email || c.clientCategory || c.referenceBy || c.notes || c.occupation || c.monthlyIncome || c.ntn || c.phoneSecondary || c.companyName || c.leadSource || c.cnicFrontUrl || c.cnicBackUrl || c.bankName || c.bankAccountTitle || c.bankAccountNo || c.bankIban || c.nextOfKinName || c.nextOfKinPhone || c.nextOfKinRelation || c.nextOfKinCnic || c.nextOfKinPhotoUrl) ? ' open' : ''}>
+      <details style="margin-top:var(--fk-sp-2)"${c && (c.address || c.city || c.email || c.clientCategory || c.referenceBy || c.notes || c.occupation || c.monthlyIncome || c.ntn || c.phoneSecondary || c.companyName || c.leadSource || c.cnicFrontUrl || c.cnicBackUrl || c.bankName || c.bankAccountTitle || c.bankAccountNo || c.bankIban || c.nextOfKinName || c.nextOfKinPhone || c.nextOfKinRelation || c.nextOfKinCnic || c.nextOfKinAddress || c.nextOfKinPhotoUrl) ? ' open' : ''}>
         <summary style="cursor:pointer;font-size:13px;color:var(--fk-text-muted)">More details</summary>
         <div style="margin-top:var(--fk-sp-3)">
           ${fld({ label: 'Address', name: 'cfm-address', el: 'textarea', value: c?.address || '' })}
@@ -150,6 +150,7 @@
             ${fld({ label: 'Nominee phone', name: 'cfm-kin_phone', value: c?.nextOfKinPhone || '', placeholder: '03xx-xxxxxxx' })}
             ${fld({ label: 'Nominee CNIC', name: 'cfm-kin_cnic', value: c?.nextOfKinCnic || '', placeholder: '42101-1234567-1' })}
           </div>
+          ${fld({ label: 'Nominee address', name: 'cfm-kin_address', value: c?.nextOfKinAddress || '' })}
           <div style="display:flex;align-items:center;gap:var(--fk-sp-3);margin:var(--fk-sp-2) 0">
             <div id="cfm-kin-photo-prev" style="width:56px;height:56px;border-radius:50%;overflow:hidden;flex-shrink:0;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);display:grid;place-items:center;font-size:18px;font-weight:600;color:var(--fk-text-muted)">${c?.nextOfKinPhotoUrl ? `<img src="${esc(c.nextOfKinPhotoUrl)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.textContent='N'">` : 'N'}</div>
             <div>
@@ -308,6 +309,7 @@
       next_of_kin_relation: _val('cfm-kin_relation') || null,
       next_of_kin_phone: _val('cfm-kin_phone') || null,
       next_of_kin_cnic: kinCnic || null,
+      next_of_kin_address: _val('cfm-kin_address') || null,
       next_of_kin_photo_url: _val('cfm-kin_photo_url') || null,
       next_of_kin_cnic_front_url: _val('cfm-next_of_kin_cnic_front_url') || null,
       next_of_kin_cnic_back_url: _val('cfm-next_of_kin_cnic_back_url') || null,

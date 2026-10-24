@@ -9059,7 +9059,7 @@ function roomSaf() {
   if (ROOMSAF.loading) return;
   ROOMSAF.loading = true;
   var sc = document.createElement('script');
-  sc.src = '/js/desk-saf.js?v=20261017report';
+  sc.src = '/js/desk-saf.js?v=20261024nomaddr';
   sc.onload = function () { ROOMSAF.loading = false; if (window.DeskSaf) go(); };
   sc.onerror = function () { ROOMSAF.loading = false; };
   document.head.appendChild(sc);

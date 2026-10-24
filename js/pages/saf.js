@@ -319,10 +319,10 @@
       inp('buyer_phone', 'Phone', f.buyer_phone, 'tel') + inp('buyer_address', 'Address', f.buyer_address) + '</div></div>';
     if (f.reservation_buyer_name && String(f.buyer_name || '').trim().toLowerCase() !== String(f.reservation_buyer_name).trim().toLowerCase())
       html += '<div class="sf-grid" style="margin-top:10px">' + inp('buyer_name_reason', 'Why not "' + f.reservation_buyer_name + '" (the name on the hold)?', f.buyer_name_reason) + '</div>';
-    html += '</div><div class="sf-card"><h3>Nominee <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional; with a name, the photo is needed)</span></h3>' +
+    html += '</div><div class="sf-card"><h3>Nominee <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional; with a name, the photo and address are needed)</span></h3>' +
       '<div class="sf-bph">' + photo('nominee_photo_url', 'nominee photo', f.nominee_photo_url) + '<div class="sf-grid" style="flex:1">' +
       inp('nominee.name', 'Nominee name', nm.name) + inp('nominee.relation', 'Relation', nm.relation) + inp('nominee.cnic', 'Nominee CNIC', nm.cnic) +
-      inp('nominee.phone', 'Nominee phone', nm.phone) + '</div></div></div>';
+      inp('nominee.phone', 'Nominee phone', nm.phone) + inp('nominee.address', 'Nominee address', nm.address) + '</div></div></div>';
 
     html += moneyBlock(f);
 
@@ -479,7 +479,7 @@
   async function loadShared() {
     if (window.SafPdf) return;
     await new Promise(function (res, rej) {
-      var x = document.createElement('script'); x.src = 'js/saf-pdf.js?v=20261017report';
+      var x = document.createElement('script'); x.src = 'js/saf-pdf.js?v=20261024nomaddr';
       x.onload = res; x.onerror = function () { rej(new Error('The PDF drawing did not load.')); };
       document.head.appendChild(x);
     });

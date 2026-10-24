@@ -425,6 +425,7 @@ async function loadClientsCache(companyId) {
       nextOfKinRelation: c.next_of_kin_relation|| '',
       nextOfKinPhone:    c.next_of_kin_phone   || '',
       nextOfKinCnic:     c.next_of_kin_cnic    || '',
+      nextOfKinAddress:  c.next_of_kin_address || '',
       nextOfKinPhotoUrl: c.next_of_kin_photo_url || '',
       leadSource:        c.lead_source         || '',
       bankName:          c.bank_name           || '',

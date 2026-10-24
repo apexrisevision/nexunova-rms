@@ -1674,13 +1674,14 @@ function printClientDetail() {
   h += '</table>';
 
   // Next of Kin
-  if (c.nextOfKinName || c.nextOfKinPhone || c.nextOfKinCnic) {
+  if (c.nextOfKinName || c.nextOfKinPhone || c.nextOfKinCnic || c.nextOfKinAddress) {
     h += '<div class="sec-title">Next of Kin / Nominee</div>';
     h += '<table>';
     if (c.nextOfKinName)     h += r('Name',     esc(c.nextOfKinName));
     if (c.nextOfKinRelation) h += r('Relation', esc(c.nextOfKinRelation));
     if (c.nextOfKinPhone)    h += r('Phone',    esc(c.nextOfKinPhone));
     if (c.nextOfKinCnic)     h += r('CNIC',     esc(c.nextOfKinCnic));
+    if (c.nextOfKinAddress)  h += r('Address',  esc(c.nextOfKinAddress));
     h += '</table>';
   }
 
