@@ -1849,6 +1849,10 @@ async function rEditSale() {
     window._salEditOrigDiscount = Number(d.discount      || 0);
     window._salEditOrigPriceSqft= Number(d.price_per_sqft|| 0);
     window._salEditOrigArea     = Number(d.area_sqft     || 0);
+    // 20261024c: a sale made from a SAF keeps the SAF's price; the server refuses
+    // rate / discount / down payment changes, so the boxes are locked here too
+    const _safLock  = !!d.saf_id;
+    const _safRo    = _safLock ? ` readonly style="opacity:.7;cursor:not-allowed" title="Locked: this sale came from ${esc(d.saf_no || 'a SAF')}"` : '';
 
     const clientOpts = (window._clientsCache || []).map(c =>
       `<option value="${c.id}" ${c.id === d.client_id ? 'selected' : ''}>${esc(c.fullName || 'Unnamed')}</option>`
@@ -1936,10 +1940,11 @@ async function rEditSale() {
         <div class="ch"><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Pricing</h3></div>
         <div class="cb">
           <div style="max-width:440px">
+            ${_safLock ? `<div class="ferr" style="display:block;margin:0 0 12px;padding:9px 11px;border:1px solid var(--warn,#d97706);border-radius:8px;color:var(--warn,#b45309)">This sale came from ${esc(d.saf_no || 'a SAF')}. Price change on a SAF sale needs director approval — contact Finance.</div>` : ''}
             <div class="fr">
               <label class="fl">Price per Sq Ft (PKR) <span class="req-star">*</span></label>
               <input id="ef-price-sqft" class="inp-light inp-amt" type="text" inputmode="decimal"
-                value="${Number(d.price_per_sqft||0).toLocaleString('en-US',{maximumFractionDigits:2})}" oninput="_salEditCalc()">
+                value="${Number(d.price_per_sqft||0).toLocaleString('en-US',{maximumFractionDigits:2})}" oninput="_salEditCalc()"${_safRo}>
               <div id="e-ef-price-sqft" class="ferr"></div>
             </div>
             <div class="fr">
@@ -1955,7 +1960,7 @@ async function rEditSale() {
             <div class="fr">
               <label class="fl">Discount (PKR)</label>
               <input id="ef-discount" class="inp-light inp-amt" type="text" inputmode="decimal"
-                value="${Number(d.discount||0).toLocaleString('en-US',{maximumFractionDigits:2})}" oninput="_salEditCalc()">
+                value="${Number(d.discount||0).toLocaleString('en-US',{maximumFractionDigits:2})}" oninput="_salEditCalc()"${_safRo}>
             </div>
             <div class="fr">
               <label class="fl">Net Amount</label>
@@ -1964,7 +1969,7 @@ async function rEditSale() {
             <div class="fr">
               <label class="fl">Down Payment (PKR)</label>
               <input id="ef-down" class="inp-light inp-amt" type="text" inputmode="decimal"
-                value="${Number(d.down_payment||0).toLocaleString('en-US',{maximumFractionDigits:2})}" oninput="_salEditCalc()">
+                value="${Number(d.down_payment||0).toLocaleString('en-US',{maximumFractionDigits:2})}" oninput="_salEditCalc()"${_safRo}>
             </div>
             <div class="fr">
               <label class="fl">Already Collected</label>

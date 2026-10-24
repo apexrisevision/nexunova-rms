@@ -337,10 +337,10 @@
       '<div class="sf-grid" style="margin-top:12px">' + kv('Commission', pct(f.commission_pct) + ' = ' + pkr(f.commission_amount)) + kv('Payable', esc(f.commission_payable_when)) + '</div></div>';
 
     html += '<div class="sf-acts">' + NX.button('Save draft', { variant: 'secondary', onclick: '_safSave()' }) +
-      NX.button('Submit and make the sale', { variant: 'primary', icon: 'send', onclick: '_safAct(\'submit\')' }) +
+      NX.button(Number(f.discount_amount) > 0 ? 'Submit to the Directors\' Room' : 'Submit and make the sale', { variant: 'primary', icon: 'send', onclick: '_safAct(\'submit\')' }) +
       NX.button('Discard draft', { variant: 'ghost', onclick: '_safAct(\'cancel\')' }) +
       '<span class="sf-m">' + (Number(f.discount_amount) > 0
-        ? 'Discount given: no approval is needed, Submit makes the sale with the money received.'
+        ? 'Discount given: a director approves it in the Directors\' Room, and the sale is made then.'
         : 'Full list price: Submit makes the sale with the money received.') +
       ' Submitting confirms the money above matches NexuFinance, in your name.</span></div>';
     $('sf-body').innerHTML = html;
@@ -456,7 +456,9 @@
     var f = S2.cur, r;
     if (what === 'submit') {
       if (Object.keys(S2.draft).length && !(await window._safSave())) return;
-      if (!confirm('Submit ' + f.saf_no + '? The sale for ' + f.unit_code + ' is made now' + (Number(f.discount_amount) > 0 ? ', with the discount of ' + pkr(f.discount_amount) + '.' : ', at the full list price.') + ' You confirm the money on it matches NexuFinance.')) return;
+      if (!confirm('Submit ' + f.saf_no + '? ' + (Number(f.discount_amount) > 0
+        ? 'The discount of ' + pkr(f.discount_amount) + ' goes to the Directors\' Room; the sale for ' + f.unit_code + ' is made when a director approves it.'
+        : 'The sale for ' + f.unit_code + ' is made now, at the full list price.') + ' You confirm the money on it matches NexuFinance.')) return;
       r = await rpc('saf_submit', { p_id: f.id });
     } else if (what === 'cancel') {
       if (!confirm('Discard draft ' + f.saf_no + '?')) return;
@@ -474,7 +476,7 @@
     }
     if (r && r.saf) { S2.cur = r.saf; S2.draft = {}; draw(); }
     if (!r || !r.success) { say((r && (r.message || r.error)) || 'That did not work.', 'err'); return; }
-    say({ submit: r.saf && r.saf.status === 'approved' ? 'Sale ' + (r.saf.sale_number || '') + ' made from ' + r.saf.saf_no + '.' : 'Submitted. It is waiting for a director.', supersede: 'New draft started', filed: 'Marked as filed' }[what] || 'Done');
+    say({ submit: r.saf && r.saf.status === 'approved' ? 'Sale ' + (r.saf.sale_number || '') + ' made from ' + r.saf.saf_no + '.' : 'Submitted. It is waiting for a director in the Directors\' Room.', supersede: 'New draft started', filed: 'Marked as filed' }[what] || 'Done');
     refreshBadge();
   };
 
