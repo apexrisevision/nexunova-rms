@@ -30,7 +30,7 @@
   'use strict';
 
   // ── shared bundle arrays (deduped; versions match the former eager tags) ──
-  var SALES        = ['js/pages/sales.js?v=20261024saflock'];
+  var SALES        = ['js/pages/sales.js?v=20261024unlock'];
   var PROJECTS     = ['js/pages/projects.js?v=20260922pr'];
   var UNITS        = ['js/pages/units.js?v=20260616a'];
   var AGENTS       = ['js/pages/agents.js?v=20260828priv'];
@@ -73,7 +73,7 @@
 
     queue: ['js/pages/recovery-queue.js?v=20260615en'],
 
-    saf: ['js/pages/saf.js?v=20261024saflock'],
+    saf: ['js/pages/saf.js?v=20261024unlock'],
 
     newsale: SALES, editsale: SALES, sales: SALES, salesdetail: SALES,
     projects: PROJECTS, projectdetail: PROJECTS,
