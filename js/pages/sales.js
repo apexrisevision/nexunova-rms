@@ -2704,6 +2704,23 @@ const AL_PAD  = 0.25;   // in — the text starts this far down the band (2026-1
 const AL_PAGE_W = 8.5;
 const AL_PAGE_H = 14.5;
 
+// ══ AWAMI — FROZEN 2026-10-26 ══════════════════════════════════════════
+// Trued against Rashid's test print on the pre-printed Awami sheet: the box
+// clears the title above and the printed "DEAR CLIENT" below. Its position and
+// size are FIXED here, independent of AL_TOP / AL_PAD (those stay for the other
+// companies) and of the data: every Awami letter prints exactly this box,
+// whatever the length of the name or address (the address is held to 2 lines,
+// the other values to 1). It drifted before because the box grew with its
+// content (22-Oct: the currency note beside the address).
+// scripts/check-allotment-frozen.js measures the printed box and runs in the
+// push gate: change anything here or in _alCSS / _alBand that moves it and the
+// push fails. Only change these after a new test print on the real sheet.
+const AL_AWAMI = Object.freeze({
+  top:    3.45,   // in — sheet top edge → top border of the box
+  side:   1.10,   // in — sheet left/right edge → box sides
+  height: 1.78    // in — box height, border included
+});
+
 function _alCSS() {
   return '@page{size:' + AL_PAGE_W + 'in ' + AL_PAGE_H + 'in;margin:0}' +
     '*{box-sizing:border-box}html,body{margin:0;padding:0}' +
@@ -2725,16 +2742,16 @@ function _alCSS() {
     '.al-l .v.wrap{white-space:normal}' +
     '.al-split{display:flex;gap:18px}.al-split>*{flex:1;min-width:0}' +
     '.al-addr{clear:both}' +
-    // Awami (2026-10-26): the box ran onto the printed "Dear Member," — a long
-    // address took 4 lines beside the currency note. The note moved into the
-    // right column, the address has the full width and at most 2 lines, and the
-    // rows sit closer, so the box ends well above the printed text. Top unchanged.
-    '.al-aw{padding:6px 14px 7px}.al-aw .al-l,.al-aw .al-br{line-height:1.3}' +
-    // 2026-10-26 test print: the box's bottom line still sat on the printed
-    // "DEAR CLIENT" — raised about 0.2in: starts 0.10in higher, rows closer.
-    '.al-band.al-band-aw{padding-top:' + (AL_PAD - 0.10).toFixed(2) + 'in}' +
-    '.al-band-aw .al-aw{padding:4px 14px 5px}.al-band-aw .al-aw .al-l,.al-band-aw .al-aw .al-br{line-height:1.24}' +
-    '.al-aw .al-2l{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal;font-size:15px}';
+    // Awami — FROZEN (see AL_AWAMI): currency note in the right column, address
+    // full width on at most 2 lines, a box of fixed position and size.
+    '.al-band.al-band-aw{top:' + AL_AWAMI.top + 'in;left:' + AL_AWAMI.side + 'in;right:' + AL_AWAMI.side + 'in;' +
+      'height:' + AL_AWAMI.height + 'in;padding-top:0}' +
+    '.al-band-aw .al-aw{height:' + AL_AWAMI.height + 'in;overflow:hidden;padding:4px 14px 5px}' +
+    '.al-band-aw .al-aw .al-l,.al-band-aw .al-aw .al-br{line-height:1.24}' +
+    '.al-aw .al-2l{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal;font-size:15px}' +
+    // on screen only, never printed: the print settings the sheet needs
+    '.al-howto{display:none}@media screen{.al-howto{display:block;position:fixed;top:0;left:0;right:0;z-index:9;' +
+      'background:#fff7d6;border-bottom:1px solid #d9b84a;font:13px/1.45 Arial,sans-serif;padding:8px 14px;color:#5a4500}}';
 }
 
 // The data band — identical on every mode, so the overlay and the full letter
@@ -2885,6 +2902,11 @@ async function printAllotmentLetter() {
            '<div class="al-page">' + _alBand(d, c, noteNo) + '</div>';
   } else {
     body = '<div class="al-page">' + _alBand(d, c, noteNo) + '</div>';
+  }
+  // The frozen box only lands right with these dialog settings (Awami overlay).
+  if (isAwami && mode !== 'full') {
+    body = '<div class="al-howto"><b>Printing on the pre-printed sheet:</b> in the print window set ' +
+           '<b>Margins: None</b> and <b>Scale: 100</b> (not "Fit to page"). This yellow note does not print.</div>' + body;
   }
 
   const title = 'Provisional Allotment Letter — ' + (d.sale_number || '');

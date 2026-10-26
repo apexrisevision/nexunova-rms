@@ -14,7 +14,7 @@
     "check:all": "node scripts/predeploy-check.js && node scripts/smoke-forms.js && node scripts/smoke-pages.js",
     "predeploy": "node scripts/predeploy-check.js",
     "smoke:portal": "node scripts/smoke-portal.js",
-    "gate": "node scripts/predeploy-check.js && node scripts/smoke-portal.js",
+    "gate": "node scripts/predeploy-check.js && node scripts/check-allotment-frozen.js && node scripts/smoke-portal.js",
     "backup": "node scripts/backup-full.js",
     "backup:quick": "node scripts/backup-full.js --skip-audit",
     "verify:desk": "node scripts/verify-reserve-desk.js",
