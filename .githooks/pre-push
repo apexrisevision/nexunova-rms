@@ -4,6 +4,7 @@
 # Nothing reaches origin without passing both:
 #   1. predeploy-check.js  — static: syntax, dead modals, undefined handlers
 #   2. smoke-portal.js     — a real browser clicking the real portal
+#   (plus check-allotment-frozen.js — the frozen Awami allotment-letter box)
 #
 # The second one exists because the first cannot see an off-screen action bar, a
 # button wired to state the caller never sets, or a bulk action that sends 1 id
@@ -17,6 +18,11 @@ fi
 
 echo "push-gate: static checks…"
 node scripts/predeploy-check.js || { echo "push-gate: BLOCKED (static checks failed)"; exit 1; }
+
+# The Awami allotment letter prints onto a pre-printed sheet; its box is frozen
+# (AL_AWAMI in js/pages/sales.js, 2026-10-26). A change that moves it stops here.
+echo "push-gate: Awami allotment-letter box…"
+node scripts/check-allotment-frozen.js || { echo "push-gate: BLOCKED (allotment-letter box moved)"; exit 1; }
 
 echo "push-gate: real-browser click-through…"
 node scripts/smoke-portal.js
