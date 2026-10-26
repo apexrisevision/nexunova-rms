@@ -2730,6 +2730,10 @@ function _alCSS() {
     // right column, the address has the full width and at most 2 lines, and the
     // rows sit closer, so the box ends well above the printed text. Top unchanged.
     '.al-aw{padding:6px 14px 7px}.al-aw .al-l,.al-aw .al-br{line-height:1.3}' +
+    // 2026-10-26 test print: the box's bottom line still sat on the printed
+    // "DEAR CLIENT" — raised about 0.2in: starts 0.10in higher, rows closer.
+    '.al-band.al-band-aw{padding-top:' + (AL_PAD - 0.10).toFixed(2) + 'in}' +
+    '.al-band-aw .al-aw{padding:4px 14px 5px}.al-band-aw .al-aw .al-l,.al-band-aw .al-aw .al-br{line-height:1.24}' +
     '.al-aw .al-2l{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal;font-size:15px}';
 }
 
@@ -2749,7 +2753,7 @@ function _alBand(d, c, noteNo) {
   const br   = (l, x) => '<div class="al-br"><span>' + l + '</span><b>' + v(x) + '</b></div>';
 
   const aw = noteNo !== undefined;   // Awami: currency note in the right column, address on 2 lines
-  return '<div class="al-band"><div class="al-wrap' + (aw ? ' al-aw' : '') + '">' +
+  return '<div class="al-band' + (aw ? ' al-band-aw' : '') + '"><div class="al-wrap' + (aw ? ' al-aw' : '') + '">' +
     '<div class="al-box">' +
       br('MID',   mid) +
       br('Unit',  d.unit_no) +
