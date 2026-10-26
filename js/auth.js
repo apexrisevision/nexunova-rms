@@ -766,42 +766,38 @@ async function _checkPlatformAnnouncements() {
 }
 
 // ── One-off "payment received" thank-you (per-tenant) ────────────────
-// Shows a dismissible English modal on login, at most ONCE per calendar
-// day, for up to 5 distinct days — then never again. TEMPORARY: remove
-// on owner's word (delete the relevant entry + this fn's call).
+// Shows a dismissible English modal on the first 3 sign-ins (counted per
+// browser), then never again. Only real sign-ins count, not page reloads.
+// TEMPORARY: remove on owner's word (delete the relevant entry + this fn's call).
 function _checkPaymentThankYou() {
   try {
     if (!S) return;
     const code = String(S.coCode || '').toLowerCase();
-    // Registry of active thank-you notices, keyed by company_code.
+    // Registry of active thank-you notices, keyed by company_code (Oct-2026 renewal).
     const NOTICES = {
-      '14groupofcompanies': {
-        key:    'nxn_pay_ty_14g_v2',
-        detail: 'We have received your payment successfully. Thank you for choosing Nexunova — your account is active.<br><br>Your next payment is due on 23 August 2026. Please pay on or before this date to avoid any interruption in access.'
-      },
-      'fmh': {
-        key:    'nxn_pay_ty_fmh_v1',
-        detail: 'We have received your payment successfully. Thank you for choosing Nexunova — your account is active.<br><br>Your next payment is due on 24 August 2026. Please pay on or before this date to avoid any interruption in access.'
-      }
+      '14groupofcompanies': { key: 'nxn_pay_ty_14g_2026_10' },
+      'awami':              { key: 'nxn_pay_ty_awami_2026_10' },
+      'fmh':                { key: 'nxn_pay_ty_fmh_2026_10' }
     };
     const cfg = NOTICES[code];
     if (!cfg) return;
-    const MAX_SHOWS = 5;
+    const MAX_SHOWS = 3;
     let st = {};
     try { st = JSON.parse(localStorage.getItem(cfg.key) || '{}'); } catch(_) { st = {}; }
     const count = st.count || 0;
     if (count >= MAX_SHOWS) return;
-    const today = new Date().toISOString().slice(0, 10);   // YYYY-MM-DD (local-ish)
-    if (st.lastDay === today) return;                        // already shown today
     if (typeof notify === 'undefined' || !notify.alert) return;
+    // notify.alert escapes the detail itself and keeps only <br>, so plain text
+    const co = S.coName || 'your company';
     notify.alert({
       type:   'success',
-      title:  'Thank you for your payment',
-      detail: cfg.detail,
+      title:  'Payment received — thank you!',
+      detail: 'We have received your payment for ' + co + '. Your Nexunova RMS subscription has been renewed and your account is fully active.' +
+              '<br><br>Your next payment is due on 25 November 2026. Please pay on or before this date so your team keeps working without any interruption.' +
+              '<br><br>Thank you for your trust in Nexunova. We are glad to have you with us.',
       okText: 'OK'
     });
     st.count = count + 1;
-    st.lastDay = today;
     localStorage.setItem(cfg.key, JSON.stringify(st));
   } catch(_) {}
 }
