@@ -2724,8 +2724,13 @@ function _alCSS() {
     '.al-l .v{font-weight:bold;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '.al-l .v.wrap{white-space:normal}' +
     '.al-split{display:flex;gap:18px}.al-split>*{flex:1;min-width:0}' +
-    // Address shares its line with the currency note number (2026-10-22)
-    '.al-addr{clear:both}.al-addr .al-note{flex:none;width:2.4in}';
+    '.al-addr{clear:both}' +
+    // Awami (2026-10-26): the box ran onto the printed "Dear Member," — a long
+    // address took 4 lines beside the currency note. The note moved into the
+    // right column, the address has the full width and at most 2 lines, and the
+    // rows sit closer, so the box ends well above the printed text. Top unchanged.
+    '.al-aw{padding:6px 14px 7px}.al-aw .al-l,.al-aw .al-br{line-height:1.3}' +
+    '.al-aw .al-2l{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal;font-size:15px}';
 }
 
 // The data band — identical on every mode, so the overlay and the full letter
@@ -2743,23 +2748,22 @@ function _alBand(d, c, noteNo) {
   const area = d.area_sqft ? Number(d.area_sqft).toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' sft' : '—';
   const br   = (l, x) => '<div class="al-br"><span>' + l + '</span><b>' + v(x) + '</b></div>';
 
-  return '<div class="al-band"><div class="al-wrap">' +
+  const aw = noteNo !== undefined;   // Awami: currency note in the right column, address on 2 lines
+  return '<div class="al-band"><div class="al-wrap' + (aw ? ' al-aw' : '') + '">' +
     '<div class="al-box">' +
       br('MID',   mid) +
       br('Unit',  d.unit_no) +
       br('Floor', d.floor_label) +
       '<div class="al-br"><span>Area</span><b>' + area + '</b></div>' +
+      (aw ? br('Currency Note', noteNo) : '') +
     '</div>' +
     '<div class="al-l"><div class="k">Member Name</div><div class="v">' + v(d.client_name || c.full_name) + '</div></div>' +
     '<div class="al-l"><div class="k">S/O, D/O, W/O</div><div class="v">' + v(c.father_name) + '</div></div>' +
     '<div class="al-l"><div class="k">CNIC</div><div class="v">' + v(c.cnic) + '</div></div>' +
     '<div class="al-l"><div class="k">Mobile</div><div class="v">' + v(c.phone_primary) + '</div></div>' +
-    (noteNo === undefined
-      ? '<div class="al-l"><div class="k">Address</div><div class="v wrap">' + v(c.address) + '</div></div>'
-      : '<div class="al-split al-addr">' +
-          '<div class="al-l"><div class="k" style="width:1.0in">Address</div><div class="v wrap">' + v(c.address) + '</div></div>' +
-          '<div class="al-l al-note"><div class="k" style="width:1.2in">Currency Note</div><div class="v">' + v(noteNo) + '</div></div>' +
-        '</div>') +
+    (aw
+      ? '<div class="al-l al-addr"><div class="k">Address</div><div class="v al-2l">' + v(c.address) + '</div></div>'
+      : '<div class="al-l"><div class="k">Address</div><div class="v wrap">' + v(c.address) + '</div></div>') +
     '<div class="al-split">' +
       '<div class="al-l"><div class="k">Net Price</div><div class="v">' + money(d.net_amount) + '</div></div>' +
       '<div class="al-l"><div class="k" style="width:0.7in">Dated</div><div class="v">' + dated + '</div></div>' +
