@@ -80,7 +80,17 @@ async function tryRestoreSession(){
        js/pages/company-branding.js. */
     if(typeof startShellContext==='function')startShellContext();
 
-    // Route to payment wall if subscription not active
+    // Route to payment wall if subscription not active. The status saved in this
+    // browser can be stale: a tenant blocked yesterday and paid today stayed on
+    // the wall on every reload (26-Oct-2026), and a lapsed one stayed in. Ask the
+    // server; keep the saved value only if that call fails.
+    try{
+      const {data:_live}=await supabase.rpc('get_subscription_with_plan',{p_company_id:sess.cid});
+      if(_live&&_live.status&&_live.status!==sess.subStatus){
+        sess.subStatus=_live.status;S.subStatus=_live.status;
+        try{localStorage.setItem('nxn_sess',JSON.stringify(sess));}catch(_){}
+      }
+    }catch(_){}
     const subStatus=sess.subStatus||'active';
     if(subStatus==='pending_payment'||subStatus==='payment_under_review'){
       document.getElementById('s-login').classList.remove('on');
