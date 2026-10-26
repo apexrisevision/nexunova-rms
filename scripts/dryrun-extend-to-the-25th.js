@@ -45,6 +45,21 @@ BEGIN
     ELSE bad := bad + 1; out := out || E'\nb  FAIL ' || c.label || ': got ' || coalesce(got, '-') || ' want ' || c.want || ' ' || left(r::text, 150); END IF;
   END LOOP;
 
+  -- verify_payment: approving a payment the tenant uploaded on pay.html
+  FOR c IN SELECT * FROM (VALUES
+      ('pay.html, lapsed yesterday (ended 25-Oct)', '2026-10-25 23:59:59+05', '2026-11-25 23:59'),
+      ('pay.html, paid early (ends 25-Nov)',        '2026-11-25 23:59:59+05', '2026-12-25 23:59')) v(label, old_end, want) LOOP
+    UPDATE subscriptions SET current_period_end = c.old_end::timestamptz, status = 'payment_under_review' WHERE id = sub;
+    INSERT INTO payment_proofs (company_id, invoice_id, reference_number, amount_paid, payment_date, receipt_url, status)
+    VALUES (co, (SELECT id FROM invoices WHERE subscription_id = sub ORDER BY created_at DESC LIMIT 1), 'DRY-PAYLINK', 10000, CURRENT_DATE, 'dry', 'pending')
+    RETURNING to_jsonb(id) INTO r;
+    r := verify_payment((r#>>'{}')::uuid, 'approve', NULL, 'dry run');
+    got := to_char((SELECT current_period_end FROM subscriptions WHERE id = sub) AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD HH24:MI');
+    IF r->>'success' = 'true' AND got = c.want AND (SELECT status FROM subscriptions WHERE id = sub) = 'active'
+    THEN ok := ok + 1; out := out || E'\nv  PASS ' || c.label || ' -> ends ' || got || ' PKT, active';
+    ELSE bad := bad + 1; out := out || E'\nv  FAIL ' || c.label || ': got ' || coalesce(got, '-') || ' want ' || c.want || ' ' || left(r::text, 150); END IF;
+  END LOOP;
+
   RAISE EXCEPTION 'DRYRUN_RESULT pass=% fail=% %', ok, bad, out;
 END
 $t$;

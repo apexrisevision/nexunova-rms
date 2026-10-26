@@ -5,6 +5,7 @@
 -- now the next 25th at 23:59:59 PKT after the old end or after today, whichever
 -- is later; a yearly renewal adds 11 more months. Early renewals are not lost:
 -- paying on 20 Oct with an end of 25 Oct gives 25 Nov.
+-- verify_payment (approving a payment a tenant uploaded on pay.html) follows the same rule.
 
 CREATE OR REPLACE FUNCTION public._billing_next_25th(p_after timestamptz)
  RETURNS timestamptz
@@ -85,3 +86,62 @@ BEGIN
     'invoice_status',v_new_status,'received',v_recv,'balance',GREATEST(v_inv_amt-v_recv,0),
     'new_period_start',v_start,'new_period_end',v_end,'status','active','amount',v_amt,'cycle',p_cycle);
 END $function$;
+
+CREATE OR REPLACE FUNCTION public.verify_payment(p_proof_id uuid, p_action text, p_verified_by uuid, p_notes text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_proof public.payment_proofs%ROWTYPE;
+  v_inv   public.invoices%ROWTYPE;
+  v_plan  public.subscription_plans%ROWTYPE;
+  v_me    public.app_users;
+  v_verifier uuid;
+BEGIN
+  PERFORM public._rms_require_super_admin();
+  v_me := public._rms_caller();
+  v_verifier := v_me.id;
+
+  SELECT * INTO v_proof FROM public.payment_proofs WHERE id = p_proof_id LIMIT 1;
+  IF NOT FOUND THEN RETURN jsonb_build_object('success', false, 'error', 'proof_not_found'); END IF;
+  IF p_action NOT IN ('approve', 'reject', 'needs_info') THEN
+    RETURN jsonb_build_object('success', false, 'error', 'invalid_action');
+  END IF;
+  IF v_proof.invoice_id IS NOT NULL THEN
+    SELECT * INTO v_inv FROM public.invoices WHERE id = v_proof.invoice_id LIMIT 1;
+    IF FOUND THEN SELECT * INTO v_plan FROM public.subscription_plans WHERE id = v_inv.plan_id LIMIT 1; END IF;
+  END IF;
+
+  IF p_action = 'approve' THEN
+    UPDATE public.payment_proofs SET status='approved', verified_by=v_verifier, verified_at=NOW(),
+      verification_notes=p_notes, updated_at=NOW() WHERE id = p_proof_id;
+    IF v_proof.invoice_id IS NOT NULL THEN
+      UPDATE public.invoices SET status='paid', paid_date=CURRENT_DATE, updated_at=NOW()
+        WHERE id = v_proof.invoice_id;
+    END IF;
+    UPDATE public.subscriptions s SET
+      status='active',
+      current_period_start = CASE WHEN COALESCE(s.current_period_end, NOW()) < NOW()
+                                  THEN NOW() ELSE s.current_period_start END,
+      -- 20261026b: ends on the 25th, 23:59:59 PKT (as admin_extend_subscription)
+      current_period_end = GREATEST(public._billing_next_25th(COALESCE(s.current_period_end, NOW())), public._billing_next_25th(NOW()))
+        + CASE WHEN COALESCE(v_plan.billing_cycle, 'monthly') = 'yearly'
+               THEN INTERVAL '11 months' ELSE INTERVAL '0' END,
+      updated_at=NOW()
+    WHERE s.id = COALESCE(
+      v_inv.subscription_id,
+      (SELECT id FROM public.subscriptions WHERE company_id = v_proof.company_id ORDER BY created_at DESC LIMIT 1));
+  ELSIF p_action = 'reject' THEN
+    UPDATE public.payment_proofs SET status='rejected', verified_by=v_verifier, verified_at=NOW(),
+      rejection_reason=p_notes, updated_at=NOW() WHERE id = p_proof_id;
+    UPDATE public.subscriptions SET status='pending_payment', updated_at=NOW()
+      WHERE company_id = v_proof.company_id AND status='payment_under_review';
+  ELSIF p_action = 'needs_info' THEN
+    UPDATE public.payment_proofs SET status='needs_info', verified_by=v_verifier, verified_at=NOW(),
+      verification_notes=p_notes, updated_at=NOW() WHERE id = p_proof_id;
+  END IF;
+  RETURN jsonb_build_object('success', true, 'action', p_action);
+END;
+$function$;
