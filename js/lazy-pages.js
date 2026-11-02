@@ -48,7 +48,7 @@
   // clients cluster — clientdetail tabs call rHealthCenter/rBlacklist (guarded)
   // and _cdLoadPromises (unguarded) at sync render, so its siblings ride along.
   var CLIENTS = [
-    'js/pages/clients.js?v=20261024nomaddr',
+    'js/pages/clients.js?v=20261102fresh',
     'js/pages/health-center.js?v=20260604a',
     'js/pages/blacklist.js?v=20260604a',
     'js/pages/promises.js?v=20260614w4'

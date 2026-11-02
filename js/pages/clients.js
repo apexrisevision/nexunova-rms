@@ -216,6 +216,16 @@ async function _clLoadAndRender() {
   const ct = document.getElementById('cl-ct');
   if (!ct) return;
   ct.innerHTML = `<div class="nx-card">${[0,1,2,3].map(()=>'<div class="nx-skel" style="height:40px;margin:6px 0;border-radius:8px"></div>').join('')}</div>`;
+  // The client list was loaded once at sign-in, so clients made since — above
+  // all the ones a Sale Approval Form creates on the server — never showed here
+  // while Sales (read fresh) listed them (Awami, 2-Nov-2026). Read it again.
+  if (typeof loadClientsCache === 'function') {
+    const prev = window._clientsCache;
+    if (await loadClientsCache(S.cid) === false) window._clientsCache = prev;   // a failed read empties it; keep what we had
+    const all = gclients(), cnt = document.getElementById('cl-count');
+    if (cnt) cnt.textContent = all.length + ' clients · ' + all.filter(c => c.status === 'active').length + ' active · ' +
+                               all.filter(c => c.status === 'inactive').length + ' historical';
+  }
   _clRpByCode = {};
   try {
     const { data } = await supabase.rpc('get_recovery_position', { p_company_id: S.cid, p_project_id: (typeof activeProjectId==='function'?activeProjectId():null), p_from_date: null, p_to_date: (typeof td==='function'?td():null) });
