@@ -406,6 +406,7 @@ async function loadClientsCache(companyId) {
       whatsapp:       c.whatsapp        || '',
       email:          c.email           || '',
       address:        c.address         || '',
+      currentAddress: c.current_address || '',
       city:           c.city            || '',
       country:        c.country         || 'Pakistan',
       occupation:     c.occupation      || '',

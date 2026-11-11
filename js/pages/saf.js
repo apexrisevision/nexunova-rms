@@ -319,7 +319,8 @@
     html += '<div class="sf-card"><h3>Buyer</h3><div class="sf-bph">' + photo('buyer_photo_url', 'buyer photo', f.buyer_photo_url) + '<div class="sf-grid" style="flex:1">' + inp('buyer_name', 'Full name', f.buyer_name) +
       sel('buyer_relation', 'S/O, D/O or W/O', f.buyer_relation || 'S/O', rel) + inp('buyer_father', 'Father / husband', f.buyer_father) +
       inp('buyer_cnic', 'CNIC (13 digits)', f.buyer_cnic, 'text', 'inputmode="numeric" placeholder="17301-1234567-1"') +
-      inp('buyer_phone', 'Phone', f.buyer_phone, 'tel') + wide(inp('buyer_address', 'Address', f.buyer_address)) + '</div></div>';
+      inp('buyer_phone', 'Phone', f.buyer_phone, 'tel') + wide(inp('buyer_address', 'Permanent address', f.buyer_address)) +
+      wide(inp('buyer_current_address', 'Current address (if different)', f.buyer_current_address)) + '</div></div>';
     if (f.reservation_buyer_name && String(f.buyer_name || '').trim().toLowerCase() !== String(f.reservation_buyer_name).trim().toLowerCase())
       html += '<div class="sf-grid" style="margin-top:10px">' + inp('buyer_name_reason', 'Why not "' + f.reservation_buyer_name + '" (the name on the hold)?', f.buyer_name_reason) + '</div>';
     html += '</div><div class="sf-card"><h3>Nominee <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional; with a name, the photo and address are needed)</span></h3>' +
@@ -392,6 +393,7 @@
     var k = el.getAttribute('data-k'), v = el.value;
     if (el.type === 'number') v = v === '' ? null : Number(v);
     setPath(S2.draft, k, v); setPath(S2.cur, k, v);
+    S2.edits = (S2.edits || 0) + 1;
     clearTimeout(S2.timer);
     S2.timer = setTimeout(preview, /^(plan_type|discount_amount|installment_count|first_due_date|sale_date|balloon_amount|agent_id|commission_pct|discount_approved_by|buyer_name)$/.test(k) ? 350 : 900);
   };
@@ -436,9 +438,14 @@
   };
   async function preview() {
     if (!S2.cur || S2.cur.status !== 'draft') return;
-    var my = ++S2.seq;
+    var my = ++S2.seq, typed = S2.edits || 0;
     var r = await rpc('saf_save', { p_id: S2.cur.id, p_input: S2.draft, p_commit: false });
     if (my !== S2.seq || !$('sf-body')) return;
+    // Typed since this was asked: its answer is about older text. Redrawing
+    // with it put that older text back in the box — the letters typed in the
+    // meantime vanished and the cursor jumped (Rashid, 11-Nov-2026). The
+    // newer preview is already on its way; let it draw.
+    if ((S2.edits || 0) !== typed) return;
     if (!r.success) { say(r.message || r.error, 'err'); return; }
     var keep = S2.cur.id;
     S2.cur = Object.assign({}, S2.cur, r.saf, { id: keep, status: 'draft' });
@@ -482,7 +489,7 @@
   async function loadShared() {
     if (window.SafPdf) return;
     await new Promise(function (res, rej) {
-      var x = document.createElement('script'); x.src = 'js/saf-pdf.js?v=20261024nomaddr2';
+      var x = document.createElement('script'); x.src = 'js/saf-pdf.js?v=20261111addr';
       x.onload = res; x.onerror = function () { rej(new Error('The PDF drawing did not load.')); };
       document.head.appendChild(x);
     });

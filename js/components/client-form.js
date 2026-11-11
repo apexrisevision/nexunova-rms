@@ -98,7 +98,8 @@
       <details style="margin-top:var(--fk-sp-2)"${c && (c.address || c.city || c.email || c.clientCategory || c.referenceBy || c.notes || c.occupation || c.monthlyIncome || c.ntn || c.phoneSecondary || c.companyName || c.leadSource || c.cnicFrontUrl || c.cnicBackUrl || c.bankName || c.bankAccountTitle || c.bankAccountNo || c.bankIban || c.nextOfKinName || c.nextOfKinPhone || c.nextOfKinRelation || c.nextOfKinCnic || c.nextOfKinAddress || c.nextOfKinPhotoUrl) ? ' open' : ''}>
         <summary style="cursor:pointer;font-size:13px;color:var(--fk-text-muted)">More details</summary>
         <div style="margin-top:var(--fk-sp-3)">
-          ${fld({ label: 'Address', name: 'cfm-address', el: 'textarea', value: c?.address || '' })}
+          ${fld({ label: 'Permanent address', name: 'cfm-address', el: 'textarea', value: c?.address || '' })}
+          ${fld({ label: 'Current address (if different)', name: 'cfm-current_address', el: 'textarea', value: c?.currentAddress || '' })}
           <div class="nx-grid-2">
             ${fld({ label: 'City', name: 'cfm-city', value: c?.city || '' })}
             ${fld({ label: 'Country', name: 'cfm-country', value: c?.country || 'Pakistan' })}
@@ -295,7 +296,7 @@
       cnic: overseas ? null : cnic, passport_no: overseas ? (_val('cfm-passport_no') || null) : null,
       phone_primary: phone, phone_secondary: _val('cfm-phone_secondary') || null,
       whatsapp: _val('cfm-whatsapp') || null, email: email || null,
-      address: _val('cfm-address') || null, city: _val('cfm-city') || null, country: _val('cfm-country') || 'Pakistan',
+      address: _val('cfm-address') || null, current_address: _val('cfm-current_address') || null, city: _val('cfm-city') || null, country: _val('cfm-country') || 'Pakistan',
       client_category: _val('cfm-client_category') || null, reference_by: _val('cfm-reference_by') || null,
       lead_source: _val('cfm-lead_source') || null,
       occupation: _val('cfm-occupation') || null, company_name: _val('cfm-company_name') || null,

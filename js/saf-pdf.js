@@ -160,9 +160,20 @@
       else t('No photo', b[2] + (PW - tw('No photo', 7)) / 2, ptop - PH / 2 - 3, 7, reg, MUTE);
       t(b[1], b[2] + (PW - tw(b[1], 6.2, bold)) / 2, ptop - PH - 8, 6.2, bold, MUTE); });
     var bwid = px - M - 10;
-    cells([['Name', f.buyer_name, INK], [(f.buyer_relation || 'S/O') + ' (father / husband)', f.buyer_father], ['CNIC', f.buyer_cnic],
-           ['Phone', f.buyer_phone], ['Address', f.buyer_address],
-           ['Nominee', f.nominee && f.nominee.name ? f.nominee.name + (f.nominee.relation ? ' (' + f.nominee.relation + ')' : '') + (f.nominee.cnic ? ' ' + f.nominee.cnic : '') : '']], 3, M, bwid);
+    var nomLine = f.nominee && f.nominee.name ? f.nominee.name + (f.nominee.relation ? ' (' + f.nominee.relation + ')' : '') + (f.nominee.cnic ? ' ' + f.nominee.cnic : '') : '';
+    // 20261111a: permanent and current address, each on a full line (in a
+    // third-width box an address was cut short). Only for a form with no
+    // recorded fingerprint yet, or one that has a current address: a form
+    // already fingerprinted must draw to the same bytes as before.
+    if (!f.pdf_sha256 || f.buyer_current_address) {
+      cells([['Name', f.buyer_name, INK], [(f.buyer_relation || 'S/O') + ' (father / husband)', f.buyer_father], ['CNIC', f.buyer_cnic],
+             ['Phone', f.buyer_phone], ['Nominee', nomLine]], 3, M, bwid);
+      cells([['Permanent address', f.buyer_address]], 1, M, bwid);
+      if (f.buyer_current_address) cells([['Current address', f.buyer_current_address]], 1, M, bwid);
+    } else {
+      cells([['Name', f.buyer_name, INK], [(f.buyer_relation || 'S/O') + ' (father / husband)', f.buyer_father], ['CNIC', f.buyer_cnic],
+             ['Phone', f.buyer_phone], ['Address', f.buyer_address], ['Nominee', nomLine]], 3, M, bwid);
+    }
     // full width, and only when there is one: forms approved before 20261024a
     // must draw to the same bytes as their recorded fingerprint
     if (f.nominee && f.nominee.name && f.nominee.address) cells([['Nominee address', f.nominee.address]], 1, M, bwid);

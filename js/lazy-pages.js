@@ -30,7 +30,7 @@
   'use strict';
 
   // ── shared bundle arrays (deduped; versions match the former eager tags) ──
-  var SALES        = ['js/pages/sales.js?v=20261026frozen'];
+  var SALES        = ['js/pages/sales.js?v=20261111addr'];
   var PROJECTS     = ['js/pages/projects.js?v=20260922pr'];
   var UNITS        = ['js/pages/units.js?v=20260616a'];
   var AGENTS       = ['js/pages/agents.js?v=20260828priv'];
@@ -48,7 +48,7 @@
   // clients cluster — clientdetail tabs call rHealthCenter/rBlacklist (guarded)
   // and _cdLoadPromises (unguarded) at sync render, so its siblings ride along.
   var CLIENTS = [
-    'js/pages/clients.js?v=20261102fresh',
+    'js/pages/clients.js?v=20261111addr',
     'js/pages/health-center.js?v=20260604a',
     'js/pages/blacklist.js?v=20260604a',
     'js/pages/promises.js?v=20260614w4'
@@ -73,7 +73,7 @@
 
     queue: ['js/pages/recovery-queue.js?v=20260615en'],
 
-    saf: ['js/pages/saf.js?v=20261024unlock'],
+    saf: ['js/pages/saf.js?v=20261111addr'],
 
     newsale: SALES, editsale: SALES, sales: SALES, salesdetail: SALES,
     projects: PROJECTS, projectdetail: PROJECTS,

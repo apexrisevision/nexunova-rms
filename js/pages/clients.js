@@ -1678,7 +1678,8 @@ function printClientDetail() {
   if (c.phoneSecondary) h += r('Phone 2',  esc(c.phoneSecondary));
   if (c.whatsapp)       h += r('WhatsApp', esc(c.whatsapp));
   if (c.email)          h += r('Email',    esc(c.email));
-  if (c.address)        h += r('Address',  esc(c.address));
+  if (c.address)        h += r(c.currentAddress ? 'Permanent address' : 'Address', esc(c.address));
+  if (c.currentAddress) h += r('Current address', esc(c.currentAddress));
   if (c.city)           h += r('City',     esc(c.city));
   if (c.country)        h += r('Country',  esc(c.country));
   h += '</table>';

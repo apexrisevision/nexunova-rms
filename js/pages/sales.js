@@ -3043,8 +3043,9 @@ async function printApplicationForm() {
   b += row('Name', L, BX, MAINW, 4.20, v(c.full_name || d.client_name));
   b += row('S/O D/O W/O', L, BX, MAINW, 4.66, v(c.father_name));
   b += row('CNIC #', L, BX, MAINW, 5.12, v(c.cnic));
-  b += row('Postal<br>Address', L, BX, MAINW, 5.58, v(c.address), 0.58);
-  b += row('Residential<br>Address', L, BX, MAINW, 6.26, v(c.address), 0.58);
+  // permanent and current (20261111a); a client with one address prints it on both lines, as before
+  b += row('Permanent<br>Address', L, BX, MAINW, 5.58, v(c.address), 0.58);
+  b += row('Current<br>Address', L, BX, MAINW, 6.26, v(c.current_address || c.address), 0.58);
   b += photo(PX, 4.20, PW, 1.72, c.client_photo_url, 'Affix<br>Photograph');
 
   b += row('Phone Off.', L, BX, LW, 6.98, '') + row('Phone Res #', RL, RB, RW, 6.98, phone(c.phone_secondary));
@@ -3057,7 +3058,7 @@ async function printApplicationForm() {
   b += row('Name', L, BX, MAINW, 9.30, v(nomName));
   b += row('CNIC No.', L, BX, MAINW, 9.74, v(nomCnic));
   b += row('Relation with<br>Buyer', L, BX, MAINW, 10.18, v(nomRel));
-  b += row('Address', L, BX, MAINW, 10.62, '', 0.58);
+  b += row('Address', L, BX, MAINW, 10.62, v(c.next_of_kin_address || ''), 0.58);   // the nominee's; was left blank
   b += photo(PX, 9.30, PW, 1.90, nomPhoto, 'Photo /<br>Thumb');
 
   // declaration — the reference's own words
