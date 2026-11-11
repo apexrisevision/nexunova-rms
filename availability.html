@@ -8902,6 +8902,17 @@ async function decAct(g, action) {
     var rep = await sb.rpc('get_availability_report', { p_token: LINK, p_password: REPPW });
     if (rep && rep.data && rep.data.success) { REP = rep.data; decPaint(); }
     load(false);
+    /* THE PICTURE, STRAIGHT AWAY. Rashid (11-Nov-2026): "2 batches release
+       kiye magar koi b option nahi aa raha … na hee koi button". The note with
+       Share picture is drawn at the top of this section, and a card further
+       down disappears when it is decided, so the note landed above the screen
+       and nothing answered the press. Now the picture opens at once, as the
+       Release dialog's does, and the note is brought into view behind it. */
+    if (ns.length) {
+      var okNote = document.querySelector('#rep-body .dc-ok');
+      if (okNote) okNote.scrollIntoView({ block: 'center' });
+      if (card) decShareCard(DEC.done[0]);
+    }
   } catch (e) {
     DEC.err[g.g] = 'Could not reach the office. Nothing was changed.';
     decPaint();
