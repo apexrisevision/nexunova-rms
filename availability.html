@@ -1261,6 +1261,38 @@ body.splash .fl::before{opacity:0}
       border-radius:999px;font-family:inherit;white-space:nowrap}
 @media (hover:hover){ .hd-d:hover{background:#b3123c;color:#fff;border-color:#b3123c} }
 .hd-d:active{transform:scale(.96)}
+/* Recovery List: the button, and the sheet it opens */
+.hd-rcl{border-color:rgba(15,94,168,.35);background:#F2F7FD;color:#0F5EA8}
+@media (hover:hover){ .hd-rcl:hover{background:#0F5EA8;color:#fff;border-color:#0F5EA8} }
+:root[data-theme="dark"] .hd-rcl{background:#0F1E2E;border-color:rgba(110,170,230,.4);color:#8EC1F2}
+@media (hover:hover){ :root[data-theme="dark"] .hd-rcl:hover{background:#8EC1F2;color:#14171C;border-color:#8EC1F2} }
+#rcl{position:fixed;inset:0;z-index:60;background:rgba(10,12,16,.55);overflow-y:auto;
+     padding:24px 16px;-webkit-overflow-scrolling:touch}
+.rcl-c{max-width:980px;margin:0 auto;background:var(--card);color:var(--ink);border-radius:var(--r);
+       padding:16px 16px 18px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+.rcl-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.rcl-t{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.rcl-x, .rcl-b{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;
+       height:32px;padding:0 12px;font:inherit;font-size:12.5px;font-weight:650;cursor:pointer}
+.rcl-b.pri{background:#0F5EA8;border-color:#0F5EA8;color:#fff}
+.rcl-b:disabled{opacity:.6}
+.rcl-sum{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--mut);margin:4px 0 10px}
+.rcl-sum b{color:var(--ink);font-weight:700}
+.rcl-act{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.rcl-w{overflow-x:auto;border:1px solid var(--hair);border-radius:10px}
+.rcl-w table{border-collapse:collapse;width:100%;min-width:880px;font-size:12px}
+.rcl-w th{text-align:left;font-size:10.5px;font-weight:750;letter-spacing:.04em;text-transform:uppercase;
+          color:var(--mut);padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.rcl-w td{padding:7px 8px;border-top:1px solid var(--hair);white-space:nowrap}
+.rcl-w td.n, .rcl-w th.n{text-align:right;font-variant-numeric:tabular-nums}
+.rcl-w td.c{white-space:normal;min-width:150px}
+.rcl-w tr.rms td{background:#E6F6EC}
+:root[data-theme="dark"] .rcl-w tr.rms td{background:#12301F}
+.rcl-w tr.tot td{font-weight:750;border-top:2px solid var(--line)}
+.rcl-f{display:inline-block;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:999px;
+       background:#0F7A38;color:#fff}
+.rcl-note{font-size:11.5px;color:var(--mut);line-height:1.5;margin-top:10px}
+@media print{ #rcl{display:none !important} }
 .dr-c{background:var(--card);border-radius:var(--r);padding:20px 18px 18px;margin-top:6px}
 .dr-t{font-size:15px;font-weight:650;letter-spacing:-.01em}
 .dr-s{font-size:12.5px;color:var(--mut);line-height:1.55;margin-top:5px}
@@ -2777,10 +2809,30 @@ body.held *{animation-play-state:paused !important}
            in it — but findable, because a director should not have to be told
            twice where it is. -->
       <button class="hd-d" id="dir-open">Director’s Login</button>
+      <!-- THE RECOVERY OFFICER'S DOOR, beside the directors' one and behind a
+           password of its own. Shown only on a link whose project has the list. -->
+      <button class="hd-d hd-rcl" id="rcl-open" hidden>Recovery List</button>
     </div>
   </div>
 
   <div id="name-ask" hidden></div>
+
+  <!-- RECOVERY LIST ── a sheet over the page, so no screen underneath changes -->
+  <div id="rcl" hidden><div class="rcl-c">
+    <div class="rcl-h"><div class="rcl-t">Recovery List</div>
+      <button class="rcl-x" id="rcl-close" aria-label="Close">Close</button></div>
+    <div id="rcl-gate">
+      <div class="dr-s">Client, unit, price, discount and what is still due on the down payment.
+        Ask the office for the password.</div>
+      <div class="dr-f">
+        <input id="rcl-pw" type="password" autocomplete="off" spellcheck="false"
+               placeholder="Password" aria-label="Recovery list password">
+        <button id="rcl-go">Open</button>
+      </div>
+      <div class="dr-e" id="rcl-err" hidden></div>
+    </div>
+    <div id="rcl-body"></div>
+  </div></div>
 
   <!-- SCREEN ONE ─────────────────────────────────────────────────────────
        Search first: most dealers already know the unit. Then the floors.
@@ -9857,6 +9909,224 @@ document.addEventListener('keydown', function (e) {
 });
 
 /* ── go ──────────────────────────────────────────────────────────────────── */
+/* ── RECOVERY LIST ────────────────────────────────────────────────────────
+   Rashid: "reservation link mai aik module banao recovery officer k liye aik
+   recovery list ... password protected ... list PDF mai honi chahiye".
+
+   One call, get_recovery_list(token, password), behind a password of its own
+   (not the directors' one, and a remembered director phone does not open it).
+   Per unit: client, unit, basic price, discount, final price, the down payment
+   and what is still to come on it. A unit whose file is made in RMS (an active
+   sale) is highlighted, and its figures are the sale's own. A unit with only a
+   token has the register price, no discount and the standard 30% down
+   payment, because nothing more is agreed in the system yet; the sheet says
+   so. The password is held in this variable while the page is open and
+   nowhere else. */
+var RCL = null;
+function rclMoney(v) { return Math.round(Number(v) || 0).toLocaleString('en-US'); }
+function rclTotals(rows) {
+  var t = { basic: 0, discount: 0, final: 0, dp: 0, received: 0, dp_left: 0, rms: 0 };
+  rows.forEach(function (r) {
+    ['basic', 'discount', 'final', 'dp', 'received', 'dp_left'].forEach(function (k) { t[k] += Number(r[k]) || 0; });
+    if (r.rms) t.rms++;
+  });
+  return t;
+}
+async function rclProbe() {
+  try {
+    var r = await sb.rpc('get_recovery_list', { p_token: LINK, p_password: null });
+    if (r && r.data && r.data.enabled) $('rcl-open').hidden = false;
+  } catch (e) {}
+}
+function rclShow() {
+  $('rcl').hidden = false;
+  document.body.style.overflow = 'hidden';
+  $('rcl-gate').hidden = !!RCL;
+  if (RCL) rclDraw(); else { $('rcl-body').innerHTML = ''; setTimeout(function () { $('rcl-pw').focus(); }, 60); }
+}
+function rclHide() {
+  $('rcl').hidden = true;
+  document.body.style.overflow = '';
+}
+async function rclOpen() {
+  var pw = $('rcl-pw').value.trim(), err = $('rcl-err');
+  if (!pw) { err.hidden = false; err.textContent = 'Enter the password.'; return; }
+  $('rcl-go').disabled = true;
+  try {
+    var r = await sb.rpc('get_recovery_list', { p_token: LINK, p_password: pw });
+    var d = r && r.data;
+    if (!d || !d.success) {
+      err.hidden = false;
+      err.textContent = (d && d.error === 'too_many')
+        ? 'Too many tries on this link. It opens again in an hour.'
+        : 'That password does not open this.';
+      $('rcl-pw').value = '';
+      return;
+    }
+    RCL = d; $('rcl-pw').value = ''; err.hidden = true;
+    $('rcl-gate').hidden = true; rclDraw();
+  } catch (e) {
+    err.hidden = false; err.textContent = 'Could not reach the office. Try again.';
+  } finally { $('rcl-go').disabled = false; }
+}
+function rclDraw() {
+  var rows = RCL.rows || [], t = rclTotals(rows);
+  var tr = rows.map(function (r, i) {
+    return '<tr' + (r.rms ? ' class="rms"' : '') + '><td>' + (i + 1) + '</td><td><b>' + esc(r.unit) + '</b></td>' +
+      '<td>' + esc(r.floor) + '</td><td class="c">' + esc(r.client || '(name not recorded)') + '</td>' +
+      '<td class="n">' + rclMoney(r.basic) + '</td><td class="n">' + (Number(r.discount) ? rclMoney(r.discount) : '-') + '</td>' +
+      '<td class="n">' + rclMoney(r.final) + '</td><td class="n">' + rclMoney(r.dp) + '</td>' +
+      '<td class="n">' + rclMoney(r.received) + '</td><td class="n"><b>' + rclMoney(r.dp_left) + '</b></td>' +
+      '<td>' + (r.rms ? '<span class="rcl-f">RMS file</span>' : '') + '</td></tr>';
+  }).join('');
+  $('rcl-body').innerHTML =
+    '<div class="rcl-sum"><span><b>' + rows.length + '</b> units</span>' +
+      '<span><b>' + t.rms + '</b> with a file in RMS (highlighted)</span>' +
+      '<span>Down payment still due <b>PKR ' + rclMoney(t.dp_left) + '</b></span>' +
+      '<span>As of ' + esc(new Date(RCL.as_of).toLocaleString('en-US')) + '</span></div>' +
+    '<div class="rcl-act"><button class="rcl-b pri" id="rcl-pdf">Download PDF</button>' +
+      (payCanShare() ? '<button class="rcl-b" id="rcl-share">Share PDF</button>' : '') + '</div>' +
+    '<div class="rcl-w"><table><thead><tr><th>#</th><th>Unit</th><th>Floor</th><th>Client</th>' +
+      '<th class="n">Basic price</th><th class="n">Discount</th><th class="n">Final price</th>' +
+      '<th class="n">Down payment</th><th class="n">Received</th><th class="n">DP remaining</th><th>File</th></tr></thead>' +
+      '<tbody>' + tr + '<tr class="tot"><td></td><td colspan="3">Total</td>' +
+      '<td class="n">' + rclMoney(t.basic) + '</td><td class="n">' + rclMoney(t.discount) + '</td>' +
+      '<td class="n">' + rclMoney(t.final) + '</td><td class="n">' + rclMoney(t.dp) + '</td>' +
+      '<td class="n">' + rclMoney(t.received) + '</td><td class="n">' + rclMoney(t.dp_left) + '</td><td></td></tr>' +
+      '</tbody></table></div>' +
+    '<div class="rcl-note">' + esc(rclNote()) + '</div>';
+}
+function rclNote() {
+  return 'Highlighted rows have a file in RMS: their price, discount and down payment are the sale\'s own, and ' +
+    'Received is what has been paid against the down payment. Other rows have a token only: register price, no ' +
+    'discount recorded yet, the standard 30% down payment, and the token as Received. Not a statement of account.';
+}
+
+/* THE SHEET AS A REAL PDF, A4 landscape, drawn with pdf-lib like the payment plan */
+async function rclPdfBytes() {
+  var L = await payLib();
+  var doc = await L.PDFDocument.create();
+  var R = await doc.embedFont(L.StandardFonts.Helvetica);
+  var B = await doc.embedFont(L.StandardFonts.HelveticaBold);
+  var INK = L.rgb(0.07, 0.08, 0.1), MUT = L.rgb(0.4, 0.42, 0.46), HAIR = L.rgb(0.85, 0.86, 0.88);
+  var GREEN = L.rgb(0.06, 0.48, 0.22), FILL = L.rgb(0.87, 0.96, 0.9), HEAD = L.rgb(0.94, 0.95, 0.96);
+  var W = 842, H = 595, M = 28, RH = 15;
+  var COLS = [['#', 22, 0], ['Unit', 56, 0], ['Floor', 72, 0], ['Client', 150, 0], ['Basic price', 74, 1],
+              ['Discount', 64, 1], ['Final price', 74, 1], ['Down payment', 72, 1], ['Received', 70, 1],
+              ['DP remaining', 78, 1], ['File', 54, 0]];
+  var rows = RCL.rows || [], t = rclTotals(rows);
+  var when = new Date(RCL.as_of).toLocaleString('en-US');
+  function fit(txt, f, size, w) {
+    txt = paySafe(txt);
+    if (f.widthOfTextAtSize(txt, size) <= w) return txt;
+    while (txt.length > 1 && f.widthOfTextAtSize(txt + '...', size) > w) txt = txt.slice(0, -1);
+    return txt + '...';
+  }
+  function line(p, vals, y, opt) {
+    var x = M;
+    COLS.forEach(function (c, i) {
+      var v = vals[i] == null ? '' : String(vals[i]), f = (opt.bold || (opt.boldCol === i)) ? B : R;
+      var size = opt.size || 8, w = c[1] - 8;
+      v = fit(v, f, size, w);
+      var tx = c[2] ? x + c[1] - 4 - f.widthOfTextAtSize(v, size) : x + 4;
+      p.drawText(v, { x: tx, y: y + 4.5, size: size, font: f, color: opt.color && opt.color[i] || INK });
+      x += c[1];
+    });
+  }
+  var page, y, pages = [];
+  function newPage(first) {
+    page = doc.addPage([W, H]); pages.push(page);
+    y = H - M;
+    if (first) {
+      page.drawText(paySafe(RCL.company || ''), { x: M, y: y - 14, size: 14, font: B, color: INK });
+      page.drawText(paySafe((RCL.project || '') + ' - Recovery List'), { x: M, y: y - 30, size: 11, font: R, color: INK });
+      page.drawText(paySafe('As of ' + when), { x: W - M - R.widthOfTextAtSize(paySafe('As of ' + when), 9), y: y - 14, size: 9, font: R, color: MUT });
+      var sum = rows.length + ' units  |  ' + t.rms + ' with a file in RMS (highlighted green)  |  Down payment still due PKR ' + rclMoney(t.dp_left);
+      page.drawText(paySafe(sum), { x: M, y: y - 46, size: 9, font: B, color: INK });
+      page.drawLine({ start: { x: M, y: y - 54 }, end: { x: W - M, y: y - 54 }, thickness: 1.2, color: INK });
+      y -= 60;
+    }
+    y -= RH;
+    page.drawRectangle({ x: M, y: y, width: W - 2 * M, height: RH, color: HEAD });
+    line(page, COLS.map(function (c) { return c[0]; }), y, { bold: true, size: 7.5 });
+  }
+  newPage(true);
+  rows.forEach(function (r, i) {
+    if (y - RH < M + 34) newPage(false);
+    y -= RH;
+    if (r.rms) page.drawRectangle({ x: M, y: y, width: W - 2 * M, height: RH, color: FILL });
+    page.drawLine({ start: { x: M, y: y }, end: { x: W - M, y: y }, thickness: 0.4, color: HAIR });
+    var col = []; col[10] = GREEN;
+    line(page, [i + 1, r.unit, r.floor, r.client || '(name not recorded)', rclMoney(r.basic),
+                Number(r.discount) ? rclMoney(r.discount) : '-', rclMoney(r.final), rclMoney(r.dp),
+                rclMoney(r.received), rclMoney(r.dp_left), r.rms ? 'RMS file' : ''],
+         y, { boldCol: 9, color: col });
+  });
+  if (y - RH * 2 < M + 34) newPage(false);
+  y -= RH + 2;
+  page.drawLine({ start: { x: M, y: y + RH }, end: { x: W - M, y: y + RH }, thickness: 1, color: INK });
+  line(page, ['', 'Total', '', '', rclMoney(t.basic), rclMoney(t.discount), rclMoney(t.final), rclMoney(t.dp),
+              rclMoney(t.received), rclMoney(t.dp_left), ''], y, { bold: true });
+  /* the note, wrapped under the table */
+  var words = paySafe(rclNote()).split(' '), ln = '', ny = y - 16;
+  words.forEach(function (w) {
+    if (R.widthOfTextAtSize(ln + ' ' + w, 8) > W - 2 * M) {
+      if (ny < M + 14) { newPage(false); ny = y - 16; }
+      page.drawText(ln, { x: M, y: ny, size: 8, font: R, color: MUT }); ny -= 11; ln = w;
+    } else ln = ln ? ln + ' ' + w : w;
+  });
+  if (ln) page.drawText(ln, { x: M, y: ny, size: 8, font: R, color: MUT });
+  pages.forEach(function (p, i) {
+    var f = 'Page ' + (i + 1) + ' of ' + pages.length;
+    p.drawText(f, { x: W - M - R.widthOfTextAtSize(f, 8), y: 16, size: 8, font: R, color: MUT });
+    p.drawText(paySafe((RCL.project || '') + ' - Recovery List - internal use only'), { x: M, y: 16, size: 8, font: R, color: MUT });
+  });
+  doc.setTitle('Recovery List');
+  return doc.save();
+}
+function rclFileName() {
+  var d = new Date(RCL.as_of);
+  return 'Recovery List ' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
+         String(d.getDate()).padStart(2, '0') + '.pdf';
+}
+async function rclDownload() {
+  var btn = $('rcl-pdf'); payBusy(btn, true);
+  try {
+    var bytes = await rclPdfBytes();
+    var url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    var a = document.createElement('a');
+    a.href = url; a.download = rclFileName(); a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+    toast('PDF downloaded');
+  } catch (e) {
+    toast('Could not make the PDF — check the connection and try again');
+  }
+  payBusy(btn, false, 'Download PDF');
+}
+async function rclShare() {
+  var btn = $('rcl-share'); payBusy(btn, true);
+  try {
+    var bytes = await rclPdfBytes();
+    await navigator.share({ files: [new File([bytes], rclFileName(), { type: 'application/pdf' })], title: 'Recovery List' });
+  } catch (e) {
+    if (!e || e.name !== 'AbortError') { payBusy(btn, false, 'Share PDF'); return rclDownload(); }
+  }
+  payBusy(btn, false, 'Share PDF');
+}
+$('rcl-open').onclick = rclShow;
+$('rcl-close').onclick = rclHide;
+$('rcl-go').onclick = rclOpen;
+$('rcl-pw').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') { e.preventDefault(); rclOpen(); }
+});
+$('rcl').addEventListener('click', function (e) {
+  if (e.target === $('rcl')) return rclHide();
+  if (e.target.closest('#rcl-pdf')) return rclDownload();
+  if (e.target.closest('#rcl-share')) return rclShare();
+});
+if (LINK) rclProbe();
+
 NAME = readName();
 PHONE = readPhone();
 REQS = readReqs();
