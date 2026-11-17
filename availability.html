@@ -1292,6 +1292,22 @@ body.splash .fl::before{opacity:0}
 .rcl-f{display:inline-block;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:999px;
        background:#0F7A38;color:#fff}
 .rcl-note{font-size:11.5px;color:var(--mut);line-height:1.5;margin-top:10px}
+.rcl-ph{border:0;background:none;padding:0;font:inherit;font-size:12px;color:#0F5EA8;font-weight:650;
+        text-decoration:underline;text-underline-offset:2px;cursor:pointer;white-space:nowrap}
+:root[data-theme="dark"] .rcl-ph{color:#8EC1F2}
+.rcl-no{color:var(--mut)}
+.rcl-pop{position:fixed;inset:0;z-index:61;background:rgba(10,12,16,.45);display:flex;
+         align-items:flex-end;justify-content:center;padding:16px}
+.rcl-pop[hidden]{display:none}
+.rcl-pc{width:100%;max-width:380px;background:var(--card);color:var(--ink);border-radius:var(--r);
+        padding:16px;box-shadow:0 12px 40px rgba(0,0,0,.3);display:flex;flex-direction:column;gap:8px}
+.rcl-pn{font-size:15px;font-weight:700}
+.rcl-pm{font-size:12.5px;color:var(--mut);margin-bottom:4px}
+.rcl-pa{display:flex;align-items:center;justify-content:center;height:42px;border-radius:10px;
+        border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:14px;
+        font-weight:650;text-decoration:none;cursor:pointer}
+.rcl-pa.call{background:#0F5EA8;border-color:#0F5EA8;color:#fff}
+.rcl-pa.wa{background:#16A34A;border-color:#16A34A;color:#fff}
 @media print{ #rcl{display:none !important} }
 .dr-c{background:var(--card);border-radius:var(--r);padding:20px 18px 18px;margin-top:6px}
 .dr-t{font-size:15px;font-weight:650;letter-spacing:-.01em}
@@ -9974,6 +9990,8 @@ function rclDraw() {
   var tr = rows.map(function (r, i) {
     return '<tr' + (r.rms ? ' class="rms"' : '') + '><td>' + (i + 1) + '</td><td><b>' + esc(r.unit) + '</b></td>' +
       '<td>' + esc(r.floor) + '</td><td class="c">' + esc(r.client || '(name not recorded)') + '</td>' +
+      '<td>' + (r.phone ? '<button type="button" class="rcl-ph" data-i="' + i + '">' + esc(r.phone) + '</button>' : '<span class="rcl-no">-</span>') + '</td>' +
+      '<td class="c">' + esc(r.co || '-') + '</td>' +
       '<td class="n">' + rclMoney(r.basic) + '</td><td class="n">' + (Number(r.discount) ? rclMoney(r.discount) : '-') + '</td>' +
       '<td class="n">' + rclMoney(r.final) + '</td><td class="n">' + rclMoney(r.dp) + '</td>' +
       '<td class="n">' + rclMoney(r.received) + '</td><td class="n"><b>' + rclMoney(r.dp_left) + '</b></td>' +
@@ -9986,15 +10004,40 @@ function rclDraw() {
       '<span>As of ' + esc(new Date(RCL.as_of).toLocaleString('en-US')) + '</span></div>' +
     '<div class="rcl-act"><button class="rcl-b pri" id="rcl-pdf">Download PDF</button>' +
       (payCanShare() ? '<button class="rcl-b" id="rcl-share">Share PDF</button>' : '') + '</div>' +
-    '<div class="rcl-w"><table><thead><tr><th>#</th><th>Unit</th><th>Floor</th><th>Client</th>' +
+    '<div class="rcl-w"><table><thead><tr><th>#</th><th>Unit</th><th>Floor</th><th>Client</th><th>Contact</th><th>C/O</th>' +
       '<th class="n">Basic price</th><th class="n">Discount</th><th class="n">Final price</th>' +
       '<th class="n">Down payment</th><th class="n">Received</th><th class="n">DP remaining</th><th>File</th></tr></thead>' +
-      '<tbody>' + tr + '<tr class="tot"><td></td><td colspan="3">Total</td>' +
+      '<tbody>' + tr + '<tr class="tot"><td></td><td colspan="5">Total</td>' +
       '<td class="n">' + rclMoney(t.basic) + '</td><td class="n">' + rclMoney(t.discount) + '</td>' +
       '<td class="n">' + rclMoney(t.final) + '</td><td class="n">' + rclMoney(t.dp) + '</td>' +
       '<td class="n">' + rclMoney(t.received) + '</td><td class="n">' + rclMoney(t.dp_left) + '</td><td></td></tr>' +
       '</tbody></table></div>' +
-    '<div class="rcl-note">' + esc(rclNote()) + '</div>';
+    '<div class="rcl-note">' + esc(rclNote()) + '</div>' +
+    '<div class="rcl-pop" id="rcl-pop" hidden></div>';
+}
+/* A NUMBER IS A WAY TO REACH THE CLIENT. Tapped, it offers Call and WhatsApp
+   (and Copy, for a desktop with neither). Pakistani numbers are written
+   0333-..., which WhatsApp wants as 92333...; 00-prefixed foreign numbers lose
+   the 00. */
+function rclIntl(ph) {
+  var d = String(ph || '').replace(/[^0-9]/g, '');
+  if (/^00/.test(d)) return d.slice(2);
+  if (/^0/.test(d)) return '92' + d.slice(1);
+  if (/^3\d{9}$/.test(d)) return '92' + d;
+  return d;
+}
+function rclContact(i) {
+  var r = (RCL.rows || [])[i]; if (!r || !r.phone) return;
+  var tel = String(r.phone).replace(/[^0-9+]/g, ''), wa = rclIntl(r.phone);
+  var pop = $('rcl-pop');
+  pop.innerHTML = '<div class="rcl-pc">' +
+    '<div class="rcl-pn">' + esc(r.client || '(name not recorded)') + '</div>' +
+    '<div class="rcl-pm">' + esc(r.phone) + ' · ' + esc(r.unit) + (r.co ? ' · C/O ' + esc(r.co) : '') + '</div>' +
+    '<a class="rcl-pa call" href="tel:' + esc(tel) + '">Call</a>' +
+    '<a class="rcl-pa wa" href="https://wa.me/' + esc(wa) + '" target="_blank" rel="noopener">WhatsApp</a>' +
+    '<button type="button" class="rcl-pa" data-copy="' + esc(r.phone) + '">Copy number</button>' +
+    '<button type="button" class="rcl-pa" id="rcl-pop-x">Cancel</button></div>';
+  pop.hidden = false;
 }
 function rclNote() {
   return 'Highlighted rows have a file in RMS: their price, discount and down payment are the sale\'s own, and ' +
@@ -10011,9 +10054,9 @@ async function rclPdfBytes() {
   var INK = L.rgb(0.07, 0.08, 0.1), MUT = L.rgb(0.4, 0.42, 0.46), HAIR = L.rgb(0.85, 0.86, 0.88);
   var GREEN = L.rgb(0.06, 0.48, 0.22), FILL = L.rgb(0.87, 0.96, 0.9), HEAD = L.rgb(0.94, 0.95, 0.96);
   var W = 842, H = 595, M = 28, RH = 15;
-  var COLS = [['#', 22, 0], ['Unit', 56, 0], ['Floor', 72, 0], ['Client', 150, 0], ['Basic price', 74, 1],
-              ['Discount', 64, 1], ['Final price', 74, 1], ['Down payment', 72, 1], ['Received', 70, 1],
-              ['DP remaining', 78, 1], ['File', 54, 0]];
+  var COLS = [['#', 20, 0], ['Unit', 50, 0], ['Floor', 56, 0], ['Client', 104, 0], ['Contact', 70, 0],
+              ['C/O', 74, 0], ['Basic price', 64, 1], ['Discount', 54, 1], ['Final price', 64, 1],
+              ['Down payment', 64, 1], ['Received', 60, 1], ['DP remaining', 66, 1], ['File', 40, 0]];
   var rows = RCL.rows || [], t = rclTotals(rows);
   var when = new Date(RCL.as_of).toLocaleString('en-US');
   function fit(txt, f, size, w) {
@@ -10056,16 +10099,16 @@ async function rclPdfBytes() {
     y -= RH;
     if (r.rms) page.drawRectangle({ x: M, y: y, width: W - 2 * M, height: RH, color: FILL });
     page.drawLine({ start: { x: M, y: y }, end: { x: W - M, y: y }, thickness: 0.4, color: HAIR });
-    var col = []; col[10] = GREEN;
-    line(page, [i + 1, r.unit, r.floor, r.client || '(name not recorded)', rclMoney(r.basic),
+    var col = []; col[12] = GREEN;
+    line(page, [i + 1, r.unit, r.floor, r.client || '(name not recorded)', r.phone || '-', r.co || '-', rclMoney(r.basic),
                 Number(r.discount) ? rclMoney(r.discount) : '-', rclMoney(r.final), rclMoney(r.dp),
                 rclMoney(r.received), rclMoney(r.dp_left), r.rms ? 'RMS file' : ''],
-         y, { boldCol: 9, color: col });
+         y, { boldCol: 11, color: col, size: 7.5 });
   });
   if (y - RH * 2 < M + 34) newPage(false);
   y -= RH + 2;
   page.drawLine({ start: { x: M, y: y + RH }, end: { x: W - M, y: y + RH }, thickness: 1, color: INK });
-  line(page, ['', 'Total', '', '', rclMoney(t.basic), rclMoney(t.discount), rclMoney(t.final), rclMoney(t.dp),
+  line(page, ['', 'Total', '', '', '', '', rclMoney(t.basic), rclMoney(t.discount), rclMoney(t.final), rclMoney(t.dp),
               rclMoney(t.received), rclMoney(t.dp_left), ''], y, { bold: true });
   /* the note, wrapped under the table */
   var words = paySafe(rclNote()).split(' '), ln = '', ny = y - 16;
@@ -10124,6 +10167,14 @@ $('rcl').addEventListener('click', function (e) {
   if (e.target === $('rcl')) return rclHide();
   if (e.target.closest('#rcl-pdf')) return rclDownload();
   if (e.target.closest('#rcl-share')) return rclShare();
+  var ph = e.target.closest('.rcl-ph'); if (ph) return rclContact(Number(ph.getAttribute('data-i')));
+  var cp = e.target.closest('[data-copy]');
+  if (cp) {
+    var v = cp.getAttribute('data-copy');
+    try { navigator.clipboard.writeText(v).then(function () { toast('Number copied'); }, function () { toast(v); }); } catch (x) { toast(v); }
+    $('rcl-pop').hidden = true; return;
+  }
+  if (e.target.id === 'rcl-pop' || e.target.closest('#rcl-pop-x') || e.target.closest('.rcl-pa')) { $('rcl-pop').hidden = true; return; }
 });
 if (LINK) rclProbe();
 

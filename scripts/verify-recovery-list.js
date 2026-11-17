@@ -14,7 +14,7 @@ const { q } = require('./_sbq');
 const ROOT = path.resolve(__dirname, '..');
 const OUT = path.resolve(process.argv[2] || path.join(ROOT, 'marketing_shots', 'recovery'));
 const CO = '96d210e7-e63b-4ef0-b1d0-74e622eac7ce', PR = '59ded55b-9bc2-45b2-a372-49fc31807fa9';
-const MIG = fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', '20261113a_recovery_list.sql'), 'utf8');
+const MIG = fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', process.env.MIG || '20261117a_recovery_list_contact.sql'), 'utf8');
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json', '.woff2': 'font/woff2' };
 
 (async () => {
@@ -86,6 +86,24 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
         pageScrollX: document.documentElement.scrollWidth > window.innerWidth
       })));
       await pg.screenshot({ path: path.join(OUT, tag + '-3-list.png') });
+      // the client's number: Call / WhatsApp
+      Object.assign(r, await pg.evaluate(() => ({
+        phoneButtons: document.querySelectorAll('#rcl-body .rcl-ph').length,
+        coFilled: [...document.querySelectorAll('#rcl-body tbody tr:not(.tot) td:nth-child(6)')].filter(t => t.textContent.trim() && t.textContent.trim() !== '-').length })));
+      const ph = await pg.$('#rcl-body .rcl-ph');
+      if (ph) {
+        await ph.evaluate(b => b.scrollIntoView({ block: 'center' }));
+        await ph.click();
+        await pg.waitForFunction(() => !document.getElementById('rcl-pop').hidden);
+        Object.assign(r, await pg.evaluate(() => ({
+          tapped: document.querySelector('#rcl-body .rcl-ph').textContent,
+          callHref: document.querySelector('#rcl-pop .call').getAttribute('href'),
+          waHref: document.querySelector('#rcl-pop .wa').getAttribute('href'),
+          popText: document.querySelector('#rcl-pop').textContent })));
+        await pg.screenshot({ path: path.join(OUT, tag + '-4-contact.png') });
+        await pg.click('#rcl-pop-x');
+        r.popClosed = await pg.$eval('#rcl-pop', e => e.hidden);
+      }
       if (!phone) {
         const before = new Set(fs.readdirSync(OUT));
         await pg.click('#rcl-pdf');
@@ -116,6 +134,8 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
           const txt = await v.evaluate(() => window.__txt);
           r.pdfHasAllUnits = list.rows.every(x => txt.includes(x.unit));
           r.pdfRmsLabels = (txt.match(/RMS file/g) || []).length;
+          r.pdfHasPhones = list.rows.filter(x => x.phone).every(x => txt.includes(x.phone));
+          r.pdfHasContactHead = /Contact/.test(txt) && txt.includes("C/O");
           await v.screenshot({ path: path.join(OUT, 'pdf-page1.png') });
           await v.close();
         }
