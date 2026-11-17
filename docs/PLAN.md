@@ -3963,3 +3963,24 @@ PKT, and the bug stays open until the owner decides the fix.
 Test lookups moved from a JV's typed number to its manual or system number, as §44 did for the cash book.
 One of those moves was reverted: jv-harden's fixture JV-0001 is posted straight through `nf_post_voucher`,
 so `JV-0001` is its *system* number there.
+
+## 46 · Site Closing — Stage 1: role, tables, site-day functions, withdrawals (2026-11-17)
+
+Spec: `docs/SITE_CLOSING_SPEC.md`. Migration `20261117b_nf_site_closing_stage1.sql` (written,
+rehearsed, **not applied** — waiting for the owner's go). Test
+`scripts/nf/verify-nf-site-closing-stage1.js`: 69/69 inside one rolled-back transaction, on a
+throw-away ZZTEST company with four throw-away users; no service-role key used.
+
+- Role `site` added to `nf_members`. `nf_is_member()` (table SELECT policies only) now ignores
+  site members, so a site user reads no voucher, leg, HO day, account or party directly; every
+  report RPC already refused him by its explicit role list.
+- New tables `nf_site_days`, `nf_site_lines`, `nf_combined_closings` (RLS, SELECT only via
+  `nf_site_reader`, no write grants, audited by `nf_audit_row`).
+- Functions: `nf_site_start_first_day`, `nf_site_save_line`, `nf_site_delete_line`,
+  `nf_site_submit`, `nf_site_return`, `nf_site_reopen`, `nf_site_get_day`, `nf_site_list_days`,
+  `nf_site_list_heads`, `nf_site_list_units`, and `nf_save_withdrawal` (Bank → Cash / Bank →
+  site box, BPV day voucher through `nf_post_voucher`).
+- Site cash box = Petty (10200), never used before. Site cash can never end a day below zero,
+  checked forward across every later site day.
+- Not run: the existing NF suites (they fetch the service-role key to create users, which needs
+  the owner's fresh OK).
