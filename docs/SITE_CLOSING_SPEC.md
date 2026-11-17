@@ -37,8 +37,12 @@ drives the Excel day sheet and the QuickBooks IIF.
 | Role | Site days / lines | HO books, bank, reports |
 |---|---|---|
 | `site` (new) | read + write (DRAFT / RETURNED days only), submit, withdraw a submission | **none** — not even a table SELECT |
-| `accountant`, `director` | read + write, return, reopen | as today |
+| `accountant`, `director` | read, start the first day, return (with reason); director reopens a merged day | as today |
 | `viewer` | read | as today |
+
+**HO never edits a site line** (owner, 2026-11-17). The site record stays exactly as the site
+accountant entered it. HO either returns the day with a reason, or corrects head / party on the HO
+voucher when it accepts the line (Stage 2).
 
 `nf_is_member()` (used only by the table SELECT policies) now ignores `site` members, so a site
 user cannot read `nf_vouchers`, legs, days, PDCs, parties or accounts directly. He reads heads and
@@ -69,14 +73,16 @@ is a SECURITY DEFINER function), every row change audited by the existing `nf_au
 
 `book_closing(date) = first day's opening + Σ site-cash IN − Σ site-cash OUT` over every site day
 up to and including that date. A day's opening is the previous day's book closing. BANK lines do
-not touch the site box. REJECTED lines do not count.
+not touch the site box. Every SITE_CASH line counts **except REJECTED**; LINKED, DUPLICATE and
+ACCEPTED lines still count, because the cash physically moved through the site box.
 
 **Never negative:** after every write, the book closing of that day and of every later day must be
 ≥ 0, otherwise the write is refused (`NF:SITE_CASH_NEGATIVE`).
 
 ## Rules (Stage 1)
 
-- The first site day is started by HO with a typed opening (`nf_site_start_first_day`). Later days
+- The first site day is started by HO with a typed opening (`nf_site_start_first_day`). At go-live
+  that opening is the cash counted in the box that day, typed once by HO. Later days
   are created by the first line saved on them; a date before the first day is refused. No future
   dates (Pakistan time).
 - Lines change only while the day is DRAFT or RETURNED. Saving a line puts it back to NEW and
@@ -88,13 +94,22 @@ not touch the site box. REJECTED lines do not count.
   `version`) cannot submit.
 - Return (HO) needs a reason. Any later day that was already submitted is returned with it, since
   its opening is about to change. Not allowed if a later day is merged.
-- Reopen: a submitted day back to DRAFT (site or HO), only if no later day is submitted/merged. A
+- Reopen: a submitted day back to DRAFT (the site accountant only; HO returns instead), only if no later day is submitted/merged. A
   MERGED day back to RETURNED: director only, with a reason, only while its combined closing is
   not CLOSED.
 
+## The real business date on a voucher
+
+`nf_vouchers.real_date` (new, nullable). HO's vouchers all sit on one long-running day, so
+`voucher_date` is that day's date, not when the money moved. Every voucher made by a new path
+carries the real date in `real_date`; older vouchers keep it empty. Matching (Stage 2) and the
+combined closing (Stage 4) use `real_date` when present and only fall back to reading the date out
+of the narration for older vouchers.
+
 ## Withdrawals (Bank → Cash / Bank → site cash box)
 
-`nf_save_withdrawal(day, manual_no, 'Bank', 'Cash'|'Petty', amount, cheque_no, description)` posts
+`nf_save_withdrawal(day, manual_no, 'Bank', 'Cash'|'Petty', amount, cheque_no, description, real_date)`
+(real date required, not in the future) posts
 a BPV day voucher `Dr 10100|10200 / Cr 10300` on an OPEN HO day, through `nf_post_voucher` (so
 the day lock, date rule, balance check, negative check and audit all apply). The cheque number goes
 into the narration as `BOP chq #<no>` (what matching reads). A cheque already used by another

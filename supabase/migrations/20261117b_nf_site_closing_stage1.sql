@@ -364,7 +364,10 @@ DECLARE
   v_head public.nf_accounts;
   v_id uuid;
 BEGIN
-  PERFORM public.nf_require_role(p_company_id, ARRAY['site','accountant','director']);
+  -- only the site accountant: the site record stays exactly as he entered it.
+  -- HO returns the day with a reason, or corrects head/party on the HO
+  -- voucher when it accepts the line (Stage 2).
+  PERFORM public.nf_require_role(p_company_id, ARRAY['site']);
   IF p_side IS NULL OR p_side NOT IN ('IN','OUT') THEN RAISE EXCEPTION 'NF:SIDE_REQUIRED'; END IF;
   IF p_via  IS NULL OR p_via  NOT IN ('SITE_CASH','BANK') THEN RAISE EXCEPTION 'NF:VIA_UNKNOWN' USING DETAIL = COALESCE(p_via, '(none)'); END IF;
   PERFORM public.nf_check_amount(p_amount, 'amount', false);
@@ -432,7 +435,7 @@ DECLARE l public.nf_site_lines; d public.nf_site_days;
 BEGIN
   SELECT * INTO l FROM public.nf_site_lines WHERE id = p_line_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'NF:LINE_NOT_FOUND'; END IF;
-  PERFORM public.nf_require_role(l.company_id, ARRAY['site','accountant','director']);
+  PERFORM public.nf_require_role(l.company_id, ARRAY['site']);
   SELECT * INTO d FROM public.nf_site_days WHERE id = l.site_day_id FOR UPDATE;
   SELECT * INTO l FROM public.nf_site_lines WHERE id = p_line_id FOR UPDATE;
   PERFORM public.nf_check_version(p_version, l.version);
@@ -457,7 +460,7 @@ DECLARE d public.nf_site_days; v_prev public.nf_site_days; v_counted numeric; v_
 BEGIN
   SELECT * INTO d FROM public.nf_site_days WHERE id = p_site_day_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'NF:DAY_NOT_FOUND'; END IF;
-  PERFORM public.nf_require_role(d.company_id, ARRAY['site','accountant','director']);
+  PERFORM public.nf_require_role(d.company_id, ARRAY['site']);
   PERFORM pg_advisory_xact_lock(hashtext('nf_site:' || d.company_id::text));
   SELECT * INTO d FROM public.nf_site_days WHERE id = p_site_day_id FOR UPDATE;
   PERFORM public.nf_check_version(p_version, d.version);
@@ -532,7 +535,7 @@ BEGIN
 END
 $function$;
 
--- SUBMITTED -> DRAFT (withdrawn before review: site or HO);
+-- SUBMITTED -> DRAFT (withdrawn before review, by the site accountant only);
 -- MERGED -> RETURNED (director only, with a reason, while its combined closing is not CLOSED)
 CREATE OR REPLACE FUNCTION public.nf_site_reopen(p_site_day_id uuid, p_reason text, p_version integer)
  RETURNS jsonb
@@ -544,12 +547,14 @@ DECLARE d public.nf_site_days; v_cc text;
 BEGIN
   SELECT * INTO d FROM public.nf_site_days WHERE id = p_site_day_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'NF:DAY_NOT_FOUND'; END IF;
-  PERFORM public.nf_require_role(d.company_id, ARRAY['site','accountant','director']);
+  PERFORM public.nf_require_role(d.company_id, ARRAY['site','director']);
   PERFORM pg_advisory_xact_lock(hashtext('nf_site:' || d.company_id::text));
   SELECT * INTO d FROM public.nf_site_days WHERE id = p_site_day_id FOR UPDATE;
   PERFORM public.nf_check_version(p_version, d.version);
 
   IF d.status = 'SUBMITTED' THEN
+    -- withdrawing his own submission is the site accountant's act; HO returns instead
+    PERFORM public.nf_require_role(d.company_id, ARRAY['site']);
     IF EXISTS (SELECT 1 FROM public.nf_site_days WHERE company_id = d.company_id
                 AND business_date > d.business_date AND status IN ('SUBMITTED','MERGED')) THEN
       RAISE EXCEPTION 'NF:SITE_LATER_DAY_SUBMITTED' USING HINT = 'Reopen the latest submitted day first.';
@@ -579,12 +584,21 @@ BEGIN
 END
 $function$;
 
--- ── 6. withdrawals: Bank -> Cash, Bank -> site cash box ─────────────────
+-- ── 6. the real business date on a voucher ──────────────────────────────
+-- HO's vouchers all sit on one long-running day, so voucher_date is that
+-- day's date, not when the money moved. Every voucher made by the new paths
+-- carries the real date here; older vouchers stay NULL and are read from
+-- their narration (matching, combined closing).
+ALTER TABLE public.nf_vouchers ADD COLUMN IF NOT EXISTS real_date date;
+CREATE INDEX IF NOT EXISTS nf_vouchers_real_date ON public.nf_vouchers (company_id, real_date) WHERE real_date IS NOT NULL;
+
+-- ── 7. withdrawals: Bank -> Cash, Bank -> site cash box ─────────────────
 -- The day-line path for the shape BPV-0041/BPV-0046 had to be posted
 -- without. Goes through nf_post_voucher, so the day lock, the date rule,
 -- the balance check, the never-negative check and the audit all apply.
 CREATE OR REPLACE FUNCTION public.nf_save_withdrawal(p_day_id uuid, p_voucher_no text, p_from text, p_to text,
-                                                     p_amount numeric, p_cheque_no text, p_description text)
+                                                     p_amount numeric, p_cheque_no text, p_description text,
+                                                     p_real_date date)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -603,6 +617,9 @@ BEGIN
   PERFORM public.nf_check_amount(p_amount, 'amount', false);
   IF p_amount <= 0 THEN RAISE EXCEPTION 'NF:AMOUNT_NOT_POSITIVE'; END IF;
   IF length(v_cheque) < 4 THEN RAISE EXCEPTION 'NF:CHEQUE_REQUIRED'; END IF;
+  -- the day the cheque was really cashed, not the open day's date
+  IF p_real_date IS NULL THEN RAISE EXCEPTION 'NF:REAL_DATE_REQUIRED'; END IF;
+  IF p_real_date > (now() AT TIME ZONE 'Asia/Karachi')::date THEN RAISE EXCEPTION 'NF:REAL_DATE_FUTURE'; END IF;
   IF v_manual = '' OR v_manual ~ '^BPV-?$' THEN v_manual := NULL; END IF;
 
   SELECT code INTO v_bank FROM public.nf_accounts WHERE company_id = v_company AND via = 'Bank';
@@ -643,18 +660,16 @@ BEGIN
     jsonb_build_array(
       jsonb_build_object('account_code', v_to,   'floor_code', v_floor, 'debit',  p_amount),
       jsonb_build_object('account_code', v_bank, 'floor_code', v_floor, 'credit', p_amount)));
-  IF v_manual IS NOT NULL THEN
-    BEGIN
-      UPDATE public.nf_vouchers SET manual_no = v_manual WHERE id = v_id;
-    EXCEPTION WHEN unique_violation THEN
-      RAISE EXCEPTION 'NF:DUPLICATE_VOUCHER' USING DETAIL = json_build_object('voucher', v_manual)::text;
-    END;
-  END IF;
+  BEGIN
+    UPDATE public.nf_vouchers SET manual_no = v_manual, real_date = p_real_date WHERE id = v_id;
+  EXCEPTION WHEN unique_violation THEN
+    RAISE EXCEPTION 'NF:DUPLICATE_VOUCHER' USING DETAIL = json_build_object('voucher', v_manual)::text;
+  END;
   RETURN public.nf_day_json(p_day_id);
 END
 $function$;
 
--- ── 7. grants: every function to signed-in users only (each checks its role inside) ──
+-- ── 8. grants: every function to signed-in users only (each checks its role inside) ──
 REVOKE ALL ON FUNCTION public._nf_site_book(uuid, date)                    FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public._nf_site_assert_not_negative(uuid, date)     FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public._nf_site_day_for(uuid, date)                 FROM PUBLIC, anon, authenticated;
@@ -669,7 +684,7 @@ REVOKE ALL ON FUNCTION public.nf_site_delete_line(uuid, integer)           FROM 
 REVOKE ALL ON FUNCTION public.nf_site_submit(uuid, numeric, jsonb, text, integer) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.nf_site_return(uuid, text, integer)          FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.nf_site_reopen(uuid, text, integer)          FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.nf_save_withdrawal(uuid, text, text, text, numeric, text, text) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.nf_save_withdrawal(uuid, text, text, text, numeric, text, text, date) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.nf_site_get_day(uuid, date)                  TO authenticated;
 GRANT EXECUTE ON FUNCTION public.nf_site_list_days(uuid, date, date)          TO authenticated;
 GRANT EXECUTE ON FUNCTION public.nf_site_list_heads(uuid)                     TO authenticated;
@@ -680,4 +695,4 @@ GRANT EXECUTE ON FUNCTION public.nf_site_delete_line(uuid, integer)           TO
 GRANT EXECUTE ON FUNCTION public.nf_site_submit(uuid, numeric, jsonb, text, integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.nf_site_return(uuid, text, integer)          TO authenticated;
 GRANT EXECUTE ON FUNCTION public.nf_site_reopen(uuid, text, integer)          TO authenticated;
-GRANT EXECUTE ON FUNCTION public.nf_save_withdrawal(uuid, text, text, text, numeric, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.nf_save_withdrawal(uuid, text, text, text, numeric, text, text, date) TO authenticated;

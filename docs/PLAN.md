@@ -3982,5 +3982,15 @@ throw-away ZZTEST company with four throw-away users; no service-role key used.
   site box, BPV day voucher through `nf_post_voucher`).
 - Site cash box = Petty (10200), never used before. Site cash can never end a day below zero,
   checked forward across every later site day.
-- Not run: the existing NF suites (they fetch the service-role key to create users, which needs
-  the owner's fresh OK).
+- Owner's review (2026-11-17): HO never edits site lines (site role only writes, deletes, submits,
+  withdraws); `nf_vouchers.real_date` added, required on `nf_save_withdrawal`; site cash book
+  counts every SITE_CASH line except REJECTED. Test now 81/81, including a before/after read-set
+  comparison (60 role x table pairs identical for accountant/director/viewer, Awami's real
+  director included).
+- Existing NF suites, run 2026-11-17 against the live database WITHOUT this migration (baseline):
+  9 green, 2 skipped by design (schema, de-migration), 1 not runnable without a chart file
+  (qb-accounts), 5 red — all pre-existing and unrelated: CVD-03 (Awami now has 87 heads, test
+  expects 79), R-08 (director report prints on 2 pages), drilldown D-04 (selector timeout),
+  general-journal J-02..05 (fixture dated outside the current-month default; J-07 "All time"
+  passes), SEC-RPC-ROLE-CHECK (`nf_get_report` is a wrapper over two role-checked functions).
+  Migration NOT applied: the owner's rule was "only if everything is green".

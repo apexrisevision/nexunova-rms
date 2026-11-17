@@ -30,10 +30,12 @@ const C = crypto.randomUUID();
 const U = { S: crypto.randomUUID(), A: crypto.randomUUID(), D: crypto.randomUUID(), V: crypto.randomUUID() };
 const run = crypto.randomBytes(3).toString('hex');
 
-const TESTS = String.raw`
+const PRE = String.raw`
 CREATE TEMP TABLE _r (n serial, id text, pass boolean, detail text) ON COMMIT DROP;
 GRANT ALL ON _r TO authenticated;
 GRANT ALL ON SEQUENCE _r_n_seq TO authenticated;
+CREATE TEMP TABLE _seen (phase text, who text, tbl text, n bigint) ON COMMIT DROP;
+GRANT ALL ON _seen TO authenticated;
 
 CREATE FUNCTION pg_temp.as_(u uuid) RETURNS void LANGUAGE sql AS $$
   SELECT set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true),
@@ -44,6 +46,26 @@ CREATE FUNCTION pg_temp.ok(i text, p boolean, d text) RETURNS void LANGUAGE sql 
 CREATE FUNCTION pg_temp.err(s text) RETURNS text LANGUAGE plpgsql AS $$
 BEGIN EXECUTE s; RETURN 'OK';
 EXCEPTION WHEN OTHERS THEN RETURN SQLERRM; END $$;
+-- WHAT A MEMBER CAN READ: every row of every pre-existing nf_ table, counted
+-- as that user under RLS. Taken before and after the migration.
+CREATE FUNCTION pg_temp.seen(ph text, who text, u uuid) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE t text; c bigint;
+BEGIN
+  PERFORM pg_temp.as_(u);
+  FOR t IN SELECT unnest(${'${TABLES}'}) LOOP
+    BEGIN
+      EXECUTE 'SET LOCAL ROLE authenticated';
+      EXECUTE format('SELECT count(*) FROM public.%I', t) INTO c;
+      EXECUTE 'RESET ROLE';
+    EXCEPTION WHEN insufficient_privilege THEN c := -1;
+    END;
+    INSERT INTO _seen VALUES (ph, who, t, c);
+  END LOOP;
+END $$;
+${'${SNAP_PRE}'}
+`;
+
+const TESTS = String.raw`
 
 DO $t$
 DECLARE
@@ -136,6 +158,19 @@ BEGIN
   e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT',NULL,'X',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
   PERFORM pg_temp.ok('L-16 a viewer cannot write', e LIKE 'NF:NOT_ALLOWED%', e);
   PERFORM pg_temp.ok('L-17 …but can read', (public.nf_site_get_day(co, '2026-11-05')->>'exists')::boolean, '');
+  PERFORM pg_temp.as_(ua);
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT',NULL,'X',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
+  PERFORM pg_temp.ok('H-01 HO cannot add a site line', e LIKE 'NF:NOT_ALLOWED%', e);
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',%L,'OUT','P-1','Labour',NULL,NULL,'52600','SITE_CASH',1,NULL,NULL,NULL,%s)$$,
+                          co, l2, (SELECT version FROM public.nf_site_lines WHERE id = l2)));
+  PERFORM pg_temp.ok('H-02 HO cannot change a site line', e LIKE 'NF:NOT_ALLOWED%', e);
+  e := pg_temp.err(format('SELECT public.nf_site_delete_line(%L, %s)', l2, (SELECT version FROM public.nf_site_lines WHERE id = l2)));
+  PERFORM pg_temp.ok('H-03 HO cannot delete a site line', e LIKE 'NF:NOT_ALLOWED%', e);
+  e := pg_temp.err(format('SELECT public.nf_site_submit(%L, 4000, NULL, NULL, %s)', d1, (SELECT version FROM public.nf_site_days WHERE id = d1)));
+  PERFORM pg_temp.ok('H-04 HO cannot submit the site day', e LIKE 'NF:NOT_ALLOWED%', e);
+  PERFORM pg_temp.as_(ud);
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT',NULL,'X',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
+  PERFORM pg_temp.ok('H-05 a director cannot add a site line either', e LIKE 'NF:NOT_ALLOWED%', e);
 
   -- ── submit ─────────────────────────────────────────────────────────────
   PERFORM pg_temp.as_(us);
@@ -153,6 +188,10 @@ BEGIN
     r->>'status' = 'SUBMITTED' AND (r->>'book_closing')::numeric = 4000 AND (r->>'variance')::numeric = 0, r::text);
   e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT',NULL,'X',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
   PERFORM pg_temp.ok('S-06 a submitted day takes no lines', e LIKE 'NF:SITE_DAY_LOCKED%', e);
+  PERFORM pg_temp.as_(ua);
+  e := pg_temp.err(format('SELECT public.nf_site_reopen(%L, NULL, %s)', d1, (SELECT version FROM public.nf_site_days WHERE id = d1)));
+  PERFORM pg_temp.ok('H-06 HO cannot pull a submitted day back to draft (it returns it instead)', e LIKE 'NF:NOT_ALLOWED%', e);
+  PERFORM pg_temp.as_(us);
 
   -- the next days open from the last one's closing
   PERFORM pg_temp.ok('S-07 06-Nov (not made yet) opens at 4,000', (public.nf_site_get_day(co, '2026-11-06')->>'opening')::numeric = 4000, '');
@@ -219,30 +258,38 @@ BEGIN
   PERFORM pg_temp.as_(ud);
   r := public.nf_start_first_day(co, '2026-11-05', 'DC-1', 500000, 0, 1000000);
   SELECT id INTO hoday FROM public.nf_days WHERE company_id = co AND business_date = '2026-11-05';
-  r := public.nf_save_withdrawal(hoday, 'BPV-0046', 'Bank', 'Petty', 300000, '1313826265', 'Cash for the site box (16-Nov)');
+  r := public.nf_save_withdrawal(hoday, 'BPV-0046', 'Bank', 'Petty', 300000, '1313826265', 'Cash for the site box', '2026-11-16');
   SELECT count(*) INTO n FROM public.nf_vouchers v JOIN public.nf_voucher_legs a ON a.voucher_id = v.id AND a.account_code = '10200' AND a.debit = 300000
     JOIN public.nf_voucher_legs b ON b.voucher_id = v.id AND b.account_code = '10300' AND b.credit = 300000
    WHERE v.company_id = co AND v.manual_no = 'BPV-0046' AND v.voucher_no LIKE 'BPV-%' AND v.source = 'DAY'
      AND v.narration LIKE '%BOP chq #1313826265%';
   PERFORM pg_temp.ok('W-01 Bank -> site box posts a BPV day voucher Dr 10200 / Cr 10300, cheque in the narration', n = 1, n::text);
-  r := public.nf_save_withdrawal(hoday, NULL, 'Bank', 'Cash', 100000, 'chq 1313826270', NULL);
+  r := public.nf_save_withdrawal(hoday, NULL, 'Bank', 'Cash', 100000, 'chq 1313826270', NULL, '2026-11-14');
   SELECT count(*) INTO n FROM public.nf_vouchers v JOIN public.nf_voucher_legs a ON a.voucher_id = v.id AND a.account_code = '10100' AND a.debit = 100000
    WHERE v.company_id = co AND v.narration LIKE '%#1313826270%';
   PERFORM pg_temp.ok('W-02 Bank -> Cash posts Dr 10100', n = 1, n::text);
-  e := pg_temp.err(format($$SELECT public.nf_save_withdrawal(%L, NULL, 'Bank', 'Cash', 5000, '1313826265', 'again')$$, hoday));
+  SELECT count(*) INTO n FROM public.nf_vouchers WHERE company_id = co AND manual_no = 'BPV-0046' AND real_date = '2026-11-16' AND voucher_date = '2026-11-05';
+  PERFORM pg_temp.ok('W-11 the real date is stored (16-Nov) beside the day''s date (05-Nov)', n = 1, n::text);
+  e := pg_temp.err(format($$SELECT public.nf_save_withdrawal(%L, NULL, 'Bank', 'Cash', 10, '1313826291', 'x', NULL)$$, hoday));
+  PERFORM pg_temp.ok('W-12 the real date is required', e LIKE 'NF:REAL_DATE_REQUIRED%', e);
+  e := pg_temp.err(format($$SELECT public.nf_save_withdrawal(%L, NULL, 'Bank', 'Cash', 10, '1313826292', 'x', '2099-01-01')$$, hoday));
+  PERFORM pg_temp.ok('W-13 the real date cannot be in the future', e LIKE 'NF:REAL_DATE_FUTURE%', e);
+  PERFORM pg_temp.ok('W-14 older (Awami) vouchers keep real_date empty',
+    NOT EXISTS (SELECT 1 FROM public.nf_vouchers WHERE company_id = '${AWAMI_COMPANY_ID}' AND real_date IS NOT NULL), '');
+  e := pg_temp.err(format($$SELECT public.nf_save_withdrawal(%L, NULL, 'Bank', 'Cash', 5000, '1313826265', 'again', '2026-11-16')$$, hoday));
   PERFORM pg_temp.ok('W-03 the same cheque cannot be cashed twice', e LIKE 'NF:DUPLICATE_CHEQUE%', e);
-  e := pg_temp.err(format($$SELECT public.nf_save_withdrawal(%L, 'BPV-0046', 'Bank', 'Cash', 5000, '1313826299', 'x')$$, hoday));
+  e := pg_temp.err(format($$SELECT public.nf_save_withdrawal(%L, 'BPV-0046', 'Bank', 'Cash', 5000, '1313826299', 'x', '2026-11-16')$$, hoday));
   PERFORM pg_temp.ok('W-04 the manual BPV no is not reused', e LIKE 'NF:DUPLICATE_VOUCHER%', e);
-  e := pg_temp.err(format($$SELECT public.nf_save_withdrawal(%L, NULL, 'Bank', 'Cash', 900000, '1313826288', 'too much')$$, hoday));
+  e := pg_temp.err(format($$SELECT public.nf_save_withdrawal(%L, NULL, 'Bank', 'Cash', 900000, '1313826288', 'too much', '2026-11-16')$$, hoday));
   PERFORM pg_temp.ok('W-05 the bank cannot go negative', e LIKE 'NF:NEGATIVE_POSITION%', e);
-  e := pg_temp.err(format($$SELECT public.nf_save_withdrawal(%L, NULL, 'Cash', 'Petty', 10, '1313826289', 'x')$$, hoday));
+  e := pg_temp.err(format($$SELECT public.nf_save_withdrawal(%L, NULL, 'Cash', 'Petty', 10, '1313826289', 'x', '2026-11-16')$$, hoday));
   PERFORM pg_temp.ok('W-06 only from the bank', e LIKE 'NF:WITHDRAWAL_FROM_BANK_ONLY%', e);
-  e := pg_temp.err(format($$SELECT public.nf_save_withdrawal(%L, NULL, 'Bank', 'Bank', 10, '1313826289', 'x')$$, hoday));
+  e := pg_temp.err(format($$SELECT public.nf_save_withdrawal(%L, NULL, 'Bank', 'Bank', 10, '1313826289', 'x', '2026-11-16')$$, hoday));
   PERFORM pg_temp.ok('W-07 only into cash or the site box', e LIKE 'NF:WITHDRAWAL_TO_CASH_OR_PETTY%', e);
-  e := pg_temp.err(format($$SELECT public.nf_save_withdrawal(%L, NULL, 'Bank', 'Cash', 10, '', 'x')$$, hoday));
+  e := pg_temp.err(format($$SELECT public.nf_save_withdrawal(%L, NULL, 'Bank', 'Cash', 10, '', 'x', '2026-11-16')$$, hoday));
   PERFORM pg_temp.ok('W-08 a cheque no is required', e LIKE 'NF:CHEQUE_REQUIRED%', e);
   PERFORM pg_temp.as_(us);
-  e := pg_temp.err(format($$SELECT public.nf_save_withdrawal(%L, NULL, 'Bank', 'Cash', 10, '1313826290', 'x')$$, hoday));
+  e := pg_temp.err(format($$SELECT public.nf_save_withdrawal(%L, NULL, 'Bank', 'Cash', 10, '1313826290', 'x', '2026-11-16')$$, hoday));
   PERFORM pg_temp.ok('W-09 a site user cannot withdraw', e LIKE 'NF:NOT_ALLOWED%', e);
   PERFORM pg_temp.as_(ud);
   r := public.nf_get_day(co, '2026-11-05');
@@ -270,6 +317,24 @@ SELECT pg_temp.ok('RLS-07 accountant: still reads the vouchers', (SELECT count(*
 SELECT pg_temp.ok('RLS-08 accountant: reads site days', (SELECT count(*) FROM public.nf_site_days WHERE company_id = '${C}') = 3, '');
 RESET ROLE;
 
+DO $c$
+DECLARE r record; bad text := ''; n int := 0;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM _seen WHERE phase = 'pre') THEN
+    PERFORM pg_temp.ok('X-00 before/after read sets (skipped: migration already applied)', true, '');
+    RETURN;
+  END IF;
+  FOR r IN SELECT a.who, a.tbl, a.n pre, b.n post FROM _seen a JOIN _seen b ON b.who = a.who AND b.tbl = a.tbl AND b.phase = 'post'
+            WHERE a.phase = 'pre' ORDER BY a.who, a.tbl LOOP
+    n := n + 1;
+    IF r.pre IS DISTINCT FROM r.post THEN bad := bad || format('%s/%s %s->%s; ', r.who, r.tbl, r.pre, r.post); END IF;
+  END LOOP;
+  PERFORM pg_temp.ok(format('X-01 accountant/director/viewer read exactly the same rows before and after (%s role x table pairs)', n), n > 0 AND bad = '', bad);
+  PERFORM pg_temp.ok('X-02 …including Awami''s real director (reads the real vouchers)',
+    (SELECT bool_and(x.n > 0) FROM _seen x WHERE x.phase = 'post' AND x.who LIKE 'awami-%' AND x.tbl = 'nf_vouchers'), '');
+END
+$c$;
+
 DO $f$
 DECLARE s text; p int; f int;
 BEGIN
@@ -289,12 +354,24 @@ $f$;
   const users = Object.entries(U).map(([k, id]) =>
     `INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at)
      VALUES ('${id}', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'nf-site1-${k.toLowerCase()}-${run}@zztest-nf.invalid', '', now(), now(), now());`).join('\n');
+  // the site member can only exist once the migration has run
   const members = `INSERT INTO public.nf_members (company_id, user_id, role, display_name, active) VALUES
-    ('${C}','${U.S}','site','Site Accountant',true), ('${C}','${U.A}','accountant','HO Accountant',true),
-    ('${C}','${U.D}','director','Director',true), ('${C}','${U.V}','viewer','Viewer',true);`;
-  const sql = ['BEGIN;', APPLIED ? '' : fs.readFileSync(MIG, 'utf8'),
+    ('${C}','${U.A}','accountant','HO Accountant',true), ('${C}','${U.D}','director','Director',true),
+    ('${C}','${U.V}','viewer','Viewer',true);`;
+  const siteMember = `SELECT pg_temp.as_('${U.D}');  -- a director adds members
+INSERT INTO public.nf_members (company_id, user_id, role, display_name, active) VALUES ('${C}','${U.S}','site','Site Accountant',true);`;
+  const aw = await q(`select user_id, role from nf_members where company_id = '${AWAMI_COMPANY_ID}' and active and role in ('director','accountant','viewer')`);
+  const who = [...aw.map(m => ['awami-' + m.role, m.user_id]), ['test-accountant', U.A], ['test-director', U.D], ['test-viewer', U.V]];
+  const tables = "ARRAY['nf_accounts','nf_audit','nf_days','nf_floors','nf_iif_batch_vouchers','nf_iif_batches','nf_members','nf_parties','nf_party_aliases','nf_pdcs','nf_report_categories','nf_settings','nf_voucher_counters','nf_voucher_legs','nf_vouchers']";
+  const snap = ph => who.map(([w, u]) => `SELECT pg_temp.seen('${ph}', '${w}', '${u}');`).join('\n');
+  const pre = PRE.split('${TABLES}').join(tables).split('${SNAP_PRE}').join(APPLIED ? '' : snap('pre'));
+  console.log('  read-set compared for:', who.map(w => w[0]).join(', '));
+  const sql = ['BEGIN;',
     `INSERT INTO public.companies (id, company_code, company_name) VALUES ('${C}', 'ZZSITE${run}', 'ZZTEST-NF-SITE-${run}');`,
-    seedSql(C, built.seed), users, members, TESTS].join('\n');
+    seedSql(C, built.seed), users, members, pre,
+    APPLIED ? '' : fs.readFileSync(MIG, 'utf8'),
+    APPLIED ? '' : snap('post'),
+    siteMember, TESTS].join('\n');
   const res = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
     method: 'POST', headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: sql }) });
   const msg = res.ok ? 'NO EXCEPTION — the transaction did not roll back; check for leftovers' : await res.text();
