@@ -60,7 +60,7 @@ const OUT = process.argv[2];
         pos: [...document.querySelectorAll('table.pos tbody tr td:first-child')].map(td => td.textContent).join(' | '),
       }));
       if (key === 'site') {
-        check('live page serves the new sheet', t.scripts.some(s => s.indexOf('nf-sheet.js?v=20261119c') >= 0), t.scripts.join(','));
+        check('live page serves the new sheet', t.scripts.some(s => s.indexOf('nf-sheet.js?v=20261119d') >= 0), t.scripts.join(','));
         check('site login: chip "ZZ Site · Petty cash" (a test company keeps the seed labels), no Reports, no Close day', /ZZ Site · Petty cash/.test(t.who || '') && !t.reports && !t.close, t.who);
         check('site login: no Excel button', !t.xlsx);
         check('site login: head office line locked, own line open', t.ro.length === 1 && t.ro[0] === true && t.tags.some(s => /🔒 Head Office/.test(s)) && t.tags.includes('ZZ Site'), t.tags.join(','));
@@ -73,6 +73,11 @@ const OUT = process.argv[2];
         check('position: Cash in hand / Petty cash labels for a non-Awami company (only Awami was relabelled)', /Cash in hand/.test(t.pos), t.pos);
         await pg.screenshot({ path: path.join(OUT, '7 LIVE - director login.png'), fullPage: true });
       }
+      // WhatsApp report: the director chooses a view, the site login has none
+      await pg.click('#nf-waReport'); await pg.waitForSelector('#nf-wa-dialog [data-wa="jpg"]');
+      const wa = await pg.evaluate(() => ({ radios: [...document.querySelectorAll('#nf-wa-dialog input[name="nf-wa-view"]')].map(r => r.value).join(','), only: (document.querySelector('.nf-wa-only') || {}).textContent || '' }));
+      if (key === 'site') check('site login: WhatsApp report is Site only (no view choice)', wa.radios === '' && wa.only === 'Site view', JSON.stringify(wa));
+      else check('director: WhatsApp report offers Site / Head Office / Combined', wa.radios === 'site,ho,combined', JSON.stringify(wa));
       check(key + ': no script errors', errs.length === 0, errs.join(' / '));
       await pg.close();
     }
