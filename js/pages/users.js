@@ -321,10 +321,14 @@ async function _umToggle(userId){
   const targetStatus = isActive ? 'inactive' : 'active';
   if (!window.confirm((isActive ? 'Deactivate' : 'Activate') + ' ' + (u.full_name || u.username) + '?')) return;
   try {
+    // p_project_ids is sent (empty) so the call names the ONE overload that has it: with only
+    // these three keys both update_app_user overloads match and the API refuses to choose
+    // ("Could not choose the best candidate function"). NULL leaves projects untouched.
     const { data, error } = await supabase.rpc('update_app_user', {
-      p_user_id:    userId,
-      p_company_id: S.cid,
-      p_status:     targetStatus
+      p_user_id:     userId,
+      p_company_id:  S.cid,
+      p_status:      targetStatus,
+      p_project_ids: null
     });
     if (error) throw error;
     if (!data || !data.success) throw new Error((data && data.message) || 'Update failed');
