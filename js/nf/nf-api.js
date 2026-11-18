@@ -223,6 +223,13 @@
             return path;
           });
       },
+      // each HO voucher's manual no and real business date, for "Link to…" search (nf_get_journal
+      // does not carry them). A plain table read under the existing nf_vouchers read policy —
+      // HO roles only; a site user reads nothing here.
+      voucherFacts: function (companyId) {
+        return sb.from('nf_vouchers').select('id,manual_no,real_date').eq('company_id', companyId)
+          .then(function (r) { if (r.error) { var e = new Error('NF:READ'); e.code = 'NF:READ'; e.detail = r.error.message; throw e; } return r.data || []; });
+      },
       siteBillUrl: function (path) {
         if (!path || !sb.storage) return Promise.resolve(null);
         return sb.storage.from('nf-site-bills').createSignedUrl(path, 600).then(function (r) { return r.error ? null : r.data.signedUrl; });

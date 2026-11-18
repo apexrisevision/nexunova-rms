@@ -8,6 +8,8 @@
    ═══════════════════════════════════════════════════════════════════════ */
 
 .scsheet{padding-bottom:6px;margin:10px auto}
+/* hidden means hidden: .btn{display:inline-flex} in nf.css would otherwise win over the attribute */
+.scsheet [hidden],.srdlg [hidden],.scdrawer [hidden]{display:none !important}
 .scsheet .hdr{grid-template-columns:1fr;gap:10px;padding:14px 16px}
 .scsheet .rsec{padding:12px 16px}
 .scwho{font-size:12px}

@@ -87,7 +87,10 @@ const asUser = (uid, body) => q(`DO $x$ BEGIN PERFORM set_config('request.jwt.cl
   fs.mkdirSync(OUT, { recursive: true });
   const C = crypto.randomUUID();
   if (C === AWAMI_COMPANY_ID) { process.exitCode = 2; return; }
-  const users = { S: { role: 'site', name: 'Sharose (test)' }, D: { role: 'director', name: 'Director (test)' }, V: { role: 'viewer', name: 'Viewer (test)' } };
+  // O is a viewer of ANOTHER throw-away company: he must not see this company's bill photos
+  const C2 = crypto.randomUUID();
+  const users = { S: { role: 'site', name: 'Sharose (test)' }, D: { role: 'director', name: 'Director (test)' }, V: { role: 'viewer', name: 'Viewer (test)' },
+                  O: { role: 'viewer', name: 'Other company viewer (test)', company: C2 } };
   for (const [k, u] of Object.entries(users)) {
     u.id = crypto.randomUUID(); u.email = `nf-siteui-${k.toLowerCase()}-${run}@zztest-nf.invalid`; u.password = crypto.randomBytes(15).toString('base64url');
   }
@@ -98,6 +101,7 @@ const asUser = (uid, body) => q(`DO $x$ BEGIN PERFORM set_config('request.jwt.cl
     const built = buildSeed();
     await q(`insert into companies (id, company_code, company_name) values ('${C}', 'ZZSUI${run}', 'ZZTEST-NF-SITEUI-${run}')`);
     await q(seedSql(C, built.seed));
+    await q(`insert into companies (id, company_code, company_name) values ('${C2}', 'ZZSU2${run}', 'ZZTEST-NF-SITEUI2-${run}')`);
     for (const u of Object.values(users)) {
       await q(`insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
                                        confirmation_token, recovery_token, email_change_token_new, email_change, email_change_token_current,
@@ -107,7 +111,7 @@ const asUser = (uid, body) => q(`DO $x$ BEGIN PERFORM set_config('request.jwt.cl
                        '', '', '', '', '', '', '', '');
                insert into auth.identities (id, user_id, provider_id, provider, identity_data, created_at, updated_at, last_sign_in_at)
                values (gen_random_uuid(), '${u.id}', '${u.id}', 'email', json_build_object('sub', '${u.id}', 'email', '${u.email}')::jsonb, now(), now(), now());`);
-      await q(`insert into nf_members (company_id, user_id, role, display_name, active) values ('${C}', '${u.id}', '${u.role}', '${u.name}', true)`);
+      await q(`insert into nf_members (company_id, user_id, role, display_name, active) values ('${u.company || C}', '${u.id}', '${u.role}', '${u.name}', true)`);
     }
     for (const u of Object.values(users)) u.jwt = await signIn(u.email, u.password);
     const D = users.D.id, S = users.S.id;
@@ -183,6 +187,36 @@ const asUser = (uid, body) => q(`DO $x$ BEGIN PERFORM set_config('request.jwt.cl
                             where d.company_id = '${C}' and l.party_name = 'SAJAWAL' and l.head_code = '70700' and l.amount = 500`);
     ok('S-06 a line added inline is saved (database) and the tiles move (paid 4,450, in hand 54,350), a fresh empty row appears',
       Number(saved[0].n) === 1 && v.paid === '4,450' && v.hand === '54,350' && v.newRows === 1, JSON.stringify(v) + ' db=' + saved[0].n);
+
+    // ── a bill photo on that line ──
+    // a picture of a cash memo, drawn here and saved as a PNG
+    const billFile = path.join(OUT, 'bill-sample.png');
+    { const bp = await browser.newPage(); await bp.setViewport({ width: 360, height: 220 });
+      await bp.setContent('<div style="font:16px monospace;padding:16px;background:#fffbe6;border:2px dashed #999;height:180px">CASH MEMO No. 4412<br>Sajawal Taxi Service<br>Karkhano - Hayatabad<br><br>Fare: Rs 500<br>13-Nov-2026</div>');
+      await bp.screenshot({ path: billFile }); await bp.close(); }
+    const sajawal = await sp.evaluateHandle(() => [...document.querySelectorAll('.scrow')].find(r => r.querySelector('[data-k="party_name"]').value === 'SAJAWAL'));
+    await (await sajawal.$('[data-photo]')).uploadFile(billFile);
+    await sp.waitForFunction(() => { const r = [...document.querySelectorAll('.scrow')].find(x => x.querySelector('[data-k="party_name"]').value === 'SAJAWAL');
+      return r && r.querySelector('[data-photo-view]') && !r.classList.contains('dirty'); }, { timeout: 20000 });
+    const bill = (await q(`select l.attachment_url p from nf_site_lines l join nf_site_days d on d.id = l.site_day_id where d.company_id = '${C}' and l.party_name = 'SAJAWAL'`))[0].p;
+    ok('P-01 the site user adds a bill photo to a line: stored privately under the company, path saved on the line',
+      !!bill && bill.indexOf(C + '/2026-11-13/') === 0, bill);
+    { const sec = await sp.$('.scsec[data-side="OUT"]'); await sec.screenshot({ path: path.join(OUT, 'd-line-with-bill-photo.png') }); }
+    const billBytes = fs.readFileSync(billFile);
+    const storage = (u, method, p, body, extra) => fetch(`${URL_BASE}/storage/v1/object/${p}`, { method,
+      headers: Object.assign({ apikey: ANON, Authorization: 'Bearer ' + u.jwt }, extra || {}), body });
+    const openAs = async u => { const r = await storage(u, 'GET', 'authenticated/nf-site-bills/' + bill); const b = Buffer.from(await r.arrayBuffer()); return { status: r.status, same: b.equals(billBytes) }; };
+    let a1 = await openAs(users.S), a2 = await openAs(users.D), a3 = await openAs(users.V), a4 = await openAs(users.O);
+    ok('P-02 the site user and head office (director, viewer) can open it', a1.status === 200 && a1.same && a2.status === 200 && a2.same && a3.status === 200, JSON.stringify([a1, a2, a3]));
+    ok('P-03 a viewer of ANOTHER company cannot', a4.status !== 200 && !a4.same, JSON.stringify(a4));
+    const del = async u => (await storage(u, 'DELETE', 'nf-site-bills', JSON.stringify({ prefixes: [bill] }), { 'Content-Type': 'application/json' })).status;
+    const rep = async u => (await storage(u, 'PUT', 'nf-site-bills/' + bill, Buffer.from('replaced'), { 'Content-Type': 'image/png', 'x-upsert': 'true' })).status;
+    const dS = await del(users.S), dD = await del(users.D), rS = await rep(users.S), rD = await rep(users.D);
+    a2 = await openAs(users.D);
+    ok('P-04 nobody can delete it or replace it (site, director): still there, same bytes', a2.status === 200 && a2.same,
+       JSON.stringify({ deleteSite: dS, deleteDirector: dD, replaceSite: rS, replaceDirector: rD, after: a2 }));
+    const up2 = (await storage(users.O, 'POST', 'nf-site-bills/' + C + '/2026-11-13/intruder.png', billBytes, { 'Content-Type': 'image/png' })).status;
+    ok('P-05 another company\'s user cannot add a photo to this company\'s folder', up2 >= 400, String(up2));
 
     // version conflict: another device changes the HAMZA line, then this screen edits it
     await asUser(S, `PERFORM public.nf_site_save_line('${C}', '2026-11-13', (SELECT l.id FROM public.nf_site_lines l JOIN public.nf_site_days d ON d.id = l.site_day_id
@@ -261,6 +295,19 @@ const asUser = (uid, body) => q(`DO $x$ BEGIN PERFORM set_config('request.jwt.cl
       await dp.waitForSelector('.srdlg');
       return id;
     };
+    // "Link to…": search by the real date
+    await clickIn('OSAMA BIN YOUSAF', 'link');
+    await dp.waitForFunction(() => !/Loading vouchers/.test(document.querySelector('#nf-sr-pick').innerText), { timeout: 15000 });
+    const pickFor = async (txt) => {
+      await dp.evaluate(t => { const i = document.querySelector('#nf-sr-q'); i.value = t; i.dispatchEvent(new Event('input')); }, txt);
+      return dp.evaluate(() => [...document.querySelectorAll('#nf-sr-pick [data-pick-v] b')].map(b => b.innerText.replace(/\s+/g, ' ')));
+    };
+    const by12 = await pickFor('12-Nov'), byIso = await pickFor('2026-11-12'), by13 = await pickFor('13-Nov');
+    ok('H-04b "Link to…" finds by real date: 12-Nov gives the withdrawal (its real date) and CPV-0170 (date in its narration)',
+      by12.some(t => /BPV-0046/.test(t) && /12-Nov-2026/.test(t)) && by12.some(t => /CPV-0170/.test(t)), JSON.stringify(by12));
+    ok('H-04c …"2026-11-12" works the same; 13-Nov does not bring the 12-Nov withdrawal',
+      byIso.some(t => /BPV-0046/.test(t)) && !by13.some(t => /BPV-0046/.test(t)), JSON.stringify({ byIso, by13 }));
+    await dp.click('#nf-sr-dlg-cancel');
     // Reject needs a reason
     await clickIn('TEA AND FOOD', 'reject');
     await dp.click('#nf-sr-dlg-ok');
@@ -300,6 +347,13 @@ const asUser = (uid, body) => q(`DO $x$ BEGIN PERFORM set_config('request.jwt.cl
     // return 13-Nov to the site
     await dp.click('#nf-sr-list'); await dp.waitForSelector('.srdays');
     await dp.click('.srdays tbody tr:first-child'); await dp.waitForSelector('#nf-sr-return');
+    v = await dp.evaluate(async (p) => {
+      const btn = !!document.querySelector('[data-bill]');
+      const u = await window.NfApi.build(supabase).siteBillUrl(p);
+      const r = u ? await fetch(u) : null;
+      return { btn, status: r && r.status, type: r && r.headers.get('content-type') };
+    }, bill);
+    ok('P-06 head office sees "Bill photo" on the line and its link opens the picture', v.btn && v.status === 200 && /image/.test(v.type || ''), JSON.stringify(v));
     await dp.click('#nf-sr-return'); await dp.waitForSelector('#nf-sr-reason');
     await dp.type('#nf-sr-reason', 'Hamza labour bill photo missing — add it and send again');
     await dp.click('#nf-sr-dlg-ok');
@@ -339,13 +393,20 @@ const asUser = (uid, body) => q(`DO $x$ BEGIN PERFORM set_config('request.jwt.cl
         DELETE FROM public.nf_combined_closings WHERE company_id = '${C}';
         DELETE FROM public.nf_voucher_counters WHERE company_id = '${C}';
         PERFORM public._nf_test_purge('${C}');
+        PERFORM set_config('nf.purge_company', '${C2}', true);
+        DELETE FROM public.nf_members WHERE company_id = '${C2}';
+        PERFORM public._nf_test_purge('${C2}');
+        -- the test's photo rows (nobody may delete through the API, by design; storage's own switch)
+        PERFORM set_config('storage.allow_delete_query', 'true', true);
+        DELETE FROM storage.objects WHERE bucket_id = 'nf-site-bills' AND (name LIKE '${C}/%' OR name LIKE '${C2}/%');
       END $c$;`);
       for (const u of Object.values(users)) await q(`delete from auth.identities where user_id = '${u.id}'; delete from auth.users where id = '${u.id}';`);
-      const left = await q(`select (select count(*) from companies where id = '${C}') co, (select count(*) from nf_site_days where company_id = '${C}') sd,
+      const left = await q(`select (select count(*) from companies where id in ('${C}', '${C2}')) co, (select count(*) from nf_site_days where company_id = '${C}') sd,
+                                   (select count(*) from storage.objects where bucket_id = 'nf-site-bills' and (name like '${C}/%' or name like '${C2}/%')) photos,
                                    (select count(*) from auth.users where email like 'nf-siteui-%-${run}@zztest-nf.invalid') users,
                                    (select count(*) from nf_vouchers where company_id = '${AWAMI_COMPANY_ID}') awami`);
       console.log('  cleanup verified by query:', JSON.stringify(left[0]));
-      ok('CLEANUP nothing of the test company or its users is left', Number(left[0].co) === 0 && Number(left[0].sd) === 0 && Number(left[0].users) === 0, JSON.stringify(left[0]));
+      ok('CLEANUP nothing of the test companies, their users or photo rows is left', Number(left[0].co) === 0 && Number(left[0].sd) === 0 && Number(left[0].users) === 0 && Number(left[0].photos) === 0, JSON.stringify(left[0]));
       ok('AWAMI-UNTOUCHED', Number(left[0].awami) === Number(awamiBefore), awamiBefore + ' -> ' + left[0].awami);
     } catch (e) { ok('CLEANUP', false, e.message); }
     const p = results.filter(r => r.pass).length, f = results.length - p;

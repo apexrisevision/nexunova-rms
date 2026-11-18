@@ -207,8 +207,10 @@ Conflicts first, then possible duplicates, duplicates, new; decided lines last. 
 amount, number or words), Accept all new, Re-run match, Return day to site (reason). A viewer reads
 only.
 
-**Bill photos** need the private bucket in `20261118b_nf_site_bills_storage.sql` (not applied); until
-then the screen says the photo could not be saved and everything else works.
+**Bill photos** live in the private bucket `nf-site-bills` (`20261118b`, applied 18-Nov) under
+`<company>/<date>/`: the site accountant adds them; he and head office open them (HO from a "Bill photo"
+button on the line); nobody replaces or deletes one. "Link to…" searches HO vouchers by real date too
+(the date written in the narration for vouchers keyed before real dates existed).
 
 **Found by the browser test:** Stage 2's match function had an `UPDATE` with no `WHERE`, which the
 app's database door (PostgREST's safe-update guard) refuses — so "Send to head office" and "Re-run

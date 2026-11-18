@@ -4086,3 +4086,14 @@ query): 27/28. The one failure is real and pre-dates the screens: Stage 2's `_nf
 an UPDATE with no WHERE, refused through the app — fix `20261118c` written, not applied. Also
 written, not applied: `20261118b` (private bucket for bill photos). Awami untouched (443 vouchers —
 the CFO's three of 18-Nov included).
+
+18-Nov (later): applied on the owner's go — `20261118074010 · 20261118c_nf_site_match_safeupdate` and
+`20261118074030 · 20261118b_nf_site_bills_storage` (private bucket; site adds, site + HO read, nobody
+updates or deletes; no existing storage policy reaches this bucket). Browser test 36/36 through the
+app: "Send to head office" now works; bill photo added by the site, opened by site and HO, refused to
+another company's viewer, not deletable or replaceable by anyone, not addable by another company;
+"Link to…" searches by real date (narration date for older vouchers). Found and fixed on the way: the
+Save button and the RMS link were drawn despite `hidden` (nf.css `display` won). Test leftovers: none
+in the database; the test's photo FILES stay in the storage backend with no row pointing at them
+(nobody may delete in this bucket through the API, by design). Screenshots for the reviewer:
+`D:\Claude Cowork\Site Closing screenshots\`. Not pushed — waiting for screenshot approval.

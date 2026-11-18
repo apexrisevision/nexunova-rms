@@ -96,7 +96,15 @@
     }
     function journal() {
       if (S.journal) return Promise.resolve(S.journal);
-      return ctx.api.getJournal(ctx.companyId, null, null).then(function (j) { S.journal = (j && j.vouchers) || []; return S.journal; });
+      // the journal for narration and legs; manual no and real date from the vouchers themselves
+      return Promise.all([ctx.api.getJournal(ctx.companyId, null, null), ctx.api.voucherFacts(ctx.companyId)]).then(function (r) {
+        var facts = {}; (r[1] || []).forEach(function (f) { facts[f.id] = f; });
+        S.journal = ((r[0] && r[0].vouchers) || []).map(function (v) {
+          var f = facts[v.id] || {};
+          return Object.assign({}, v, { manual_no: f.manual_no || null, real_date: f.real_date || null });
+        });
+        return S.journal;
+      });
     }
 
     // ── markup ────────────────────────────────────────────────────────────
@@ -147,7 +155,8 @@
           '<div class="amt">' + F.fmt(l.amount) + ' <span class="sub">' + (l.via === 'BANK' ? 'bank' : 'site cash') + '</span></div>' +
           '<div class="sub">' + esc(l.head === '10300' ? (l.side === 'IN' ? 'Cash drawn from bank' : 'Cash deposited in bank') : headName(l.head)) +
           (l.doc_no ? ' · no. ' + esc(l.doc_no) : '') + (l.token_no ? ' · token #' + esc(l.token_no) : '') + (l.units ? ' · ' + esc(l.units) : '') +
-          (l.bank_ref ? ' · ref ' + esc(l.bank_ref) : '') + '</div>' + (l.remarks ? '<div class="sub">' + esc(l.remarks) + '</div>' : '') + '</div>' +
+          (l.bank_ref ? ' · ref ' + esc(l.bank_ref) : '') + '</div>' + (l.remarks ? '<div class="sub">' + esc(l.remarks) + '</div>' : '') +
+          (billOf(l.line_id) ? '<button class="scphoto has" type="button" data-bill="' + l.line_id + '">Bill photo</button>' : '') + '</div>' +
         '<div>' + (ho ? '<b>' + esc(ho.manual_no || ho.voucher_no) + '</b> <span class="sub">' + esc(ho.manual_no ? ho.voucher_no : '') + '</span>' +
             '<div class="amt">' + F.fmt(hoAmount(ho)) + '</div><div class="sub">' + (ho.real_date ? F.ddMonYyyy(ho.real_date) + ' · ' : '') + esc(hoHead(ho)) + '</div>' +
             '<div class="sub">' + esc(ho.narration || '') + '</div>'
@@ -201,7 +210,7 @@
       } else if (g.kind === 'link' || g.kind === 'dup') {
         body = '<h3>' + (g.kind === 'link' ? 'Link to a head office voucher' : 'Mark as duplicate of a head office voucher') + '</h3>' +
           '<p class="muted">' + (g.kind === 'link' ? 'Nothing new goes in the books.' : 'Accept will then do what that match needs (for example move head office’s voucher to the site cash box).') + '</p>' +
-          '<label>Search by amount, number or words <input id="nf-sr-q" value="' + esc(g.q || '') + '" placeholder="' + esc(F.fmt(g.line.amount)) + '"></label>' +
+          '<label>Search by date, amount, number or words <input id="nf-sr-q" value="' + esc(g.q || '') + '" placeholder="' + esc(F.fmt(g.line.amount)) + '"></label>' +
           '<div class="srpick" id="nf-sr-pick">' + pickList(g) + '</div>' +
           (g.kind === 'link' ? '<label>Note (optional) <input id="nf-sr-note"></label>' : '');
       }
@@ -210,18 +219,39 @@
         '<div class="act"><button class="btn" type="button" id="nf-sr-dlg-cancel">Cancel</button>' +
         '<button class="btn primary" type="button" id="nf-sr-dlg-ok">' + ({ accept: 'Accept', reject: 'Reject', return: 'Return to site', link: 'Link', dup: 'Mark duplicate' })[g.kind] + '</button></div></div>';
     }
+    var MON = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+    function dateIn(q, ref) {
+      var y = (ref || '').slice(0, 4) || String(new Date().getFullYear()), m;
+      var pad = function (n) { return String(n).padStart(2, '0'); };
+      var iso = null, raw = null;
+      if ((m = q.match(/(\d{4})-(\d{2})-(\d{2})/))) { iso = m[0]; raw = m[0]; }
+      else if ((m = q.match(/\b(\d{1,2})[-\s](jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/))) { iso = y + '-' + pad(MON.indexOf(m[2]) + 1) + '-' + pad(m[1]); raw = m[0]; }
+      else if ((m = q.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?\b/))) { iso = (m[3] || y) + '-' + pad(m[2]) + '-' + pad(m[1]); raw = m[0]; }
+      if (!iso) return null;
+      var mi = +iso.slice(5, 7) - 1;
+      return { iso: iso, ddmon: pad(+iso.slice(8, 10)) + '-' + (MON[mi] || ''), rest: q.replace(raw, ' ').trim() };
+    }
     function pickList(g) {
       if (!g.list) return '<p class="muted" style="padding:8px">Loading vouchers…</p>';
       var q = String(g.q || '').toLowerCase().trim(), amt = +g.line.amount;
+      // a date in the search ("16-Nov", "16 Nov", "16/11", "2026-11-16") is matched against the
+      // voucher's real date; a voucher keyed before real dates existed is matched by the date
+      // written in its narration. Everything else is amount / number / words, as before.
+      var dq = dateIn(q, (S.day && S.day.business_date) || ''), rest = dq ? dq.rest : q;
       var hits = g.list.map(function (v) { return { v: v, a: v.legs.reduce(function (t, l) { return t + (+l.debit || 0); }, 0) }; })
         .filter(function (x) {
           if (!q) return x.a === amt;
-          var hay = (x.v.voucher_no + ' ' + (x.v.narration || '') + ' ' + x.a).toLowerCase();
-          return q.split(/\s+/).every(function (w) { return hay.indexOf(w.replace(/,/g, '')) >= 0; });
+          if (dq) {
+            if (x.v.real_date) { if (x.v.real_date !== dq.iso) return false; }
+            else if (String(x.v.narration || '').toLowerCase().indexOf(dq.ddmon) < 0) return false;
+          }
+          var hay = (x.v.voucher_no + ' ' + (x.v.manual_no || '') + ' ' + (x.v.narration || '') + ' ' + x.a).toLowerCase();
+          return rest.split(/\s+/).filter(Boolean).every(function (w) { return hay.indexOf(w.replace(/,/g, '')) >= 0; });
         }).slice(0, 60);
       if (!hits.length) return '<p class="muted" style="padding:8px">No voucher matches. ' + (q ? '' : 'Showing only vouchers of the same amount — type to search all.') + '</p>';
       return hits.map(function (x) {
-        return '<button type="button" data-pick-v="' + esc(x.v.id) + '"' + (g.pick === x.v.id ? ' class="on"' : '') + '><b>' + esc(x.v.voucher_no) + '</b>' +
+        return '<button type="button" data-pick-v="' + esc(x.v.id) + '"' + (g.pick === x.v.id ? ' class="on"' : '') + '><b>' + esc(x.v.manual_no || x.v.voucher_no) +
+          (x.v.real_date ? '<span class="sub" style="display:block;font-weight:400">' + F.ddMonYyyy(x.v.real_date) + '</span>' : '') + '</b>' +
           '<span>' + esc((x.v.narration || '').slice(0, 90)) + '</span><span class="r">' + F.fmt(x.a) + '</span></button>';
       }).join('');
     }
@@ -234,6 +264,11 @@
     }
 
     // ── wiring ────────────────────────────────────────────────────────────
+    // the review rows do not carry the photo; the day's own lines do
+    function billOf(id) {
+      var x = ((S.day && S.day.lines) || []).filter(function (l) { return l.id === id; })[0];
+      return x && x.attachment_url;
+    }
     function lineOf(id) { return (S.day.review || []).filter(function (l) { return l.line_id === id; })[0]; }
     function act(promise) {
       return promise.then(function (d) { if (!alive) return; S.day = d; S.dlg = null; S.msg = null; render(); wire(); })
@@ -256,6 +291,13 @@
         act(ctx.api.siteAcceptNew(S.day.id, S.day.version));
       });
       var rt = root.querySelector('#nf-sr-return'); if (rt) rt.addEventListener('click', function () { S.dlg = { kind: 'return' }; render(); wire(); });
+      root.querySelectorAll('[data-bill]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          ctx.api.siteBillUrl(billOf(b.getAttribute('data-bill'))).then(function (u) {
+            if (u) global.open(u, '_blank', 'noopener'); else { S.msg = 'The bill photo could not be opened.'; render(); wire(); }
+          });
+        });
+      });
       root.querySelectorAll('[data-act]').forEach(function (b) {
         b.addEventListener('click', function () {
           var l = lineOf(b.getAttribute('data-line')); var k = b.getAttribute('data-act');
