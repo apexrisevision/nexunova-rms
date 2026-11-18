@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-/* Dry run of 20261119a (duplicate guard + RMS token sync + backfill): migration + checks in ONE request ending in
+/* Dry run of 20261119b (duplicate guard + RMS token sync + backfill): migration + checks in ONE request ending in
    RAISE — everything rolls back, the RMS holds included. Runs as Sharose and as the director. */
 const fs = require('fs'), path = require('path');
 const { REF, TOKEN, q } = require('../_sbq');
-const MIG = fs.readFileSync(path.join(__dirname, '..', '..', 'supabase', 'migrations', '20261119a_nf_dup_guard_rms_token_sync.sql'), 'utf8');
+const MIG = fs.readFileSync(path.join(__dirname, '..', '..', 'supabase', 'migrations', '20261119b_nf_dup_guard_rms_token_sync.sql'), 'utf8');
 const CO = '96d210e7-e63b-4ef0-b1d0-74e622eac7ce', RASHID = '315f2852-852f-4653-9253-a5a27a7828c8';
 const BODY = String.raw`
 CREATE OR REPLACE FUNCTION pg_temp.as_(uid uuid) RETURNS void LANGUAGE plpgsql AS $f$ BEGIN

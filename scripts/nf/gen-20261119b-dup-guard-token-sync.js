@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Writes supabase/migrations/20261119a_nf_dup_guard_rms_token_sync.sql (brief of 19-Nov, owner to approve):
+/* Writes supabase/migrations/20261119b_nf_dup_guard_rms_token_sync.sql (brief of 19-Nov, owner to approve):
      1. a duplicate guard on save — the OTHER login's vouchers, ±3 days: hard block on the same cheque / bank
         reference / token number (same direction), a warning on same amount + direction + party or head (±2 days).
         Reuses the Stage 2 matching helpers (_nf_cheques, _nf_cheque_hit, _nf_receipt_nos, _nf_letters);
@@ -28,21 +28,21 @@ const { q } = require('../_sbq');
   // ── nf_save_line: refuse a duplicate; sync a token line ──
   let sl = await def('nf_save_line');
   sl = once(sl, '  v_exported_at timestamptz;\n',
-    '  v_exported_at timestamptz;\n  v_dup jsonb; v_old_narr text; v_old_amt numeric;  -- 20261119a\n', 'save_line declare');
+    '  v_exported_at timestamptz;\n  v_dup jsonb; v_old_narr text; v_old_amt numeric;  -- 20261119b\n', 'save_line declare');
   sl = once(sl, '  -- a manual number is never repeated within its type',
-    `  -- the other login may already have booked this (20261119a): refuse the same cheque / reference / token
+    `  -- the other login may already have booked this (20261119b): refuse the same cheque / reference / token
   v_dup := public.nf_dup_check(v_company, p_side, p_via, btrim(p_head), p_amount, p_description, p_party_name, v_bdate, v_voucher.id);
   IF jsonb_array_length(v_dup->'block') > 0 THEN
     RAISE EXCEPTION 'NF:DUPLICATE_ENTRY' USING DETAIL = (v_dup->'block'->0)::text;
   END IF;
-  -- an edited token line first gives back what it had put on the RMS hold (20261119a)
+  -- an edited token line first gives back what it had put on the RMS hold (20261119b)
   IF p_line_id IS NOT NULL AND v_existing_head.account_code = '21100' THEN
     v_old_narr := v_voucher.narration; v_old_amt := v_existing_head.debit + v_existing_head.credit;
   END IF;
 
   -- a manual number is never repeated within its type`, 'save_line dup');
   sl = once(sl, '  RETURN public.nf_day_json(p_day_id);\nEND',
-    `  -- RMS token sync (20261119a)
+    `  -- RMS token sync (20261119b)
   IF v_old_amt IS NOT NULL THEN
     PERFORM public._nf_rms_token_sync(v_company, v_voucher.id, v_old_narr, p_side, v_old_amt, -1);
   END IF;
@@ -56,7 +56,7 @@ END`, 'save_line return');
   let dl = await def('nf_delete_line');
   dl = once(dl, '  PERFORM public.nf_check_version(p_version, v_voucher.version);\n',
     `  PERFORM public.nf_check_version(p_version, v_voucher.version);
-  IF v_head.account_code = '21100' THEN  -- RMS token sync (20261119a)
+  IF v_head.account_code = '21100' THEN  -- RMS token sync (20261119b)
     PERFORM public._nf_rms_token_sync(v_voucher.company_id, v_voucher.id, v_voucher.narration,
       CASE WHEN v_head.credit > 0 THEN 'IN' ELSE 'OUT' END, v_head.debit + v_head.credit, -1);
   END IF;
@@ -66,7 +66,7 @@ END`, 'save_line return');
   let wd = await def('nf_save_withdrawal');
   wd = once(wd, '  PERFORM public.nf_assert_cash_box(v_company, p_to);  -- own cash box (20261118i)\n',
     `  PERFORM public.nf_assert_cash_box(v_company, p_to);  -- own cash box (20261118i)
-  DECLARE v_dup jsonb; BEGIN  -- 20261119a
+  DECLARE v_dup jsonb; BEGIN  -- 20261119b
     v_dup := public.nf_dup_check(v_company, 'WDL', 'Bank', NULL, p_amount,
       COALESCE(p_description, '') || ' chq #' || regexp_replace(COALESCE(p_cheque_no, ''), '[^0-9]', '', 'g'), NULL, p_real_date, NULL);
     IF jsonb_array_length(v_dup->'block') > 0 THEN
@@ -75,7 +75,7 @@ END`, 'save_line return');
   END;
 `, 'withdrawal');
 
-  const sql = `-- ══ NexuFinance: duplicate guard on save + RMS token sync (20261119a) ══
+  const sql = `-- ══ NexuFinance: duplicate guard on save + RMS token sync (20261119b) ══
 -- NOT APPLIED until the owner says yes.
 --
 -- 1. DUPLICATE GUARD. Before a receipt, payment or bank withdrawal is saved, nf_dup_check looks at the vouchers
@@ -267,7 +267,7 @@ BEGIN
   END LOOP;
 END $b$;
 `;
-  const f = path.join(__dirname, '..', '..', 'supabase', 'migrations', '20261119a_nf_dup_guard_rms_token_sync.sql');
+  const f = path.join(__dirname, '..', '..', 'supabase', 'migrations', '20261119b_nf_dup_guard_rms_token_sync.sql');
   fs.writeFileSync(f, sql);
   console.log('written', f);
 })().catch(e => { console.error('ERR', e.message); process.exit(2); });

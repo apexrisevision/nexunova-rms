@@ -1,5 +1,5 @@
--- ══ NexuFinance: duplicate guard on save + RMS token sync (20261119a) ══
--- NOT APPLIED until the owner says yes.
+-- ══ NexuFinance: duplicate guard on save + RMS token sync (20261119b) ══
+-- APPLIED 19-Nov-2026 as 20261118201123, on the owner's yes (only change to Awami: SF-208 hold token 0 -> 1,00,000, Riaz Ahmad).
 --
 -- 1. DUPLICATE GUARD. Before a receipt, payment or bank withdrawal is saved, nf_dup_check looks at the vouchers
 --    the OTHER login entered (any login that is not the caller), dated within ±3 days:
@@ -193,7 +193,7 @@ DECLARE
   v_party_id uuid;
   v_requires_party boolean;
   v_exported_at timestamptz;
-  v_dup jsonb; v_old_narr text; v_old_amt numeric;  -- 20261119a
+  v_dup jsonb; v_old_narr text; v_old_amt numeric;  -- 20261119b
 BEGIN
   PERFORM public.nf_require_role(v_company, ARRAY['accountant','director']);
   PERFORM public.nf_assert_cash_box(v_company, p_via);  -- own cash box (20261118i)
@@ -248,12 +248,12 @@ BEGIN
     END IF;
   END IF;
 
-  -- the other login may already have booked this (20261119a): refuse the same cheque / reference / token
+  -- the other login may already have booked this (20261119b): refuse the same cheque / reference / token
   v_dup := public.nf_dup_check(v_company, p_side, p_via, btrim(p_head), p_amount, p_description, p_party_name, v_bdate, v_voucher.id);
   IF jsonb_array_length(v_dup->'block') > 0 THEN
     RAISE EXCEPTION 'NF:DUPLICATE_ENTRY' USING DETAIL = (v_dup->'block'->0)::text;
   END IF;
-  -- an edited token line first gives back what it had put on the RMS hold (20261119a)
+  -- an edited token line first gives back what it had put on the RMS hold (20261119b)
   IF p_line_id IS NOT NULL AND v_existing_head.account_code = '21100' THEN
     v_old_narr := v_voucher.narration; v_old_amt := v_existing_head.debit + v_existing_head.credit;
   END IF;
@@ -333,7 +333,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- RMS token sync (20261119a)
+  -- RMS token sync (20261119b)
   IF v_old_amt IS NOT NULL THEN
     PERFORM public._nf_rms_token_sync(v_company, v_voucher.id, v_old_narr, p_side, v_old_amt, -1);
   END IF;
@@ -369,7 +369,7 @@ BEGIN
   END IF;
 
   PERFORM public.nf_check_version(p_version, v_voucher.version);
-  IF v_head.account_code = '21100' THEN  -- RMS token sync (20261119a)
+  IF v_head.account_code = '21100' THEN  -- RMS token sync (20261119b)
     PERFORM public._nf_rms_token_sync(v_voucher.company_id, v_voucher.id, v_voucher.narration,
       CASE WHEN v_head.credit > 0 THEN 'IN' ELSE 'OUT' END, v_head.debit + v_head.credit, -1);
   END IF;
@@ -394,7 +394,7 @@ DECLARE
 BEGIN
   PERFORM public.nf_require_role(v_company, ARRAY['accountant','director']);
   PERFORM public.nf_assert_cash_box(v_company, p_to);  -- own cash box (20261118i)
-  DECLARE v_dup jsonb; BEGIN  -- 20261119a
+  DECLARE v_dup jsonb; BEGIN  -- 20261119b
     v_dup := public.nf_dup_check(v_company, 'WDL', 'Bank', NULL, p_amount,
       COALESCE(p_description, '') || ' chq #' || regexp_replace(COALESCE(p_cheque_no, ''), '[^0-9]', '', 'g'), NULL, p_real_date, NULL);
     IF jsonb_array_length(v_dup->'block') > 0 THEN
