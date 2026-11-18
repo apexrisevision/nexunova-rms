@@ -4027,3 +4027,13 @@ instead of D-04: a timeout, plausibly the same memory pressure), general-ledger 
 (JVX-15 "JWT expired" as the machine slowed) and left its fixture behind (ZZTEST-NF-7dd9ab3b,
 -imp, user nf-jvx-7dd9ab3b). Not reached: party-field, qb-accounts, race-harness, rules, schema,
 trial-balance.
+
+18-Nov: leftover fixtures removed on the owner's word (ZZTEST-NF-7dd9ab3b, -imp, -02bed4e9 via
+`_nf_test_purge`, plus 2 voucher counters and 2 test users); Awami unchanged. The seven suites the
+memory stop cut off, one at a time: party-field 15/15, race-harness PASS, rules 80/80 (with the
+accepted exception), schema skipped by design, trial-balance 10/10, jv-harden 25/25.
+**qb-accounts (first time run with a chart: `docs/reference/QB_COA_Awami.IIF`): 9 differences, not
+on the known list** — 10300 is named "BOP - 14 Group of Companies" in NexuFinance but "Bank
+Al-Habib - Awami Market" in that export (an IIF export would create a duplicate bank account), and
+8 accounts exist only in NexuFinance (12700, 15500, 15600, 21150, 52550, 52650, 52950, 70950).
+The export is the 18-Sep chart; none of this comes from Site Closing. Stage 2 not started.
