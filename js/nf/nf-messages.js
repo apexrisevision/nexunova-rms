@@ -26,9 +26,19 @@
     },
     'NF:DUPLICATE_VOUCHER': function (err) {
       var d = err.detail || {};
-      var used = d.used_on ? ' It was already used on ' + F.ddMonYyyy(d.used_on) + '.' : ' It has already been used.';
+      var used = d.used_on ? ' It was already used' + (d.by ? ' by ' + d.by : '') + ' on ' + F.ddMonYyyy(d.used_on) + '.' : ' It has already been used.';
       return 'Voucher ' + (d.voucher || '') + ' is already on the books.' + used;
     },
+    // one closing, two logins (docs/PLAN.md §49)
+    'NF:NOT_YOUR_CASH_BOX': function (err) {
+      var d = err.detail || {};
+      return d.yours === 'Petty' ? 'Your cash entries go to Site Cash. Choose Site Cash or Bank.' : 'Your cash entries go to Head Office Cash. Choose Head Office Cash or Bank.';
+    },
+    'NF:NOT_YOUR_ENTRY': function (err) {
+      var d = err.detail || {};
+      return (d.voucher || 'This voucher') + ' was entered by ' + (d.by || 'someone else') + '. Only they (or a director) can change it.';
+    },
+    'NF:HEAD_OFFICE_ONLY': function () { return 'Head office does this.'; },
     'NF:VOUCHER_PREFIX': function () { return 'Receipts start CRV or BRV; payments start CPV or BPV.'; },
     'NF:VOUCHER_VIA_MISMATCH': function () { return 'A voucher starting with C must be Cash or Petty; one starting with B must be Bank.'; },
     'NF:HEAD_NOT_POSTABLE': function (err) { return 'Choose a specific head from the list — "' + (err.detail || '') + '" is a category, not something you can post to.'; },
@@ -82,6 +92,9 @@
     'NF:NOT_ALLOWED': function () { return 'You do not have permission to do this.'; },
     'NF:VERSION_CONFLICT': function () { return 'This was just changed elsewhere. Reloading…'; },
     'NF:NOT_SEEDED': function () { return 'This company is not set up for Daily Closing yet.'; },
+    'NF:HEAD_OFFICE_ONLY': function () { return 'Head office does this.'; },
+    'NF:NOT_YOUR_CASH_BOX': function (err) { return LINE['NF:NOT_YOUR_CASH_BOX'](err); },
+    'NF:NOT_YOUR_ENTRY': function (err) { return LINE['NF:NOT_YOUR_ENTRY'](err); },
   };
 
   function resolve(map, err) {

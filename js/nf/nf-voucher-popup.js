@@ -94,9 +94,10 @@
     function cashBankBody() {
       var viaChoice = t.cash
         ? '<div class="vp-seg" role="radiogroup" aria-label="' + (t.side === 'IN' ? 'Received into' : 'Paid from') + '">' +
-          (o.vias || []).filter(function (v) { return v.via === 'Cash' || v.via === 'Petty'; }).map(function (v, i) {
+          // o.cashVia: the person's own cash box (docs/PLAN.md §49) — only it is offered; a director gets both
+          (o.vias || []).filter(function (v) { return (v.via === 'Cash' || v.via === 'Petty') && (!o.cashVia || v.via === o.cashVia); }).map(function (v, i) {
             return '<button type="button" class="' + (i === 0 ? 'on' : '') + '" data-via="' + esc(v.via) + '" role="radio" aria-checked="' + (i === 0) + '">' +
-              (v.via === 'Petty' ? 'Petty cash' : 'Cash') + '</button>';
+              esc(v.label || (v.via === 'Petty' ? 'Petty cash' : 'Cash')) + '</button>';
           }).join('') + '</div>'
         : '<div class="vp-ro" data-via-fixed="Bank">Bank</div>';
       return '<div class="vp-grid">' +

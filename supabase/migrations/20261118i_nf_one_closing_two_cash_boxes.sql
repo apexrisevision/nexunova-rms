@@ -152,7 +152,8 @@ BEGIN
        LIMIT 1;
       IF FOUND THEN
         RAISE EXCEPTION 'NF:DUPLICATE_VOUCHER'
-          USING DETAIL = json_build_object('voucher', v_manual, 'used_on', v_used.voucher_date, 'system_no', v_used.voucher_no)::text;
+          USING DETAIL = json_build_object('voucher', v_manual, 'used_on', v_used.voucher_date, 'system_no', v_used.voucher_no,
+            'by', (SELECT m.display_name FROM public.nf_members m WHERE m.company_id = v_used.company_id AND m.user_id = v_used.created_by))::text;
       END IF;
     END;
   END IF;
@@ -1723,4 +1724,9 @@ BEGIN
   UPDATE public.nf_vouchers SET created_by = sh
    WHERE company_id = co AND manual_no ~ '^S-C[RP]V-[0-9]{4}$' AND narration LIKE '%site cash, Sharose%';
   GET DIAGNOSTICS n = ROW_COUNT; IF n <> 62 THEN RAISE EXCEPTION 'expected 62 site vouchers, % matched', n; END IF;
+  -- the screen's names for Awami's two cash boxes (display label only; the account names and the
+  -- QuickBooks names stay as they are)
+  UPDATE public.nf_accounts SET via_label = CASE via WHEN 'Cash' THEN 'Head Office Cash' ELSE 'Site Cash' END
+   WHERE company_id = co AND via IN ('Cash', 'Petty');
+  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 2 THEN RAISE EXCEPTION 'expected 2 cash accounts, % matched', n; END IF;
 END $d$;

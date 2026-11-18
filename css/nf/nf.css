@@ -327,3 +327,23 @@ td{padding:7px 10px;border-bottom:1px solid var(--line)}
 .nf-pend-tag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;background:#FEF0C7;color:#93370D}
 @media (max-width:560px){.vp-grid{grid-template-columns:1fr}}
 @media print{.nf-vtypes,.nf-book-empty{display:none}}
+
+/* ── one closing, two logins (docs/PLAN.md §49) ───────────────────────────── */
+.nf-who{align-self:center;font-size:12px;border:1px solid var(--line);border-radius:999px;padding:4px 10px;white-space:nowrap}
+.nf-who.site{border-color:#9fd8c3;color:#0e7a5a}
+.nf-by{display:inline-block;margin-top:2px;font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:999px;white-space:nowrap}
+.nf-by.site{background:#e6f5ef;color:#0e7a5a}
+.nf-by.ho{background:#e8eef9;color:#2b4f8a}
+.row.nf-ro{opacity:.78}
+.nf-whose-sec{padding-top:0;padding-bottom:0}
+.nf-whose{display:flex;gap:6px;flex-wrap:wrap}
+.nf-whose .chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:4px 12px;font-size:12px;cursor:pointer;color:var(--ink)}
+.nf-whose .chip.on{background:var(--brand,#1f3354);border-color:var(--brand,#1f3354);color:#fff}
+@media print{.nf-whose-sec,.nf-who{display:none}}
+@media screen and (max-width:600px){
+  .books .grid.cols{display:none}
+  .books .grid.row{grid-template-columns:1fr 1fr 1fr;row-gap:4px;padding:8px 12px;border-bottom:1px solid var(--line)}
+  .books .grid.row>.desc{grid-column:1 / -1;order:-1}
+  .books .grid.row>.vnocell{grid-column:1 / 3}
+  .books .grid.row>.nfpick{grid-column:1 / -1}
+}

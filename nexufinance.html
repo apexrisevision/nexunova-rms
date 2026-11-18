@@ -27,7 +27,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/nf/nf.css?v=20260921g">
+<link rel="stylesheet" href="css/nf/nf.css?v=20261118t">
 <link rel="stylesheet" href="css/nf/nf-print.css?v=20260919q" media="print">
 <link rel="stylesheet" href="css/nf/nf-reports-menu.css?v=20260919p">
 <link rel="stylesheet" href="css/nf/nf-report.css?v=20260918a">
@@ -98,9 +98,9 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
 <script src="js/nf/nf-drill.js?v=20260921e"></script>
 <script src="js/nf/nf-api.js?v=20261118d"></script>
 <script src="js/nf/nf-reports-menu.js?v=20261118c"></script>
-<script src="js/nf/nf-messages.js?v=20260921f"></script>
-<script src="js/nf/nf-voucher-popup.js?v=20260921g"></script>
-<script src="js/nf/nf-sheet.js?v=20260921g"></script>
+<script src="js/nf/nf-messages.js?v=20261118t"></script>
+<script src="js/nf/nf-voucher-popup.js?v=20261118t"></script>
+<script src="js/nf/nf-sheet.js?v=20261118t"></script>
 <script src="js/nf/nf-report.js?v=20261007b"></script>
 <script src="js/nf/nf-journal.js?v=20260921e"></script>
 <script src="js/nf/nf-ledger.js?v=20260921d"></script>
@@ -185,6 +185,7 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
           api: api,
           companyId: m.company_id,
           role: m.role,
+          cashVia: m.cash_via || 'Cash',   // the member's own cash box (docs/PLAN.md §49)
           displayName: m.display_name,
           companyName: m.company_name,
           settings: m.settings || {},

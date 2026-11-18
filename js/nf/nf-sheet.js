@@ -36,12 +36,21 @@
     var api = ctx.api;
     var companyId = ctx.companyId;
     var role = ctx.role;
+    // One closing, two logins (owner, 2026-11-18, docs/PLAN.md §49): every
+    // member has a cash box — head office Cash, the site Petty. A director is
+    // not limited. Anyone else sees every line but changes only his own, and
+    // his cash lines go to his own box. The site login gets no reports, no
+    // transfers, no PDCs and no Submit / Close — head office does those.
+    var isDirector = role === 'director';
+    var myBox = ctx.cashVia || 'Cash';
+    var isSite = !isDirector && myBox === 'Petty';
 
     // ── state ──────────────────────────────────────────────────────────────
     var S = {
       heads: [], floors: [], vias: [],
       day: null, latest: null, position: null, lines: [], jvs: [], pdcs: [], checks: [], balanced: true,
       settings: ctx.settings || {},
+      filter: 'all',   // all | ho | site — whose lines the books show
     };
     // The transfers live only in the DOM once typed, and have nowhere else
     // to be kept until their save lands. Without an overlay, a render() triggered by an UNRELATED save landing late
@@ -137,8 +146,10 @@
         '      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>' +
         '    </button>' +
         (ctx.onBack ? '    <button class="btn" id="nf-sheet-back" type="button">' + esc(ctx.backLabel || '← Back') + '</button>' : '') +
-        (d ? '    <button class="btn" id="nf-toDir" type="button">Director report</button>' : '') +
-        global.NfReportsMenu.html('closing') +
+        '    <span class="nf-who ' + (myBox === 'Petty' ? 'site' : 'ho') + '" title="Signed in">' + esc(ctx.displayName || '') +
+        (isDirector ? '' : ' · ' + esc(viaLabel(myBox))) + '</span>' +
+        (d && !isSite ? '    <button class="btn" id="nf-toDir" type="button">Director report</button>' : '') +
+        (isSite ? '' : global.NfReportsMenu.html('closing')) +
         (d && d.status === 'CLOSED' && d.is_latest ? '    <button class="btn" id="nf-startNext" type="button">Start new day</button>' : '') +
         '    <button class="btn primary" id="nf-print" type="button">' +
         '      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7"/></svg>Print</button>' +
@@ -195,21 +206,36 @@
     };
     var viaOpts = function (selected) {
       // a saved voucher keeps its type (docs/PLAN.md §44): a cash line may
-      // move between Cash and Petty; a bank line stays Bank
-      return S.vias.filter(function (v) { return (v.via === 'Bank') === (selected === 'Bank'); }).map(function (v) {
-        return '<option value="' + esc(v.via) + '"' + (v.via === selected ? ' selected' : '') + '>' + esc(v.via) + '</option>';
+      // move between Cash and Petty; a bank line stays Bank. Only a director
+      // may move a cash line to the other person's cash box (§49).
+      return S.vias.filter(function (v) {
+        return (v.via === 'Bank') === (selected === 'Bank') && (isDirector || v.via === 'Bank' || v.via === myBox || v.via === selected);
+      }).map(function (v) {
+        return '<option value="' + esc(v.via) + '"' + (v.via === selected ? ' selected' : '') + '>' + esc(v.label || v.via) + '</option>';
       }).join('');
     };
+    function viaLabel(via) {
+      var v = (S.vias || []).filter(function (x) { return x.via === via; })[0];
+      return (v && v.label) || ({ Cash: 'Cash', Petty: 'Petty cash', Bank: 'Bank' })[via] || via;
+    }
+    // who entered a line or JV: the site's own name, or "Head Office"
+    function byTag(x, own) {
+      if (!x.by_name) return '';
+      var site = x.by_box === 'Petty';
+      return '<span class="nf-by ' + (site ? 'site' : 'ho') + '"' + (own ? '' : ' title="Entered by ' + esc(x.by_name) + ' — view only"') + '>' +
+        (own ? '' : '🔒 ') + esc(site ? x.by_name : 'Head Office') + '</span>';
+    }
+    function mineOrDirector(x) { return isDirector || x.mine === true; }
     // The head used to be a <select> of 82 accounts. A native select only
     // jumps to options that START with what you type, so reaching
     // "12610 Syed Yousaf Shah" meant typing the digits or scrolling. It is
     // now the shared type-to-search picker (js/nf/nf-pick.js), which matches
     // anywhere in the code OR the name — owner, 2026-09-20: type Y and
     // Yousaf should come up.
-    var headPick = function (selected, missing) {
+    var headPick = function (selected, missing, readOnly) {
       return global.NfPick.html({
         key: 'head', value: selected || '', label: global.NfPick.accountLabel(S.heads, selected),
-        placeholder: 'Select head', ariaLabel: 'Account head', missing: missing, disabled: !canWrite,
+        placeholder: 'Select head', ariaLabel: 'Account head', missing: missing, disabled: !canWrite || !!readOnly,
       });
     };
     function headName(code) { var h = S.heads.filter(function (x) { return x.code === code; })[0]; return h ? h.name : ''; }
@@ -238,22 +264,34 @@
       // which never changes. data-vno carries the system number so a
       // drill-down finds the row whatever the manual number says.
       var pend = !!l.number_pending;
-      return '<div class="grid row' + (pend ? ' vno-pending' : '') + '" data-saved="1" data-id="' + l.id + '" data-version="' + l.version + '" data-side="' + side + '" data-vno="' + esc(l.voucher_no) + '">' +
-        '<div class="vnocell"><input class="vno" data-k="v" value="' + esc(l.manual_no || '') + '" placeholder="' + (pend ? 'Manual no.' : '') + '" ' + (canWrite ? '' : 'disabled') + ' aria-label="Manual voucher number"' + (pend ? ' title="Manual voucher number not entered yet — needed before Close day"' : '') + '>' +
-        '<span class="vno-sys" title="System number, given by NexuFinance">' + esc(l.voucher_no) + '</span></div>' +
-        '<div class="desc"><input data-k="d" value="' + esc(l.description || '') + '" placeholder="Description" ' + (canWrite ? '' : 'disabled') + ' aria-label="Description">' +
-        headPick(l.head_code, false) + '</div>' +
-        (canWrite ? partyFieldHTML(l.party_name, false) : '<div class="nfpick ro">' + esc(l.party_name || '') + '</div>') +
-        '<select class="sel" data-k="f" ' + (canWrite ? '' : 'disabled') + ' aria-label="Floor">' + floorOpts(l.floor_code) + '</select>' +
-        '<select class="sel" data-k="m" ' + (canWrite ? '' : 'disabled') + ' aria-label="Cash, petty or bank">' + viaOpts(l.via) + '</select>' +
-        '<input class="amt" data-k="a" inputmode="decimal" value="' + F.grp(l.amount) + '" ' + (canWrite ? '' : 'disabled') + ' aria-label="Amount">' +
-        (canWrite ? '<button class="del" type="button" data-del-saved="' + l.id + '" data-version="' + l.version + '" aria-label="Delete line">×</button>' : '<span></span>') +
+      // another person's line is shown, never changed (§49)
+      var own = mineOrDirector(l), rw = canWrite && own;
+      return '<div class="grid row' + (pend ? ' vno-pending' : '') + (own ? '' : ' nf-ro') + '" data-saved="1"' + (own ? '' : ' data-ro="1"') + ' data-id="' + l.id + '" data-version="' + l.version + '" data-side="' + side + '" data-vno="' + esc(l.voucher_no) + '">' +
+        '<div class="vnocell"><input class="vno" data-k="v" value="' + esc(l.manual_no || '') + '" placeholder="' + (pend ? 'Manual no.' : '') + '" ' + (rw ? '' : 'disabled') + ' aria-label="Manual voucher number"' + (pend ? ' title="Manual voucher number not entered yet — needed before Close day"' : '') + '>' +
+        '<span class="vno-sys" title="System number, given by NexuFinance">' + esc(l.voucher_no) + '</span>' + byTag(l, own) + '</div>' +
+        '<div class="desc"><input data-k="d" value="' + esc(l.description || '') + '" placeholder="Description" ' + (rw ? '' : 'disabled') + ' aria-label="Description">' +
+        headPick(l.head_code, false, !own) + '</div>' +
+        (rw ? partyFieldHTML(l.party_name, false) : '<div class="nfpick ro">' + esc(l.party_name || '') + '</div>') +
+        '<select class="sel" data-k="f" ' + (rw ? '' : 'disabled') + ' aria-label="Floor">' + floorOpts(l.floor_code) + '</select>' +
+        '<select class="sel" data-k="m" ' + (rw ? '' : 'disabled') + ' aria-label="Cash box or bank">' + viaOpts(l.via) + '</select>' +
+        '<input class="amt" data-k="a" inputmode="decimal" value="' + F.grp(l.amount) + '" ' + (rw ? '' : 'disabled') + ' aria-label="Amount">' +
+        (rw ? '<button class="del" type="button" data-del-saved="' + l.id + '" data-version="' + l.version + '" aria-label="Delete line">×</button>' : '<span></span>') +
         '</div>';
     }
     function renderBooks() {
       if (!S.day) return '';
-      var savedIn = S.lines.filter(function (l) { return l.side === 'IN'; });
-      var savedOut = S.lines.filter(function (l) { return l.side === 'OUT'; });
+      // whose lines (§49): All / Head Office / the site — counts and totals follow the choice
+      var siteName = ((S.lines || []).filter(function (l) { return l.by_box === 'Petty'; })[0] || {}).by_name ||
+        (isSite ? ctx.displayName : '') || 'Site';
+      var shown = S.lines.filter(function (l) {
+        return S.filter === 'all' || (S.filter === 'site' ? l.by_box === 'Petty' : l.by_box !== 'Petty');
+      });
+      var savedIn = shown.filter(function (l) { return l.side === 'IN'; });
+      var savedOut = shown.filter(function (l) { return l.side === 'OUT'; });
+      var filterBar = '<div class="nf-whose" role="group" aria-label="Whose entries">' +
+        [['all', 'All'], ['ho', 'Head Office'], ['site', siteName]].map(function (x) {
+          return '<button type="button" class="chip' + (S.filter === x[0] ? ' on' : '') + '" data-whose="' + x[0] + '" aria-pressed="' + (S.filter === x[0]) + '">' + esc(x[1]) + '</button>';
+        }).join('') + '</div>';
       function none(what, types) {
         return '<p class="empty-note nf-book-empty">No ' + what + ' yet' + (canWrite ? ' — press ' + types + ' above.' : '.') + '</p>';
       }
@@ -264,7 +302,7 @@
         var byVia = { Cash: 0, Petty: 0, Bank: 0 };
         var all = 0;
         saved.forEach(function (l) { byVia[l.via] = (byVia[l.via] || 0) + F.n(l.amount); all += F.n(l.amount); });
-        return '<span>Cash</span><span class="r">' + F.fmt(byVia.Cash) + '</span><span>Petty cash</span><span class="r">' + F.fmt(byVia.Petty) +
+        return '<span>' + esc(viaLabel('Cash')) + '</span><span class="r">' + F.fmt(byVia.Cash) + '</span><span>' + esc(viaLabel('Petty')) + '</span><span class="r">' + F.fmt(byVia.Petty) +
           '</span><span>Bank</span><span class="r">' + F.fmt(byVia.Bank) + '</span>' +
           '<span class="grand">Total ' + (side === 'IN' ? 'received' : 'paid') + '</span><span class="r grand">' + F.fmt(all) + '</span>';
       }
@@ -278,6 +316,7 @@
           }).join('') + '</section>'
         : '';
       return typeBar +
+        '<section class="sec nf-whose-sec">' + filterBar + '</section>' +
         '<section class="sec"><div class="books">' +
         '  <div class="book in"><div class="bh"><h3><i></i>Receipts <small>CRV / BRV</small></h3><span class="cnt">' + savedIn.length + ' ' + (savedIn.length === 1 ? 'entry' : 'entries') + '</span></div>' +
         '    <div class="grid cols"><span>Voucher</span><span>Description and head</span><span>Party</span><span class="c">Floor</span><span class="c">Via</span><span class="r">Amount</span><span></span></div>' +
@@ -303,7 +342,7 @@
         list.map(function (v) {
           return '<tr data-jv-no="' + esc(v.voucher_no) + '"' + (v.number_pending ? ' class="vno-pending"' : '') + '><td>' +
             (v.manual_no ? esc(v.manual_no) : '<span class="nf-pend-tag">manual no. pending</span>') +
-            '<span class="vno-sys" style="display:block">' + esc(v.voucher_no) + '</span></td>' +
+            '<span class="vno-sys" style="display:block">' + esc(v.voucher_no) + '</span>' + byTag(v, mineOrDirector(v)) + '</td>' +
             '<td>' + esc(v.narration || '') + '</td><td class="r t">' + F.fmt(v.total) + '</td></tr>';
         }).join('') + '</tbody></table></div></section>';
     }
@@ -320,7 +359,7 @@
     // the owner's instruction, 2026-09-21 (docs/PLAN.md §44). The transfers
     // are real entries and stay.
     function renderTri() {
-      if (!S.day) return '';
+      if (!S.day || isSite) return '';   // head office's (§49)
       var d = S.day;
       var cashRow = ((S.position && S.position.rows) || []).filter(function (r) { return r.via === 'Cash'; })[0];
       var book = cashRow ? F.n(cashRow.closing) : 0;
@@ -332,8 +371,8 @@
         '  <div><div class="sh"><h2>Transfers and reconciliation</h2></div>' +
         '    <div class="box"><table class="rec">' +
         '      <tr><td>Cash deposited in bank</td><td class="r"><input class="fld" id="nf-tBank" inputmode="decimal" value="' + esc(tb) + '" ' + (canWrite ? '' : 'disabled') + '></td></tr>' +
-        '      <tr><td>Cash given to petty cash</td><td class="r"><input class="fld" id="nf-tPetty" inputmode="decimal" value="' + esc(tp) + '" ' + (canWrite ? '' : 'disabled') + '></td></tr>' +
-        '      <tr><td>Cash in hand as per book</td><td class="r t">' + F.fmt(book) + '</td></tr>' +
+        '      <tr><td>' + esc(viaLabel('Cash')) + ' given to ' + esc(viaLabel('Petty')) + '</td><td class="r"><input class="fld" id="nf-tPetty" inputmode="decimal" value="' + esc(tp) + '" ' + (canWrite ? '' : 'disabled') + '></td></tr>' +
+        '      <tr><td>' + esc(viaLabel('Cash')) + ' as per book</td><td class="r t">' + F.fmt(book) + '</td></tr>' +
         '    </table></div></div>' +
         '</div></section>';
     }
@@ -347,7 +386,7 @@
         (canWrite ? '<td><button class="del" type="button" data-resolve="' + p.id + '" data-version="' + p.version + '" title="Mark cleared">✓</button></td>' : '<td></td>') + '</tr>';
     }
     function renderPdcs() {
-      if (!S.day) return '';
+      if (!S.day || isSite) return '';   // head office's (§49)
       var inn = S.pdcs.filter(function (p) { return p.direction === 'RECEIVED'; });
       var out = S.pdcs.filter(function (p) { return p.direction === 'ISSUED'; });
       function table(id, title, rows) {
@@ -383,7 +422,7 @@
       return '' +
         '<section class="sec"><div class="sh"><h2>Checks</h2></div>' +
         '<ul class="checks ' + (ok ? 'ok' : 'bad') + '">' + listHtml + '</ul>' + pendingNote +
-        '<textarea class="remarks" id="nf-remarks" placeholder="Remarks" ' + (canWrite ? '' : 'disabled') + '>' + esc(S.day.remarks || '') + '</textarea>' +
+        '<textarea class="remarks" id="nf-remarks" placeholder="Remarks" ' + (canWrite && !isSite ? '' : 'disabled') + '>' + esc(S.day.remarks || '') + '</textarea>' +
         '<div class="nf-day-actions">' + actionButtons(ok) + '</div>' +
         '</section>' +
         '<div class="signs">' +
@@ -405,6 +444,7 @@
     function actionButtons(ok) {
       if (!S.day) return '';
       var btns = [];
+      if (isSite) return '';   // head office submits and closes the day (§49)
       if (S.day.status === 'OPEN' && (role === 'accountant' || role === 'director')) {
         btns.push('<button class="btn" id="nf-submit" type="button"' + (ok ? '' : ' disabled') + '>Submit</button>');
       }
@@ -537,6 +577,7 @@
       global.NfVoucherPopup.open({
         type: type, api: api, companyId: companyId, day: S.day,
         heads: S.heads, floors: S.floors, vias: S.vias, parties: S.parties,
+        cashVia: isDirector ? null : myBox,   // only the person's own cash box (§49)
         onSaved: function (res, saved) {
           if (type === 'JV') {
             toast('Journal voucher ' + saved.voucher_no + (saved.manual_no ? ' saved (manual ' + saved.manual_no + ').' : ' saved — manual voucher number pending.'));
@@ -687,8 +728,11 @@
       if (!S.day) return;
 
       // saved rows
+      root.querySelectorAll('[data-whose]').forEach(function (btn) {
+        btn.addEventListener('click', function () { S.filter = btn.getAttribute('data-whose'); render(); });
+      });
       root.querySelectorAll('.row[data-saved]').forEach(function (rowEl) {
-        if (!canWrite) return;
+        if (!canWrite || rowEl.hasAttribute('data-ro')) return;
         var id = rowEl.getAttribute('data-id'), version = Number(rowEl.getAttribute('data-version')), side = rowEl.getAttribute('data-side');
         rowEl.querySelectorAll('[data-k]').forEach(function (inp) {
           // head and party are no longer data-k fields — they are pickers and
@@ -714,7 +758,7 @@
       // saveSavedLine. (New vouchers are entered in the popups.)
       function rowOf(wrap) {
         var sv = wrap.closest('.row[data-saved]');
-        if (sv && canWrite) {
+        if (sv && canWrite && !sv.hasAttribute('data-ro')) {
           return { side: sv.getAttribute('data-side'), id: sv.getAttribute('data-id'),
                    version: Number(sv.getAttribute('data-version')) };
         }
