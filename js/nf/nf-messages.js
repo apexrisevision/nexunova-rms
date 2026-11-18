@@ -39,6 +39,11 @@
       return (d.voucher || 'This voucher') + ' was entered by ' + (d.by || 'someone else') + '. Only they (or a director) can change it.';
     },
     'NF:HEAD_OFFICE_ONLY': function () { return 'Head office does this.'; },
+    'NF:DUPLICATE_ENTRY': function (err) {
+      var d = err.detail || {};
+      return 'Already in the books: ' + (d.voucher || 'a voucher') + (d.by ? ' entered by ' + d.by : '') + (d.date ? ' on ' + F.ddMonYyyy(d.date) : '') +
+        (d.amount ? ', Rs ' + F.fmt(d.amount) : '') + ' — same ' + String(d.key || 'entry').replace(/^same /, '') + '. Not saved.';
+    },
     'NF:VOUCHER_PREFIX': function () { return 'Receipts start CRV or BRV; payments start CPV or BPV.'; },
     'NF:VOUCHER_VIA_MISMATCH': function () { return 'A voucher starting with C must be Cash or Petty; one starting with B must be Bank.'; },
     'NF:HEAD_NOT_POSTABLE': function (err) { return 'Choose a specific head from the list — "' + (err.detail || '') + '" is a category, not something you can post to.'; },

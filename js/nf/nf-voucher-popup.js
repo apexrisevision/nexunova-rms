@@ -121,6 +121,16 @@
     }
     function pickVal(key) { var w = host.querySelector('[data-pick="' + key + '"]'); return w ? (w.getAttribute('data-value') || '').trim() : ''; }
     function showErr(msg) { var e = host.querySelector('#nfv-err'); e.textContent = msg; e.hidden = !msg; }
+    // a possible duplicate: say which voucher, by whom, and save only on a deliberate yes
+    var confirmedSig = null;
+    function showWarn(x, onYes) {
+      var e = host.querySelector('#nfv-err');
+      e.innerHTML = 'Possible duplicate: ' + esc(x.voucher) + ' by ' + esc(x.by || 'another login') + ' on ' + esc(F.ddMonYyyy(x.date)) +
+        ', Rs ' + esc(F.fmt(x.amount)) + ' (' + esc(x.key) + ').<br><small>' + esc(x.narration || '') + '</small><br>' +
+        '<button type="button" class="btn sm" id="nfv-dup-yes">Yes, this is a different payment — save</button>';
+      e.hidden = false;
+      e.querySelector('#nfv-dup-yes').addEventListener('click', onYes);
+    }
 
     function saveCashBank(andNew) {
       var head = pickVal('nfv-head'), floor = host.querySelector('#nfv-floor').value, via = viaNow();
@@ -136,8 +146,25 @@
       if (head && headRequiresParty(o.heads, head) && !party) missing.push('a party — this head always tracks who it is with');
       if (missing.length) { showErr('Still needed: ' + missing.join(', ') + '.'); return; }
       busy = true; showErr('');
-      o.api.saveLine(o.day.id, null, t.side, manual, desc, head, floor, via, amt, null, party || null)
+      // the other login may already have booked this (docs/PLAN.md §50): the same cheque, reference or
+      // token is refused outright; the same amount for the same party or head needs a second, deliberate
+      // press. A failed check never stops the save — the database still refuses a real duplicate.
+      var sig = [t.side, via, head, amt, desc, party].join('|');
+      o.api.checkDuplicate(o.companyId, t.side, via, head, amt, desc, party, o.day.business_date)
+        .catch(function () { return { block: [], warn: [] }; })
+        .then(function (dup) {
+          var b = (dup && dup.block) || [], w = (dup && dup.warn) || [];
+          if (b.length) { busy = false; showErr(Msg.forLine({ code: 'NF:DUPLICATE_ENTRY', detail: b[0] })); return null; }
+          if (w.length && confirmedSig !== sig) {
+            busy = false; confirmedSig = null;
+            showWarn(w[0], function () { confirmedSig = sig; saveCashBank(andNew); });
+            return null;
+          }
+          confirmedSig = null;
+          return o.api.saveLine(o.day.id, null, t.side, manual, desc, head, floor, via, amt, null, party || null);
+        })
         .then(function (res) {
+          if (!res) return;
           busy = false;
           var mine = (res.lines || []).filter(function (l) { return l.side === t.side; })
             .sort(function (a, b) { return b.sort - a.sort; })[0];

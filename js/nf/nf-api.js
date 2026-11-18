@@ -142,6 +142,11 @@
       jvDelete: function (voucherId, version) { return call('nf_jv_delete', { p_voucher_id: voucherId, p_version: version }); },
       // only the MANUAL (paper) voucher number, on a cash-book line or a JV —
       // the Close day dialog fills the missing ones through it (docs/PLAN.md §45)
+      // the other login may already have booked this (docs/PLAN.md §50): { block: [...], warn: [...] }
+      checkDuplicate: function (companyId, kind, via, head, amount, description, partyName, date) {
+        return call('nf_dup_check', { p_company_id: companyId, p_kind: kind, p_via: via, p_head: head || null, p_amount: amount,
+          p_description: description || '', p_party_name: partyName || null, p_date: date, p_exclude: null });
+      },
       setManualNo: function (voucherId, manualNo, version) { return call('nf_set_manual_no', { p_voucher_id: voucherId, p_manual_no: manualNo, p_version: version }); },
       getPartyStatement: function (companyId, partyId, from, to) {
         return call('nf_get_party_statement', { p_company_id: companyId, p_party_id: partyId, p_from: from || null, p_to: to || null });
