@@ -9,7 +9,8 @@
 --   * a voucher is changed or deleted only by whoever entered it (a director: any) — Sharose sees head
 --     office's lines but cannot touch them, and the other way round;
 --   * the day itself (submit / close; either login may start the next day), PDCs, the IIF and voucher texts by number stay with head
---     office: the site cash box login cannot run them;
+--     office: the site cash box login cannot run them; nor the reports (owner: the site sees the Daily
+--     Closing only — its own printed day report stays);
 --   * each line and JV in the day carries who entered it and his cash box ('by_name', 'by_box', 'mine'); the
 --     context carries the caller's box ('cash_via').
 -- Sharose: NexuFinance role 'site' -> 'accountant' on the site box. The 62 vouchers posted from his Excel on
@@ -756,6 +757,866 @@ BEGIN
   RETURN jsonb_build_object('manual_no', v_v.manual_no, 'old_narration', v_v.narration,
                             'new_narration', btrim(p_narration), 'by', v_actor, 'reason', p_reason);
 END $function$;
+
+CREATE OR REPLACE FUNCTION public.nf_director_summary(p_company_id uuid, p_as_of date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_out jsonb;
+  v_as_of date := COALESCE(p_as_of, (now() AT TIME ZONE 'Asia/Karachi')::date);
+  v_m_from date := date_trunc('month', COALESCE(p_as_of, (now() AT TIME ZONE 'Asia/Karachi')::date))::date;
+  v_ledger jsonb;
+BEGIN
+  PERFORM public.nf_require_role(p_company_id, ARRAY['accountant','director','viewer']);
+  PERFORM public.nf_assert_head_office(p_company_id);  -- not the site cash box login (20261118i)
+  v_ledger := public._nf_token_ledger_body(p_company_id, NULL, v_as_of);
+
+  WITH posted AS (
+    SELECT l.voucher_id, l.account_code, l.party_id, l.debit, l.credit, v.voucher_date
+      FROM public.nf_voucher_legs l
+      JOIN public.nf_vouchers v ON v.id = l.voucher_id
+     WHERE l.company_id = p_company_id
+       AND v.status = 'POSTED'
+       AND v.voucher_date <= v_as_of
+  ),
+  -- a voucher that only moves money between our own cash/bank accounts is a
+  -- transfer, not money coming in or going out
+  moneybox AS (
+    SELECT code FROM public.nf_accounts
+     WHERE company_id = p_company_id AND via IS NOT NULL
+  ),
+  transfers AS (
+    SELECT voucher_id FROM posted
+     GROUP BY voucher_id
+    HAVING bool_and(account_code IN (SELECT code FROM moneybox))
+  ),
+  cost AS (
+    SELECT a.parent_code, a.code, a.name, sum(p.debit - p.credit) AS amount
+      FROM posted p JOIN public.nf_accounts a
+        ON a.company_id = p_company_id AND a.code = p.account_code
+     WHERE left(a.code, 1) = '5'
+     GROUP BY a.parent_code, a.code, a.name
+    HAVING sum(p.debit - p.credit) <> 0
+  ),
+  -- token money per voucher across 21100 + 21150: a voucher that takes money
+  -- OUT of both is a refund; one that only moves it between buyers, units or
+  -- the two accounts nets to 0 and is not
+  tokvouch AS (
+    SELECT voucher_id, sum(credit - debit) AS net
+      FROM posted WHERE account_code IN ('21100', '21150')
+     GROUP BY voucher_id
+  ),
+  tokparty AS (
+    SELECT p.party_id
+      FROM posted p JOIN public.nf_parties pt ON pt.company_id = p_company_id AND pt.id = p.party_id
+     WHERE p.account_code = '21100' AND NOT public._nf_is_placeholder_party(pt.name)
+     GROUP BY p.party_id
+    HAVING sum(p.credit - p.debit) <> 0
+  )
+  SELECT jsonb_build_object(
+    'as_of', v_as_of,
+
+    'spent_on_project', COALESCE((SELECT sum(amount) FROM cost), 0),
+    'spent_breakdown', COALESCE((
+       SELECT jsonb_agg(jsonb_build_object('code', code, 'label', name, 'amount', amount)
+                        ORDER BY amount DESC) FROM cost), '[]'::jsonb),
+    'office_expenses', COALESCE((
+       SELECT sum(p.debit - p.credit) FROM posted p
+        JOIN public.nf_accounts a ON a.company_id = p_company_id AND a.code = p.account_code
+        WHERE left(a.code, 1) IN ('6','7','8')), 0),
+
+    'money_with_us', COALESCE((
+       SELECT sum(p.debit - p.credit) FROM posted p
+        WHERE p.account_code IN (SELECT code FROM moneybox)), 0),
+    'owed_to_group', COALESCE((
+       SELECT sum(p.credit - p.debit) FROM posted p
+        JOIN public.nf_accounts a ON a.company_id = p_company_id AND a.code = p.account_code
+        WHERE a.parent_code = '22000'), 0),
+    'due_from_directors', COALESCE((
+       SELECT sum(p.debit - p.credit) FROM posted p
+        JOIN public.nf_accounts a ON a.company_id = p_company_id AND a.code = p.account_code
+        WHERE a.parent_code = '12600'), 0),
+
+    'tokens', jsonb_build_object(
+       'held', COALESCE((SELECT sum(p.credit - p.debit) FROM posted p
+                          WHERE p.account_code = '21100'), 0),
+       'not_allocated', COALESCE((SELECT sum(p.credit - p.debit) FROM posted p
+                          WHERE p.account_code = '21150'), 0),
+       'total_held', COALESCE((SELECT sum(p.credit - p.debit) FROM posted p
+                          WHERE p.account_code IN ('21100', '21150')), 0),
+       'buyers', (SELECT count(*) FROM tokparty),
+       'unit_bookings', (SELECT count(*) FROM jsonb_array_elements(v_ledger->'units') u
+                          WHERE (u->>'net')::numeric > 0),
+       'refunded', COALESCE((SELECT sum(-net) FROM tokvouch WHERE net < 0), 0)),
+
+    'month', jsonb_build_object(
+       'from', v_m_from, 'to', v_as_of,
+       'received', COALESCE((SELECT sum(p.debit) FROM posted p
+                              WHERE p.account_code IN (SELECT code FROM moneybox)
+                                AND p.voucher_date >= v_m_from
+                                AND p.voucher_id NOT IN (SELECT voucher_id FROM transfers)), 0),
+       'paid', COALESCE((SELECT sum(p.credit) FROM posted p
+                          WHERE p.account_code IN (SELECT code FROM moneybox)
+                            AND p.voucher_date >= v_m_from
+                            AND p.voucher_id NOT IN (SELECT voucher_id FROM transfers)), 0))
+  ) INTO v_out;
+
+  RETURN v_out;
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION public.nf_get_balance_sheet(p_company_id uuid, p_as_of date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_out jsonb;
+  v_current_earnings numeric;
+BEGIN
+  PERFORM public.nf_require_role(p_company_id, ARRAY['accountant','director','viewer']);
+  PERFORM public.nf_assert_head_office(p_company_id);  -- not the site cash box login (20261118i)
+
+  -- Same net-income calculation as nf_get_pl, from inception (no p_from)
+  -- through p_as_of — the plug that makes the sheet balance without a
+  -- formal period-end closing entry ever having been posted.
+  SELECT COALESCE(sum(CASE WHEN a.qb_type = 'Income' THEN l.credit - l.debit
+                           WHEN a.qb_type IN ('Cost of Goods Sold', 'Expense') THEN -(l.debit - l.credit)
+                           ELSE 0 END), 0)
+    INTO v_current_earnings
+    FROM public.nf_voucher_legs l
+    JOIN public.nf_vouchers v ON v.id = l.voucher_id
+    JOIN public.nf_accounts a ON a.company_id = l.company_id AND a.code = l.account_code
+   WHERE l.company_id = p_company_id AND v.status = 'POSTED'
+     AND (p_as_of IS NULL OR v.voucher_date <= p_as_of)
+     AND a.qb_type IN ('Income', 'Cost of Goods Sold', 'Expense');
+
+  WITH bal AS (
+    SELECT a.code, a.name, a.qb_type, a.parent_code,
+           COALESCE(sum(CASE WHEN a.qb_type IN ('Accounts Payable','Other Current Liability','Long Term Liability','Equity')
+                              THEN l.credit - l.debit ELSE l.debit - l.credit END) FILTER (
+             WHERE v.status = 'POSTED' AND (p_as_of IS NULL OR v.voucher_date <= p_as_of)), 0) AS amount
+      FROM public.nf_accounts a
+      LEFT JOIN public.nf_voucher_legs l ON l.company_id = a.company_id AND l.account_code = a.code
+      LEFT JOIN public.nf_vouchers v ON v.id = l.voucher_id
+     WHERE a.company_id = p_company_id
+       AND a.qb_type IN ('Bank','Accounts Receivable','Other Current Asset','Fixed Asset','Other Asset',
+                          'Accounts Payable','Other Current Liability','Long Term Liability','Equity')
+     GROUP BY a.code, a.name, a.qb_type, a.parent_code
+    HAVING COALESCE(sum(CASE WHEN a.qb_type IN ('Accounts Payable','Other Current Liability','Long Term Liability','Equity')
+                              THEN l.credit - l.debit ELSE l.debit - l.credit END) FILTER (
+             WHERE v.status = 'POSTED' AND (p_as_of IS NULL OR v.voucher_date <= p_as_of)), 0) <> 0
+  ), totals AS (
+    SELECT
+      COALESCE((SELECT sum(amount) FROM bal WHERE qb_type IN ('Bank','Accounts Receivable','Other Current Asset','Fixed Asset','Other Asset')), 0) AS total_assets,
+      COALESCE((SELECT sum(amount) FROM bal WHERE qb_type IN ('Accounts Payable','Other Current Liability','Long Term Liability')), 0) AS total_liabilities,
+      COALESCE((SELECT sum(amount) FROM bal WHERE qb_type = 'Equity'), 0) AS total_posted_equity
+  )
+  SELECT jsonb_build_object(
+    'as_of', p_as_of,
+    'assets',      COALESCE((SELECT jsonb_agg(jsonb_build_object('code', code, 'name', name, 'parent_code', parent_code, 'amount', amount) ORDER BY code) FROM bal WHERE qb_type IN ('Bank','Accounts Receivable','Other Current Asset','Fixed Asset','Other Asset')), '[]'::jsonb),
+    'liabilities', COALESCE((SELECT jsonb_agg(jsonb_build_object('code', code, 'name', name, 'parent_code', parent_code, 'amount', amount) ORDER BY code) FROM bal WHERE qb_type IN ('Accounts Payable','Other Current Liability','Long Term Liability')), '[]'::jsonb),
+    'equity',      COALESCE((SELECT jsonb_agg(jsonb_build_object('code', code, 'name', name, 'parent_code', parent_code, 'amount', amount) ORDER BY code) FROM bal WHERE qb_type = 'Equity'), '[]'::jsonb),
+    'current_earnings', jsonb_build_object('name', 'Current Earnings', 'amount', v_current_earnings, 'is_computed', true),
+    'total_assets',      (SELECT total_assets FROM totals),
+    'total_liabilities', (SELECT total_liabilities FROM totals),
+    'total_equity',      (SELECT total_posted_equity FROM totals) + v_current_earnings,
+    'total_liabilities_and_equity', (SELECT total_liabilities + total_posted_equity FROM totals) + v_current_earnings)
+    INTO v_out;
+  RETURN v_out;
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION public.nf_get_cash_bank_movement(p_company_id uuid, p_from date, p_to date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_out   jsonb;
+  v_first date;
+  lp      record;
+BEGIN
+  PERFORM public.nf_require_role(p_company_id, ARRAY['accountant','director','viewer']);
+  PERFORM public.nf_assert_head_office(p_company_id);  -- not the site cash box login (20261118i)
+
+  SELECT business_date INTO v_first
+    FROM public.nf_days WHERE company_id = p_company_id AND is_first_day;
+  -- the sheet's own opening, asked for the start of this report's window
+  SELECT * INTO lp FROM public.nf_ledger_position(p_company_id, COALESCE(p_from, v_first));
+
+  WITH accts AS (
+    SELECT a.code, a.name, a.via FROM public.nf_accounts a
+     WHERE a.company_id = p_company_id AND a.qb_type = 'Bank' AND a.active
+       AND (a.is_head OR a.via IS NOT NULL)
+  ), opening AS (
+    SELECT ac.code,
+           CASE
+             WHEN ac.via = 'Cash'  THEN lp.cash
+             WHEN ac.via = 'Petty' THEN lp.petty
+             WHEN ac.via = 'Bank'  THEN lp.bank
+             -- a Bank-typed head with no via: no typed opening exists for it
+             ELSE COALESCE((SELECT sum(l2.debit - l2.credit)
+                              FROM public.nf_voucher_legs l2
+                              JOIN public.nf_vouchers v2 ON v2.id = l2.voucher_id
+                             WHERE l2.company_id = p_company_id AND l2.account_code = ac.code
+                               AND v2.status = 'POSTED'
+                               AND p_from IS NOT NULL AND v2.voucher_date < p_from), 0)
+           END AS opening
+      FROM accts ac
+  ), period AS (
+    SELECT ac.code,
+           COALESCE(sum(l.debit) FILTER (WHERE v.status = 'POSTED'
+             AND (p_from IS NULL OR v.voucher_date >= p_from) AND (p_to IS NULL OR v.voucher_date <= p_to)), 0) AS total_in,
+           COALESCE(sum(l.credit) FILTER (WHERE v.status = 'POSTED'
+             AND (p_from IS NULL OR v.voucher_date >= p_from) AND (p_to IS NULL OR v.voucher_date <= p_to)), 0) AS total_out
+      FROM accts ac
+      LEFT JOIN public.nf_voucher_legs l ON l.company_id = p_company_id AND l.account_code = ac.code
+      LEFT JOIN public.nf_vouchers v ON v.id = l.voucher_id
+     GROUP BY ac.code
+  )
+  SELECT jsonb_build_object(
+    'from', p_from, 'to', p_to,
+    'accounts', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                 'code', ac.code, 'name', ac.name, 'opening', o.opening, 'total_in', pd.total_in,
+                 'total_out', pd.total_out, 'closing', o.opening + pd.total_in - pd.total_out) ORDER BY ac.code)
+                FROM accts ac JOIN opening o ON o.code = ac.code JOIN period pd ON pd.code = ac.code), '[]'::jsonb))
+    INTO v_out;
+  RETURN v_out;
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION public.nf_get_floor_summary(p_company_id uuid, p_from date, p_to date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE v_out jsonb;
+BEGIN
+  PERFORM public.nf_require_role(p_company_id, ARRAY['accountant','director','viewer']);
+  PERFORM public.nf_assert_head_office(p_company_id);  -- not the site cash box login (20261118i)
+
+  WITH tagged AS (
+    SELECT l.floor_code, f.qb_class AS floor_name, a.qb_type, l.debit, l.credit
+      FROM public.nf_voucher_legs l
+      JOIN public.nf_vouchers v ON v.id = l.voucher_id
+      JOIN public.nf_accounts a ON a.company_id = l.company_id AND a.code = l.account_code
+      JOIN public.nf_floors f ON f.company_id = l.company_id AND f.code = l.floor_code
+     WHERE l.company_id = p_company_id AND v.status = 'POSTED'
+       AND (p_from IS NULL OR v.voucher_date >= p_from) AND (p_to IS NULL OR v.voucher_date <= p_to)
+  ), byfloor AS (
+    SELECT floor_code, max(floor_name) AS floor_name,
+           COALESCE(sum(debit - credit) FILTER (WHERE qb_type IN ('Cost of Goods Sold', 'Expense')), 0) AS cost,
+           COALESCE(sum(credit - debit) FILTER (WHERE qb_type = 'Income'), 0) AS income
+      FROM tagged
+     GROUP BY floor_code
+  ), token AS (
+    SELECT l.floor_code, COALESCE(sum(l.credit - l.debit), 0) AS token_collected
+      FROM public.nf_voucher_legs l
+      JOIN public.nf_vouchers v ON v.id = l.voucher_id
+     WHERE l.company_id = p_company_id AND l.account_code = '21100' AND v.status = 'POSTED'
+       AND (p_from IS NULL OR v.voucher_date >= p_from) AND (p_to IS NULL OR v.voucher_date <= p_to)
+     GROUP BY l.floor_code
+  )
+  SELECT jsonb_build_object(
+    'from', p_from, 'to', p_to,
+    'floors', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                 'floor_code', b.floor_code, 'floor_name', b.floor_name, 'cost', b.cost, 'income', b.income,
+                 'token_collected', COALESCE(t.token_collected, 0))
+                 ORDER BY (b.floor_code = 'P-W'), b.floor_code)
+               FROM byfloor b LEFT JOIN token t ON t.floor_code = b.floor_code), '[]'::jsonb),
+    'total_cost', (SELECT COALESCE(sum(cost), 0) FROM byfloor),
+    'total_income', (SELECT COALESCE(sum(income), 0) FROM byfloor),
+    'total_token_collected', (SELECT COALESCE(sum(token_collected), 0) FROM token))
+    INTO v_out;
+  RETURN v_out;
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION public.nf_get_group_balances(p_company_id uuid, p_from date, p_to date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE v_out jsonb;
+BEGIN
+  PERFORM public.nf_require_role(p_company_id, ARRAY['accountant','director','viewer']);
+  PERFORM public.nf_assert_head_office(p_company_id);  -- not the site cash box login (20261118i)
+  WITH acc AS (
+    SELECT a.code, a.name, a.parent_code,
+           CASE WHEN a.parent_code = '22000' THEN 'group' ELSE 'director' END AS kind
+      FROM public.nf_accounts a
+     WHERE a.company_id = p_company_id AND a.parent_code IN ('22000', '12600')
+  ), mv AS (
+    SELECT l.account_code,
+           COALESCE(sum(COALESCE(l.debit, 0) - COALESCE(l.credit, 0)) FILTER (WHERE p_from IS NOT NULL AND v.voucher_date < p_from), 0) AS opening,
+           COALESCE(sum(COALESCE(l.debit, 0)) FILTER (WHERE p_from IS NULL OR v.voucher_date >= p_from), 0) AS given,
+           COALESCE(sum(COALESCE(l.credit, 0)) FILTER (WHERE p_from IS NULL OR v.voucher_date >= p_from), 0) AS received
+      FROM public.nf_voucher_legs l JOIN public.nf_vouchers v ON v.id = l.voucher_id
+     WHERE l.company_id = p_company_id AND v.status = 'POSTED'
+       AND (p_to IS NULL OR v.voucher_date <= p_to)
+       AND l.account_code IN (SELECT code FROM acc)
+     GROUP BY l.account_code
+  )
+  SELECT jsonb_build_object(
+    'from', p_from, 'to', p_to,
+    'accounts', COALESCE(jsonb_agg(jsonb_build_object(
+        'code', a.code, 'name', a.name, 'kind', a.kind,
+        'opening', COALESCE(m.opening, 0),
+        'given', COALESCE(m.given, 0), 'received', COALESCE(m.received, 0),
+        -- + = they owe the company, − = the company owes them
+        'closing', COALESCE(m.opening, 0) + COALESCE(m.given, 0) - COALESCE(m.received, 0))
+      ORDER BY CASE a.kind WHEN 'group' THEN 1 ELSE 2 END, a.code), '[]'::jsonb))
+    INTO v_out
+    FROM acc a LEFT JOIN mv m ON m.account_code = a.code;
+  RETURN v_out;
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION public.nf_get_journal(p_company_id uuid, p_from date, p_to date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_total_debit numeric;
+  v_total_credit numeric;
+BEGIN
+  PERFORM public.nf_require_role(p_company_id, ARRAY['accountant','director','viewer']);
+  PERFORM public.nf_assert_head_office(p_company_id);  -- not the site cash box login (20261118i)
+
+  SELECT COALESCE(sum(l.debit), 0), COALESCE(sum(l.credit), 0)
+    INTO v_total_debit, v_total_credit
+    FROM public.nf_voucher_legs l
+    JOIN public.nf_vouchers v ON v.id = l.voucher_id
+   WHERE v.company_id = p_company_id AND v.status = 'POSTED'
+     AND (p_from IS NULL OR v.voucher_date >= p_from)
+     AND (p_to   IS NULL OR v.voucher_date <= p_to);
+
+  RETURN jsonb_build_object(
+    'from', p_from, 'to', p_to,
+    'total_debit', v_total_debit, 'total_credit', v_total_credit,
+    'vouchers', COALESCE((
+      SELECT jsonb_agg(jsonb_build_object(
+               'id', v.id, 'voucher_no', v.voucher_no, 'voucher_date', v.voucher_date,
+               'narration', v.narration,
+               'legs', (SELECT jsonb_agg(jsonb_build_object(
+                                 'account_code', l.account_code, 'account_name', a.name,
+                                 'floor_code', l.floor_code, 'floor_name', f.qb_class,
+                                 'party', p.name, 'debit', l.debit, 'credit', l.credit,
+                                 'memo', l.memo) ORDER BY l.line_no)
+                          FROM public.nf_voucher_legs l
+                          JOIN public.nf_accounts a ON a.company_id = l.company_id AND a.code = l.account_code
+                          JOIN public.nf_floors f ON f.company_id = l.company_id AND f.code = l.floor_code
+                          LEFT JOIN public.nf_parties p ON p.company_id = l.company_id AND p.id = l.party_id
+                         WHERE l.voucher_id = v.id))
+             ORDER BY v.voucher_date, v.sort, v.created_at)
+        FROM public.nf_vouchers v
+       WHERE v.company_id = p_company_id AND v.status = 'POSTED'
+         AND (p_from IS NULL OR v.voucher_date >= p_from)
+         AND (p_to   IS NULL OR v.voucher_date <= p_to)), '[]'::jsonb));
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION public.nf_get_ledger(p_company_id uuid, p_account_code text, p_from date, p_to date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_account public.nf_accounts;
+  v_opening numeric;
+  v_out jsonb;
+BEGIN
+  PERFORM public.nf_require_role(p_company_id, ARRAY['accountant','director','viewer']);
+  PERFORM public.nf_assert_head_office(p_company_id);  -- not the site cash box login (20261118i)
+  SELECT * INTO v_account FROM public.nf_accounts WHERE company_id = p_company_id AND code = p_account_code;
+  IF NOT FOUND THEN RAISE EXCEPTION 'NF:ACCOUNT_NOT_FOUND' USING DETAIL = p_account_code; END IF;
+
+  v_opening := CASE WHEN p_from IS NULL THEN 0 ELSE (
+    SELECT COALESCE(sum(l.debit - l.credit), 0)
+      FROM public.nf_voucher_legs l
+      JOIN public.nf_vouchers v ON v.id = l.voucher_id
+     WHERE l.company_id = p_company_id AND l.account_code = p_account_code
+       AND v.status = 'POSTED' AND v.voucher_date < p_from) END;
+
+  WITH entries AS (
+    SELECT v.voucher_date, v.voucher_no, v.narration, l.memo, l.floor_code, f.qb_class AS floor_name,
+           pt.name AS party, l.debit, l.credit, l.line_no,
+           v_opening + sum(l.debit - l.credit) OVER (ORDER BY v.voucher_date, v.sort, v.created_at, l.line_no
+                                                       ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_balance
+      FROM public.nf_voucher_legs l
+      JOIN public.nf_vouchers v ON v.id = l.voucher_id
+      JOIN public.nf_floors f ON f.company_id = l.company_id AND f.code = l.floor_code
+      LEFT JOIN public.nf_parties pt ON pt.company_id = l.company_id AND pt.id = l.party_id
+     WHERE l.company_id = p_company_id AND l.account_code = p_account_code AND v.status = 'POSTED'
+       AND (p_from IS NULL OR v.voucher_date >= p_from) AND (p_to IS NULL OR v.voucher_date <= p_to)
+     ORDER BY v.voucher_date, v.sort, v.created_at, l.line_no
+  )
+  SELECT jsonb_build_object(
+    'account', jsonb_build_object('code', v_account.code, 'name', v_account.name, 'qb_type', v_account.qb_type),
+    'from', p_from, 'to', p_to,
+    'opening', v_opening,
+    'closing', v_opening + COALESCE((SELECT sum(debit - credit) FROM entries), 0),
+    'entries', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                 'voucher_date', voucher_date, 'voucher_no', voucher_no, 'narration', narration, 'memo', memo,
+                 'floor_code', floor_code, 'floor_name', floor_name, 'party', party,
+                 'debit', debit, 'credit', credit, 'running_balance', running_balance) ORDER BY voucher_date, line_no)
+               FROM entries), '[]'::jsonb))
+    INTO v_out;
+  RETURN v_out;
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION public.nf_get_monthly_trend(p_company_id uuid, p_from date, p_to date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE v_out jsonb;
+BEGIN
+  PERFORM public.nf_require_role(p_company_id, ARRAY['accountant','director','viewer']);
+  PERFORM public.nf_assert_head_office(p_company_id);  -- not the site cash box login (20261118i)
+
+  WITH tagged AS (
+    SELECT to_char(v.voucher_date, 'YYYY-MM') AS ym, a.qb_type, l.debit, l.credit
+      FROM public.nf_voucher_legs l
+      JOIN public.nf_vouchers v ON v.id = l.voucher_id
+      JOIN public.nf_accounts a ON a.company_id = l.company_id AND a.code = l.account_code
+     WHERE l.company_id = p_company_id AND v.status = 'POSTED'
+       AND (p_from IS NULL OR v.voucher_date >= p_from) AND (p_to IS NULL OR v.voucher_date <= p_to)
+  ), bymonth AS (
+    SELECT ym,
+           COALESCE(sum(debit - credit) FILTER (WHERE qb_type IN ('Cost of Goods Sold', 'Expense')), 0) AS cost,
+           COALESCE(sum(credit - debit) FILTER (WHERE qb_type = 'Income'), 0) AS income
+      FROM tagged
+     GROUP BY ym
+  ), token AS (
+    SELECT to_char(v.voucher_date, 'YYYY-MM') AS ym, COALESCE(sum(l.credit - l.debit), 0) AS token_collected
+      FROM public.nf_voucher_legs l
+      JOIN public.nf_vouchers v ON v.id = l.voucher_id
+     WHERE l.company_id = p_company_id AND l.account_code = '21100' AND v.status = 'POSTED'
+       AND (p_from IS NULL OR v.voucher_date >= p_from) AND (p_to IS NULL OR v.voucher_date <= p_to)
+     GROUP BY ym
+  )
+  SELECT jsonb_build_object(
+    'from', p_from, 'to', p_to,
+    'months', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                'ym', b.ym, 'cost', b.cost, 'income', b.income, 'token_collected', COALESCE(t.token_collected, 0))
+                ORDER BY b.ym)
+              FROM bymonth b LEFT JOIN token t ON t.ym = b.ym), '[]'::jsonb),
+    'total_cost', (SELECT COALESCE(sum(cost), 0) FROM bymonth),
+    'total_income', (SELECT COALESCE(sum(income), 0) FROM bymonth),
+    'total_token_collected', (SELECT COALESCE(sum(token_collected), 0) FROM token))
+    INTO v_out;
+  RETURN v_out;
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION public.nf_get_party_statement(p_company_id uuid, p_party_id uuid, p_from date, p_to date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_party public.nf_parties;
+  v_opening numeric;
+  v_out jsonb;
+BEGIN
+  PERFORM public.nf_require_role(p_company_id, ARRAY['accountant','director','viewer']);
+  PERFORM public.nf_assert_head_office(p_company_id);  -- not the site cash box login (20261118i)
+  SELECT * INTO v_party FROM public.nf_parties WHERE company_id = p_company_id AND id = p_party_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'NF:PARTY_NOT_FOUND' USING DETAIL = p_party_id::text; END IF;
+
+  v_opening := CASE WHEN p_from IS NULL THEN 0 ELSE (
+    SELECT COALESCE(sum(l.debit - l.credit), 0)
+      FROM public.nf_voucher_legs l
+      JOIN public.nf_vouchers v ON v.id = l.voucher_id
+     WHERE l.company_id = p_company_id AND l.party_id = p_party_id
+       AND v.status = 'POSTED' AND v.voucher_date < p_from) END;
+
+  WITH entries AS (
+    SELECT v.voucher_date, v.voucher_no, v.narration, l.memo, l.account_code, a.name AS account_name,
+           l.floor_code, f.qb_class AS floor_name, l.debit, l.credit, l.line_no,
+           v_opening + sum(l.debit - l.credit) OVER (ORDER BY v.voucher_date, v.sort, v.created_at, l.line_no
+                                                       ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_balance
+      FROM public.nf_voucher_legs l
+      JOIN public.nf_vouchers v ON v.id = l.voucher_id
+      JOIN public.nf_accounts a ON a.company_id = l.company_id AND a.code = l.account_code
+      JOIN public.nf_floors f ON f.company_id = l.company_id AND f.code = l.floor_code
+     WHERE l.company_id = p_company_id AND l.party_id = p_party_id AND v.status = 'POSTED'
+       AND (p_from IS NULL OR v.voucher_date >= p_from) AND (p_to IS NULL OR v.voucher_date <= p_to)
+     ORDER BY v.voucher_date, v.sort, v.created_at, l.line_no
+  )
+  SELECT jsonb_build_object(
+    'party', jsonb_build_object('id', v_party.id, 'name', v_party.name, 'kind', v_party.kind),
+    'from', p_from, 'to', p_to,
+    'opening', v_opening,
+    'closing', v_opening + COALESCE((SELECT sum(debit - credit) FROM entries), 0),
+    'entries', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                 'voucher_date', voucher_date, 'voucher_no', voucher_no, 'narration', narration, 'memo', memo,
+                 'account_code', account_code, 'account_name', account_name,
+                 'floor_code', floor_code, 'floor_name', floor_name,
+                 'debit', debit, 'credit', credit, 'running_balance', running_balance) ORDER BY voucher_date, line_no)
+               FROM entries), '[]'::jsonb))
+    INTO v_out;
+  RETURN v_out;
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION public.nf_get_pl(p_company_id uuid, p_from date, p_to date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE v_out jsonb;
+BEGIN
+  PERFORM public.nf_require_role(p_company_id, ARRAY['accountant','director','viewer']);
+  PERFORM public.nf_assert_head_office(p_company_id);  -- not the site cash box login (20261118i)
+
+  WITH bal AS (
+    SELECT a.code, a.name, a.qb_type, a.parent_code,
+           COALESCE(sum(CASE WHEN a.qb_type = 'Income' THEN l.credit - l.debit ELSE l.debit - l.credit END) FILTER (
+             WHERE v.status = 'POSTED' AND (p_from IS NULL OR v.voucher_date >= p_from) AND (p_to IS NULL OR v.voucher_date <= p_to)), 0) AS amount
+      FROM public.nf_accounts a
+      LEFT JOIN public.nf_voucher_legs l ON l.company_id = a.company_id AND l.account_code = a.code
+      LEFT JOIN public.nf_vouchers v ON v.id = l.voucher_id
+     WHERE a.company_id = p_company_id AND a.qb_type IN ('Income', 'Cost of Goods Sold', 'Expense')
+     GROUP BY a.code, a.name, a.qb_type, a.parent_code
+    HAVING COALESCE(sum(CASE WHEN a.qb_type = 'Income' THEN l.credit - l.debit ELSE l.debit - l.credit END) FILTER (
+             WHERE v.status = 'POSTED' AND (p_from IS NULL OR v.voucher_date >= p_from) AND (p_to IS NULL OR v.voucher_date <= p_to)), 0) <> 0
+  ), totals AS (
+    SELECT
+      COALESCE((SELECT sum(amount) FROM bal WHERE qb_type = 'Income'), 0) AS total_income,
+      COALESCE((SELECT sum(amount) FROM bal WHERE qb_type = 'Cost of Goods Sold'), 0) AS total_cogs,
+      COALESCE((SELECT sum(amount) FROM bal WHERE qb_type = 'Expense'), 0) AS total_expense
+  )
+  SELECT jsonb_build_object(
+    'from', p_from, 'to', p_to,
+    'income',   COALESCE((SELECT jsonb_agg(jsonb_build_object('code', code, 'name', name, 'parent_code', parent_code, 'amount', amount) ORDER BY code) FROM bal WHERE qb_type = 'Income'), '[]'::jsonb),
+    'cogs',     COALESCE((SELECT jsonb_agg(jsonb_build_object('code', code, 'name', name, 'parent_code', parent_code, 'amount', amount) ORDER BY code) FROM bal WHERE qb_type = 'Cost of Goods Sold'), '[]'::jsonb),
+    'expense',  COALESCE((SELECT jsonb_agg(jsonb_build_object('code', code, 'name', name, 'parent_code', parent_code, 'amount', amount) ORDER BY code) FROM bal WHERE qb_type = 'Expense'), '[]'::jsonb),
+    'total_income',  (SELECT total_income FROM totals),
+    'total_cogs',    (SELECT total_cogs FROM totals),
+    'gross_profit',  (SELECT total_income - total_cogs FROM totals),
+    'total_expense', (SELECT total_expense FROM totals),
+    'net_income',    (SELECT (total_income - total_cogs) - total_expense FROM totals))
+    INTO v_out;
+  RETURN v_out;
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION public.nf_get_project_cost_summary(p_company_id uuid, p_from date, p_to date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE v_out jsonb;
+BEGIN
+  PERFORM public.nf_require_role(p_company_id, ARRAY['accountant','director','viewer']);
+  PERFORM public.nf_assert_head_office(p_company_id);  -- not the site cash box login (20261118i)
+
+  WITH tagged AS (
+    SELECT COALESCE(pa.code, a.code) AS category_code, COALESCE(pa.name, a.name) AS category_name,
+           a.qb_type, l.debit, l.credit
+      FROM public.nf_voucher_legs l
+      JOIN public.nf_vouchers v ON v.id = l.voucher_id
+      JOIN public.nf_accounts a ON a.company_id = l.company_id AND a.code = l.account_code
+      LEFT JOIN public.nf_accounts pa ON pa.company_id = a.company_id AND pa.code = a.parent_code
+     WHERE l.company_id = p_company_id AND v.status = 'POSTED'
+       AND a.qb_type IN ('Cost of Goods Sold', 'Expense')
+       AND (p_from IS NULL OR v.voucher_date >= p_from) AND (p_to IS NULL OR v.voucher_date <= p_to)
+  ), bycat AS (
+    SELECT category_code, category_name, max(qb_type) AS qb_type, COALESCE(sum(debit - credit), 0) AS cost
+      FROM tagged
+     GROUP BY category_code, category_name
+    HAVING COALESCE(sum(debit - credit), 0) <> 0
+  )
+  SELECT jsonb_build_object(
+    'from', p_from, 'to', p_to,
+    'categories', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                    'category_code', category_code, 'category_name', category_name, 'qb_type', qb_type, 'cost', cost)
+                    ORDER BY cost DESC) FROM bycat), '[]'::jsonb),
+    'total_cost', (SELECT COALESCE(sum(cost), 0) FROM bycat))
+    INTO v_out;
+  RETURN v_out;
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION public.nf_get_receipt_register(p_company_id uuid, p_from date, p_to date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_pfx text[];
+  v_out jsonb;
+BEGIN
+  PERFORM public.nf_require_role(p_company_id, ARRAY['accountant','director','viewer']);
+  PERFORM public.nf_assert_head_office(p_company_id);  -- not the site cash box login (20261118i)
+  SELECT COALESCE(array_agg(DISTINCT substring(v.voucher_no FROM '^([A-Z]+)-')), '{}') INTO v_pfx
+    FROM public.nf_vouchers v WHERE v.company_id = p_company_id AND v.voucher_no ~ '^[A-Z]+-';
+
+  WITH legs AS (
+    SELECT l.id, l.voucher_id, v.voucher_no, NULLIF(btrim(v.manual_no), '') AS manual_no,
+           v.voucher_date, v.narration, l.memo, l.line_no, l.account_code,
+           COALESCE(l.credit, 0) - COALESCE(l.debit, 0) AS amt, pt.name AS party,
+           row_number() OVER (ORDER BY v.voucher_date, v.sort, v.created_at, v.id, l.line_no) AS ord
+      FROM public.nf_voucher_legs l
+      JOIN public.nf_vouchers v ON v.id = l.voucher_id
+      LEFT JOIN public.nf_parties pt ON pt.company_id = l.company_id AND pt.id = l.party_id
+     WHERE l.company_id = p_company_id AND l.account_code IN ('21100', '21150') AND v.status = 'POSTED'
+       AND (p_to IS NULL OR v.voucher_date <= p_to)
+  ),
+  vouch AS (
+    SELECT voucher_id, min(voucher_no) AS voucher_no, min(manual_no) AS manual_no, min(voucher_date) AS d,
+           min(narration) AS narration, sum(amt) AS net, min(ord) AS ord
+      FROM legs GROUP BY voucher_id
+  ),
+  -- money that came INTO token money from outside: a token receipt
+  rcpt AS (
+    SELECT vo.*, COALESCE(vo.manual_no, vo.voucher_no) AS vno,
+           COALESCE(
+             (public._nf_receipt_nos(vo.narration))[1],
+             (SELECT (public._nf_receipt_nos(l.memo))[1] FROM legs l
+               WHERE l.voucher_id = vo.voucher_id AND cardinality(public._nf_receipt_nos(l.memo)) > 0
+               ORDER BY l.line_no LIMIT 1)) AS own_no,
+           ARRAY(SELECT k FROM unnest(
+                   CASE WHEN cardinality(public._nf_unit_keys(vo.narration, v_pfx)) > 0
+                        THEN public._nf_unit_keys(vo.narration, v_pfx)
+                        ELSE ARRAY(SELECT DISTINCT a.ukey FROM public._nf_token_alloc(p_company_id, p_to) a
+                                    WHERE a.voucher_id = vo.voucher_id AND a.ukey IS NOT NULL) END) k
+                 ORDER BY k) AS ukeys,
+           (SELECT string_agg(DISTINCT l.party, ', ') FROM legs l
+             WHERE l.voucher_id = vo.voucher_id AND l.amt > 0 AND NOT public._nf_is_placeholder_party(l.party)) AS own_buyer
+      FROM vouch vo
+     WHERE vo.net > 0
+  ),
+  -- later vouchers that only move token money (net 0) and name a number
+  moves AS (
+    SELECT l.*, (public._nf_receipt_nos(l.memo))[1] AS no1,
+           public._nf_receipt_nos(l.memo) AS allnos,
+           public._nf_voucher_refs(l.memo, v_pfx) AS refs,
+           ARRAY(SELECT k FROM unnest(public._nf_unit_keys(l.memo, v_pfx)) k ORDER BY k) AS ukeys
+      FROM legs l JOIN vouch vo ON vo.voucher_id = l.voucher_id
+     WHERE vo.net <= 0 AND l.amt > 0
+  ),
+  by_ref AS (   -- "Receipt #146 — LG-56/99 (BRV-0013)"
+    SELECT DISTINCT ON (r.voucher_id) r.voucher_id, m.no1, m.party, COALESCE(m.manual_no, m.voucher_no) AS via
+      FROM rcpt r JOIN moves m ON m.no1 IS NOT NULL
+       AND (r.manual_no = ANY (m.refs) OR r.voucher_no = ANY (m.refs))
+     ORDER BY r.voucher_id, m.ord DESC
+  ),
+  by_units AS ( -- "Receipt #151 Ishtiaq — GF-51/52/53/54": the same units, no number yet
+    SELECT DISTINCT ON (r.voucher_id) r.voucher_id, m.no1, m.party, COALESCE(m.manual_no, m.voucher_no) AS via
+      FROM rcpt r JOIN moves m ON m.no1 IS NOT NULL AND cardinality(m.refs) = 0
+       AND cardinality(m.ukeys) > 0 AND m.ukeys = r.ukeys AND m.voucher_date >= r.d
+     WHERE r.own_no IS NULL AND NOT EXISTS (SELECT 1 FROM by_ref b WHERE b.voucher_id = r.voucher_id)
+     ORDER BY r.voucher_id, m.ord
+  ),
+  numbered AS (
+    SELECT r.*,
+           COALESCE(br.no1, r.own_no, bu.no1) AS no,
+           COALESCE(br.via, CASE WHEN r.own_no IS NULL THEN bu.via END) AS via,
+           NULLIF(concat_ws(', ', r.own_buyer,
+                    CASE WHEN br.no1 IS NOT NULL AND NOT public._nf_is_placeholder_party(br.party) THEN br.party END,
+                    CASE WHEN br.no1 IS NULL AND r.own_no IS NULL AND NOT public._nf_is_placeholder_party(bu.party) THEN bu.party END), '') AS buyer_raw
+      FROM rcpt r
+      LEFT JOIN by_ref br ON br.voucher_id = r.voucher_id
+      LEFT JOIN by_units bu ON bu.voucher_id = r.voucher_id
+  ),
+  inrange AS (
+    SELECT * FROM numbered WHERE p_from IS NULL OR d >= p_from
+  ),
+  -- names given later for a number ("Token #140 buyer confirmed: Abdul Qahar")
+  later_names AS (
+    SELECT DISTINCT q AS no, m.party
+      FROM moves m, unnest(m.allnos) q
+     WHERE NOT public._nf_is_placeholder_party(m.party) AND m.party IS NOT NULL
+  ),
+  buyers AS (
+    SELECT no, string_agg(DISTINCT b, ', ' ORDER BY b) AS buyers, count(DISTINCT b) AS nb
+      FROM (
+        SELECT i.no, btrim(x) AS b FROM inrange i, unnest(string_to_array(i.buyer_raw, ',')) x WHERE i.no IS NOT NULL
+        UNION
+        SELECT ln.no, ln.party FROM later_names ln WHERE ln.no IN (SELECT no FROM inrange WHERE no IS NOT NULL)
+      ) z WHERE b IS NOT NULL AND b <> ''
+     GROUP BY no
+  ),
+  -- buyers per voucher, for the duplicate test: the same number on two
+  -- vouchers that belong to different buyers
+  vbuy AS (
+    SELECT i.no, i.voucher_id, btrim(x) AS b
+      FROM inrange i, unnest(string_to_array(COALESCE(i.buyer_raw, ''), ',')) x
+     WHERE i.no IS NOT NULL AND btrim(x) <> ''
+  ),
+  dup AS (
+    SELECT no FROM inrange WHERE no IS NOT NULL GROUP BY no
+    HAVING count(DISTINCT voucher_id) > 1
+       AND (SELECT count(DISTINCT b) FROM vbuy WHERE vbuy.no = inrange.no) > 1
+  ),
+  ul AS (
+    SELECT DISTINCT ON (k) k, u.unit_no
+      FROM public.units u JOIN public.projects p ON p.id = u.project_id AND p.company_id = p_company_id
+      CROSS JOIN LATERAL (SELECT public._nf_unit_no_key(u.unit_no) AS k) kk
+     WHERE kk.k IS NOT NULL ORDER BY k, u.created_at
+  ),
+  per_no AS (
+    SELECT i.no, min(i.d) AS first_date, max(i.d) AS last_date,
+           jsonb_agg(jsonb_build_object('voucher_no', i.vno, 'system_no', i.voucher_no, 'date', i.d,
+                                        'amount', i.net, 'via', i.via) ORDER BY i.ord) AS vouchers,
+           sum(i.net) AS amount,
+           (SELECT string_agg(DISTINCT COALESCE(ul.unit_no,
+                      split_part(uk.key, '|', 1) || '-' || split_part(uk.key, '|', 2)
+                      || CASE WHEN split_part(uk.key, '|', 3) <> '' THEN '-' || split_part(uk.key, '|', 3) ELSE '' END), ', ')
+              FROM inrange i2 CROSS JOIN LATERAL unnest(i2.ukeys) AS uk(key) LEFT JOIN ul ON ul.k = uk.key
+             WHERE i2.no = i.no) AS units
+      FROM inrange i WHERE i.no IS NOT NULL GROUP BY i.no
+  ),
+  span AS (SELECT min(no) AS lo, max(no) AS hi FROM per_no)
+  SELECT jsonb_build_object(
+    'from', p_from, 'to', p_to,
+    'numbers', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                 'no', p.no, 'first_date', p.first_date, 'last_date', p.last_date,
+                 'vouchers', p.vouchers, 'buyer', b.buyers, 'units', p.units, 'amount', p.amount,
+                 'duplicate', p.no IN (SELECT no FROM dup)) ORDER BY p.no)
+               FROM per_no p LEFT JOIN buyers b ON b.no = p.no), '[]'::jsonb),
+    'duplicates', COALESCE((SELECT jsonb_agg(no ORDER BY no) FROM dup), '[]'::jsonb),
+    'gaps', COALESCE((SELECT jsonb_agg(g ORDER BY g) FROM span, generate_series(span.lo, span.hi) g
+                      WHERE g NOT IN (SELECT no FROM per_no)), '[]'::jsonb),
+    'lowest', (SELECT lo FROM span), 'highest', (SELECT hi FROM span),
+    'no_number', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                   'voucher_no', i.vno, 'system_no', i.voucher_no, 'date', i.d, 'amount', i.net,
+                   'buyer', i.own_buyer, 'narration', i.narration) ORDER BY i.ord)
+                 FROM inrange i WHERE i.no IS NULL), '[]'::jsonb),
+    'totals', jsonb_build_object(
+       'receipts', (SELECT count(*) FROM inrange),
+       'numbers', (SELECT count(*) FROM per_no),
+       'amount', (SELECT COALESCE(sum(net), 0) FROM inrange),
+       'no_number_amount', (SELECT COALESCE(sum(net), 0) FROM inrange WHERE no IS NULL)))
+    INTO v_out;
+  RETURN v_out;
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION public.nf_get_token_register(p_company_id uuid, p_from date, p_to date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+BEGIN
+  PERFORM public.nf_require_role(p_company_id, ARRAY['accountant','director','viewer']);
+  PERFORM public.nf_assert_head_office(p_company_id);  -- not the site cash box login (20261118i)
+  RETURN public._nf_token_ledger_body(p_company_id, p_from, p_to);
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION public.nf_get_trial_balance(p_company_id uuid, p_as_of date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE v_out jsonb;
+BEGIN
+  PERFORM public.nf_require_role(p_company_id, ARRAY['accountant','director','viewer']);
+  PERFORM public.nf_assert_head_office(p_company_id);  -- not the site cash box login (20261118i)
+
+  WITH bal AS (
+    SELECT a.code, a.name, a.qb_type, a.parent_code,
+           COALESCE(sum(l.debit - l.credit) FILTER (
+             WHERE v.status = 'POSTED' AND (p_as_of IS NULL OR v.voucher_date <= p_as_of)), 0) AS net
+      FROM public.nf_accounts a
+      LEFT JOIN public.nf_voucher_legs l ON l.company_id = a.company_id AND l.account_code = a.code
+      LEFT JOIN public.nf_vouchers v ON v.id = l.voucher_id
+     WHERE a.company_id = p_company_id
+     GROUP BY a.code, a.name, a.qb_type, a.parent_code
+    HAVING COALESCE(sum(l.debit - l.credit) FILTER (
+             WHERE v.status = 'POSTED' AND (p_as_of IS NULL OR v.voucher_date <= p_as_of)), 0) <> 0
+  )
+  SELECT jsonb_build_object(
+    'as_of', p_as_of,
+    'rows', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+               'code', code, 'name', name, 'qb_type', qb_type, 'parent_code', parent_code,
+               'debit', GREATEST(net, 0), 'credit', GREATEST(-net, 0)) ORDER BY code)
+             FROM bal), '[]'::jsonb),
+    'total_debit',  (SELECT COALESCE(sum(GREATEST(net, 0)), 0) FROM bal),
+    'total_credit', (SELECT COALESCE(sum(GREATEST(-net, 0)), 0) FROM bal))
+    INTO v_out;
+  RETURN v_out;
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION public.nf_iif_list_candidates(p_company_id uuid, p_from date, p_to date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE v_out jsonb;
+BEGIN
+  PERFORM public.nf_require_role(p_company_id, ARRAY['accountant','director']);
+  PERFORM public.nf_assert_head_office(p_company_id);  -- not the site cash box login (20261118i)
+
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+           'id', v.id, 'voucher_no', v.voucher_no, 'voucher_date', v.voucher_date, 'narration', v.narration)
+           ORDER BY v.voucher_date, v.sort), '[]'::jsonb)
+    INTO v_out
+    FROM public.nf_vouchers v
+   WHERE v.company_id = p_company_id AND v.status = 'POSTED' AND v.iif_exportable
+     AND (p_from IS NULL OR v.voucher_date >= p_from) AND (p_to IS NULL OR v.voucher_date <= p_to)
+     AND NOT EXISTS (SELECT 1 FROM public.nf_iif_batch_vouchers bv WHERE bv.voucher_id = v.id);
+  RETURN v_out;
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION public.nf_site_review(p_site_day_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE d public.nf_site_days;
+BEGIN
+  SELECT * INTO d FROM public.nf_site_days WHERE id = p_site_day_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'NF:DAY_NOT_FOUND'; END IF;
+  PERFORM public.nf_require_role(d.company_id, ARRAY['accountant','director','viewer']);
+  PERFORM public.nf_assert_head_office(d.company_id);  -- not the site cash box login (20261118i)
+  RETURN public.nf_site_day_json(d.id) || jsonb_build_object(
+    'review', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+        'line_id', l.id, 'line_no', l.line_no, 'side', l.side, 'doc_no', l.doc_no, 'party', l.party_name,
+        'units', l.unit_codes, 'token_no', l.token_no, 'head', l.head_code, 'via', l.via, 'amount', l.amount,
+        'bank_ref', l.bank_ref, 'remarks', l.remarks, 'version', l.version,
+        'status', l.match_status, 'reason', l.match_reason, 'proposal', l.proposal, 'ho_head', l.ho_head_code,
+        'resolution', l.resolution, 'resolved_at', l.resolved_at,
+        'ho', CASE WHEN v.id IS NULL THEN NULL ELSE jsonb_build_object(
+                 'id', v.id, 'voucher_no', v.voucher_no, 'manual_no', v.manual_no, 'narration', v.narration,
+                 'real_date', public._nf_voucher_real_date(v.narration, v.real_date, v.created_at),
+                 'legs', (SELECT jsonb_agg(jsonb_build_object('account', g.account_code, 'debit', g.debit, 'credit', g.credit)
+                                           ORDER BY g.line_no) FROM public.nf_voucher_legs g WHERE g.voucher_id = v.id)) END,
+        'posted', CASE WHEN p.id IS NULL THEN NULL ELSE jsonb_build_object('id', p.id, 'voucher_no', p.voucher_no, 'manual_no', p.manual_no) END)
+      ORDER BY l.side, l.line_no)
+      FROM public.nf_site_lines l
+      LEFT JOIN public.nf_vouchers v ON v.id = l.matched_voucher_id
+      LEFT JOIN public.nf_vouchers p ON p.id = l.posted_voucher_id
+     WHERE l.site_day_id = d.id), '[]'::jsonb));
+END
+$function$;
 
 CREATE OR REPLACE FUNCTION public.nf_day_json(p_day_id uuid)
  RETURNS jsonb

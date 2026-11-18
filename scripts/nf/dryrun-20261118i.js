@@ -80,6 +80,15 @@ BEGIN
   r := has_function_privilege('authenticated', 'public.nf_assert_own_voucher(uuid)', 'EXECUTE')::text;
   IF r = 'false' THEN ok := ok + 1; out := out || E'\n19 PASS the new helpers are not callable from the API'; ELSE bad := bad + 1; out := out || E'\n19 FAIL ' || r; END IF;
 
+  PERFORM pg_temp.as_(sh);
+  r := pg_temp.try($s$SELECT public.nf_get_trial_balance('${CO}', DATE '2026-11-18')$s$);
+  IF r LIKE 'NF:HEAD_OFFICE_ONLY%' THEN ok := ok + 1; out := out || E'\n20 PASS Sharose cannot open a report (trial balance)'; ELSE bad := bad + 1; out := out || E'\n20 FAIL ' || r; END IF;
+  r := pg_temp.try(format($s$SELECT public.nf_get_report_day(%L)$s$, day));
+  IF r = 'ok' THEN ok := ok + 1; out := out || E'\n21 PASS …but can print the day''s closing'; ELSE bad := bad + 1; out := out || E'\n21 FAIL ' || r; END IF;
+  PERFORM pg_temp.as_(rashid);
+  r := pg_temp.try($s$SELECT public.nf_get_trial_balance('${CO}', DATE '2026-11-18')$s$);
+  IF r = 'ok' THEN ok := ok + 1; out := out || E'\n22 PASS the director still opens it'; ELSE bad := bad + 1; out := out || E'\n22 FAIL ' || r; END IF;
+
   RAISE EXCEPTION 'DRYRUN_RESULT pass=% fail=% %', ok, bad, out;
 END $t$;`.replace('  PROCEDURE_X int;\n', '');
 (async () => {

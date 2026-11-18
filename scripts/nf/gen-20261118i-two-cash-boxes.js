@@ -18,7 +18,11 @@ const OWN = { nf_delete_line: 'PERFORM public.nf_assert_own_voucher(v_voucher.id
 // the day itself (submit, close), PDCs, IIF and voucher texts by number belong to head office; either login
 // may start the next day once head office has closed the last one
 const HO = ['nf_close_day', 'nf_submit_day', 'nf_set_remarks', 'nf_set_transfers', 'nf_save_pdc',
-            'nf_delete_pdc', 'nf_resolve_pdc', 'nf_iif_record_batch', 'nf_set_voucher_text'];
+            'nf_delete_pdc', 'nf_resolve_pdc', 'nf_iif_record_batch', 'nf_set_voucher_text',
+  // owner, 18-Nov (option a): the site login sees the Daily Closing only, not the reports
+  'nf_director_summary', 'nf_get_balance_sheet', 'nf_get_cash_bank_movement', 'nf_get_floor_summary', 'nf_get_group_balances',
+  'nf_get_journal', 'nf_get_ledger', 'nf_get_monthly_trend', 'nf_get_party_statement', 'nf_get_pl', 'nf_get_project_cost_summary',
+  'nf_get_receipt_register', 'nf_get_token_register', 'nf_get_trial_balance', 'nf_iif_list_candidates', 'nf_site_review'];
 
 (async () => {
   const def = async n => {
@@ -80,7 +84,8 @@ const HO = ['nf_close_day', 'nf_submit_day', 'nf_set_remarks', 'nf_set_transfers
 --   * a voucher is changed or deleted only by whoever entered it (a director: any) — Sharose sees head
 --     office's lines but cannot touch them, and the other way round;
 --   * the day itself (submit / close; either login may start the next day), PDCs, the IIF and voucher texts by number stay with head
---     office: the site cash box login cannot run them;
+--     office: the site cash box login cannot run them; nor the reports (owner: the site sees the Daily
+--     Closing only — its own printed day report stays);
 --   * each line and JV in the day carries who entered it and his cash box ('by_name', 'by_box', 'mine'); the
 --     context carries the caller's box ('cash_via').
 -- Sharose: NexuFinance role 'site' -> 'accountant' on the site box. The 62 vouchers posted from his Excel on
