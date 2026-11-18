@@ -4135,3 +4135,26 @@ stands). Reports are head office only (option a).
   `scripts/nf/verify-nf-two-logins-ui.js` 25/25 (a harness with a read-only fixture of 18-Nov, no writes).
 - **The separate Site Cash Book (§46–48) is retired.** A `site` login sees "keep using the Excel sheet";
   `verify-nf-site-closing-ui.js` tests a screen that no longer opens.
+
+## 50 · Duplicate guard, RMS token sync, the day's Excel (2026-11-19)
+
+Owner's decisions of 19-Nov (pasted), after dry runs.
+
+- **`20261119b` (applied 20261118201123)** — renamed from 19a, which `20261119a_nf_site_required_fields` already
+  holds. `nf_dup_check` reads the OTHER login's vouchers (±3 days, real date): it BLOCKS the same cheque (full or
+  last 4+ digits) or the same bank / Raast / TT reference on a voucher that moved the bank the same way, and the
+  same token number in the same direction (`NF:DUPLICATE_ENTRY`, enforced in `nf_save_line` and
+  `nf_save_withdrawal`). It WARNS on the same amount and direction within ±2 days with the same party or head; the
+  voucher popup saves that only after "Yes, this is a different payment". The keys reuse the Stage 2 helpers.
+  RMS token sync: a token line (21100) saved, edited or deleted moves the RMS hold of the unit(s) its description
+  names, split equally, through `rms_set_reservation_token`. A missing hold or unit is logged in `nf_audit`
+  (entity `rms_token`) and listed by `nf_token_sync_list`; the save never fails for it. Backfill: #317 → SF-208
+  1,00,000 (Riaz Ahmad). #210 (GF-250/251, no hold) and #205 (no unit) are left for the owner. Dry run 11/11,
+  rules suite 81/81, then Awami compared before and after: only SF-208's token changed.
+- **Narrations** (`nf_set_voucher_text`, with reason): BPV-0046 and BPV-0026 now say the cash went to Site Cash.
+- **`20261119c` (NOT applied)** — `nf_settings.book_title` ("AWAMI MARKET KARKHANO — DAILY CASH & BANK BOOK") and
+  `nf_day_book(company, date)`, director only, read-only: one date's vouchers with legs and who entered each, plus
+  each box's opening. `js/nf/nf-day-excel.js` builds the tab in the layout of the head office's own
+  `Daily closing.xlsx`, by DATE (DC-007 spans 05-Oct to 16-Nov). The director's "Excel" button sits beside
+  "Director report". Dry run: the site login is refused; 16-Nov gives 1 receipt, 9 payments, 1 JV, closing 4,15,250
+  / 53,200 / 2,63,61,788.75. Browser check 27/27.

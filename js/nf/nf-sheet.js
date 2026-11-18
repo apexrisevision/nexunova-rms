@@ -149,6 +149,7 @@
         '    <span class="nf-who ' + (myBox === 'Petty' ? 'site' : 'ho') + '" title="Signed in">' + esc(ctx.displayName || '') +
         (isDirector ? '' : ' · ' + esc(viaLabel(myBox))) + '</span>' +
         (d && !isSite ? '    <button class="btn" id="nf-toDir" type="button">Director report</button>' : '') +
+        (isDirector && global.NfDayExcel ? '    <button class="btn" id="nf-dayXlsx" type="button" title="One date’s cash & bank book as Excel">Excel</button>' : '') +
         (isSite ? '' : global.NfReportsMenu.html('closing')) +
         (d && d.status === 'CLOSED' && d.is_latest ? '    <button class="btn" id="nf-startNext" type="button">Start new day</button>' : '') +
         '    <button class="btn primary" id="nf-print" type="button">' +
@@ -685,6 +686,8 @@
       if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
       var printBtn = root.querySelector('#nf-print');
       if (printBtn) printBtn.addEventListener('click', doPrint);
+      var dayXlsx = root.querySelector('#nf-dayXlsx');
+      if (dayXlsx) dayXlsx.addEventListener('click', openExcelDialog);
       var toDir = root.querySelector('#nf-toDir');
       if (toDir) toDir.addEventListener('click', function () {
         // NfReport.mount replaces root.innerHTML wholesale — #nf-sheet (the
@@ -852,6 +855,31 @@
         var reason = prompt('Why is this closed day being reopened?'); if (!reason) return;
         api.reopenDay(S.day.id, reason, S.day.version).then(applyDay).catch(function (err) { toast(Msg.forDay(err), true); });
       });
+    }
+
+    // ── Excel of one date (director; docs/PLAN.md §50) ─────────────────────
+    function openExcelDialog() {
+      var old = root.querySelector('#nf-xlsx-dialog'); if (old) old.remove();
+      var host = document.createElement('div');
+      host.className = 'nf-dialog-backdrop'; host.id = 'nf-xlsx-dialog';
+      host.innerHTML = '<div class="nf-dialog" role="dialog" aria-modal="true" aria-labelledby="nf-xlsx-title" style="max-width:360px">' +
+        '<h3 id="nf-xlsx-title">Daily cash &amp; bank book — Excel</h3>' +
+        '<p>Pick a date. The tab lists every entry of that date with who entered it, and Head Office Cash, Site Cash and the bank.</p>' +
+        '<div class="fld-row" style="grid-template-columns:1fr"><div><label for="nf-xlsx-date">Date</label><input type="date" id="nf-xlsx-date" value="' + esc(S.day ? S.day.business_date : '') + '"></div></div>' +
+        '<p class="nfn-err" id="nf-xlsx-err" hidden></p>' +
+        '<div class="actions"><button class="btn" type="button" id="nf-xlsx-cancel">Cancel</button><button class="btn primary" type="button" id="nf-xlsx-go">Download</button></div></div>';
+      root.appendChild(host);
+      host.querySelector('#nf-xlsx-cancel').addEventListener('click', function () { host.remove(); });
+      host.addEventListener('keydown', function (e) { if (e.key === 'Escape') host.remove(); });
+      host.querySelector('#nf-xlsx-go').addEventListener('click', function () {
+        var date = host.querySelector('#nf-xlsx-date').value, err = host.querySelector('#nf-xlsx-err'), go = host.querySelector('#nf-xlsx-go');
+        if (!date) { err.textContent = 'Pick a date.'; err.hidden = false; return; }
+        go.disabled = true; err.hidden = true;
+        global.NfDayExcel.download(api, companyId, date)
+          .then(function () { host.remove(); toast('Excel for ' + F.ddMonYyyy(date) + ' downloaded.'); })
+          .catch(function (e) { go.disabled = false; err.textContent = Msg.forDay(e); err.hidden = false; });
+      });
+      host.querySelector('#nf-xlsx-date').focus();
     }
 
     function closeNow() {

@@ -17,7 +17,7 @@ const HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewp
 <link rel="stylesheet" href="${url('css/nf/nf.css')}"><link rel="stylesheet" href="${url('css/nf/nf-reports-menu.css')}">
 </head><body><div id="nf-root"></div>
 ${['js/nf/nf-format.js', 'js/nf/nf-pick.js', 'js/nf/nf-drill.js', 'js/nf/nf-reports-menu.js', 'js/nf/nf-messages.js',
-   'js/nf/nf-voucher-popup.js', 'js/nf/nf-sheet.js'].map(s => `<script src="${url(s)}"></script>`).join('\n')}
+   'js/nf/nf-voucher-popup.js', 'js/nf/nf-day-excel.js', 'js/nf/nf-sheet.js', 'node_modules/xlsx/dist/xlsx.full.min.js'].map(s => `<script src="${url(s)}"></script>`).join('\n')}
 <script>
 window.__boot = function (fix, as) {
   var site = as === 'site';
@@ -39,6 +39,7 @@ window.__boot = function (fix, as) {
     saveLine: function () { window.__calls.push(['saveLine'].concat([].slice.call(arguments))); return ok(day); },
     deleteLine: function () { window.__calls.push(['deleteLine'].concat([].slice.call(arguments))); return ok(day); },
     setRemarks: function () { return ok(day); }, setTransfers: function () { return ok(day); },
+    dayBook: function (c, d) { window.__calls.push(['dayBook', d]); return ok({ date: d, title: 'AWAMI MARKET KARKHANO — DAILY CASH & BANK BOOK', boxes: [], vouchers: [] }); },
   };
   return window.NfSheet.mount(document.getElementById('nf-root'), {
     api: api, companyId: day.day.company_id, role: site ? 'accountant' : 'director', cashVia: site ? 'Petty' : 'Cash',
@@ -97,6 +98,17 @@ window.__boot = function (fix, as) {
     await pg.waitForSelector('.vp-seg');
     const opts = await q(pg, () => [...document.querySelectorAll('.vp-seg [data-via]')].map(b => b.textContent));
     check('HO (director): the cash payment popup offers both cash boxes', opts.length === 2, opts.join(','));
+    await pg.keyboard.press('Escape'); await pg.evaluate(() => { const b = document.querySelector('.nf-dialog-backdrop, .vp-backdrop'); if (b) b.remove(); });
+    await pg.evaluate(() => { window.__saved = null; window.XLSX.writeFile = function (wb, name) { window.__saved = { name: name, tabs: wb.SheetNames }; }; });
+    const hasX = await q(pg, () => !!document.querySelector('#nf-dayXlsx'));
+    check('HO (director): Excel button next to Director report', hasX);
+    if (hasX) {
+      await pg.click('#nf-dayXlsx'); await pg.waitForSelector('#nf-xlsx-go');
+      await pg.evaluate(() => { document.querySelector('#nf-xlsx-date').value = '2026-11-16'; });
+      await pg.click('#nf-xlsx-go'); await new Promise(r => setTimeout(r, 400));
+      const saved = await q(pg, () => window.__saved);
+      check('HO: Download makes "AWAMI MARKET KARKHANO 16-Nov-2026.xlsx" with tab 16-Nov', saved && saved.name === 'AWAMI MARKET KARKHANO 16-Nov-2026.xlsx' && saved.tabs[0] === '16-Nov', JSON.stringify(saved));
+    }
     check('HO: no script errors', errs.length === 0, errs.join(' / '));
     await pg.close();
   }
@@ -108,7 +120,7 @@ window.__boot = function (fix, as) {
       const own = document.querySelector('.row[data-saved]:not([data-ro])');
       return {
         who: (document.querySelector('.nf-who') || {}).textContent,
-        reports: !!document.querySelector('#nf-rpm-toggle'), dir: !!document.querySelector('#nf-toDir'),
+        reports: !!document.querySelector('#nf-rpm-toggle'), dir: !!document.querySelector('#nf-toDir'), xlsx: !!document.querySelector('#nf-dayXlsx'),
         close: !!document.querySelector('#nf-close'), submit: !!document.querySelector('#nf-submit'),
         tri: !!document.querySelector('#nf-tPetty'), pdc: !!document.querySelector('#nf-pdcIn'),
         hoRo: !!(ho && ho.hasAttribute('data-ro')), hoInputsOff: ho ? [...ho.querySelectorAll('input,select')].every(x => x.disabled) : false,
@@ -119,7 +131,7 @@ window.__boot = function (fix, as) {
     });
     const tag = width < 600 ? 'phone' : 'desktop';
     check(`Site ${tag}: signed-in chip says Sharose · Site Cash`, /Sharose · Site Cash/.test(t.who || ''), t.who);
-    check(`Site ${tag}: no Reports menu, no Director report`, !t.reports && !t.dir);
+    check(`Site ${tag}: no Reports menu, no Director report, no Excel button`, !t.reports && !t.dir && !t.xlsx);
     check(`Site ${tag}: no Submit / Close, no transfers, no PDCs`, !t.close && !t.submit && !t.tri && !t.pdc);
     check(`Site ${tag}: head office line is locked (all fields off, no delete, 🔒 tag)`, t.hoRo && t.hoInputsOff && !t.hoDel && /🔒/.test(t.hoTag), t.hoTag);
     check(`Site ${tag}: his own lines stay editable with delete`, t.ownEditable && t.ownDel);
