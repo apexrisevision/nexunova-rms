@@ -16,3 +16,8 @@ Reaching them needs a direct API call with his session — nothing on the screen
 **Not fixed** (recorded, per the findings convention). The fix would be a role / module check
 inside the two report functions, matching `hasPermission` (reports module, or an admin / accounts
 / manager role).
+
+## Fixed — 18-Nov-2026 (20261118e, applied as 20261118101601)
+Both functions now start with `_rms_can_read_reports(p_company_id)` (mirrors `hasPermission('reports')`
+and checks the caller's company). Live check: awami 17/17, naseer 17/17, sharose refused/refused;
+the helper is not callable from the API.
