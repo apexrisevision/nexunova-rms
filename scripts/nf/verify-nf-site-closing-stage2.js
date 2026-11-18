@@ -63,7 +63,11 @@ function readFile() {
         if (!(head in HEAD)) throw new Error(`${tab} row ${i + 1}: head "${head}" not mapped`);
         if (head === 'Bank to Cash (withdrawal)' && side === 'OUT' && bank) continue;   // the mirror
         const isWdl = head === 'Bank to Cash (withdrawal)';
-        out.push({ date, tab, row: i + 1, side, doc: doc || null, party: party || null,
+        // Since 19-Nov every line needs its paper number and a name (20261119a). Sharose's file
+        // left many blank; the fixture fills them with values that cannot match any HO narration
+        // (a made-up S<ddmm>-<row> number, "NAME NOT GIVEN"), so the match result is unchanged.
+        out.push({ date, tab, row: i + 1, side, doc: doc || ('S' + tab.slice(0, 2) + MON[tab.slice(3)] + '-' + (i + 1)),
+          party: party || 'NAME NOT GIVEN',
           units: side === 'IN' ? (units || null) : null,
           token: tok ? Number(tok) : (HEAD[head] === '21100' && doc ? Number(doc) : null),
           head: isWdl ? 'BANK' : HEAD[head], via: cash ? 'SITE_CASH' : 'BANK',
@@ -342,7 +346,7 @@ BEGIN
   PERFORM public.nf_site_return(sd, 'test: decided lines stay as they are', v);
   PERFORM pg_temp.as_(us);
   SELECT * INTO r FROM pg_temp.mt() WHERE ref = '6292';
-  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L, '2026-11-17', %L, 'OUT', NULL, 'X', NULL, NULL, '22100', 'BANK', 1, '6292', NULL, NULL, %s)$$,
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L, '2026-11-17', %L, 'OUT', 'Z-1', 'X', NULL, NULL, '22100', 'BANK', 1, '6292', NULL, NULL, %s)$$,
                           co, r.line_id, r.version));
   PERFORM pg_temp.ok('R-11 the site cannot edit a line HO has decided', e LIKE 'NF:SITE_LINE_RESOLVED%', e);
   e := pg_temp.err(format('SELECT public.nf_site_delete_line(%L, %s)', r.line_id, r.version));

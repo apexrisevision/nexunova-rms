@@ -30,6 +30,8 @@ const APPLIED = process.argv.includes('--applied');
 const PLUS = process.argv.includes('--plus') ? path.resolve(process.argv[process.argv.indexOf('--plus') + 1]) : null;
 // --stage2: Stage 2 is already applied live (its doc-no rule is in force without --plus)
 const STAGE2 = !!PLUS || process.argv.includes('--stage2');
+// number and name required on every line (20261119a): checked when that migration is in the run
+const REQUIRED = (PLUS && /20261119a/.test(PLUS)) || process.argv.includes('--required');
 
 const C = crypto.randomUUID();
 const U = { S: crypto.randomUUID(), A: crypto.randomUUID(), D: crypto.randomUUID(), V: crypto.randomUUID() };
@@ -102,7 +104,7 @@ BEGIN
 
   -- ── the first day ──────────────────────────────────────────────────────
   PERFORM pg_temp.as_(us);
-  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'IN',NULL,'X',NULL,NULL,'40900','SITE_CASH',100,NULL,NULL,NULL,NULL)$$, co));
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'IN','Z-1','X',NULL,NULL,'40900','SITE_CASH',100,NULL,NULL,NULL,NULL)$$, co));
   PERFORM pg_temp.ok('F-01 no line before HO sets the opening', e LIKE 'NF:SITE_FIRST_DAY_REQUIRED%', e);
   e := pg_temp.err(format($$SELECT public.nf_site_start_first_day(%L,'2026-11-05',10000)$$, co));
   PERFORM pg_temp.ok('F-02 site cannot set the opening', e LIKE 'NF:NOT_ALLOWED%', e);
@@ -132,15 +134,22 @@ BEGIN
   PERFORM pg_temp.ok('L-06 a receipt no is not used twice${STAGE2 ? ' on another day' : ''} (case/space blind)', e LIKE 'NF:DUPLICATE_DOC_NO%', e);
   e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT','R-1','Other side',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
   PERFORM pg_temp.ok('L-07 …but the same no on the payment side is allowed', e = 'OK', e);
-  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT',NULL,'X',NULL,NULL,'10100','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
+${REQUIRED ? String.raw`  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT',' ','Somebody',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
+  PERFORM pg_temp.ok('Q-01 a line without its receipt / voucher number is refused', e LIKE 'NF:SITE_DOC_NO_REQUIRED%', e);
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT','Q-2',NULL,NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
+  PERFORM pg_temp.ok('Q-02 a line without who it came from / went to is refused', e LIKE 'NF:SITE_PARTY_REQUIRED%', e);
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT','R-1','Same voucher, second head',NULL,NULL,'70500','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
+  PERFORM pg_temp.ok('Q-03 the same paper number on the same day still goes in (one voucher, two heads)', e = 'OK', e);
+  DELETE FROM public.nf_site_lines WHERE site_day_id = d1 AND party_name = 'Same voucher, second head';` : ''}
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT','Z-1','X',NULL,NULL,'10100','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
   PERFORM pg_temp.ok('L-08 a cash account is not a head', e LIKE 'NF:HEAD_REQUIRED%', e);
-  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT',NULL,'X',NULL,NULL,'52600','Cash',10,NULL,NULL,NULL,NULL)$$, co));
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT','Z-1','X',NULL,NULL,'52600','Cash',10,NULL,NULL,NULL,NULL)$$, co));
   PERFORM pg_temp.ok('L-09 via is SITE_CASH or BANK only', e LIKE 'NF:VIA_UNKNOWN%', e);
-  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2099-01-01',NULL,'OUT',NULL,'X',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2099-01-01',NULL,'OUT','Z-1','X',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
   PERFORM pg_temp.ok('L-10 no future dates', e LIKE 'NF:SITE_FUTURE_DATE%', e);
-  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-01',NULL,'OUT',NULL,'X',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-01',NULL,'OUT','Z-1','X',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
   PERFORM pg_temp.ok('L-11 no date before the first day', e LIKE 'NF:SITE_BEFORE_FIRST_DAY%', e);
-  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT',NULL,'X',NULL,NULL,'52600','SITE_CASH',10.005,NULL,NULL,NULL,NULL)$$, co));
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT','Z-1','X',NULL,NULL,'52600','SITE_CASH',10.005,NULL,NULL,NULL,NULL)$$, co));
   PERFORM pg_temp.ok('L-12 amounts carry at most two decimals', e LIKE 'NF:%', e);
   -- the 10 on the payment side from L-07 is still there: book 2,990
   DELETE FROM public.nf_site_lines WHERE site_day_id = d1 AND doc_no = 'R-1' AND side = 'OUT';
@@ -160,11 +169,11 @@ BEGIN
   UPDATE public.nf_site_lines SET posted_voucher_id = NULL WHERE id = lb;
 
   PERFORM pg_temp.as_(uv);
-  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT',NULL,'X',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT','Z-1','X',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
   PERFORM pg_temp.ok('L-16 a viewer cannot write', e LIKE 'NF:NOT_ALLOWED%', e);
   PERFORM pg_temp.ok('L-17 …but can read', (public.nf_site_get_day(co, '2026-11-05')->>'exists')::boolean, '');
   PERFORM pg_temp.as_(ua);
-  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT',NULL,'X',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT','Z-1','X',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
   PERFORM pg_temp.ok('H-01 HO cannot add a site line', e LIKE 'NF:NOT_ALLOWED%', e);
   e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',%L,'OUT','P-1','Labour',NULL,NULL,'52600','SITE_CASH',1,NULL,NULL,NULL,%s)$$,
                           co, l2, (SELECT version FROM public.nf_site_lines WHERE id = l2)));
@@ -174,7 +183,7 @@ BEGIN
   e := pg_temp.err(format('SELECT public.nf_site_submit(%L, 4000, NULL, NULL, %s)', d1, (SELECT version FROM public.nf_site_days WHERE id = d1)));
   PERFORM pg_temp.ok('H-04 HO cannot submit the site day', e LIKE 'NF:NOT_ALLOWED%', e);
   PERFORM pg_temp.as_(ud);
-  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT',NULL,'X',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT','Z-1','X',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
   PERFORM pg_temp.ok('H-05 a director cannot add a site line either', e LIKE 'NF:NOT_ALLOWED%', e);
 
   -- ── submit ─────────────────────────────────────────────────────────────
@@ -191,7 +200,7 @@ BEGIN
   r := public.nf_site_submit(d1, NULL, '{"1000":4}'::jsonb, NULL, v);
   PERFORM pg_temp.ok('S-05 submits on the notes (4 x 1000 = book 4,000)',
     r->>'status' = 'SUBMITTED' AND (r->>'book_closing')::numeric = 4000 AND (r->>'variance')::numeric = 0, r::text);
-  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT',NULL,'X',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT','Z-1','X',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
   PERFORM pg_temp.ok('S-06 a submitted day takes no lines', e LIKE 'NF:SITE_DAY_LOCKED%', e);
   PERFORM pg_temp.as_(ua);
   e := pg_temp.err(format('SELECT public.nf_site_reopen(%L, NULL, %s)', d1, (SELECT version FROM public.nf_site_days WHERE id = d1)));

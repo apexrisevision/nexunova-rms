@@ -17,6 +17,7 @@
 .sctop{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
 .scdate{display:flex;flex-direction:column;gap:4px;font-size:11.5px;font-weight:600;color:var(--muted)}
 .scdate input{border:1px solid var(--line2);border-radius:7px;padding:7px 10px;font-size:14px;background:var(--card);color:var(--ink);min-height:38px}
+.scdatefmt{font-size:15px;font-weight:600;padding-bottom:9px;font-variant-numeric:tabular-nums}
 .scdaystatus{font-size:12.5px;font-weight:600;color:var(--ink2);padding-bottom:9px}
 
 .scbanner{border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.5;margin-bottom:10px}
@@ -36,8 +37,21 @@
 .scsec h2 small{font-weight:400;color:var(--muted);font-size:12px}
 .schint{margin:2px 0 10px;font-size:12px}
 
-/* a line: a card on a phone */
-.scrow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 10px;padding:10px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--card)}
+/* a line on a phone: one compact row (No. · name · head · amount · status · bill); tap opens the form */
+.scrow{border:1px solid var(--line);border-radius:10px;margin-bottom:6px;background:var(--card);overflow:hidden}
+.scsum{display:grid;grid-template-columns:44px minmax(0,1fr) auto auto 18px;gap:8px;align-items:center;width:100%;
+  border:0;background:transparent;padding:9px 10px;text-align:left;cursor:pointer;color:var(--ink);min-height:48px}
+.scsum .sn{font-size:12px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scsum .sw{min-width:0;display:flex;flex-direction:column}
+.scsum .sw b{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scsum .sw small{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scsum .sa{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:13px}
+.scsum .sa small{font-weight:400;color:var(--muted);font-size:10.5px}
+.scsum .sb{font-size:13px;text-align:center}
+.scrow.open .scsum{border-bottom:1px solid var(--line);background:var(--soft)}
+.scbody{display:none}
+.scrow.open .scbody{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 10px;padding:10px}
+.scf.off{display:none}
 .scrow.new{border-style:dashed}
 .scrow.dirty{border-color:var(--brand-2)}
 .scrow.bad{border-color:var(--neg)}
@@ -89,8 +103,12 @@
   .scsheet .rsec{padding:14px 28px}
   .sctiles{grid-template-columns:repeat(4,minmax(0,1fr))}
   .scgrid{border-top:1px solid var(--line2)}
-  .scrow{grid-template-columns:62px minmax(0,1.3fr) 92px 62px minmax(0,1.3fr) 96px 96px 104px minmax(0,1.1fr) 104px 112px 120px;
-    border:0;border-bottom:1px solid var(--line);border-radius:0;margin:0;padding:6px 2px;align-items:end;gap:6px}
+  .scrow{display:grid;grid-template-columns:62px minmax(0,1.3fr) 92px 62px minmax(0,1.3fr) 96px 96px 104px minmax(0,1.1fr) 104px 112px 120px;
+    border:0;border-bottom:1px solid var(--line);border-radius:0;margin:0;padding:6px 2px;align-items:end;gap:6px;overflow:visible}
+  /* on a wide screen every line is the full row: no summary, the form's fields are the row's cells */
+  .scsum{display:none}
+  .scbody,.scrow.open .scbody{display:contents}
+  .scf.off{display:flex;visibility:hidden}
   .scrow.new{border-style:solid;background:var(--soft)}
   .scf-party_name,.scf-head,.scf-remarks{grid-column:auto}
   .scrowact{grid-column:auto;justify-content:flex-start}

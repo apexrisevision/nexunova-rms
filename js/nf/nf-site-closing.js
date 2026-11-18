@@ -26,6 +26,7 @@
   // and token money is 21100. A site user cannot read the chart itself.
   var BANK_HEAD = '10300';
   var TOKEN_HEAD = '21100';
+  var TOKEN_HEADS = ['21100', '21150'];   // token money, allotted or not yet allotted
   var NOTES = ['5000', '1000', '500', '100', '50', '20', '10'];
   var STATUS = {
     NEW: ['New', 'st-new'], DUPLICATE: ['Duplicate', 'st-dup'], POSSIBLE: ['Possible duplicate', 'st-dup'],
@@ -46,6 +47,8 @@
       'NF:SITE_CASH_NEGATIVE': 'The cash box cannot pay out more than it holds' + (d.date ? ' (it would go below zero on ' + F.ddMonYyyy(d.date) + ')' : '') + '.',
       'NF:DUPLICATE_DOC_NO': 'Number ' + (d.doc_no || '') + ' was already used' + (d.used_on ? ' on ' + F.ddMonYyyy(d.used_on) : '') + '.',
       'NF:SITE_TOKEN_NO_REQUIRED': 'Token money needs the token number.',
+      'NF:SITE_DOC_NO_REQUIRED': 'Write the receipt or voucher number from the book.',
+      'NF:SITE_PARTY_REQUIRED': 'Write who the money came from or went to.',
       'NF:HEAD_REQUIRED': 'Choose what this money is for.',
       'NF:AMOUNT_NOT_POSITIVE': 'Enter the amount in Cash or in Bank.',
       'NF:SITE_DAY_LOCKED': 'This day has been sent to head office and cannot be changed.',
@@ -84,16 +87,19 @@
         unit_codes: l.unit_codes || '', token_no: l.token_no == null ? '' : String(l.token_no), head_code: l.head_code,
         cash: l.via === 'SITE_CASH' ? String(+l.amount) : '', bank: l.via === 'BANK' ? String(+l.amount) : '',
         bank_ref: l.bank_ref || '', remarks: l.remarks || '', attachment_url: l.attachment_url || '',
-        status: l.match_status, resolved: !!l.resolved_at, dirty: false, err: null, saving: false };
+        status: l.match_status, resolved: !!l.resolved_at, dirty: false, err: null, saving: false, open: false };
     }
     function blank(side) {
       return { key: uid(), id: null, version: null, side: side, doc_no: '', party_name: '', unit_codes: '', token_no: '',
-        head_code: '', cash: '', bank: '', bank_ref: '', remarks: '', attachment_url: '', status: null, dirty: false, err: null, saving: false };
+        head_code: '', cash: '', bank: '', bank_ref: '', remarks: '', attachment_url: '', status: null, dirty: false, err: null, saving: false, open: true };
     }
     function isEmpty(r) {
       return !r.id && !r.doc_no && !r.party_name && !r.unit_codes && !r.token_no && !r.head_code && !r.cash && !r.bank && !r.bank_ref && !r.remarks;
     }
+    function showUnitTok(r) { return r.side === 'IN' || TOKEN_HEADS.indexOf(r.head_code) >= 0; }
     function problem(r) {
+      if (!String(r.doc_no).trim()) return r.side === 'IN' ? 'Write the receipt number from the receipt book.' : 'Write the voucher number from the voucher book.';
+      if (!String(r.party_name).trim()) return r.side === 'IN' ? 'Write who the money came from.' : 'Write who the money was paid to.';
       if (!r.head_code) return 'Choose what this money is for.';
       var c = F.n(r.cash), b = F.n(r.bank);
       if (c > 0 && b > 0) return 'Put the amount in Cash or in Bank, not both.';
@@ -172,18 +178,22 @@
       var ed = editable() && !r.resolved;
       var no = r.side === 'IN' ? 'Receipt no.' : 'Voucher no.';
       var who = r.side === 'IN' ? 'From' : 'Paid to';
-      var f = function (k, label, extra) {
-        return '<label class="scf scf-' + k + '"><span>' + label + '</span><input data-k="' + k + '" value="' + esc(r[k]) + '"' +
+      var f = function (k, label, extra, cls) {
+        return '<label class="scf scf-' + k + (cls || '') + '"><span>' + label + '</span><input data-k="' + k + '" value="' + esc(r[k]) + '"' +
           (ed ? '' : ' readonly') + (extra || '') + '></label>';
       };
+      var off = showUnitTok(r) ? '' : ' off';
       var photo = r.attachment_url
         ? '<button class="scphoto has" type="button" data-photo-view="' + esc(r.key) + '">Bill ✓</button>'
         : '<span class="scphoto none">No bill</span>';
-      return '<div class="scrow' + (r.id ? '' : ' new') + (r.dirty ? ' dirty' : '') + (r.err ? ' bad' : '') + '" data-row="' + r.key + '">' +
-        f('doc_no', no, ' inputmode="numeric"') +
-        f('party_name', who) +
-        f('unit_codes', 'Unit(s)', ' list="nf-sc-units" placeholder="e.g. FF-120"') +
-        f('token_no', 'Token #', ' inputmode="numeric"') +
+      var req = ' aria-required="true"';
+      return '<div class="scrow' + (r.id ? '' : ' new') + (r.dirty ? ' dirty' : '') + (r.err ? ' bad' : '') + (r.open || r.err ? ' open' : '') + '" data-row="' + r.key + '">' +
+        '<button type="button" class="scsum" data-toggle="' + r.key + '" aria-expanded="' + (r.open ? 'true' : 'false') + '">' + summaryHtml(r) + '</button>' +
+        '<div class="scbody">' +
+        f('doc_no', no + ' *', ' inputmode="numeric"' + req) +
+        f('party_name', who + ' *', req) +
+        f('unit_codes', 'Unit(s)', ' list="nf-sc-units" placeholder="e.g. FF-120"', off) +
+        f('token_no', 'Token #', ' inputmode="numeric"', off) +
         '<label class="scf scf-head"><span>For</span><select data-k="head_code"' + (ed ? '' : ' disabled') + '>' + headOptions(r) + '</select></label>' +
         f('cash', 'Cash', ' class="amt" inputmode="decimal" placeholder="0"') +
         f('bank', 'Bank', ' class="amt" inputmode="decimal" placeholder="0"' + (r.head_code === BANK_HEAD ? ' disabled' : '')) +
@@ -198,7 +208,21 @@
                 (r.id ? '<button class="btn danger sm" type="button" data-del="' + r.key + '">Delete</button>' : '') +
               '</div>' : '') +
         '<div class="scrowerr"' + (r.err ? '' : ' hidden') + '>' + esc(r.err || '') + '</div>' +
-        '</div>';
+        '</div></div>';
+    }
+    // the one-line view of a line on a phone: No. · name · head · amount · status · bill
+    function summaryHtml(r) {
+      if (!r.id && isEmpty(r)) return '<span class="sn">+</span><span class="sw"><b>New ' + (r.side === 'IN' ? 'receipt' : 'payment') + '</b></span>';
+      var amt = F.n(r.bank) > 0 ? F.fmt(F.n(r.bank)) + '<small> bank</small>' : F.fmt(F.n(r.cash));
+      return '<span class="sn">' + esc(r.doc_no || '—') + '</span>' +
+        '<span class="sw"><b>' + esc(r.party_name || '—') + '</b><small>' + esc(headLabel(r)) + '</small></span>' +
+        '<span class="sa">' + amt + '</span>' +
+        (r.id ? badge(S.day && S.day.status !== 'DRAFT' ? r.status : null) : '<span class="scst st-draft">Not saved</span>') +
+        '<span class="sb" title="' + (r.attachment_url ? 'Bill photo' : 'No bill photo') + '">' + (r.attachment_url ? '📎' : '') + '</span>';
+    }
+    function headLabel(r) {
+      if (r.head_code === BANK_HEAD) return r.side === 'IN' ? 'Cash drawn from bank' : 'Cash deposited in bank';
+      return headName(r.head_code) || 'Choose what it is for';
     }
     function tilesHtml() {
       var t = totals();
@@ -261,6 +285,7 @@
         '<section class="rsec sctop">' +
         '  <label class="scdate"><span>Date</span><input type="date" id="nf-sc-date" value="' + esc(S.date) + '"' +
              (S.minDate ? ' min="' + esc(S.minDate) + '"' : '') + ' max="' + esc(S.maxDate) + '"></label>' +
+        '  <span class="scdatefmt" id="nf-sc-datefmt">' + esc(F.ddMonYyyy(S.date)) + '</span>' +
         '  <span class="scdaystatus">' + esc(({ DRAFT: 'Not sent yet', SUBMITTED: 'Sent to head office', RETURNED: 'Sent back to you', MERGED: 'Closed' })[d.status] || (d.exists ? '' : 'Not started')) + '</span>' +
         '</section>' +
         '<section class="rsec">' + bannerHtml() + tilesHtml() + '</section>' +
@@ -303,6 +328,10 @@
       var sv = el.querySelector('[data-save]'); if (sv) { sv.hidden = !r.dirty; sv.textContent = r.saving ? 'Saving…' : 'Save'; sv.disabled = r.saving; }
       var er = el.querySelector('.scrowerr'); if (er) { er.hidden = !r.err; er.textContent = r.err || ''; }
       var bk = el.querySelector('[data-k="bank"]'); if (bk) bk.disabled = r.head_code === BANK_HEAD;
+      el.classList.toggle('open', !!(r.open || r.err));
+      var on = showUnitTok(r);
+      el.querySelectorAll('.scf-unit_codes, .scf-token_no').forEach(function (x) { x.classList.toggle('off', !on); });
+      var sm = el.querySelector('.scsum'); if (sm) { sm.innerHTML = summaryHtml(r); sm.setAttribute('aria-expanded', r.open ? 'true' : 'false'); }
     }
 
     // ── saving one row ────────────────────────────────────────────────────
@@ -310,9 +339,10 @@
       if (!r.dirty || r.saving) return Promise.resolve();
       if (isEmpty(r)) { r.dirty = false; markRow(r); return Promise.resolve(); }
       var p = problem(r);
-      if (p) { r.err = p; markRow(r); return Promise.resolve(); }
+      if (p) { r.err = p; r.open = true; markRow(r); return Promise.resolve(); }
       r.saving = true; r.err = null; markRow(r);
       var wasNew = !r.id;
+      if (!showUnitTok(r)) { r.unit_codes = ''; r.token_no = ''; }
       var line = { side: r.side, doc_no: r.doc_no.trim(), party_name: r.party_name.trim(), unit_codes: r.unit_codes.trim(),
         token_no: String(r.token_no).trim(), head_code: r.head_code, via: F.n(r.bank) > 0 ? 'BANK' : 'SITE_CASH',
         amount: F.n(r.bank) > 0 ? F.n(r.bank) : F.n(r.cash), bank_ref: r.bank_ref.trim(), remarks: r.remarks.trim(), attachment_url: r.attachment_url };
@@ -325,7 +355,7 @@
           var mine = r.id ? d.lines.filter(function (l) { return l.id === r.id; })[0]
                           : d.lines.filter(function (l) { return knownIds.indexOf(l.id) < 0; })[0];
           if (mine) { r.id = mine.id; r.version = mine.version; r.status = mine.match_status; }
-          r.saving = false; r.dirty = false; r.err = null;
+          r.saving = false; r.dirty = false; r.err = null; r.open = false;
           // the day's own version moved; the others' line versions did not
           if (firstOfDay) { buildRowsKeeping(); render(); wire(); return; }
           replaceRow(r);
@@ -372,6 +402,8 @@
         setTimeout(function () { if (alive && r.dirty && !problem(r)) save(r); }, 0);
       });
       var sv = el.querySelector('[data-save]'); if (sv) sv.addEventListener('click', function () { save(r); });
+      var tg = el.querySelector('[data-toggle]');
+      if (tg) tg.addEventListener('click', function () { r.open = !r.open; markRow(r); });
       var dl = el.querySelector('[data-del]');
       if (dl) dl.addEventListener('click', function () {
         if (!global.confirm('Delete this line? It is recorded in the audit log.')) return;

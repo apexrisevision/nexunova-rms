@@ -240,3 +240,15 @@ added on purpose and are created in QuickBooks with the next IIF batch.
 
 The reference chart `docs/reference/QB_COA_Awami.IIF` (~18-Sep) is stale; `verify-nf-qb-accounts`
 against it reports these 9 differences, accepted as known.
+
+
+### Fixes after the screenshot review (19-Nov)
+
+- Every line needs its Receipt / Voucher No. and From / Paid to: the screen refuses to save without them;
+  `20261119a` (not applied yet) makes `nf_site_save_line` refuse them too (`NF:SITE_DOC_NO_REQUIRED`,
+  `NF:SITE_PARTY_REQUIRED`). The same paper number on the same day still posts as n/1, n/2.
+- Money paid shows Unit(s) and Token # only under a token head (token money / not allotted); money
+  received always shows them. A payment under another head is saved with no unit or token #.
+- On a phone each line is one compact row — No. · name · head · amount · status · bill — and opens to the
+  full form on a tap; a new line starts open. A wide screen keeps the full row.
+- Dates read 13-Nov-2026 on both screens (the native picker stays, with the date written beside it).

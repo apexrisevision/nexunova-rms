@@ -4097,3 +4097,13 @@ Save button and the RMS link were drawn despite `hidden` (nf.css `display` won).
 in the database; the test's photo FILES stay in the storage backend with no row pointing at them
 (nobody may delete in this bucket through the API, by design). Screenshots for the reviewer:
 `D:\Claude Cowork\Site Closing screenshots\`. Not pushed — waiting for screenshot approval.
+
+19-Nov — the owner's four screenshot fixes, built; NOT deployed: number and name required on every
+line (screen; database rule written as `20261119a_nf_site_required_fields.sql`, NOT applied — the
+same paper number on the same day still allowed, n/1, n/2); Unit(s) / Token # on a payment only for a
+token head (21100 / 21150); phone: one compact row per line (No. · name · head · amount · status ·
+bill), tap to open, a new line opens ready; dates written 13-Nov-2026 beside the native picker.
+Live runs: Stage 1 80/80, Stage 2 acceptance 42/42, rules 80/80 (nf_site_bill_writer joins the
+policy-primitive exclusions, like nf_site_reader), UI 42/42. 20261119a rehearsed rolled back: Stage 1
+83/83 (incl. the two new refusals and same-number-same-day), Stage 2 42/42 (Sharose's blank numbers
+and names filled in the fixture with values that cannot match any HO narration). Awami unchanged.

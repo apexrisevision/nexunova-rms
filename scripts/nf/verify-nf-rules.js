@@ -231,7 +231,8 @@ if (require.main === module) (async () => {
     // for the same reason a lock can't require itself to already be open.
     // nf_site_reader (20261117b) is the same kind of primitive: the site
     // tables' SELECT policy, answering only "may I read this company's site
-    // book".
+    // book". nf_site_bill_writer (20261118b) likewise: the bill-photo bucket's INSERT policy,
+    // answering only "is the caller this company's active site accountant".
     // ACCEPTED EXCEPTION (owner, 2026-11-17): nf_get_report is a one-line SQL
     // wrapper over nf_get_report_day (nf_require_role accountant/director/
     // viewer) and nf_director_summary (nf_require_role) — both refuse anyone
@@ -241,7 +242,7 @@ if (require.main === module) (async () => {
         FROM pg_proc p
        WHERE p.pronamespace = 'public'::regnamespace
          AND p.proname LIKE 'nf\\_%' AND p.proname NOT LIKE '\\_nf\\_%'
-         AND p.proname NOT IN ('nf_require_role','nf_is_member','nf_site_reader','nf_get_report')
+         AND p.proname NOT IN ('nf_require_role','nf_is_member','nf_site_reader','nf_site_bill_writer','nf_get_report')
          AND p.prorettype::regtype::text <> 'trigger'
          AND EXISTS (SELECT 1 FROM unnest(p.proargtypes) t WHERE t = 'uuid'::regtype)
          AND (has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('authenticated', p.oid, 'EXECUTE'))

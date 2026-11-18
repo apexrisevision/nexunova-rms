@@ -125,15 +125,15 @@ const asUser = (uid, body) => q(`DO $x$ BEGIN PERFORM set_config('request.jwt.cl
     const line = (dt, side, doc, party, units, tok, head, via, amt, ref, rem) =>
       `PERFORM public.nf_site_save_line('${C}', '${dt}', NULL, '${side}', ${doc ? `'${doc}'` : 'NULL'}, ${party ? `'${party}'` : 'NULL'}, ${units ? `'${units}'` : 'NULL'},
          ${tok || 'NULL'}, '${head}', '${via}', ${amt}, ${ref ? `'${ref}'` : 'NULL'}, ${rem ? `'${rem}'` : 'NULL'}, NULL, NULL);`;
-    await asUser(S, line('2026-11-12', 'IN', null, null, null, null, '10300', 'SITE_CASH', 100000, '6265', 'BOP') +
+    await asUser(S, line('2026-11-12', 'IN', '201', 'BOP', null, null, '10300', 'SITE_CASH', 100000, '6265', 'BOP') +
       line('2026-11-12', 'OUT', '301', 'ZIA UL HAQ', null, null, '53300', 'SITE_CASH', 50000, null, 'SPEED MONEY') +
-      line('2026-11-12', 'OUT', null, null, null, null, '60400', 'SITE_CASH', 1200, null, 'TEA AND FOOD') +
-      line('2026-11-12', 'OUT', null, 'OSAMA BIN YOUSAF', null, null, '22100', 'BANK', 500000, '6292', 'LOAN') +
+      line('2026-11-12', 'OUT', '303', 'TEA STALL', null, null, '60400', 'SITE_CASH', 1200, null, 'TEA AND FOOD') +
+      line('2026-11-12', 'OUT', '304', 'OSAMA BIN YOUSAF', null, null, '22100', 'BANK', 500000, '6292', 'LOAN') +
       `PERFORM public.nf_site_submit((SELECT id FROM public.nf_site_days WHERE company_id = '${C}' AND business_date = '2026-11-12'), 48800, NULL, NULL,
          (SELECT version FROM public.nf_site_days WHERE company_id = '${C}' AND business_date = '2026-11-12'));` +
       line('2026-11-13', 'IN', '210', 'ALI RAZA', 'FF-120', 301, '21100', 'SITE_CASH', 10000, null, null) +
       line('2026-11-13', 'OUT', '302', 'HAMZA', null, null, '52600', 'SITE_CASH', 3500, null, 'LABOUR FOR PILES') +
-      line('2026-11-13', 'OUT', null, null, null, null, '60400', 'SITE_CASH', 450, null, 'TEA'));
+      line('2026-11-13', 'OUT', '305', 'TEA STALL', null, null, '60400', 'SITE_CASH', 450, null, 'TEA'));
     const st = await q(`select l.party_name, l.match_status from nf_site_lines l join nf_site_days d on d.id = l.site_day_id
                          where d.company_id = '${C}' and d.business_date = '2026-11-12' order by l.line_no`);
     ok('FX-01 fixture 12-Nov matched: Duplicate, Duplicate, New, Conflict',
@@ -171,14 +171,49 @@ const asUser = (uid, body) => q(`DO $x$ BEGIN PERFORM set_config('request.jwt.cl
     }, day12);
     ok('S-05 the site user cannot reach HO: review, HO day and HO head list all refused',
       v.review === 'NF:NOT_ALLOWED' && v.day === 'NF:NOT_ALLOWED' && v.heads === 'NF:NOT_ALLOWED', JSON.stringify(v));
+    // ── the phone layout ──
+    const rowOf = party => sp.evaluateHandle(p => [...document.querySelectorAll('.scrow')].find(r => r.querySelector('[data-k="party_name"]').value === p), party);
+    v = await sp.evaluate(() => {
+      const shown = el => !!el && getComputedStyle(el).display !== 'none' && getComputedStyle(el).visibility !== 'hidden';
+      const saved = [...document.querySelectorAll('.scrow:not(.new)')], fresh = [...document.querySelectorAll('.scrow.new')];
+      const hamza = saved.find(r => r.querySelector('[data-k="party_name"]').value === 'HAMZA');
+      const ali = saved.find(r => r.querySelector('[data-k="party_name"]').value === 'ALI RAZA');
+      return { date: document.querySelector('#nf-sc-datefmt').textContent,
+        compact: saved.every(r => shown(r.querySelector('.scsum')) && !shown(r.querySelector('.scbody'))),
+        freshOpen: fresh.length === 2 && fresh.every(r => shown(r.querySelector('.scbody'))),
+        hamzaSum: hamza && hamza.querySelector('.scsum').innerText.replace(/\s+/g, ' '),
+        aliUnits: ali && !ali.querySelector('.scf-unit_codes').classList.contains('off'),
+        outUnits: saved.filter(r => r.closest('[data-side="OUT"]')).some(r => !r.querySelector('.scf-unit_codes').classList.contains('off') || !r.querySelector('.scf-token_no').classList.contains('off')) };
+    });
+    ok('S-02b the date is written out as 13-Nov-2026 beside the picker', v.date === '13-Nov-2026', v.date);
+    ok('S-03b phone: each saved line is one compact row (No. · name · head · amount · status), a new line opens ready to type',
+      v.compact && v.freshOpen && /302/.test(v.hamzaSum) && /HAMZA/.test(v.hamzaSum) && /Labour/.test(v.hamzaSum) && /3,500/.test(v.hamzaSum) && /Not sent/.test(v.hamzaSum), JSON.stringify(v));
+    ok('S-03c Unit(s) and Token #: kept on money received, hidden on money paid (non-token heads)', v.aliUnits && !v.outUnits, JSON.stringify(v));
     await sp.screenshot({ path: path.join(OUT, 'a-site-grid-phone.png'), fullPage: true });
+    // tap a line: the full form opens in place
+    await (await (await rowOf('ALI RAZA')).$('.scsum')).click();
+    v = await sp.evaluate(() => { const r = [...document.querySelectorAll('.scrow')].find(x => x.querySelector('[data-k="party_name"]').value === 'ALI RAZA');
+      return getComputedStyle(r.querySelector('.scbody')).display !== 'none' && r.classList.contains('open'); });
+    ok('S-03d tapping a compact line opens its full form', v, '');
+    { const sec = await sp.$('.scsec[data-side="IN"]'); await sec.screenshot({ path: path.join(OUT, 'a1-line-expanded-phone.png') }); }
+    await (await (await rowOf('ALI RAZA')).$('.scsum')).click();
 
-    // add a line inline: Paid to SAJAWAL, Travelling, 500 cash
+    // add a line inline: Paid to SAJAWAL, Travelling, 500 cash — first without the voucher number
     const newOut = '.scsec[data-side="OUT"] .scrow.new';
+    await sp.select(newOut + ' [data-k="head_code"]', '21100');
+    v = await sp.evaluate(n => !document.querySelector(n + ' .scf-token_no').classList.contains('off'), newOut);
+    ok('S-03e a payment under a token head (a token return) shows Unit(s) and Token # again', v, '');
     await sp.type(newOut + ' [data-k="party_name"]', 'SAJAWAL');
     await sp.select(newOut + ' [data-k="head_code"]', '70700');
     await sp.type(newOut + ' [data-k="cash"]', '500');
     await sp.type(newOut + ' [data-k="remarks"]', 'TAXI');
+    await sp.click(newOut + ' [data-save]');
+    v = await sp.evaluate(n => ({ err: document.querySelector(n + ' .scrowerr').textContent, shown: !document.querySelector(n + ' .scrowerr').hidden }), newOut);
+    const notSaved = await q(`select count(*) n from nf_site_lines l join nf_site_days d on d.id = l.site_day_id where d.company_id = '${C}' and l.party_name = 'SAJAWAL'`);
+    ok('S-06a no voucher number: the save is refused with a clear message, nothing reaches the database',
+      v.shown && /Write the voucher number/.test(v.err) && Number(notSaved[0].n) === 0, JSON.stringify(v));
+    { const sec = await sp.$('.scsec[data-side="OUT"]'); await sec.screenshot({ path: path.join(OUT, 'e-required-field-message-phone.png') }); }
+    await sp.type(newOut + ' [data-k="doc_no"]', '306');
     await sp.click(newOut + ' [data-save]');
     await sp.waitForFunction(() => [...document.querySelectorAll('.scsec[data-side="OUT"] .scrow:not(.new) [data-k="party_name"]')].some(i => i.value === 'SAJAWAL'), { timeout: 10000 });
     v = await sp.evaluate(() => ({ paid: document.querySelector('[data-tile="out"]').textContent, hand: document.querySelector('[data-tile="hand"]').textContent,
@@ -201,7 +236,10 @@ const asUser = (uid, body) => q(`DO $x$ BEGIN PERFORM set_config('request.jwt.cl
     const bill = (await q(`select l.attachment_url p from nf_site_lines l join nf_site_days d on d.id = l.site_day_id where d.company_id = '${C}' and l.party_name = 'SAJAWAL'`))[0].p;
     ok('P-01 the site user adds a bill photo to a line: stored privately under the company, path saved on the line',
       !!bill && bill.indexOf(C + '/2026-11-13/') === 0, bill);
-    { const sec = await sp.$('.scsec[data-side="OUT"]'); await sec.screenshot({ path: path.join(OUT, 'd-line-with-bill-photo.png') }); }
+    // the line with its bill, opened
+    await (await (await rowOf('SAJAWAL')).$('.scsum')).click();
+    { const sec = await sp.$('.scsec[data-side="OUT"]'); await sec.screenshot({ path: path.join(OUT, 'd-line-with-bill-photo-phone.png') }); }
+    await (await (await rowOf('SAJAWAL')).$('.scsum')).click();
     const billBytes = fs.readFileSync(billFile);
     const storage = (u, method, p, body, extra) => fetch(`${URL_BASE}/storage/v1/object/${p}`, { method,
       headers: Object.assign({ apikey: ANON, Authorization: 'Bearer ' + u.jwt }, extra || {}), body });
@@ -223,6 +261,7 @@ const asUser = (uid, body) => q(`DO $x$ BEGIN PERFORM set_config('request.jwt.cl
         WHERE d.company_id = '${C}' AND l.party_name = 'HAMZA'), 'OUT', '302', 'HAMZA', NULL, NULL, '52600', 'SITE_CASH', 3600, NULL, 'LABOUR FOR PILES',
         NULL, (SELECT l.version FROM public.nf_site_lines l JOIN public.nf_site_days d ON d.id = l.site_day_id WHERE d.company_id = '${C}' AND l.party_name = 'HAMZA'));`);
     const hamza = await sp.evaluateHandle(() => [...document.querySelectorAll('.scrow')].find(r => r.querySelector('[data-k="party_name"]').value === 'HAMZA'));
+    await (await hamza.$('.scsum')).click();   // open the line on the phone
     const amt = await hamza.$('[data-k="cash"]');
     await amt.click({ clickCount: 3 }); await amt.type('3700');
     await (await hamza.$('[data-save]')).click();
@@ -280,7 +319,8 @@ const asUser = (uid, body) => q(`DO $x$ BEGIN PERFORM set_config('request.jwt.cl
     await dp.click('[data-goto="site"]');
     await dp.waitForSelector('.srdays', { timeout: 15000 });
     v = await dp.evaluate(() => [...document.querySelectorAll('.srdays tbody tr')].map(t => t.innerText.replace(/\s+/g, ' ')));
-    ok('H-02 the list shows both site days, waiting for head office', v.length === 2 && v.every(t => /Waiting for head office/.test(t)), JSON.stringify(v));
+    ok('H-02 the list shows both site days (as 13-Nov-2026), waiting for head office', v.length === 2 && v.every(t => /Waiting for head office/.test(t))
+      && /13-Nov-2026/.test(v[0]) && /12-Nov-2026/.test(v[1]), JSON.stringify(v));
     await dp.click('.srdays tbody tr:last-child');
     await dp.waitForSelector('.srline[data-line-row]', { timeout: 15000 });
     v = await dp.evaluate(() => [...document.querySelectorAll('.srline[data-line-row]')].map(r => r.querySelector('.scst').textContent));
