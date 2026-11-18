@@ -1,5 +1,5 @@
 -- ══ NexuFinance: one date's cash & bank book, for the director's Excel download (20261119c) ══
--- NOT APPLIED until the owner says yes.
+-- APPLIED 19-Nov-2026 as 20261118201730, on the owner's yes.
 --
 -- Owner, 19-Nov: the Excel layout of "D:\Claude Cowork\Daily closing.xlsx" (sample approved), title "AWAMI MARKET
 -- KARKHANO — DAILY CASH & BANK BOOK", downloaded by date by a director from the Daily Closing screen.
