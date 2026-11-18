@@ -354,7 +354,14 @@ if (require.main === module) (async () => {
         // 20260918a/c; a real name, not a placeholder, so H-G02 stays an
         // honest test of the actual resolve-or-create path
         if (x.h === '21100') args.p_party_name = 'Golden Day Test Customer';
-        last = await rpc(K, A, 'nf_save_line', args);
+        // One closing, two logins (20261118i, docs/PLAN.md §49): the accountant
+        // here holds the head office cash box, so a petty-cash line is the
+        // director's (not limited) — and the accountant's own try is refused below
+        if (x.m === 'Petty') {
+          const refused = await rpc(K, A, 'nf_save_line', args);
+          ok(`H-G02b ${x.v} accountant on the head office box cannot use Petty`, code(refused) === 'NF:NOT_YOUR_CASH_BOX', JSON.stringify(refused.json));
+        }
+        last = await rpc(K, x.m === 'Petty' ? D : A, 'nf_save_line', args);
         ok(`H-G02 ${x.v}`, last.status === 200, JSON.stringify(last.json));
       }
     }
