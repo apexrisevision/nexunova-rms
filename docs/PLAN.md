@@ -4050,3 +4050,22 @@ account names through an explicit mapping — 10300 → `Cash & Bank:BOP (Bank o
 every IIF imported since late September), 10100 → `Cash & Bank:Cash in Hand`, the existing mapping
 for the rest — and never writes a NexuFinance display name as a QuickBooks account name. Detail in
 `docs/SITE_CLOSING_SPEC.md`, Stage 4.
+
+
+## 47 · Site Closing — Stage 2: the matching engine (2026-11-18)
+
+Migration `20261118a_nf_site_matching.sql` — written and rehearsed, **not applied** (owner: do not
+apply Stage 2 live). Rules in `docs/SITE_CLOSING_SPEC.md`, Stage 2.
+
+Acceptance test `scripts/nf/verify-nf-site-closing-stage2.js`: 42/42, one rolled-back transaction,
+against a FIXTURE COPY of Awami's books (440 vouchers, 938 legs) and Sharose's real file (66 lines,
+05..17-Nov). Every expected outcome in the brief holds, except Sakhi Jan #209 (30,011 JazzCash, Bank
+column, nothing at HO): the brief's table said NEW, its own ownership rule says CONFLICT "bank line
+missing at HO" — the rule is applied and flagged to the owner. After HO resolves everything: site box
+17-Nov = 50,700 = HO's site-box account 10200; HO cash −41,000; bank +30,011 −5,00,000.
+Stage 1 test with Stage 2 on top: 80/80 (`--applied --plus`). The rules suite's grant / role checks
+with Stage 2 in: clean.
+
+Found and fixed on the way: the match link would have stopped HO deleting its own voucher (a delete
+trigger now clears undecided matches); the voucher counters do not allow an XFR type (site transfers
+are `XFR-SITE-n`); the Stage 1 one-doc-per-side rule refused Sharose's real voucher 212 (two lines).

@@ -117,9 +117,62 @@ the day lock, date rule, balance check, negative check and audit all apply). The
 into the narration as `BOP chq #<no>` (what matching reads). A cheque already used by another
 withdrawal is refused; the manual number is unique within BPV like every other voucher.
 
-## Matching (Stage 2), screens (Stage 3)
+## Stage 2 — matching (migration `20261118a_nf_site_matching.sql`, not applied)
 
-To be written into this file as each stage is built. The rules in the owner's brief stand.
+**When:** on Submit, and when HO presses "Re-run match" (`nf_site_match`). Only lines HO has not
+decided are (re)matched.
+
+**HO's date for a voucher:** `real_date` if set; else the first "16-Nov" / "16 Nov" in the narration
+(year of the day it was keyed; a year earlier if that would be in the future); else the day it was
+keyed (Pakistan time). Only day vouchers are candidates (JVs never touch cash or bank).
+
+**Kinds of site line:** site-cash in / out; bank in / out; "Bank to Cash" (a site-cash IN line whose
+head is the bank, 10300) and "Cash to Bank" (OUT). The Excel file's mirror line in the Bank column is
+the same event and is not keyed twice.
+
+**Rules, in order:**
+1. *Strong key*, HO date within 3 days: the cheque (full number or the last digits the site wrote,
+   read from narrations after "#", "chq", "cheque"; "6257/6258" is two), a bank / Raast / TT ref, the
+   token # (token money), the paper doc no = an HO manual no. Amount and kind agree → DUPLICATE
+   (bank lines → LINKED). They do not → CONFLICT, with both stories in the reason.
+2. *Soft*: same amount, HO date within 2 days, and evidence: the party name, the same head, two shared
+   words (≥ 4 letters), or the HO entry says it was paid from a cheque the site drew into its box that
+   day. A site-cash line HO booked from HO cash **on the same day** with that evidence → DUPLICATE
+   "source mismatch"; otherwise POSSIBLE. Two equally good HO vouchers → POSSIBLE.
+3. *Nothing*: site cash → NEW; anything touching the bank → CONFLICT "missing at HO" (HO posts it,
+   then re-runs the match).
+
+Afterwards: a withdrawal plus a same-day cash payment of the same amount that both point at ONE HO
+bank payment are one event (**pass-through**: both DUPLICATE, nothing posted, nothing moved). Two
+other lines claiming one HO voucher → both POSSIBLE. A voucher HO already settled against another
+day's site line → CONFLICT.
+
+**What Accept does** (HO only; the site record never changes):
+
+| Status / proposal | Accept |
+|---|---|
+| NEW | posts a CRV / CPV from the site box (10200) through `nf_save_line`; manual no = paper no (`212/1`, `212/2` when one voucher has several lines) or `SITE-YYYYMMDD-n`; real_date = site date; token lines written as "Token #N — Name, Units FF 120, FF 121 and FF 196 (…)" so the token ledger reads them; HO may give another head / party |
+| DUPLICATE · reroute | HO's voucher moves from HO cash to the site box through `nf_save_line` (versioned edit), HO head kept |
+| DUPLICATE · transfer | `nf_save_transfer` Cash → site box (or back), dated, voucher `XFR-SITE-n` |
+| DUPLICATE · link / pass-through | nothing posted |
+| LINKED (bank, automatic) | HO confirms |
+| POSSIBLE / CONFLICT | refused: settle with Mark duplicate, Link or Reject (or fix HO's voucher and re-run) |
+
+Reject needs a reason and takes the line out of the site cash book (refused if the box would go below
+zero). A site user sees only each line's status; HO's voucher, reason and proposal are withheld from
+him, in the functions and at column level.
+
+**Changes to Stage 1:** a paper doc no may repeat on lines of the same day (one voucher, two heads —
+Sharose's 212), never on another day. A line HO has decided cannot be edited or deleted by the site.
+HO may delete or re-key its own voucher while a site line is only matched to it (the match is
+cleared); not once a decided line rests on it (`NF:VOUCHER_SETTLED_BY_SITE`).
+
+**Transfers:** `nf_set_transfers` keeps one undated running transfer per HO day, and HO's day has
+been open since 05-Oct, so site transfers use `nf_save_transfer` (dated, one voucher each).
+
+## Stage 3 — screens
+
+To be written when built.
 
 ## Stage 4 — combined closing + exports
 
