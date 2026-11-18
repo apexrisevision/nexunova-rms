@@ -1,6 +1,6 @@
 -- ══ NexuFinance Awami: the site accountant's entries 05-18 Nov, site cash box (20261118h) ══
 -- NOT APPLIED until the owner says yes.
---
+-- APPLIED 18-Nov-2026 as 20261118113819, on the owner's yes.
 -- Owner's option A (18-Nov). Source: "Awami Daily Entry - Accountant (4).xlsx" (Sharose), matched against head
 -- office's books (scripts/nf/plan-site-nov-posting.js; list D:\Claude Cowork\Site entries plan 05-18 Nov.csv):
 -- 62 lines posted, 12 skipped (already in head office's books), 2 held (Sakhi Jan 30,011 by JazzCash and
