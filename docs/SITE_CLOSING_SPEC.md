@@ -18,8 +18,10 @@ drives the Excel day sheet and the QuickBooks IIF.
 
 ## Facts checked live (2026-11-17), not assumed
 
-- There is no `nf_lines` table any more (dropped in `20260919m`). A "line" is a voucher
+- `nf_lines` is a **view** (the old table was dropped in `20260919m`). A "line" is a voucher
   (`nf_vouchers`) with two legs (`nf_voucher_legs`): leg 1 = the head, leg 2 = the via account.
+  The view leaves out any voucher whose leg 1 is itself a cash/bank account, so withdrawals
+  (`Dr 10100 / Cr 10300`) and transfers are NOT in it: matching reads vouchers + legs directly.
 - Via accounts: **Cash = 10100**, **Petty = 10200**, **Bank = 10300 (BOP)**. 10200 has never been
   used (0 legs), so it becomes the **site cash box**. HO cash stays 10100.
 - HO's day `e4da11d4…` (DC-007, dated 05-Oct, OPEN) holds 243 vouchers since 05-Oct; the real date
@@ -115,6 +117,26 @@ the day lock, date rule, balance check, negative check and audit all apply). The
 into the narration as `BOP chq #<no>` (what matching reads). A cheque already used by another
 withdrawal is refused; the manual number is unique within BPV like every other voucher.
 
-## Matching (Stage 2), screens (Stage 3), combined closing + exports (Stage 4)
+## Matching (Stage 2), screens (Stage 3)
 
 To be written into this file as each stage is built. The rules in the owner's brief stand.
+
+## Stage 4 — combined closing + exports
+
+### QuickBooks account names in the IIF (owner, 18-Nov)
+
+The IIF export maps every NexuFinance account to its QuickBooks **full account name** through an
+explicit mapping, and never writes a NexuFinance display name as a QuickBooks account name.
+
+- 10300 → `Cash & Bank:BOP (Bank of Punjab)` — the account every IIF imported since late September
+  has used. NexuFinance's display name "BOP - 14 Group of Companies" and the old QuickBooks name
+  "Bank Al-Habib - Awami Market" are never written.
+- 10100 → `Cash & Bank:Cash in Hand`.
+- Every other account → the existing mapping.
+- No account is renamed, in either system.
+
+The 8 NexuFinance-only accounts (12700, 15500, 15600, 21150, 52550, 52650, 52950, 70950) were
+added on purpose and are created in QuickBooks with the next IIF batch.
+
+The reference chart `docs/reference/QB_COA_Awami.IIF` (~18-Sep) is stale; `verify-nf-qb-accounts`
+against it reports these 9 differences, accepted as known.

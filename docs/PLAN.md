@@ -4007,6 +4007,10 @@ and deliberately not fixed now (owner's ruling).
    current-month default range; "All time" (J-07) shows every voucher.
 4. `verify-nf-drilldown` D-04 — times out waiting for the closing sheet to mark the line it came
    from (`#nf-sheet [data-drilled]`); cause not yet looked into.
+5. `verify-nf-qb-accounts` (run with `docs/reference/QB_COA_Awami.IIF`) — 9 differences, because
+   that reference chart (~18-Sep) is stale: the 8 NF-only accounts (12700, 15500, 15600, 21150,
+   52550, 52650, 52950, 70950) were added on purpose and go to QuickBooks with the next IIF batch;
+   10300's "Bank Al-Habib - Awami Market" is the old QuickBooks name.
 
 Accepted exception: `verify-nf-rules` SEC-RPC-ROLE-CHECK flagged `nf_get_report`. It is a wrapper
 over `nf_get_report_day` (nf_require_role accountant/director/viewer) and `nf_director_summary`
@@ -4037,3 +4041,12 @@ on the known list** — 10300 is named "BOP - 14 Group of Companies" in NexuFina
 Al-Habib - Awami Market" in that export (an IIF export would create a duplicate bank account), and
 8 accounts exist only in NexuFinance (12700, 15500, 15600, 21150, 52550, 52650, 52950, 70950).
 The export is the 18-Sep chart; none of this comes from Site Closing. Stage 2 not started.
+
+
+### IIF account names (owner, 18-Nov)
+
+Nothing is renamed in either system. The IIF export maps NexuFinance accounts to QuickBooks full
+account names through an explicit mapping — 10300 → `Cash & Bank:BOP (Bank of Punjab)` (used by
+every IIF imported since late September), 10100 → `Cash & Bank:Cash in Hand`, the existing mapping
+for the rest — and never writes a NexuFinance display name as a QuickBooks account name. Detail in
+`docs/SITE_CLOSING_SPEC.md`, Stage 4.
