@@ -47,6 +47,7 @@ const OUT = process.argv[2];
   const pg = await br.newPage(); await pg.setViewport({ width: 1080, height: 1200, deviceScaleFactor: 1 });
   for (const [k, r] of Object.entries({ '2026-11-16 Site': R['16 site'], '2026-11-16 Head Office': R['16 ho'], '2026-11-16 Combined': R['16 combined'], '2026-11-18 Site': R['18 site'] })) {
     await pg.setContent('<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#fff}</style></head><body>' + globalThis.NfWaReport.html(r) + '</body></html>', { waitUntil: 'load' });
+    const wpx = await pg.evaluate(() => document.documentElement.scrollWidth); console.log('width', k, wpx, wpx <= 1080 ? 'OK' : 'TOO WIDE'); // widths
     await pg.screenshot({ path: path.join(OUT, k + '.jpg'), type: 'jpeg', quality: 90, fullPage: true });
     const h = await pg.evaluate(() => document.body.scrollHeight);
     await pg.pdf({ path: path.join(OUT, k + '.pdf'), width: '1080px', height: h + 'px', printBackground: true, pageRanges: '1' });

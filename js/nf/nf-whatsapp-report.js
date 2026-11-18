@@ -28,7 +28,7 @@
     '.wa table{width:100%;border-collapse:collapse;font-size:25px}.wa th{font-size:20px;color:#5b6475;text-align:left;font-weight:600;padding:10px 10px;border-bottom:3px solid #e3e7ee}' +
     '.wa td{padding:14px 10px;border-bottom:1px solid #edf0f5;vertical-align:top}.wa .r{text-align:right;white-space:nowrap}' +
     '.wa .bal td{font-size:27px}.wa .bal td:first-child{font-weight:700}.wa .bal .cl{font-weight:800;font-size:30px;color:#0b3d91}.wa .bal .z{color:#9aa3b2}' +
-    '.wa .no{font-weight:700;white-space:nowrap;color:#0b3d91}.wa .pt{font-weight:600}.wa .hd{color:#4a5468}.wa .amt{font-weight:800;font-size:27px}' +
+    '.wa .no{font-weight:700;white-space:nowrap;color:#0b3d91}.wa .pt{font-weight:600}.wa .hd{color:#4a5468;font-size:22px;white-space:nowrap}.wa .amt{font-weight:800;font-size:27px}' +
     '.wa .lst tfoot td{font-weight:800;font-size:27px;background:#f3f6fb;border-bottom:0}.wa .trf td{background:#fff9e6}' +
     '.wa .by{font-size:20px;font-weight:700}.wa .by.site{color:#0e7a5a}.wa .by.ho{color:#2b4f8a}.wa .none{font-size:24px;color:#6b7383;margin:0 0 10px}' +
     '.wa .foot{margin:26px 48px 36px;padding:22px 26px;background:#f3f6fb;border-radius:18px;font-size:23px;color:#4a5468;display:flex;justify-content:space-between;gap:20px}' +
@@ -53,7 +53,7 @@
       return '<section class="sec"><h2 class="' + cls + '">' + title + ' <span>' + rows.length + (rows.length === 1 ? ' entry' : ' entries') + '</span></h2>' +
         (rows.length ? '<table class="lst"><thead><tr><th>Voucher</th><th>' + who + '</th><th>For</th>' + (combined ? '<th>By</th>' : '') + '<th class="r">Amount</th></tr></thead><tbody>' +
           rows.map(function (x) {
-            return '<tr><td class="no">' + esc(x.no) + '</td><td class="pt">' + esc(x.party ? short(x.party, 32) : '–') + '</td><td class="hd">' + esc(short(x['for'], 40)) + '</td>' +
+            return '<tr><td class="no">' + esc(x.no) + '</td><td class="pt">' + esc(x.party ? short(x.party, 32) : '–') + '</td><td class="hd">' + esc(short(x['for'], combined ? 38 : 50)) + '</td>' +
               (combined ? '<td class="by ' + (x.by === 'Head Office' ? 'ho' : 'site') + '">' + esc(x.by) + '</td>' : '') +
               '<td class="r amt">' + pk(x.amount) + '</td></tr>';
           }).join('') +

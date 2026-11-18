@@ -1,5 +1,5 @@
 -- ══ NexuFinance: the daily WhatsApp report — one date, one view (20261119d) ══
--- NOT APPLIED until the owner says yes.
+-- APPLIED 19-Nov-2026 as 20261118204630, on the owner's yes.
 --
 -- Owner, 19-Nov (mockups approved with 4 fixes): one portrait image (JPG) and the same as a PDF, for a date and a view.
 --   site      every line that moves Site Cash, plus bank lines the site login entered; only the Site Cash balance
@@ -7,7 +7,8 @@
 --   combined  everything; all three; who entered each line
 -- The site cash box login ALWAYS gets 'site', whatever it asks for — enforced here, not only on screen.
 -- Transfers (cash ↔ bank, Head Office Cash ↔ Site Cash) are their own list and are not counted in money
--- received / paid. "From" / "Paid to" is the party only (NULL when there is none). A token line's "for" is
+-- received / paid. "From" / "Paid to" is the party only (NULL when there is none); with no party, "for" is the head
+-- plus a short description ("Printing & Stationery · Card Holder + Stamp Pad"). A token line's "for" is
 -- "Token #N · unit(s)". Read-only; the screen draws the image and the PDF (js/nf/nf-whatsapp-report.js).
 
 CREATE OR REPLACE FUNCTION public.nf_day_report(p_company_id uuid, p_date date, p_view text)
@@ -18,7 +19,7 @@ DECLARE
   v record; m record; h record; x record; o record;
   v_rec jsonb := '[]'; v_pay jsonb := '[]'; v_trf jsonb := '[]';
   v_box jsonb := '{}';
-  v_for text; v_toks int[]; v_units text[]; v_chq text; v_by text;
+  v_for text; v_desc text; v_toks int[]; v_units text[]; v_chq text; v_by text;
   v_title text;
 BEGIN
   PERFORM public.nf_require_role(p_company_id, ARRAY['accountant','director']);
@@ -81,6 +82,12 @@ BEGIN
                || CASE WHEN cardinality(v_units) > 0 THEN ' · ' || array_to_string(v_units, ', ') ELSE '' END;
     ELSIF h.party IS NOT NULL AND (h.party = h.name OR position(h.party IN h.name) > 0) THEN
       v_for := split_part(COALESCE(v.narration, h.name), ' — ', 1);  -- the head IS the party (an advance): say what for
+    ELSIF h.party IS NULL THEN
+      -- no party: the head and a short description from the narration — its first part, without the trailing
+      -- "(site cash, Sharose, 16-Nov)" / "(cash, 03-Nov)" and without "BOP chq #…" (owner, 19-Nov)
+      v_desc := btrim(regexp_replace(regexp_replace(split_part(COALESCE(v.narration, ''), ' — ', 1),
+                  '\s*\([^()]*\)\s*$', ''), ',?\s*(BOP\s+)?chq\.?\s*#?\s*[0-9]+.*$', '', 'i'));
+      v_for := h.name || CASE WHEN v_desc <> '' AND lower(v_desc) <> lower(h.name) THEN ' · ' || v_desc ELSE '' END;
     ELSE
       v_for := h.name;
     END IF;
