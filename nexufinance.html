@@ -171,16 +171,14 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
 
         document.title = 'NexuFinance — ' + (m.company_name || 'Daily Closing');
 
-        // The site accountant sees his own cash book and nothing else: no
-        // menu, no closing sheet, no way back into RMS from here.
+        // The separate Site Cash Book is retired (owner, 18-Nov-2026): the site
+        // accountant's entries now go into the one Daily Closing, on the site
+        // cash box. Until his login there is ready he keeps the Excel sheet,
+        // which head office posts — so this screen takes no entries.
         if (m.role === 'site') {
           var bar = document.querySelector('.nf-topbar'); if (bar) { bar.hidden = true; bar.style.display = 'none'; }
-          document.title = 'Site Cash Book — ' + (m.company_name || '');
-          return window.NfSiteClosing.mount(root, {
-            api: api, companyId: m.company_id, role: m.role, displayName: m.display_name,
-            companyName: m.company_name, settings: m.settings || {},
-            onSignOut: function () { SB.auth.signOut().then(function () { location.reload(); }); },
-          });
+          return gate('Keep using the Excel sheet for now',
+            'Your entries now go straight into the Awami Daily Closing, on the Site Cash box. Head office is setting up your login there. Until then, keep writing every receipt and payment in the Excel sheet and send it to head office as before.');
         }
 
         return window.NfSheet.mount(root, {
