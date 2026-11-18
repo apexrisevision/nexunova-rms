@@ -1,22 +1,21 @@
 -- ══ NexuFinance Awami: every voucher on its real date (20261118f) ══
--- NOT APPLIED until the owner says yes.
+-- APPLIED 18-Nov-2026 as 20261118111512, on the owner's "haan, (2)".
 --
 -- Head office kept posting into the 05-Oct day sheet (DC-007) from 05-Oct to 16-Nov, so those vouchers
 -- all carry 05-Oct. The owner's "D:\Claude Cowork\Daily closing.xlsx" has one tab per real date. Matched
 -- by voucher number (scripts/nf/compare-daily-closing-xlsx.js), each voucher gets its tab's date.
--- Three dates are the owner's own words in chat (18-Nov): CRV-0035 → 28-Sep (money reached BOP on
--- 28-Sep, per the BOP Reco tab), JV-0085 / JV-0086 → 06-Oct, JV-0088 → 16-Nov.
+-- Three dates are the owner's own words in chat (18-Nov): JV-0085 / JV-0086 → 06-Oct, JV-0088 → 16-Nov.
+-- CRV-0035 stays on 05-Oct for now (owner, option 2). The numberless cash deposit of 28,00,000 → 12-Oct (Excel).
 --
 -- Only nf_vouchers.voucher_date changes. Amounts, heads, parties, legs, days and voucher numbers do not.
 -- The vouchers stay in the day sheet they were posted in (a voucher can never change day). None of them
--- is in an IIF batch. 243 vouchers; each row names its id and its current date, and the migration stops
--- if any row no longer matches or if the count is not exactly 243.
+-- is in an IIF batch. 242 vouchers; each row names its id and its current date, and the migration stops
+-- if any row no longer matches or if the count is not exactly 242.
 
 DO $m$
 DECLARE n int;
 BEGIN
   IF EXISTS (SELECT 1 FROM public.nf_iif_batch_vouchers b JOIN (VALUES
-    ('cf8a9e35-cbc3-4691-bc7f-93d305d41728'::uuid),
     ('7e52f2b9-e497-4b98-a859-a70f5996c475'::uuid),
     ('f355b9eb-442a-44a2-b08d-7eb9d3020b59'::uuid),
     ('484879cb-d11a-44df-ac50-2bfb4c1a5146'::uuid),
@@ -265,7 +264,6 @@ BEGIN
 
   UPDATE public.nf_vouchers v SET voucher_date = x.to_date, updated_at = now()
   FROM (VALUES
-    ('cf8a9e35-cbc3-4691-bc7f-93d305d41728'::uuid, 'CRV-000035', DATE '2026-10-05', DATE '2026-09-28'),
     ('7e52f2b9-e497-4b98-a859-a70f5996c475'::uuid, 'CPV-000062', DATE '2026-10-05', DATE '2026-10-03'),
     ('f355b9eb-442a-44a2-b08d-7eb9d3020b59'::uuid, 'CRV-000027', DATE '2026-10-05', DATE '2026-10-03'),
     ('484879cb-d11a-44df-ac50-2bfb4c1a5146'::uuid, 'BRV-000025', DATE '2026-10-05', DATE '2026-10-06'),
@@ -512,7 +510,7 @@ BEGIN
   WHERE v.id = x.id AND v.voucher_no = x.voucher_no AND v.voucher_date = x.from_date
     AND v.company_id = '96d210e7-e63b-4ef0-b1d0-74e622eac7ce';
   GET DIAGNOSTICS n = ROW_COUNT;
-  IF n <> 243 THEN
-    RAISE EXCEPTION 'expected 243 vouchers to move, % matched — something changed since the list was made', n;
+  IF n <> 242 THEN
+    RAISE EXCEPTION 'expected 242 vouchers to move, % matched — something changed since the list was made', n;
   END IF;
 END $m$;
