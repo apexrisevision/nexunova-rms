@@ -17,7 +17,7 @@ const HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewp
 <link rel="stylesheet" href="${url('css/nf/nf.css')}"><link rel="stylesheet" href="${url('css/nf/nf-reports-menu.css')}">
 </head><body><div id="nf-root"></div>
 ${['js/nf/nf-format.js', 'js/nf/nf-pick.js', 'js/nf/nf-drill.js', 'js/nf/nf-reports-menu.js', 'js/nf/nf-messages.js',
-   'js/nf/nf-voucher-popup.js', 'js/nf/nf-day-excel.js', 'js/nf/nf-sheet.js', 'node_modules/xlsx/dist/xlsx.full.min.js'].map(s => `<script src="${url(s)}"></script>`).join('\n')}
+   'js/nf/nf-voucher-popup.js', 'js/nf/nf-day-excel.js', 'js/nf/nf-whatsapp-report.js', 'js/nf/nf-sheet.js', 'node_modules/xlsx/dist/xlsx.full.min.js'].map(s => `<script src="${url(s)}"></script>`).join('\n')}
 <script>
 window.__boot = function (fix, as) {
   var site = as === 'site';
@@ -32,6 +32,7 @@ window.__boot = function (fix, as) {
     via: 'Cash', amount: 1200, sort: 99, version: 1, party_id: null, party_name: null, voucher_id: 'ho-v-1',
     by_name: 'Rashid', by_box: 'Cash', mine: !site });
   window.__calls = [];
+  window.NfWaReport.vendorBase = '${url('vendor')}/';
   function ok(x) { return Promise.resolve(JSON.parse(JSON.stringify(x))); }
   var api = {
     getDay: function () { return ok(day); }, listHeads: function () { return ok(fix.heads); }, listFloors: function () { return ok(fix.floors); },
@@ -39,6 +40,7 @@ window.__boot = function (fix, as) {
     saveLine: function () { window.__calls.push(['saveLine'].concat([].slice.call(arguments))); return ok(day); },
     deleteLine: function () { window.__calls.push(['deleteLine'].concat([].slice.call(arguments))); return ok(day); },
     setRemarks: function () { return ok(day); }, setTransfers: function () { return ok(day); },
+    dayReport: function (c, d, v) { window.__calls.push(['dayReport', d, v]); return ok({ title: 'Awami Market Karkhano — Daily Closing', date: d, view: site ? 'site' : v, view_name: site || v === 'site' ? 'Site' : v === 'ho' ? 'Head Office' : 'Combined', boxes: [{ via: 'Petty', label: 'Site Cash', opening: 0, received: 0, paid: 0, transfers: 0, closing: 0 }], received: [], paid: [], transfers: [], prepared_by: site ? 'Sharose' : 'Rashid' }); },
     dayBook: function (c, d) { window.__calls.push(['dayBook', d]); return ok({ date: d, title: 'AWAMI MARKET KARKHANO — DAILY CASH & BANK BOOK', boxes: [], vouchers: [] }); },
   };
   return window.NfSheet.mount(document.getElementById('nf-root'), {
@@ -109,6 +111,18 @@ window.__boot = function (fix, as) {
       const saved = await q(pg, () => window.__saved);
       check('HO: Download makes "AWAMI MARKET KARKHANO 16-Nov-2026.xlsx" with tab 16-Nov', saved && saved.name === 'AWAMI MARKET KARKHANO 16-Nov-2026.xlsx' && saved.tabs[0] === '16-Nov', JSON.stringify(saved));
     }
+    // WhatsApp report: three views for head office; a picture and a PDF come out
+    await pg.evaluate(() => { window.__dl = []; HTMLAnchorElement.prototype.click = function () { if (this.download) window.__dl.push(this.download); }; });
+    await pg.click('#nf-waReport'); await pg.waitForSelector('#nf-wa-dialog [data-wa="jpg"]');
+    const radios = await q(pg, () => [...document.querySelectorAll('#nf-wa-dialog input[name="nf-wa-view"]')].map(r => r.value));
+    check('HO: WhatsApp report offers Site / Head Office / Combined', radios.join(',') === 'site,ho,combined', radios.join(','));
+    await pg.evaluate(() => { document.querySelector('#nf-wa-date').value = '2026-11-16'; document.querySelector('input[value="ho"]').checked = true; });
+    await pg.click('#nf-wa-dialog [data-wa="jpg"]'); await pg.waitForFunction(() => window.__dl.length >= 1, { timeout: 20000 }).catch(() => {});
+    await pg.click('#nf-waReport'); await pg.waitForSelector('#nf-wa-dialog [data-wa="pdf"]');
+    await pg.evaluate(() => { document.querySelector('#nf-wa-date').value = '2026-11-16'; document.querySelector('input[value="combined"]').checked = true; });
+    await pg.click('#nf-wa-dialog [data-wa="pdf"]'); await pg.waitForFunction(() => window.__dl.length >= 2, { timeout: 20000 }).catch(() => {});
+    const dl = await q(pg, () => window.__dl), calls = await q(pg, () => window.__calls.filter(c => c[0] === 'dayReport'));
+    check('HO: picture and PDF downloaded for the chosen views', dl[0] === 'Awami Daily Closing 16-Nov-2026 Head Office.jpg' && dl[1] === 'Awami Daily Closing 16-Nov-2026 Combined.pdf' && calls.map(c => c[2]).join() === 'ho,combined', dl.join(' | ') + ' · ' + JSON.stringify(calls));
     check('HO: no script errors', errs.length === 0, errs.join(' / '));
     await pg.close();
   }
@@ -145,6 +159,14 @@ window.__boot = function (fix, as) {
       await pg.evaluate(() => { const b = document.querySelector('.nf-dialog-backdrop, .vp-backdrop'); if (b) b.remove(); });
       const via = await q(pg, () => { const own = document.querySelector('.row[data-saved]:not([data-ro]) select[data-k="m"]'); return [...own.options].map(o => o.value + ':' + o.textContent); });
       check('Site: a saved cash line can only be on Site Cash', via.length === 1 && via[0] === 'Petty:Site Cash', via.join(','));
+      await pg.evaluate(() => { window.__dl = []; HTMLAnchorElement.prototype.click = function () { if (this.download) window.__dl.push(this.download); }; });
+      await pg.click('#nf-waReport'); await pg.waitForSelector('#nf-wa-dialog [data-wa="jpg"]');
+      const wa = await q(pg, () => ({ radios: document.querySelectorAll('#nf-wa-dialog input[name="nf-wa-view"]').length, only: (document.querySelector('.nf-wa-only') || {}).textContent }));
+      check('Site: WhatsApp report has no view choice — Site only', wa.radios === 0 && wa.only === 'Site view', JSON.stringify(wa));
+      await pg.evaluate(() => { document.querySelector('#nf-wa-date').value = '2026-11-18'; });
+      await pg.click('#nf-wa-dialog [data-wa="jpg"]'); await pg.waitForFunction(() => window.__dl.length >= 1, { timeout: 20000 }).catch(() => {});
+      const sdl = await q(pg, () => ({ dl: window.__dl, calls: window.__calls.filter(c => c[0] === 'dayReport') }));
+      check('Site: the picture asks for and comes out as Site', sdl.calls.length === 1 && sdl.calls[0][2] === 'site' && sdl.dl[0] === 'Awami Daily Closing 18-Nov-2026 Site.jpg', JSON.stringify(sdl));
     }
     await pg.screenshot({ path: path.join(outDir, (width < 600 ? '5 Sharose - real screen, phone.png' : '4 Sharose - real screen.png')), fullPage: true });
     check(`Site ${tag}: no script errors`, errs.length === 0, errs.join(' / '));

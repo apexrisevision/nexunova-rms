@@ -142,6 +142,8 @@
       jvDelete: function (voucherId, version) { return call('nf_jv_delete', { p_voucher_id: voucherId, p_version: version }); },
       // only the MANUAL (paper) voucher number, on a cash-book line or a JV —
       // the Close day dialog fills the missing ones through it (docs/PLAN.md §45)
+      // the daily WhatsApp report: site | ho | combined — the site login always gets site (docs/PLAN.md §51)
+      dayReport: function (companyId, date, view) { return call('nf_day_report', { p_company_id: companyId, p_date: date, p_view: view }); },
       // one date's cash & bank book for the director's Excel (docs/PLAN.md §50)
       dayBook: function (companyId, date) { return call('nf_day_book', { p_company_id: companyId, p_date: date }); },
       // the other login may already have booked this (docs/PLAN.md §50): { block: [...], warn: [...] }

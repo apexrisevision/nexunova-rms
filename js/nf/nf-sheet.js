@@ -149,6 +149,7 @@
         '    <span class="nf-who ' + (myBox === 'Petty' ? 'site' : 'ho') + '" title="Signed in">' + esc(ctx.displayName || '') +
         (isDirector ? '' : ' · ' + esc(viaLabel(myBox))) + '</span>' +
         (d && !isSite ? '    <button class="btn" id="nf-toDir" type="button">Director report</button>' : '') +
+        (d && global.NfWaReport ? '    <button class="btn" id="nf-waReport" type="button" title="The day as a picture or PDF for the WhatsApp group">WhatsApp report</button>' : '') +
         (isDirector && global.NfDayExcel ? '    <button class="btn" id="nf-dayXlsx" type="button" title="One date’s cash & bank book as Excel">Excel</button>' : '') +
         (isSite ? '' : global.NfReportsMenu.html('closing')) +
         (d && d.status === 'CLOSED' && d.is_latest ? '    <button class="btn" id="nf-startNext" type="button">Start new day</button>' : '') +
@@ -686,6 +687,8 @@
       if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
       var printBtn = root.querySelector('#nf-print');
       if (printBtn) printBtn.addEventListener('click', doPrint);
+      var waBtn = root.querySelector('#nf-waReport');
+      if (waBtn) waBtn.addEventListener('click', openWaDialog);
       var dayXlsx = root.querySelector('#nf-dayXlsx');
       if (dayXlsx) dayXlsx.addEventListener('click', openExcelDialog);
       var toDir = root.querySelector('#nf-toDir');
@@ -855,6 +858,38 @@
         var reason = prompt('Why is this closed day being reopened?'); if (!reason) return;
         api.reopenDay(S.day.id, reason, S.day.version).then(applyDay).catch(function (err) { toast(Msg.forDay(err), true); });
       });
+    }
+
+    // ── WhatsApp report (docs/PLAN.md §51): the site login gets Site only — the database enforces it ──
+    function openWaDialog() {
+      var old = root.querySelector('#nf-wa-dialog'); if (old) old.remove();
+      var host = document.createElement('div');
+      host.className = 'nf-dialog-backdrop'; host.id = 'nf-wa-dialog';
+      var views = isSite ? '<p class="nf-wa-only">Site view</p>' :
+        '<div class="nf-wa-views" role="radiogroup" aria-label="View">' + [['site', 'Site only'], ['ho', 'Head Office only'], ['combined', 'Combined']].map(function (x, i) {
+          return '<label><input type="radio" name="nf-wa-view" value="' + x[0] + '"' + (x[0] === 'combined' ? ' checked' : '') + '> ' + x[1] + '</label>';
+        }).join('') + '</div>';
+      host.innerHTML = '<div class="nf-dialog" role="dialog" aria-modal="true" aria-labelledby="nf-wa-title" style="max-width:400px">' +
+        '<h3 id="nf-wa-title">WhatsApp report</h3>' +
+        '<div class="fld-row" style="grid-template-columns:1fr"><div><label for="nf-wa-date">Date</label><input type="date" id="nf-wa-date" value="' + esc(S.day ? S.day.business_date : '') + '"></div></div>' +
+        views + '<p class="nfn-err" id="nf-wa-err" hidden></p>' +
+        '<div class="actions"><button class="btn" type="button" id="nf-wa-cancel">Cancel</button>' +
+        '<button class="btn" type="button" data-wa="pdf">PDF</button><button class="btn primary" type="button" data-wa="jpg">Picture (JPG)</button></div></div>';
+      root.appendChild(host);
+      host.querySelector('#nf-wa-cancel').addEventListener('click', function () { host.remove(); });
+      host.addEventListener('keydown', function (e) { if (e.key === 'Escape') host.remove(); });
+      host.querySelectorAll('[data-wa]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var date = host.querySelector('#nf-wa-date').value, err = host.querySelector('#nf-wa-err');
+          var pick = host.querySelector('input[name="nf-wa-view"]:checked');
+          if (!date) { err.textContent = 'Pick a date.'; err.hidden = false; return; }
+          host.querySelectorAll('[data-wa]').forEach(function (x) { x.disabled = true; }); err.hidden = true;
+          global.NfWaReport.download(api, companyId, date, isSite ? 'site' : (pick ? pick.value : 'combined'), b.getAttribute('data-wa'))
+            .then(function (rep) { host.remove(); toast(rep.view_name + ' report for ' + F.ddMonYyyy(date) + ' downloaded.'); })
+            .catch(function (e) { host.querySelectorAll('[data-wa]').forEach(function (x) { x.disabled = false; }); err.textContent = Msg.forDay(e); err.hidden = false; });
+        });
+      });
+      host.querySelector('#nf-wa-date').focus();
     }
 
     // ── Excel of one date (director; docs/PLAN.md §50) ─────────────────────

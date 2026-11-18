@@ -4158,3 +4158,15 @@ Owner's decisions of 19-Nov (pasted), after dry runs.
   `Daily closing.xlsx`, by DATE (DC-007 spans 05-Oct to 16-Nov). The director's "Excel" button sits beside
   "Director report". Dry run: the site login is refused; 16-Nov gives 1 receipt, 9 payments, 1 JV, closing 4,15,250
   / 53,200 / 2,63,61,788.75. Browser check 27/27.
+
+## 51 · Daily WhatsApp report (2026-11-19)
+
+Owner's brief and 4 fixes to the approved mockups. **`20261119d` (NOT applied)** — `nf_day_report(company, date,
+view)`: `site` (every line moving Site Cash, plus bank lines the site login entered; Site Cash only), `ho` (Head
+Office Cash and the bank), `combined` (all three, who entered each line). The site cash box login always gets
+`site`, whatever it asks — in the database. Transfers (cash ↔ bank, Head Office Cash ↔ Site Cash) are their own
+list and are not counted in money received / paid; "From" / "Paid to" is the party only; a token line's "for" is
+"Token #N · unit(s)". `js/nf/nf-whatsapp-report.js` draws it (the mockups use the same code) and saves a JPG
+(html2canvas) or a real PDF (pdf-lib) from `/vendor/`. Button "WhatsApp report" beside "Excel": head office
+chooses Site / Head Office / Combined; the site login has no choice. Dry run: 16-Nov Combined received –, paid
+17,60,940; Sharose asking for Combined gets Site with no Head Office Cash and no bank. Browser check 31/31.
