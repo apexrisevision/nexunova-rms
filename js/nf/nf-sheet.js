@@ -211,7 +211,8 @@
       return S.vias.filter(function (v) {
         return (v.via === 'Bank') === (selected === 'Bank') && (isDirector || v.via === 'Bank' || v.via === myBox || v.via === selected);
       }).map(function (v) {
-        return '<option value="' + esc(v.via) + '"' + (v.via === selected ? ' selected' : '') + '>' + esc(v.label || v.via) + '</option>';
+        // the row's Via column is narrow: 'Head Office Cash' shows as 'HO Cash'
+        return '<option value="' + esc(v.via) + '"' + (v.via === selected ? ' selected' : '') + ' title="' + esc(v.label || v.via) + '">' + esc(String(v.label || v.via).replace(/^Head Office /, 'HO ')) + '</option>';
       }).join('');
     };
     function viaLabel(via) {

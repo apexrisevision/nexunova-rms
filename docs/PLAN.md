@@ -4113,3 +4113,25 @@ added to 20261119a and rehearsed (Stage 1 84/84, Stage 2 42/42, 50,700 unchanged
 `20261118080541 · 20261119a_nf_site_required_fields`. nf_site_bill_writer's rules-suite exclusion
 accepted by the owner (same reason as nf_site_reader). Live: Stage 1 84/84 (--required), Stage 2
 42/42, rules 80/80, UI 42/42. App code pushed for deploy on the owner's go; no site user created.
+
+## 49 · One Daily Closing, two logins — Head Office Cash and Site Cash (2026-11-18)
+
+Owner's own requirement (18-Nov, in chat, not a pasted brief): a full accounting system with two equal sites,
+Awami Site and Head Office. One closing per date; each accountant signs in with his own login; each line says
+who entered it; the site accountant's cash lines go to the site cash, head office's to head office cash; the
+bank stays one. Mockup approved (`D:\Claude Cowork\Ek closing do login\`). No cash count (owner, "c"; §44
+stands). Reports are head office only (option a).
+
+- **Migration `20261118i`** — `nf_members.cash_via` (Cash = head office, Petty = site). Cash lines,
+  withdrawals and transfers use the caller's own box; a voucher is changed or deleted only by whoever entered
+  it (a director: any); submit/close, PDCs, IIF, voucher texts by number and every report are head office
+  only; either login may start the next day. `nf_day_json` carries `by_name`, `by_box`, `mine`; the context
+  carries `cash_via`. Awami's cash box labels read Head Office Cash / Site Cash (screen only; QuickBooks names
+  unchanged). Sharose: `site` → `accountant` on Petty; the 62 vouchers posted from his Excel are his.
+  Dry run 22/22.
+- **Screen** — signed-in chip; who-entered tag on every line and JV; another person's line is read-only with a
+  🔒; All / Head Office / site filter; the site login has no reports, transfers, PDCs or Submit/Close; the
+  voucher popup offers only the person's own cash box; the books stack on a phone.
+  `scripts/nf/verify-nf-two-logins-ui.js` 25/25 (a harness with a read-only fixture of 18-Nov, no writes).
+- **The separate Site Cash Book (§46–48) is retired.** A `site` login sees "keep using the Excel sheet";
+  `verify-nf-site-closing-ui.js` tests a screen that no longer opens.
