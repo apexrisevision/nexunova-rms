@@ -54,19 +54,21 @@ const OUT = process.argv[2];
       await pg.waitForSelector('.row[data-saved]', { timeout: 30000 });
       const t = await pg.evaluate(() => ({
         scripts: [...document.scripts].map(s => s.src).filter(s => /nf-sheet/.test(s)).map(s => s.replace(/^.*\/js/, 'js')),
-        who: (document.querySelector('.nf-who') || {}).textContent, reports: !!document.querySelector('#nf-rpm-toggle'),
+        who: (document.querySelector('.nf-who') || {}).textContent, reports: !!document.querySelector('#nf-rpm-toggle'), xlsx: !!document.querySelector('#nf-dayXlsx'),
         close: !!document.querySelector('#nf-close'), tags: [...document.querySelectorAll('.nf-by')].map(x => x.textContent),
         ro: [...document.querySelectorAll('.row[data-ro] input.amt')].map(x => x.disabled), overflow: document.documentElement.scrollWidth - window.innerWidth,
         pos: [...document.querySelectorAll('table.pos tbody tr td:first-child')].map(td => td.textContent).join(' | '),
       }));
       if (key === 'site') {
-        check('live page serves the new sheet', t.scripts.some(s => /nf-sheet\.js\?v=20261118t/.test(s)), t.scripts.join(','));
+        check('live page serves the new sheet', t.scripts.some(s => s.indexOf('nf-sheet.js?v=20261119c') >= 0), t.scripts.join(','));
         check('site login: chip "ZZ Site · Petty cash" (a test company keeps the seed labels), no Reports, no Close day', /ZZ Site · Petty cash/.test(t.who || '') && !t.reports && !t.close, t.who);
+        check('site login: no Excel button', !t.xlsx);
         check('site login: head office line locked, own line open', t.ro.length === 1 && t.ro[0] === true && t.tags.some(s => /🔒 Head Office/.test(s)) && t.tags.includes('ZZ Site'), t.tags.join(','));
         check('site login on a phone: nothing wider than the screen', t.overflow <= 1, String(t.overflow));
         await pg.screenshot({ path: path.join(OUT, '6 LIVE - site login, phone.png'), fullPage: true });
       } else {
         check('director: Reports and Close day there, no line locked', t.reports && t.close && t.ro.length === 0);
+        check('director: Excel button there', t.xlsx);
         check('director: both tags shown', t.tags.includes('Head Office') && t.tags.includes('ZZ Site'), t.tags.join(','));
         check('position: Cash in hand / Petty cash labels for a non-Awami company (only Awami was relabelled)', /Cash in hand/.test(t.pos), t.pos);
         await pg.screenshot({ path: path.join(OUT, '7 LIVE - director login.png'), fullPage: true });
