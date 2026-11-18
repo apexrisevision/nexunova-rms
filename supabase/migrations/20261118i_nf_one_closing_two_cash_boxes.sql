@@ -1,5 +1,5 @@
 -- ══ NexuFinance: one Daily Closing, two logins — Head Office Cash and Site Cash (20261118i) ══
--- NOT APPLIED until the owner says yes.
+-- APPLIED 19-Nov-2026 as 20261118193800, on the owner's yes.
 --
 -- Owner, 18-Nov-2026 (mockup D:\Claude Cowork\Ek closing do login\, approved; no cash count — answer "c"):
 --   * one closing per date; head office and the site accountant (Sharose) each sign in with their own login;
