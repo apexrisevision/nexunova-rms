@@ -229,12 +229,19 @@ if (require.main === module) (async () => {
     // closed at the grant layer and isn't the same bug shape. nf_is_member
     // and nf_require_role are the check primitives themselves, excluded
     // for the same reason a lock can't require itself to already be open.
+    // nf_site_reader (20261117b) is the same kind of primitive: the site
+    // tables' SELECT policy, answering only "may I read this company's site
+    // book".
+    // ACCEPTED EXCEPTION (owner, 2026-11-17): nf_get_report is a one-line SQL
+    // wrapper over nf_get_report_day (nf_require_role accountant/director/
+    // viewer) and nf_director_summary (nf_require_role) — both refuse anyone
+    // else, including the site role, so the check lives one call down.
     const roleCheckQuery = `
       SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args
         FROM pg_proc p
        WHERE p.pronamespace = 'public'::regnamespace
          AND p.proname LIKE 'nf\\_%' AND p.proname NOT LIKE '\\_nf\\_%'
-         AND p.proname NOT IN ('nf_require_role','nf_is_member')
+         AND p.proname NOT IN ('nf_require_role','nf_is_member','nf_site_reader','nf_get_report')
          AND p.prorettype::regtype::text <> 'trigger'
          AND EXISTS (SELECT 1 FROM unnest(p.proargtypes) t WHERE t = 'uuid'::regtype)
          AND (has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('authenticated', p.oid, 'EXECUTE'))

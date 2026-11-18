@@ -3994,3 +3994,36 @@ throw-away ZZTEST company with four throw-away users; no service-role key used.
   general-journal J-02..05 (fixture dated outside the current-month default; J-07 "All time"
   passes), SEC-RPC-ROLE-CHECK (`nf_get_report` is a wrapper over two role-checked functions).
   Migration NOT applied: the owner's rule was "only if everything is green".
+
+### Known pre-existing test failures (17-Nov)
+
+Seen on 17-Nov with the database as it was before `20261117b`; not part of the Site Closing work
+and deliberately not fixed now (owner's ruling).
+
+1. `verify-nf-cash-via-day-only` CVD-03 — Awami's head list now has 87 heads (chart changed on
+   14-Nov); the test still expects 79.
+2. `verify-nf-director-report` R-08 — the director report prints on 2 A4 pages, not 1.
+3. `verify-nf-general-journal` J-02..J-05 — the fixture's date falls outside the journal's
+   current-month default range; "All time" (J-07) shows every voucher.
+4. `verify-nf-drilldown` D-04 — times out waiting for the closing sheet to mark the line it came
+   from (`#nf-sheet [data-drilled]`); cause not yet looked into.
+
+Accepted exception: `verify-nf-rules` SEC-RPC-ROLE-CHECK flagged `nf_get_report`. It is a wrapper
+over `nf_get_report_day` (nf_require_role accountant/director/viewer) and `nf_director_summary`
+(nf_require_role); both refuse the site role. Excluded from the rule with that reason, beside
+`nf_site_reader` (the site tables' read-policy primitive, like `nf_is_member`).
+
+Applied 17-Nov as `20261117113037 · 20261117b_nf_site_closing_stage1`. Awami before = after:
+440 vouchers, 938 legs (identical fingerprints), Cash 10100 = 4,56,250, BOP 10300 =
+2,63,61,788.75, Petty 10200 = 0.
+
+Rerun after applying (17-Nov), stopped part-way by Claude Code because the machine ran low on
+memory: Site Closing 80/80 (`--applied`: the before/after read-set check only runs when the
+migration is inside the transaction; it passed 60/60 pairs before applying), cash-via-day-only
+38/39 (CVD-03, known), director-report 17/18 (R-08, known), general-journal 10/14 (J-02..05,
+known), drilldown 41/42 (this time it timed out at a later step, `.tkrow[data-drill-unit="G-12"]`,
+instead of D-04: a timeout, plausibly the same memory pressure), general-ledger 12/12, golden-ui
+41/41, journal-voucher 19/19, de-migration skipped by design. jv-harden was cut off mid-run
+(JVX-15 "JWT expired" as the machine slowed) and left its fixture behind (ZZTEST-NF-7dd9ab3b,
+-imp, user nf-jvx-7dd9ab3b). Not reached: party-field, qb-accounts, race-harness, rules, schema,
+trial-balance.
