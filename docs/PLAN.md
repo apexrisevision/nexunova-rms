@@ -4075,3 +4075,14 @@ one at a time, all rolled back / self-cleaning: Stage 1 test 80/80 (`--applied -
 acceptance 42/42 (`--applied`), rules 80/80, trial-balance 10/10, jv-harden 25/25, race-harness PASS.
 Awami before = after (identical fingerprints): 440 vouchers, 938 legs, Cash 4,56,250, BOP
 2,63,61,788.75, Petty 0; no site day, no site line, no test company or user left.
+
+
+## 48 · Site Closing — Stage 3: the screens (2026-11-18, not deployed)
+
+Site Cash Book for the site role and Site Closing (HO review) in the Reports menu; detail in
+`docs/SITE_CLOSING_SPEC.md`, Stage 3. Browser test `scripts/nf/verify-nf-site-closing-ui.js` against a
+throw-away ZZTEST company (users made in SQL, no service-role key; removed afterwards, checked by
+query): 27/28. The one failure is real and pre-dates the screens: Stage 2's `_nf_site_match` has
+an UPDATE with no WHERE, refused through the app — fix `20261118c` written, not applied. Also
+written, not applied: `20261118b` (private bucket for bill photos). Awami untouched (443 vouchers —
+the CFO's three of 18-Nov included).

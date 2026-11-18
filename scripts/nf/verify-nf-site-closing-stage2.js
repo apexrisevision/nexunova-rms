@@ -35,6 +35,8 @@ const { q, REF, TOKEN } = require(path.join(ROOT, 'scripts', '_sbq'));
 const AW = '96d210e7-e63b-4ef0-b1d0-74e622eac7ce';
 const MIG = path.join(ROOT, 'supabase', 'migrations', '20261118a_nf_site_matching.sql');
 const APPLIED = process.argv.includes('--applied');
+// --plus <migration.sql>: a later migration, run after the fixture
+const PLUS = process.argv.includes('--plus') ? path.resolve(process.argv[process.argv.indexOf('--plus') + 1]) : null;
 const FILE = (process.argv.includes('--file') && process.argv[process.argv.indexOf('--file') + 1])
   || 'D:/Claude Cowork/Awami Daily Entry - Accountant (Sharose 17-Nov).xlsx';
 
@@ -123,6 +125,9 @@ const lit = v => v === null || v === undefined ? 'NULL' : typeof v === 'number' 
        ('${C}', '${D}', 'director', 'HO Director', true), ('${C}', '${S}', 'site', 'Sharose', true);`,
   ].join('\n');
 
+  // Awami's own count when this run starts (the CFO keeps posting; nothing here may add to it)
+  const AWAMI_AT_START = Number((await q(`select count(*) n from nf_vouchers where company_id = '${AW}'`))[0].n);
+
   // the site accountant keys every day and submits it
   const keying = days.map(dt => {
     const saves = lines.filter(l => l.date === dt).map(l =>
@@ -161,12 +166,14 @@ DECLARE
   co constant uuid := '${C}'; us constant uuid := '${S}'; ud constant uuid := '${D}';
   sd uuid; v int; n numeric; e text; r record; cnt int;
 BEGIN
-  PERFORM pg_temp.ok('FX-01 fixture: the copy has Awami''s 440 vouchers and 938 legs',
+  PERFORM pg_temp.ok('FX-01 fixture: the copy has every Awami voucher and leg',
     (SELECT count(*) FROM public.nf_vouchers WHERE company_id = co) = (SELECT count(*) FROM public.nf_vouchers WHERE company_id = '${AW}')
     AND (SELECT count(*) FROM public.nf_voucher_legs WHERE company_id = co) = (SELECT count(*) FROM public.nf_voucher_legs WHERE company_id = '${AW}'),
     (SELECT count(*) FROM public.nf_vouchers WHERE company_id = co)::text);
   PERFORM pg_temp.ok('FX-02 fixture: same Cash / Bank / site box as Awami',
-    pg_temp.bal('10100') = 456250 AND pg_temp.bal('10300') = 26361788.75 AND pg_temp.bal('10200') = 0,
+    (SELECT bool_and(pg_temp.bal(c) = (SELECT COALESCE(sum(debit - credit), 0) FROM public.nf_voucher_legs
+                                          WHERE company_id = '${AW}' AND account_code = c))
+       FROM unnest(ARRAY['10100','10200','10300']) c),
     pg_temp.bal('10100') || ' / ' || pg_temp.bal('10300') || ' / ' || pg_temp.bal('10200'));
   PERFORM pg_temp.ok('RD-01 real date read from narrations: BPV-0046 = 16-Nov, BRV-0079 = 14-Nov, BPV-0026 = 05-Nov',
     (SELECT bool_and(public._nf_voucher_real_date(narration, real_date, created_at) =
@@ -342,7 +349,7 @@ BEGIN
   PERFORM pg_temp.ok('R-12 …nor delete it', e LIKE 'NF:SITE_LINE_RESOLVED%', e);
   e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L, '2026-11-17', NULL, 'OUT', '201', 'X', NULL, NULL, '52900', 'SITE_CASH', 1, NULL, NULL, NULL, NULL)$$, co));
   PERFORM pg_temp.ok('R-13 a paper voucher no used on another day is refused (201 was 05-Nov)', e LIKE 'NF:DUPLICATE_DOC_NO%', e);
-  PERFORM pg_temp.ok('R-14 Awami''s own books were not touched', (SELECT count(*) FROM public.nf_vouchers WHERE company_id = '${AW}') = 440, '');
+  PERFORM pg_temp.ok('R-14 Awami''s own books were not touched', (SELECT count(*) FROM public.nf_vouchers WHERE company_id = '${AW}') = ${AWAMI_AT_START}, '');
 END
 $t$;
 
@@ -361,7 +368,8 @@ END
 $f$;
 `;
 
-  const sql = ['BEGIN;', APPLIED ? '' : fs.readFileSync(MIG, 'utf8'), fixture, TESTS].join('\n');
+  const sql = ['BEGIN;', APPLIED ? '' : fs.readFileSync(MIG, 'utf8'), fixture, PLUS ? fs.readFileSync(PLUS, 'utf8') : '', TESTS].join('\n');
+  if (PLUS) console.log('  plus ' + path.basename(PLUS));
   const res = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
     method: 'POST', headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: sql }) });
   const msg = res.ok ? 'NO EXCEPTION — the transaction did not roll back; check for leftovers' : await res.text();

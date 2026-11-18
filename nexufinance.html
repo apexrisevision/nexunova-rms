@@ -55,6 +55,7 @@
 <link rel="stylesheet" href="css/nf/nf-monthly-trend.css?v=20260919g">
 <link rel="stylesheet" href="css/nf/nf-monthly-trend-print.css?v=20260919q" media="print">
 <link rel="stylesheet" href="css/nf/nf-journal-voucher.css?v=20260919o">
+<link rel="stylesheet" href="css/nf/nf-site-closing.css?v=20261118c">
 <link rel="stylesheet" href="css/nf/nf-journal-voucher-print.css?v=20260919q" media="print">
 <script>
 try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
@@ -95,8 +96,8 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
 <script src="js/nf/nf-format.js?v=20261007b"></script>
 <script src="js/nf/nf-pick.js?v=20260920a"></script>
 <script src="js/nf/nf-drill.js?v=20260921e"></script>
-<script src="js/nf/nf-api.js?v=20261007b"></script>
-<script src="js/nf/nf-reports-menu.js?v=20261007b"></script>
+<script src="js/nf/nf-api.js?v=20261118c"></script>
+<script src="js/nf/nf-reports-menu.js?v=20261118c"></script>
 <script src="js/nf/nf-messages.js?v=20260921f"></script>
 <script src="js/nf/nf-voucher-popup.js?v=20260921g"></script>
 <script src="js/nf/nf-sheet.js?v=20260921g"></script>
@@ -115,6 +116,8 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
 <script src="js/nf/nf-project-cost.js?v=20260921e"></script>
 <script src="js/nf/nf-monthly-trend.js?v=20260921e"></script>
 <script src="js/nf/nf-journal-voucher.js?v=20260921g"></script>
+<script src="js/nf/nf-site-closing.js?v=20261118c"></script>
+<script src="js/nf/nf-site-review.js?v=20261118c"></script>
 <script>
 (function () {
   'use strict';
@@ -138,7 +141,7 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
   catch (e) { SB = null; }
 
   if (!SB) return fail('Could not reach the database', new Error('The Supabase client did not load. Reload the page.'));
-  if (!window.NfFmt || !window.NfApi || !window.NfMsg || !window.NfSheet || !window.NfReport || !window.NfJournal || !window.NfLedger || !window.NfTrialBalance || !window.NfPL || !window.NfBalanceSheet || !window.NfPartyStatement || !window.NfTokenRegister || !window.NfReceiptRegister || !window.NfGroupBalances || !window.NfCashBank || !window.NfFloorSummary || !window.NfProjectCost || !window.NfMonthlyTrend || !window.NfReportsMenu) {
+  if (!window.NfFmt || !window.NfApi || !window.NfMsg || !window.NfSheet || !window.NfReport || !window.NfJournal || !window.NfLedger || !window.NfTrialBalance || !window.NfPL || !window.NfBalanceSheet || !window.NfPartyStatement || !window.NfTokenRegister || !window.NfReceiptRegister || !window.NfGroupBalances || !window.NfCashBank || !window.NfFloorSummary || !window.NfProjectCost || !window.NfMonthlyTrend || !window.NfReportsMenu || !window.NfSiteClosing || !window.NfSiteReview) {
     return fail('Could not load the cash book', new Error('A module file did not load. Reload the page.'));
   }
 
@@ -167,6 +170,18 @@ try { var t = localStorage.getItem('nf-theme'); if (t) document.documentElement.
         var m = memberships.filter(function (x) { return x.company_id === wantedId; })[0] || memberships[0];
 
         document.title = 'NexuFinance — ' + (m.company_name || 'Daily Closing');
+
+        // The site accountant sees his own cash book and nothing else: no
+        // menu, no closing sheet, no way back into RMS from here.
+        if (m.role === 'site') {
+          var bar = document.querySelector('.nf-topbar'); if (bar) { bar.hidden = true; bar.style.display = 'none'; }
+          document.title = 'Site Cash Book — ' + (m.company_name || '');
+          return window.NfSiteClosing.mount(root, {
+            api: api, companyId: m.company_id, role: m.role, displayName: m.display_name,
+            companyName: m.company_name, settings: m.settings || {},
+            onSignOut: function () { SB.auth.signOut().then(function () { location.reload(); }); },
+          });
+        }
 
         return window.NfSheet.mount(root, {
           api: api,

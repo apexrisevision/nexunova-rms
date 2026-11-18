@@ -180,9 +180,39 @@ before posting it.
 the file's Excel names). In real use the site accountant picks from the HO head list, shown as plain
 names with no codes.
 
-## Stage 3 — screens
+## Stage 3 — screens (built 18-Nov, not deployed)
 
-To be written when built.
+**Site Cash Book** (`js/nf/nf-site-closing.js`, `css/nf/nf-site-closing.css`): the only screen a
+`site` member sees — the login sends him straight there, with no Reports menu and no link back to
+RMS. Mobile-first: each line is a card on a phone and one spreadsheet row on a wide screen.
+- Date picker: no future date, and no day after one not yet sent to head office.
+- "Money received" / "Money paid": Receipt / Voucher no., From / Paid to, Unit(s) (from RMS), Token #,
+  For (plain head names, plus "Cash drawn from bank" / "Cash deposited in bank"), Cash, Bank,
+  Cheque / Ref, Remarks, Bill photo, Status. No account codes, no Dr/Cr.
+- Each line saves on its own when the person leaves the row (or presses Save), version-checked;
+  only that row is redrawn. A line changed elsewhere: "Someone else changed this just now", the
+  latest is shown, the stale change is not saved.
+- Tiles: Opening cash, Received, Paid, Should be in hand (plus the day's bank lines in a note).
+- Cash count drawer: 5000 / 1000 / 500 / 100 / 50 / 20 / 10 notes and coins; counted, difference, a
+  required reason when it is not zero; "Send to head office" (`nf_site_submit`).
+- After sending: read-only, a status badge per line (New / Duplicate / Possible duplicate / Linked /
+  Conflict / Accepted / Rejected) — never HO's voucher or reason. Sent back: HO's reason in a banner,
+  editable again (lines HO has already settled stay as they are).
+
+**Site Closing for head office** (`js/nf/nf-site-review.js`), in the Reports menu: the site days with
+status and totals; a day with every line beside the HO voucher it matched (number, real date,
+amount, head), the status, the reason (head codes shown as names) and what Accept would do.
+Conflicts first, then possible duplicates, duplicates, new; decided lines last. Accept (optional head
+/ party on the HO voucher), Reject (reason), Link to… and Mark duplicate (search HO vouchers by
+amount, number or words), Accept all new, Re-run match, Return day to site (reason). A viewer reads
+only.
+
+**Bill photos** need the private bucket in `20261118b_nf_site_bills_storage.sql` (not applied); until
+then the screen says the photo could not be saved and everything else works.
+
+**Found by the browser test:** Stage 2's match function had an `UPDATE` with no `WHERE`, which the
+app's database door (PostgREST's safe-update guard) refuses — so "Send to head office" and "Re-run
+match" fail for a real user. Fix: `20261118c_nf_site_match_safeupdate.sql` (not applied).
 
 ## Stage 4 — combined closing + exports
 

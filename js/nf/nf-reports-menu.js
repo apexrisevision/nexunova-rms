@@ -28,7 +28,7 @@
   'use strict';
 
   var GROUPS = [
-    { label: null, items: [{ key: 'closing', label: 'Daily Closing' }, { key: 'jv', label: 'Journal Vouchers' }] },
+    { label: null, items: [{ key: 'closing', label: 'Daily Closing' }, { key: 'site', label: 'Site Closing' }, { key: 'jv', label: 'Journal Vouchers' }] },
     { label: 'Statements', items: [
       { key: 'pl', label: 'Profit & Loss' },
       { key: 'bs', label: 'Balance Sheet' },
@@ -50,7 +50,7 @@
 
   function moduleFor(key) {
     return {
-      jv: global.NfJournalVoucher,
+      jv: global.NfJournalVoucher, site: global.NfSiteReview,
       pl: global.NfPL, bs: global.NfBalanceSheet, tb: global.NfTrialBalance,
       journal: global.NfJournal, ledger: global.NfLedger, party: global.NfPartyStatement,
       token: global.NfTokenRegister, receipts: global.NfReceiptRegister, group: global.NfGroupBalances, cashbank: global.NfCashBank, floor: global.NfFloorSummary,
