@@ -140,6 +140,8 @@ ${REQUIRED ? String.raw`  e := pg_temp.err(format($$SELECT public.nf_site_save_l
   PERFORM pg_temp.ok('Q-02 a line without who it came from / went to is refused', e LIKE 'NF:SITE_PARTY_REQUIRED%', e);
   e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT','R-1','Same voucher, second head',NULL,NULL,'70500','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
   PERFORM pg_temp.ok('Q-03 the same paper number on the same day still goes in (one voucher, two heads)', e = 'OK', e);
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT','Q-4','Somebody',NULL,NULL,' ','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
+  PERFORM pg_temp.ok('Q-04 a line without what it was for (head) is refused', e LIKE 'NF:SITE_HEAD_REQUIRED%', e);
   DELETE FROM public.nf_site_lines WHERE site_day_id = d1 AND party_name = 'Same voucher, second head';` : ''}
   e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT','Z-1','X',NULL,NULL,'10100','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
   PERFORM pg_temp.ok('L-08 a cash account is not a head', e LIKE 'NF:HEAD_REQUIRED%', e);

@@ -4107,3 +4107,9 @@ Live runs: Stage 1 80/80, Stage 2 acceptance 42/42, rules 80/80 (nf_site_bill_wr
 policy-primitive exclusions, like nf_site_reader), UI 42/42. 20261119a rehearsed rolled back: Stage 1
 83/83 (incl. the two new refusals and same-number-same-day), Stage 2 42/42 (Sharose's blank numbers
 and names filled in the fixture with values that cannot match any HO narration). Awami unchanged.
+
+19-Nov: head also required (screen "Choose what this money was for."; database NF:SITE_HEAD_REQUIRED),
+added to 20261119a and rehearsed (Stage 1 84/84, Stage 2 42/42, 50,700 unchanged). Applied as
+`20261118080541 · 20261119a_nf_site_required_fields`. nf_site_bill_writer's rules-suite exclusion
+accepted by the owner (same reason as nf_site_reader). Live: Stage 1 84/84 (--required), Stage 2
+42/42, rules 80/80, UI 42/42. App code pushed for deploy on the owner's go; no site user created.

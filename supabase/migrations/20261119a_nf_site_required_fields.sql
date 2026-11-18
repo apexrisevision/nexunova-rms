@@ -1,9 +1,10 @@
--- ══ NexuFinance — Site Closing: receipt / voucher number and name required on every line ══
+-- ══ NexuFinance — Site Closing: receipt / voucher number, name and head required on every line ══
 -- NOT APPLIED. For the owner to read first (19-Nov).
 --
--- nf_site_save_line refuses a line without its paper number (NF:SITE_DOC_NO_REQUIRED) or without
--- who the money came from / went to (NF:SITE_PARTY_REQUIRED), so the screen's own check cannot be
--- bypassed. Everything else is the function exactly as applied in 20261118a — including a paper
+-- nf_site_save_line refuses a line without its paper number (NF:SITE_DOC_NO_REQUIRED), without
+-- who the money came from / went to (NF:SITE_PARTY_REQUIRED) or without what it was for
+-- (NF:SITE_HEAD_REQUIRED; a head that is not one of the allowed ones is still NF:HEAD_REQUIRED),
+-- so the screen's own check cannot be bypassed. Everything else is the function exactly as applied in 20261118a — including a paper
 -- number repeating on lines of the same day (posted as n/1, n/2) and never on another day.
 -- Lines already saved are not touched; the rule bites on the next save of a line.
 
@@ -32,6 +33,9 @@ BEGIN
   IF p_via  IS NULL OR p_via  NOT IN ('SITE_CASH','BANK') THEN RAISE EXCEPTION 'NF:VIA_UNKNOWN' USING DETAIL = COALESCE(p_via, '(none)'); END IF;
   PERFORM public.nf_check_amount(p_amount, 'amount', false);
   IF p_amount <= 0 THEN RAISE EXCEPTION 'NF:AMOUNT_NOT_POSITIVE'; END IF;
+  IF NULLIF(btrim(p_head_code), '') IS NULL THEN
+    RAISE EXCEPTION 'NF:SITE_HEAD_REQUIRED' USING HINT = 'Choose what this money was for.';
+  END IF;
   -- a head HO uses; or, for a site-cash line only, the bank itself: "Bank to Cash"
   -- (IN, a withdrawal into the box) or "Cash to Bank" (OUT, a deposit)
   SELECT * INTO v_head FROM public.nf_accounts

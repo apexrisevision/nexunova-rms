@@ -49,6 +49,7 @@
       'NF:SITE_TOKEN_NO_REQUIRED': 'Token money needs the token number.',
       'NF:SITE_DOC_NO_REQUIRED': 'Write the receipt or voucher number from the book.',
       'NF:SITE_PARTY_REQUIRED': 'Write who the money came from or went to.',
+      'NF:SITE_HEAD_REQUIRED': 'Choose what this money was for.',
       'NF:HEAD_REQUIRED': 'Choose what this money is for.',
       'NF:AMOUNT_NOT_POSITIVE': 'Enter the amount in Cash or in Bank.',
       'NF:SITE_DAY_LOCKED': 'This day has been sent to head office and cannot be changed.',
@@ -100,7 +101,7 @@
     function problem(r) {
       if (!String(r.doc_no).trim()) return r.side === 'IN' ? 'Write the receipt number from the receipt book.' : 'Write the voucher number from the voucher book.';
       if (!String(r.party_name).trim()) return r.side === 'IN' ? 'Write who the money came from.' : 'Write who the money was paid to.';
-      if (!r.head_code) return 'Choose what this money is for.';
+      if (!r.head_code) return 'Choose what this money was for.';
       var c = F.n(r.cash), b = F.n(r.bank);
       if (c > 0 && b > 0) return 'Put the amount in Cash or in Bank, not both.';
       if (!(c > 0) && !(b > 0)) return 'Enter the amount in Cash or in Bank.';
