@@ -1,5 +1,5 @@
 -- ══ NexuFinance Awami: CRV-0027 and CPV-0062 back on their sheet's date (20261118g) ══
--- NOT APPLIED until the owner says yes.
+-- APPLIED 18-Nov-2026 as 20261118112106, on the owner's yes. DC-007 then closed by the director at 4,56,250.
 --
 -- 20261118f dated these two 03-Oct (their Excel tab). But they sit in the 05-Oct day sheet (DC-007), and a
 -- sheet's opening is every voucher dated BEFORE its date (nf_ledger_position), while its movement is every
