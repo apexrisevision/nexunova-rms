@@ -28,6 +28,8 @@ const APPLIED = process.argv.includes('--applied');
 // --plus <migration.sql>: also run a later migration (Stage 2 changes the doc-no rule: a paper
 // number may repeat on the SAME day — one voucher, two heads — but never on another day)
 const PLUS = process.argv.includes('--plus') ? path.resolve(process.argv[process.argv.indexOf('--plus') + 1]) : null;
+// --stage2: Stage 2 is already applied live (its doc-no rule is in force without --plus)
+const STAGE2 = !!PLUS || process.argv.includes('--stage2');
 
 const C = crypto.randomUUID();
 const U = { S: crypto.randomUUID(), A: crypto.randomUUID(), D: crypto.randomUUID(), V: crypto.randomUUID() };
@@ -126,8 +128,8 @@ BEGIN
   r := public.nf_site_save_line(co, '2026-11-05', NULL, 'IN', 'R-2', 'Irfan Ullah', 'LG-57', 208, '21100', 'BANK', 20000, 'RAAST 778', NULL, NULL, NULL);
   lb := (SELECT id FROM public.nf_site_lines WHERE site_day_id = d1 AND doc_no = 'R-2');
   PERFORM pg_temp.ok('L-05 a BANK line does not touch the site box', (r->>'book_now')::numeric = 3000, r->>'book_now');
-  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'${PLUS ? '2026-11-06' : '2026-11-05'}',NULL,'IN','r-1 ','Dup',NULL,7,'21100','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
-  PERFORM pg_temp.ok('L-06 a receipt no is not used twice${PLUS ? ' on another day' : ''} (case/space blind)', e LIKE 'NF:DUPLICATE_DOC_NO%', e);
+  e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'${STAGE2 ? '2026-11-06' : '2026-11-05'}',NULL,'IN','r-1 ','Dup',NULL,7,'21100','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
+  PERFORM pg_temp.ok('L-06 a receipt no is not used twice${STAGE2 ? ' on another day' : ''} (case/space blind)', e LIKE 'NF:DUPLICATE_DOC_NO%', e);
   e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT','R-1','Other side',NULL,NULL,'52600','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));
   PERFORM pg_temp.ok('L-07 …but the same no on the payment side is allowed', e = 'OK', e);
   e := pg_temp.err(format($$SELECT public.nf_site_save_line(%L,'2026-11-05',NULL,'OUT',NULL,'X',NULL,NULL,'10100','SITE_CASH',10,NULL,NULL,NULL,NULL)$$, co));

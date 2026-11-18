@@ -4069,3 +4069,9 @@ with Stage 2 in: clean.
 Found and fixed on the way: the match link would have stopped HO deleting its own voucher (a delete
 trigger now clears undecided matches); the voucher counters do not allow an XFR type (site transfers
 are `XFR-SITE-n`); the Stage 1 one-doc-per-side rule refused Sharose's real voucher 212 (two lines).
+
+Applied 18-Nov as `20261118063921 · 20261118a_nf_site_matching` (owner's go). Re-run against live,
+one at a time, all rolled back / self-cleaning: Stage 1 test 80/80 (`--applied --stage2`), Stage 2
+acceptance 42/42 (`--applied`), rules 80/80, trial-balance 10/10, jv-harden 25/25, race-harness PASS.
+Awami before = after (identical fingerprints): 440 vouchers, 938 legs, Cash 4,56,250, BOP
+2,63,61,788.75, Petty 0; no site day, no site line, no test company or user left.

@@ -170,6 +170,16 @@ cleared); not once a decided line rests on it (`NF:VOUCHER_SETTLED_BY_SITE`).
 **Transfers:** `nf_set_transfers` keeps one undated running transfer per HO day, and HO's day has
 been open since 05-Oct, so site transfers use `nf_save_transfer` (dated, one voucher each).
 
+**Accepted by the owner (18-Nov):** dated `XFR-SITE-n` transfers through `nf_save_transfer`; the same
+paper voucher number on the same day (posted as n/1, n/2); HO may delete / re-key its own voucher only
+while the site line resting on it is undecided; the site user sees status only. Sakhi Jan #209 (bank,
+nothing at HO) is a CONFLICT "bank line missing at HO" — HO confirms it against the BOP statement
+before posting it.
+
+**Heads:** the head-name mapping in `verify-nf-site-closing-stage2.js` is test-only (it stands in for
+the file's Excel names). In real use the site accountant picks from the HO head list, shown as plain
+names with no codes.
+
 ## Stage 3 — screens
 
 To be written when built.
@@ -185,6 +195,11 @@ explicit mapping, and never writes a NexuFinance display name as a QuickBooks ac
   has used. NexuFinance's display name "BOP - 14 Group of Companies" and the old QuickBooks name
   "Bank Al-Habib - Awami Market" are never written.
 - 10100 → `Cash & Bank:Cash in Hand`.
+- 10200 (the site cash box, "Petty Cash") → needs an explicit entry. The 18-Sep reference chart has
+  `Cash & Bank:Petty Cash` (number 10200), but that chart is stale (it also carries the old bank name),
+  so this must be **confirmed against the live QuickBooks file before the first IIF that touches
+  10200**. If it is not there, it is listed as a new QuickBooks account to create — never a name
+  invented by the exporter.
 - Every other account → the existing mapping.
 - No account is renamed, in either system.
 
