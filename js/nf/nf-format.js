@@ -4,10 +4,10 @@
  * Money: numeric(14,2) end to end (owner, 2026-09-16 — NOT whole rupees).
  * A value is shown with two decimals only when it actually carries paisa;
  * everything else prints the way docs/reference/awami-daily-closing.html
- * does. Grouping is Western (en-US), same as the rest of the platform
- * (see rms_payments memory: en-PK and en-US are both Western; only en-IN
- * is lakh/crore, and that was removed app-wide in June — except the
- * Lakh/Crore *words* helper below, which the owner asked to keep).
+ * does. Grouping is Pakistani lakh/crore (4,11,800 — 2,63,61,788.75) on every
+ * NexuFinance screen (owner, 2026-11-19: "Pakistani number format everywhere");
+ * it was Western (411,800) until then, with lakh grouping on three reports only.
+ * Grouped by hand, never by a locale, so it never depends on the browser.
  */
 (function (global) {
   'use strict';
@@ -25,15 +25,12 @@
 
   // fmt(): the reference's "–" for zero, parentheses for negative, otherwise
   // grouped. Two decimals only when the value carries paisa.
-  function fmt(v) {
-    var x = n(v);
-    var r = Math.round(x * 100) / 100;
-    if (r === 0) return '–';
-    var abs = Math.abs(r);
-    var s = hasPaisa(abs)
-      ? abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-      : abs.toLocaleString('en-US');
-    return (r < 0 ? '(' : '') + s + (r < 0 ? ')' : '');
+  function fmt(v) { return fmtLakh(v); }
+  // lakh / crore grouping of a non-negative amount: 2,63,61,788.75
+  function lakh(abs) {
+    var parts = abs.toFixed(hasPaisa(abs) ? 2 : 0).split('.');
+    var ip = parts[0], last3 = ip.slice(-3), rest = ip.slice(0, -3);
+    return (rest ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' : '') + last3 + (parts[1] ? '.' + parts[1] : '');
   }
 
   // fmtLakh(): same rules as fmt(), but grouped in lakh/crore (7,15,55,000).
@@ -44,11 +41,7 @@
     var x = n(v);
     var r = Math.round(x * 100) / 100;
     if (r === 0) return '–';
-    var abs = Math.abs(r);
-    var parts = abs.toFixed(hasPaisa(abs) ? 2 : 0).split('.');
-    var ip = parts[0];
-    var last3 = ip.slice(-3), rest = ip.slice(0, -3);
-    var s = (rest ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' : '') + last3 + (parts[1] ? '.' + parts[1] : '');
+    var s = lakh(Math.abs(r));
     return (r < 0 ? '(' : '') + s + (r < 0 ? ')' : '');
   }
 
@@ -58,10 +51,7 @@
     if (v === '' || v === null || v === undefined) return '';
     var x = n(v);
     if (x === 0 && String(v).trim() === '') return '';
-    var abs = Math.abs(x);
-    var s = hasPaisa(abs)
-      ? abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-      : abs.toLocaleString('en-US');
+    var s = lakh(Math.abs(x));
     return (x < 0 ? '-' : '') + s;
   }
 

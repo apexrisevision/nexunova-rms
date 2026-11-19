@@ -10,7 +10,7 @@ const [dayFile, fixFile, OUT] = process.argv.slice(2);
 const days = JSON.parse(fs.readFileSync(dayFile, 'utf8')), fix = JSON.parse(fs.readFileSync(fixFile, 'utf8'));
 const MARK = ['BPV-0043', 'BPV-0045', 'BPV-0046', 'BPV-0026', 'CPV-0170', 'CPV-0171', 'CPV-0172', 'BRV-0079', 'Khyber', 'Zia ul Haq', 'Waqar', '4,15,250', '2,63,61', '🔒'];
 const url = p => 'file:///' + path.join(ROOT, p).replace(/\\/g, '/');
-const HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+const HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="${url('')}/">
 <link rel="stylesheet" href="${url('css/nf/nf.css')}"><link rel="stylesheet" href="${url('css/nf/nf-reports-menu.css')}"></head><body><div id="nf-root"></div>
 ${['js/nf/nf-format.js', 'js/nf/nf-pick.js', 'js/nf/nf-drill.js', 'js/nf/nf-reports-menu.js', 'js/nf/nf-messages.js', 'js/nf/nf-voucher-popup.js',
    'js/nf/nf-day-excel.js', 'js/nf/nf-whatsapp-report.js', 'js/nf/nf-sheet.js'].map(s => `<script src="${url(s)}"></script>`).join('\n')}

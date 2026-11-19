@@ -54,16 +54,18 @@ const OUT = process.argv[2];
       await pg.waitForSelector('.row[data-saved]', { timeout: 30000 });
       const t = await pg.evaluate(() => ({
         scripts: [...document.scripts].map(s => s.src).filter(s => /nf-sheet/.test(s)).map(s => s.replace(/^.*\/js/, 'js')),
-        who: (document.querySelector('.nf-who') || {}).textContent, reports: !!document.querySelector('#nf-rpm-toggle'), xlsx: !!document.querySelector('#nf-dayXlsx'),
+        who: (document.querySelector('.nf-who') || {}).textContent, reports: !!document.querySelector('#nf-rpm-toggle'), xlsx: !!document.querySelector('#nf-dayXlsx'), filter: !!document.querySelector('[data-whose]'),
         close: !!document.querySelector('#nf-close'), tags: [...document.querySelectorAll('.nf-by')].map(x => x.textContent),
         ro: [...document.querySelectorAll('.row[data-ro] input.amt')].map(x => x.disabled), overflow: document.documentElement.scrollWidth - window.innerWidth,
         pos: [...document.querySelectorAll('table.pos tbody tr td:first-child')].map(td => td.textContent).join(' | '),
       }));
       if (key === 'site') {
-        check('live page serves the new sheet', t.scripts.some(s => s.indexOf('nf-sheet.js?v=20261119d') >= 0), t.scripts.join(','));
+        check('live page serves the new sheet', t.scripts.some(s => s.indexOf('nf-sheet.js?v=20261119j') >= 0), t.scripts.join(','));
         check('site login: chip "ZZ Site · Petty cash" (a test company keeps the seed labels), no Reports, no Close day', /ZZ Site · Petty cash/.test(t.who || '') && !t.reports && !t.close, t.who);
         check('site login: no Excel button', !t.xlsx);
-        check('site login: head office line locked, own line open', t.ro.length === 1 && t.ro[0] === true && t.tags.some(s => /🔒 Head Office/.test(s)) && t.tags.includes('ZZ Site'), t.tags.join(','));
+        // 20261119e: the site box sees its own lines only — no Head Office line, no lock, no filter
+        check('site login: only his own line (no Head Office line, no lock, no filter)', t.ro.length === 0 && t.tags.join(',') === 'ZZ Site' && !t.filter, t.tags.join(',') + ' · filter ' + t.filter);
+        check('site login: Site Cash only in the position', t.pos === 'Petty cash | Total', t.pos);
         check('site login on a phone: nothing wider than the screen', t.overflow <= 1, String(t.overflow));
         await pg.screenshot({ path: path.join(OUT, '6 LIVE - site login, phone.png'), fullPage: true });
       } else {

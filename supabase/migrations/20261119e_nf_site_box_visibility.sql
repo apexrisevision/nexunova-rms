@@ -1,5 +1,5 @@
 -- ══ NexuFinance: the site cash box sees its own closing only (20261119e) ══
--- NOT APPLIED until the owner says yes.
+-- APPLIED 19-Nov-2026 as 20261119092520, on the owner's yes (rules suite 81/81 and browser checks 34/34 first).
 --
 -- Brief of 19-Nov (closes handover item #8). A member whose cash box is Site Cash (via Petty) — today Sharose:
 --   * TABLES (row security): reads only the vouchers and legs HE entered; no direct read of day sheets, PDCs,

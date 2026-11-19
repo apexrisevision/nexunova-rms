@@ -173,7 +173,8 @@
       var rows = S.position.rows || [];
       var body = rows.map(function (r) {
         var cl = F.n(r.closing);
-        return '<tr><td><span class="code">' + esc(r.code) + '</span>' + esc(r.label) + '</td>' +
+        // the site box reads its box by name only, no account code (owner, 19-Nov)
+        return '<tr><td>' + (isSite ? '' : '<span class="code">' + esc(r.code) + '</span>') + esc(r.label) + '</td>' +
           '<td class="r t">' + F.fmt(r.opening) + '</td>' +
           '<td class="r t">' + F.fmt(r.received) + '</td>' +
           '<td class="r t">' + F.fmt(r.paid) + '</td>' +

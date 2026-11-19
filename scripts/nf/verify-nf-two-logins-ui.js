@@ -13,7 +13,7 @@ const [fixtureFile, outDir] = process.argv.slice(2);
 const FIX = JSON.parse(fs.readFileSync(fixtureFile, 'utf8'));
 const url = p => 'file:///' + path.join(ROOT, p).replace(/\\/g, '/');
 
-const HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+const HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="${url('')}/">
 <link rel="stylesheet" href="${url('css/nf/nf.css')}"><link rel="stylesheet" href="${url('css/nf/nf-reports-menu.css')}">
 </head><body><div id="nf-root"></div>
 ${['js/nf/nf-format.js', 'js/nf/nf-pick.js', 'js/nf/nf-drill.js', 'js/nf/nf-reports-menu.js', 'js/nf/nf-messages.js',
