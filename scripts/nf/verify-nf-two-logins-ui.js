@@ -113,16 +113,24 @@ window.__boot = function (fix, as) {
     }
     // WhatsApp report: three views for head office; a picture and a PDF come out
     await pg.evaluate(() => { window.__dl = []; HTMLAnchorElement.prototype.click = function () { if (this.download) window.__dl.push(this.download); }; });
-    await pg.click('#nf-waReport'); await pg.waitForSelector('#nf-wa-dialog [data-wa="jpg"]');
+    await pg.click('#nf-waReport'); await pg.waitForSelector('#nf-wa-dialog [data-wa="preview"]');
     const radios = await q(pg, () => [...document.querySelectorAll('#nf-wa-dialog input[name="nf-wa-view"]')].map(r => r.value));
     check('HO: WhatsApp report offers Site / Head Office / Combined', radios.join(',') === 'site,ho,combined', radios.join(','));
     await pg.evaluate(() => { document.querySelector('#nf-wa-date').value = '2026-11-16'; document.querySelector('input[value="ho"]').checked = true; });
-    await pg.click('#nf-wa-dialog [data-wa="jpg"]'); await pg.waitForFunction(() => window.__dl.length >= 1, { timeout: 20000 }).catch(() => {});
-    await pg.click('#nf-waReport'); await pg.waitForSelector('#nf-wa-dialog [data-wa="pdf"]');
+    await pg.click('#nf-wa-dialog [data-wa="preview"]'); await pg.waitForSelector('#nfwa-preview .wa');
+    const pv = await q(pg, () => ({ dlBefore: window.__dl.length, title: document.querySelector('#nfwa-preview .nfwa-bar .t').textContent }));
+    check('HO: Preview shows the report first, nothing saved yet', pv.dlBefore === 0 && /Head Office view/.test(pv.title), JSON.stringify(pv));
+    await pg.waitForFunction(() => !document.querySelector('#nfwa-preview [data-act="jpg"]').disabled, { timeout: 20000 });
+    await pg.click('#nfwa-preview [data-act="jpg"]'); await pg.waitForFunction(() => window.__dl.length >= 1, { timeout: 20000 }).catch(() => {});
+    await pg.click('#nfwa-preview [data-act="close"]');
+    await pg.click('#nf-waReport'); await pg.waitForSelector('#nf-wa-dialog [data-wa="preview"]');
     await pg.evaluate(() => { document.querySelector('#nf-wa-date').value = '2026-11-16'; document.querySelector('input[value="combined"]').checked = true; });
-    await pg.click('#nf-wa-dialog [data-wa="pdf"]'); await pg.waitForFunction(() => window.__dl.length >= 2, { timeout: 20000 }).catch(() => {});
+    await pg.click('#nf-wa-dialog [data-wa="preview"]'); await pg.waitForSelector('#nfwa-preview .wa');
+    await pg.click('#nfwa-preview [data-act="pdf"]'); await pg.waitForFunction(() => window.__dl.length >= 2, { timeout: 20000 }).catch(() => {});
+    await pg.click('#nfwa-preview [data-act="close"]');
+    check('HO: Close removes the preview', await q(pg, () => !document.querySelector('#nfwa-preview')));
     const dl = await q(pg, () => window.__dl), calls = await q(pg, () => window.__calls.filter(c => c[0] === 'dayReport'));
-    check('HO: picture and PDF downloaded for the chosen views', dl[0] === 'Awami Daily Closing 16-Nov-2026 Head Office.jpg' && dl[1] === 'Awami Daily Closing 16-Nov-2026 Combined.pdf' && calls.map(c => c[2]).join() === 'ho,combined', dl.join(' | ') + ' · ' + JSON.stringify(calls));
+    check('HO: picture and PDF saved from the preview, for the chosen views', dl[0] === 'Awami Daily Closing 16-Nov-2026 Head Office.jpg' && dl[1] === 'Awami Daily Closing 16-Nov-2026 Combined.pdf' && calls.map(c => c[2]).join() === 'ho,combined', dl.join(' | ') + ' · ' + JSON.stringify(calls));
     check('HO: no script errors', errs.length === 0, errs.join(' / '));
     await pg.close();
   }
@@ -150,6 +158,15 @@ window.__boot = function (fix, as) {
     check(`Site ${tag}: head office line is locked (all fields off, no delete, 🔒 tag)`, t.hoRo && t.hoInputsOff && !t.hoDel && /🔒/.test(t.hoTag), t.hoTag);
     check(`Site ${tag}: his own lines stay editable with delete`, t.ownEditable && t.ownDel);
     if (width < 600) check('Site phone: nothing wider than the screen', t.overflow <= 1, 'overflow ' + t.overflow + 'px');
+    if (width < 600) {
+      await pg.click('#nf-waReport'); await pg.waitForSelector('#nf-wa-dialog [data-wa="preview"]');
+      await pg.click('#nf-wa-dialog [data-wa="preview"]'); await pg.waitForSelector('#nfwa-preview .wa');
+      await new Promise(r => setTimeout(r, 300));
+      const fit = await q(pg, () => document.querySelector('#nfwa-preview .nfwa-fit').getBoundingClientRect().width <= window.innerWidth);
+      check('Site phone: the preview fits the screen', fit);
+      await pg.screenshot({ path: path.join(outDir, '8 WhatsApp report preview - phone.png') });
+      await pg.click('#nfwa-preview [data-act="close"]');
+    }
     if (width > 600) {
       await pg.click('[data-vtype="CPV"]');
       await pg.waitForSelector('.vp-seg');
@@ -160,13 +177,16 @@ window.__boot = function (fix, as) {
       const via = await q(pg, () => { const own = document.querySelector('.row[data-saved]:not([data-ro]) select[data-k="m"]'); return [...own.options].map(o => o.value + ':' + o.textContent); });
       check('Site: a saved cash line can only be on Site Cash', via.length === 1 && via[0] === 'Petty:Site Cash', via.join(','));
       await pg.evaluate(() => { window.__dl = []; HTMLAnchorElement.prototype.click = function () { if (this.download) window.__dl.push(this.download); }; });
-      await pg.click('#nf-waReport'); await pg.waitForSelector('#nf-wa-dialog [data-wa="jpg"]');
+      await pg.click('#nf-waReport'); await pg.waitForSelector('#nf-wa-dialog [data-wa="preview"]');
       const wa = await q(pg, () => ({ radios: document.querySelectorAll('#nf-wa-dialog input[name="nf-wa-view"]').length, only: (document.querySelector('.nf-wa-only') || {}).textContent }));
       check('Site: WhatsApp report has no view choice — Site only', wa.radios === 0 && wa.only === 'Site view', JSON.stringify(wa));
       await pg.evaluate(() => { document.querySelector('#nf-wa-date').value = '2026-11-18'; });
-      await pg.click('#nf-wa-dialog [data-wa="jpg"]'); await pg.waitForFunction(() => window.__dl.length >= 1, { timeout: 20000 }).catch(() => {});
+      await pg.click('#nf-wa-dialog [data-wa="preview"]'); await pg.waitForSelector('#nfwa-preview .wa');
+      await pg.waitForFunction(() => !document.querySelector('#nfwa-preview [data-act="jpg"]').disabled, { timeout: 20000 });
+      await pg.click('#nfwa-preview [data-act="jpg"]'); await pg.waitForFunction(() => window.__dl.length >= 1, { timeout: 20000 }).catch(() => {});
+      await pg.click('#nfwa-preview [data-act="close"]');
       const sdl = await q(pg, () => ({ dl: window.__dl, calls: window.__calls.filter(c => c[0] === 'dayReport') }));
-      check('Site: the picture asks for and comes out as Site', sdl.calls.length === 1 && sdl.calls[0][2] === 'site' && sdl.dl[0] === 'Awami Daily Closing 18-Nov-2026 Site.jpg', JSON.stringify(sdl));
+      check('Site: the preview asks for and saves Site', sdl.calls.length === 1 && sdl.calls[0][2] === 'site' && sdl.dl[0] === 'Awami Daily Closing 18-Nov-2026 Site.jpg', JSON.stringify(sdl));
     }
     await pg.screenshot({ path: path.join(outDir, (width < 600 ? '5 Sharose - real screen, phone.png' : '4 Sharose - real screen.png')), fullPage: true });
     check(`Site ${tag}: no script errors`, errs.length === 0, errs.join(' / '));

@@ -4,6 +4,7 @@
  * from nf_day_report. The site login always gets Site — the database decides that, not this file.
  *
  *   NfWaReport.html(report)                   → the report page (pure; the mockups use it too)
+ *   NfWaReport.preview(api, companyId, date, view)   the report on screen, then Share / Save picture / Save PDF
  *   NfWaReport.download(api, companyId, date, view, kind)   kind: 'jpg' | 'pdf'
  *   NfWaReport.vendorBase                     where html2canvas / pdf-lib are served from ('/vendor/')
  */
@@ -153,27 +154,29 @@
     a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
   }
-  function download(nfApi, companyId, date, view, kind) {
+  function fileName(rep) {
+    var p = String(rep.date).split('-');
+    return 'Awami Daily Closing ' + p[2] + '-' + MON[+p[1] - 1].slice(0, 3) + '-' + p[0] + ' ' + rep.view_name;
+  }
+  // the report drawn into a picture (and, for kind 'pdf', a one-page PDF of that picture)
+  function render(rep, kind) {
     var vb = api.vendorBase;
     return Promise.all([
-      nfApi.dayReport(companyId, date, view),
       load(vb + 'html2canvas.min.js?v=1.4.1', function () { return typeof global.html2canvas === 'function'; }),
       kind === 'pdf' ? load(vb + 'pdf-lib.min.js?v=1.17.1', function () { return !!global.PDFLib; }) : Promise.resolve(),
-    ]).then(function (r) {
-      var rep = r[0];
+    ]).then(function () {
       // laid out on the page but behind it: html2canvas needs a real layout
       var host = document.createElement('div');
       host.style.cssText = 'position:fixed;left:0;top:0;z-index:-1;pointer-events:none;width:1080px;background:#fff';
       host.innerHTML = html(rep);
       document.body.appendChild(host);
-      var p = String(rep.date).split('-');
-      var name = 'Awami Daily Closing ' + p[2] + '-' + MON[+p[1] - 1].slice(0, 3) + '-' + p[0] + ' ' + rep.view_name;
+      var name = fileName(rep);
       return global.html2canvas(host.firstChild, { scale: 1, backgroundColor: '#ffffff', logging: false, width: 1080, windowWidth: 1080 })
         .then(function (cv) {
           host.remove();
           var jpgUrl = cv.toDataURL('image/jpeg', 0.92);
           if (kind !== 'pdf') {
-            return fetch(jpgUrl).then(function (x) { return x.blob(); }).then(function (b) { save(b, name + '.jpg'); return rep; });
+            return fetch(jpgUrl).then(function (x) { return x.blob(); }).then(function (b) { return { blob: b, name: name + '.jpg' }; });
           }
           var L = global.PDFLib;
           return L.PDFDocument.create().then(function (doc) {
@@ -184,11 +187,77 @@
               doc.setTitle(name);
               return doc.save();
             });
-          }).then(function (bytes) { save(new Blob([bytes], { type: 'application/pdf' }), name + '.pdf'); return rep; });
+          }).then(function (bytes) { return { blob: new Blob([bytes], { type: 'application/pdf' }), name: name + '.pdf' }; });
         }, function (e) { host.remove(); throw e; });
+    });
+  }
+  function download(nfApi, companyId, date, view, kind) {
+    return nfApi.dayReport(companyId, date, view).then(function (rep) {
+      return render(rep, kind).then(function (f) { save(f.blob, f.name); return rep; });
+    });
+  }
+
+  // Preview first (owner, 19-Nov): the report on screen, then Share / Save picture / Save PDF / Close.
+  // The picture is drawn as soon as the preview opens, so Share on a phone runs inside the tap.
+  var PCSS =
+    '.nfwa-back{position:fixed;inset:0;z-index:9000;background:rgba(15,23,42,.55);display:flex;flex-direction:column;align-items:center;padding:16px}' +
+    '.nfwa-bar{width:100%;max-width:640px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#fff;border-radius:14px;padding:10px 12px;margin-bottom:10px;box-shadow:0 8px 24px rgba(0,0,0,.18)}' +
+    '.nfwa-bar .t{flex:1 1 180px;font-size:14px;color:#0F172A;min-width:0}.nfwa-bar .t small{display:block;color:#64748B;font-size:12px}' +
+    '.nfwa-bar button{font:inherit;font-size:13px;border:1px solid #CBD5E1;background:#fff;color:#0F172A;border-radius:9px;padding:8px 12px;cursor:pointer}' +
+    '.nfwa-bar button.pri{background:#2563EB;border-color:#2563EB;color:#fff}.nfwa-bar button:disabled{opacity:.5;cursor:default}' +
+    '.nfwa-scroll{width:100%;max-width:640px;flex:0 1 auto;min-height:0;overflow:auto;border-radius:14px;background:#F3F4F6}' +
+    '.nfwa-fit{transform-origin:0 0}.nfwa-msg{font-size:12px;color:#fff;margin-top:8px;min-height:16px}';
+  function preview(nfApi, companyId, date, view) {
+    return nfApi.dayReport(companyId, date, view).then(function (rep) {
+      var old = document.getElementById('nfwa-preview'); if (old) old.remove();
+      var back = document.createElement('div');
+      back.className = 'nfwa-back'; back.id = 'nfwa-preview';
+      back.setAttribute('role', 'dialog'); back.setAttribute('aria-modal', 'true'); back.setAttribute('aria-label', 'WhatsApp report preview');
+      var canShare = !!(navigator.share && navigator.canShare);
+      back.innerHTML = '<style>' + PCSS + '</style>' +
+        '<div class="nfwa-bar"><div class="t">Preview — ' + esc(rep.view_name) + ' view<small>' + esc(dateText(rep.date)) + '</small></div>' +
+        (canShare ? '<button type="button" class="pri" data-act="share" disabled>Share</button>' : '') +
+        '<button type="button"' + (canShare ? '' : ' class="pri"') + ' data-act="jpg" disabled>Save picture</button>' +
+        '<button type="button" data-act="pdf">Save PDF</button><button type="button" data-act="close">Close</button></div>' +
+        '<div class="nfwa-scroll"><div class="nfwa-fit">' + html(rep) + '</div></div><div class="nfwa-msg" aria-live="polite"></div>';
+      document.body.appendChild(back);
+      var scroll = back.querySelector('.nfwa-scroll'), fit = back.querySelector('.nfwa-fit'), msg = back.querySelector('.nfwa-msg');
+      function size() {
+        var k = Math.min(1, scroll.clientWidth / 1080);
+        fit.style.transform = 'scale(' + k + ')';
+        fit.style.width = '1080px';
+        fit.style.height = (fit.firstChild.offsetHeight * k) + 'px';
+      }
+      size(); window.addEventListener('resize', size);
+      function close() { window.removeEventListener('resize', size); document.removeEventListener('keydown', onKey); back.remove(); }
+      function onKey(e) { if (e.key === 'Escape') close(); }
+      document.addEventListener('keydown', onKey);
+      var jpg = null, pdf = null;
+      var jpgReady = render(rep, 'jpg').then(function (f) {
+        jpg = f;
+        back.querySelectorAll('[data-act="jpg"],[data-act="share"]').forEach(function (b) { b.disabled = false; });
+        return f;
+      }, function (e) { msg.textContent = 'Could not draw the picture: ' + (e && e.message); });
+      back.querySelector('[data-act="close"]').addEventListener('click', close);
+      back.querySelector('[data-act="jpg"]').addEventListener('click', function () { if (jpg) save(jpg.blob, jpg.name); });
+      back.querySelector('[data-act="pdf"]').addEventListener('click', function (ev) {
+        var b = ev.currentTarget; b.disabled = true; msg.textContent = 'Preparing the PDF…';
+        (pdf ? Promise.resolve(pdf) : render(rep, 'pdf')).then(function (f) { pdf = f; save(f.blob, f.name); msg.textContent = ''; b.disabled = false; },
+          function (e) { msg.textContent = 'Could not make the PDF: ' + (e && e.message); b.disabled = false; });
+      });
+      var shareBtn = back.querySelector('[data-act="share"]');
+      if (shareBtn) shareBtn.addEventListener('click', function () {
+        if (!jpg) return;
+        var file = new File([jpg.blob], jpg.name, { type: 'image/jpeg' });
+        if (!navigator.canShare({ files: [file] })) { save(jpg.blob, jpg.name); return; }
+        navigator.share({ files: [file], title: jpg.name }).catch(function () {});
+      });
+      api._lastPreview = { ready: jpgReady };
+      return rep;
     });
   }
   api.html = html;
   api.download = download;
+  api.preview = preview;
   global.NfWaReport = api;
 })(typeof window !== 'undefined' ? window : globalThis);

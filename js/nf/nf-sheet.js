@@ -874,7 +874,7 @@
         '<div class="fld-row" style="grid-template-columns:1fr"><div><label for="nf-wa-date">Date</label><input type="date" id="nf-wa-date" value="' + esc(S.day ? S.day.business_date : '') + '"></div></div>' +
         views + '<p class="nfn-err" id="nf-wa-err" hidden></p>' +
         '<div class="actions"><button class="btn" type="button" id="nf-wa-cancel">Cancel</button>' +
-        '<button class="btn" type="button" data-wa="pdf">PDF</button><button class="btn primary" type="button" data-wa="jpg">Picture (JPG)</button></div></div>';
+        '<button class="btn primary" type="button" data-wa="preview">Preview</button></div></div>';
       root.appendChild(host);
       host.querySelector('#nf-wa-cancel').addEventListener('click', function () { host.remove(); });
       host.addEventListener('keydown', function (e) { if (e.key === 'Escape') host.remove(); });
@@ -884,8 +884,9 @@
           var pick = host.querySelector('input[name="nf-wa-view"]:checked');
           if (!date) { err.textContent = 'Pick a date.'; err.hidden = false; return; }
           host.querySelectorAll('[data-wa]').forEach(function (x) { x.disabled = true; }); err.hidden = true;
-          global.NfWaReport.download(api, companyId, date, isSite ? 'site' : (pick ? pick.value : 'combined'), b.getAttribute('data-wa'))
-            .then(function (rep) { host.remove(); toast(rep.view_name + ' report for ' + F.ddMonYyyy(date) + ' downloaded.'); })
+          // preview first; Share / Save picture / Save PDF are on the preview (owner, 19-Nov)
+          global.NfWaReport.preview(api, companyId, date, isSite ? 'site' : (pick ? pick.value : 'combined'))
+            .then(function () { host.remove(); })
             .catch(function (e) { host.querySelectorAll('[data-wa]').forEach(function (x) { x.disabled = false; }); err.textContent = Msg.forDay(e); err.hidden = false; });
         });
       });
