@@ -398,14 +398,12 @@
       var cashRow = ((S.position && S.position.rows) || []).filter(function (r) { return r.via === 'Cash'; })[0];
       var book = cashRow ? F.n(cashRow.closing) : 0;
       var tb = transferDraft ? transferDraft.tBank : F.grp(d.transfer_to_bank);
-      var tp = transferDraft ? transferDraft.tPetty : F.grp(d.transfer_to_petty);
 
       return '' +
         '<section class="sec"><div class="tri">' +
         '  <div><div class="sh"><h2>Transfers and reconciliation</h2></div>' +
         '    <div class="box"><table class="rec">' +
         '      <tr><td>Cash deposited in bank</td><td class="r"><input class="fld" id="nf-tBank" inputmode="decimal" value="' + esc(tb) + '" ' + (canWrite ? '' : 'disabled') + '></td></tr>' +
-        '      <tr><td>' + esc(viaLabel('Cash')) + ' given to ' + esc(viaLabel('Petty')) + '</td><td class="r"><input class="fld" id="nf-tPetty" inputmode="decimal" value="' + esc(tp) + '" ' + (canWrite ? '' : 'disabled') + '></td></tr>' +
         '      <tr><td>' + esc(viaLabel('Cash')) + ' as per book</td><td class="r t">' + F.fmt(book) + '</td></tr>' +
         '    </table></div></div>' +
         '</div></section>';
@@ -835,12 +833,13 @@
       // transfers — every keystroke updates the overlay first (so a render()
       // mid-typing has something true to redraw from), then asks for a save;
       // the debounce decides when that actually goes out.
-      var tBank = root.querySelector('#nf-tBank'), tPetty = root.querySelector('#nf-tPetty');
+      // (the old "Head Office Cash given to Site Cash" box is gone — owner, 19-Nov: cash between the two boxes is a
+      // voucher from the Cash payment / Cash receipt popup, docs/PLAN.md §54; the amount it held is still sent as is)
+      var tBank = root.querySelector('#nf-tBank');
       function touchTransferDraft() {
         if (!transferDraft) transferDraft = { tBank: F.grp(S.day.transfer_to_bank), tPetty: F.grp(S.day.transfer_to_petty) };
       }
       if (tBank) tBank.addEventListener('input', function () { touchTransferDraft(); transferDraft.tBank = tBank.value; saveTransfers(); });
-      if (tPetty) tPetty.addEventListener('input', function () { touchTransferDraft(); transferDraft.tPetty = tPetty.value; saveTransfers(); });
 
       // PDCs
       root.querySelectorAll('[data-pdc-add]').forEach(function (btn) {

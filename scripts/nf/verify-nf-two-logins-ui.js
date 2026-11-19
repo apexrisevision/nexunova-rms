@@ -93,7 +93,7 @@ window.__boot = function (fix, as) {
     check('HO: every line names who entered it', t.tags.length === t.rows && t.tags.includes('Head Office') && t.tags.includes('Sharose'), t.tags.join(','));
     check('HO (director): no line is read-only, no lock', t.ro === 0 && !t.tags.some(s => /🔒/.test(s)));
     check('HO: Close day is there', t.close);
-    check('HO: transfer reads "Head Office Cash given to Site Cash"', /Head Office Cash given to Site Cash/.test(t.triLabel), t.triLabel.trim());
+    check('HO: the old "Head Office Cash given to Site Cash" box is gone (a popup voucher now, §54)', !t.tri && !t.triLabel, t.triLabel.trim());
     await pg.screenshot({ path: path.join(outDir, '3 Head Office - real screen.png'), fullPage: true });
     await pg.click('[data-whose="site"]');
     const nSite = await q(pg, () => document.querySelectorAll('.row[data-saved]').length);

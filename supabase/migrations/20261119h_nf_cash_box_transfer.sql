@@ -1,5 +1,5 @@
 -- ══ NexuFinance: cash moved between Head Office Cash and Site Cash, from the voucher popups (20261119h) ══
--- NOT APPLIED until the owner says yes.
+-- Applied 19-Nov-2026 (20261119110730) on the owner's yes.
 --
 -- Owner, 19-Nov: "headoffice cash jab mai site accountant ko dun to entry nahi hoti" — there is no way on the
 -- screen to move cash from Head Office Cash to Site Cash, or back. (The Head Office sheet's old "given to Site

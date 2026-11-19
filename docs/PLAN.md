@@ -4206,7 +4206,7 @@ in BOP (bank)" first in the head list (slip instead of party and floor), the Cas
 BOP (bank)" (cheque no., existing `nf_save_withdrawal`); a Transfers list on the sheet with delete and the paper
 number, counted in the Close-day number check. Dry run 12/12; browser check 38/38.
 
-## 54 · Cash moved between Head Office Cash and Site Cash (2026-11-19, NOT applied)
+## 54 · Cash moved between Head Office Cash and Site Cash (2026-11-19, applied 20261119110730)
 
 Owner: "headoffice cash jab mai site accountant ko dun to entry nahi hoti" — no way on the screen to move cash from
 Head Office Cash to Site Cash or back. (The Head Office sheet's old "Head Office Cash given to Site Cash" box is
@@ -4218,3 +4218,4 @@ director either; the paper number needed before Close day; the same transfer alr
 Not money received or paid: it shows under Transfers and in the WhatsApp brief's "Cheques & transfers". Screen: the
 Cash payment popup offers "Cash given to <the other box>" and the Cash receipt popup "Cash received from <the other
 box>" next to the bank choice, no party or floor. Dry run 14/14; browser check 43/43.
+The Head Office sheet's old "Head Office Cash given to Site Cash" box was removed on the owner's word (never used: no XFR-PETTY voucher in Awami).
