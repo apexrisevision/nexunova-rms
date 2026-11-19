@@ -87,6 +87,17 @@ const OUT = process.argv[2];
       const wa = await pg.evaluate(() => ({ radios: [...document.querySelectorAll('#nf-wa-dialog input[name="nf-wa-view"]')].map(r => r.value).join(','), only: (document.querySelector('.nf-wa-only') || {}).textContent || '' }));
       if (key === 'site') check('site login: WhatsApp report is Site only (no view choice)', wa.radios === '' && wa.only === 'Site view', JSON.stringify(wa));
       else check('director: WhatsApp report offers Site / Head Office / Combined', wa.radios === 'site,ho,combined', JSON.stringify(wa));
+      // each view the login has opens as the one-page Daily Brief, and its picture is drawn
+      for (const v of (key === 'site' ? [''] : ['site', 'ho', 'combined'])) {
+        if (!(await pg.$('#nf-wa-dialog'))) { await pg.click('#nf-waReport'); await pg.waitForSelector('#nf-wa-dialog [data-wa="preview"]'); }
+        if (v) await pg.evaluate(v => { document.querySelector('#nf-wa-dialog input[value="' + v + '"]').checked = true; }, v);
+        await pg.click('#nf-wa-dialog [data-wa="preview"]'); await pg.waitForSelector('#nfwa-preview .wa');
+        await pg.waitForFunction(() => !document.querySelector('#nfwa-preview [data-act="jpg"]').disabled || /Could not/.test(document.querySelector('#nfwa-preview .nfwa-msg').textContent), { timeout: 30000 }).catch(() => {});
+        const b = await pg.evaluate(() => { const w = document.querySelector('#nfwa-preview .wa'); return { h1: w.querySelector('h1').textContent, tag: w.querySelector('.tag').textContent, size: w.offsetWidth + 'x' + w.offsetHeight, ready: !document.querySelector('#nfwa-preview [data-act="jpg"]').disabled, msg: document.querySelector('#nfwa-preview .nfwa-msg').textContent }; });
+        check(key + ': ' + (v || 'site') + ' view is the one-page Daily Brief, picture drawn', /Daily Brief$/.test(b.h1) && b.size === '1080x1350' && b.ready, JSON.stringify(b));
+        await pg.screenshot({ path: path.join(OUT, '8 LIVE - ' + key + ' brief ' + (v || 'site') + '.png') });
+        await pg.click('#nfwa-preview [data-act="close"]');
+      }
       check(key + ': no script errors', errs.length === 0, errs.join(' / '));
       await pg.close();
     }
