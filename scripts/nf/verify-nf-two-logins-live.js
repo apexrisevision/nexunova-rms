@@ -60,7 +60,7 @@ const OUT = process.argv[2];
         pos: [...document.querySelectorAll('table.pos tbody tr td:first-child')].map(td => td.textContent).join(' | '),
       }));
       if (key === 'site') {
-        check('live page serves the new sheet', t.scripts.some(s => s.indexOf('nf-sheet.js?v=20261119k') >= 0), t.scripts.join(','));
+        check('live page serves the new sheet', t.scripts.some(s => s.indexOf('nf-sheet.js?v=20261119n') >= 0), t.scripts.join(','));
         check('site login: chip "ZZ Site · Petty cash" (a test company keeps the seed labels), no Reports, no Close day', /ZZ Site · Petty cash/.test(t.who || '') && !t.reports && !t.close, t.who);
         check('site login: no Excel button', !t.xlsx);
         // 20261119e: the site box sees its own lines only — no Head Office line, no lock, no filter
@@ -98,6 +98,13 @@ const OUT = process.argv[2];
         await pg.screenshot({ path: path.join(OUT, '8 LIVE - ' + key + ' brief ' + (v || 'site') + '.png') });
         await pg.click('#nfwa-preview [data-act="close"]');
       }
+      // 20261119h: cash to the other cash box is offered in the Cash payment heads
+      await pg.click('[data-vtype="CPV"]'); await pg.waitForSelector('[data-pick="nfv-head"] .nfpick-in');
+      await pg.type('[data-pick="nfv-head"] .nfpick-in', 'given');
+      await pg.waitForFunction(() => [...document.querySelectorAll('[data-pick="nfv-head"] .nfpick-opt')].some(o => /Cash given to/.test(o.textContent)), { timeout: 8000 }).catch(() => {});
+      const give = await pg.evaluate(() => [...document.querySelectorAll('[data-pick="nfv-head"] .nfpick-opt')].map(o => o.textContent).filter(x => /Cash given to/.test(x)).join(' | '));
+      check(key + ': Cash payment heads offer "Cash given to <the other box>"', /Cash given to /.test(give), give);
+      await pg.evaluate(() => { const b = document.querySelector('#nf-vpop'); if (b) b.remove(); });
       check(key + ': no script errors', errs.length === 0, errs.join(' / '));
       await pg.close();
     }
