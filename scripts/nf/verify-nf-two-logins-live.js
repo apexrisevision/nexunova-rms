@@ -76,7 +76,7 @@ const OUT = process.argv[2];
         await pg.screenshot({ path: path.join(OUT, '7 LIVE - director login.png'), fullPage: true });
       }
       // WhatsApp report: the director chooses a view, the site login has none
-      await pg.click('#nf-waReport'); await pg.waitForSelector('#nf-wa-dialog [data-wa="jpg"]');
+      await pg.click('#nf-waReport'); await pg.waitForSelector('#nf-wa-dialog [data-wa="preview"]');
       const wa = await pg.evaluate(() => ({ radios: [...document.querySelectorAll('#nf-wa-dialog input[name="nf-wa-view"]')].map(r => r.value).join(','), only: (document.querySelector('.nf-wa-only') || {}).textContent || '' }));
       if (key === 'site') check('site login: WhatsApp report is Site only (no view choice)', wa.radios === '' && wa.only === 'Site view', JSON.stringify(wa));
       else check('director: WhatsApp report offers Site / Head Office / Combined', wa.radios === 'site,ho,combined', JSON.stringify(wa));
