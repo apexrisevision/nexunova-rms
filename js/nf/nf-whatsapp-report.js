@@ -1,6 +1,6 @@
 /*
  * NexuFinance — the daily WhatsApp report (owner, 2026-11-19; docs/PLAN.md §51): one portrait picture
- * (JPG, 1080 px wide) and the same as a real PDF file — redrawn 19-Nov in the report family look, for a date and a view (Site / Head Office / Combined),
+ * (JPG, 1080 px wide) and the same as a real PDF file — redrawn 19-Nov: sleek and restrained, for a date and a view (Site / Head Office / Combined),
  * from nf_day_report. The site login always gets Site — the database decides that, not this file.
  *
  *   NfWaReport.html(report)                   → the report page (pure; the mockups use it too)
@@ -18,69 +18,60 @@
   function pz(n) { return Number(n) ? pk(n) : '–'; }
   function short(s, n) { s = String(s || '').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
-  // The report family's look (bright, light paper; colour carries meaning; hierarchy by size, colour and
-  // tracking — never by heavy weight): Head Office Cash sky, Site Cash teal, the bank violet; received
-  // green, paid rose, transfers amber. Sized for a phone: 1080 px wide.
-  var HUE = {
-    Cash: { ink: '#0369A1', tint: '#E0F2FE', line: '#7DD3FC' },
-    Petty: { ink: '#0F766E', tint: '#CCFBF1', line: '#5EEAD4' },
-    Bank: { ink: '#6D28D9', tint: '#EDE9FE', line: '#C4B5FD' },
-    rec: { ink: '#047857', tint: '#D1FAE5', line: '#6EE7B7' },
-    pay: { ink: '#BE123C', tint: '#FFE4E6', line: '#FDA4AF' },
-    trf: { ink: '#B45309', tint: '#FEF3C7', line: '#FCD34D' },
-  };
+  // Sleek and restrained (owner, 19-Nov: "itni colorful report na banao"): white paper, hairline rules,
+  // near-black ink, one blue accent; hierarchy by size and tracking, never by colour or heavy weight.
+  var INK = '#0F172A', MUTE = '#64748B', LINE = '#E5E7EB';
+  var HUE = { Cash: 1, Petty: 1, Bank: 1, rec: 1, pay: 1, trf: 1 };
+  Object.keys(HUE).forEach(function (k) { HUE[k] = { ink: INK, tint: '#FFFFFF', line: LINE }; });
   var CSS =
     '*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-    '.wa{width:1080px;background:#EEF2F7;padding:36px 36px 30px;font-family:Inter,"Segoe UI",Roboto,Arial,sans-serif;color:#0F172A;font-weight:400}' +
-    '.wa .paper{background:#fff;border-radius:28px;box-shadow:0 2px 0 rgba(15,23,42,.04),0 12px 40px rgba(15,23,42,.08);overflow:hidden}' +
-    '.wa .mast{padding:44px 52px 30px;display:flex;justify-content:space-between;align-items:flex-start;gap:24px}' +
-    '.wa .eyebrow{font-size:19px;letter-spacing:.22em;color:#64748B;text-transform:uppercase}' +
-    '.wa .title{font-size:64px;line-height:1.05;letter-spacing:-.02em;margin:10px 0 0;font-weight:500;color:#0F172A}' +
-    '.wa .date{font-size:28px;color:#475569;margin-top:12px;letter-spacing:-.005em}' +
-    '.wa .view{flex:none;font-size:22px;padding:10px 22px;border-radius:999px;background:#EFF6FF;color:#1D4ED8;border:1.5px solid #BFDBFE;margin-top:6px}' +
-    '.wa .ribbon{display:flex;height:8px}.wa .ribbon i{flex:1}' +
-    '.wa .body{padding:34px 52px 10px}' +
-    '.wa .lbl{font-size:18px;letter-spacing:.16em;text-transform:uppercase;color:#64748B;margin:0 0 16px}' +
-    // the cash boxes
-    '.wa .boxes{display:grid;gap:18px;margin-bottom:34px}' +
-    '.wa .box{border-radius:22px;padding:24px 28px 22px;border:1.5px solid}' +
-    '.wa .box .bn{font-size:24px;letter-spacing:-.005em;display:flex;justify-content:space-between;align-items:baseline}' +
-    '.wa .box .bn small{font-size:18px;color:#64748B;letter-spacing:.02em}' +
-    '.wa .box .big{font-size:60px;letter-spacing:-.025em;line-height:1.05;margin:8px 0 16px;font-variant-numeric:tabular-nums;font-weight:500}' +
-    '.wa .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}' +
-    '.wa .flow div{background:rgba(255,255,255,.75);border-radius:14px;padding:10px 14px}' +
-    '.wa .flow span{display:block;font-size:16px;color:#64748B;letter-spacing:.04em}' +
-    '.wa .flow b{display:block;font-weight:500;font-size:24px;color:#0F172A;font-variant-numeric:tabular-nums;margin-top:2px}' +
-    '.wa .flow b.z{color:#94A3B8}' +
-    // the day at a glance
-    '.wa .glance{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:38px}' +
-    '.wa .tile{border-radius:20px;padding:20px 22px;border:1.5px solid}' +
-    '.wa .tile span{font-size:19px;letter-spacing:-.005em}.wa .tile b{display:block;font-weight:500;font-size:40px;letter-spacing:-.02em;margin-top:6px;font-variant-numeric:tabular-nums}' +
-    '.wa .tile small{display:block;font-size:17px;color:#64748B;margin-top:4px}' +
-    // the lists
-    '.wa .sec{margin-bottom:34px}' +
-    '.wa .sh{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-radius:18px 18px 0 0}' +
-    '.wa .sh h2{margin:0;font-size:32px;font-weight:500;letter-spacing:-.015em}' +
-    '.wa .sh .pill{font-size:18px;padding:6px 16px;border-radius:999px;background:#fff}' +
-    '.wa .rows{border:1.5px solid #E2E8F0;border-top:0;border-radius:0 0 18px 18px}' +
-    '.wa .row{display:flex;justify-content:space-between;align-items:center;gap:24px;padding:18px 22px;border-top:1px solid #EEF2F7}' +
+    '.wa{width:1080px;background:#F3F4F6;padding:36px 36px 30px;font-family:Inter,"Segoe UI",Roboto,Arial,sans-serif;color:' + INK + ';font-weight:400}' +
+    '.wa .paper{background:#fff;border-radius:20px;border:1px solid ' + LINE + ';overflow:hidden}' +
+    '.wa .mast{padding:46px 52px 34px;display:flex;justify-content:space-between;align-items:flex-start;gap:24px;border-top:6px solid #2563EB}' +
+    '.wa .eyebrow{font-size:18px;letter-spacing:.24em;color:' + MUTE + ';text-transform:uppercase}' +
+    '.wa .title{font-size:62px;line-height:1.05;letter-spacing:-.025em;margin:12px 0 0;font-weight:500;color:' + INK + '}' +
+    '.wa .date{font-size:27px;color:#475569;margin-top:12px}' +
+    '.wa .view{flex:none;font-size:20px;padding:9px 20px;border-radius:999px;color:#1D4ED8;border:1px solid #BFDBFE;margin-top:6px;letter-spacing:.01em}' +
+    '.wa .ribbon{display:none}' +
+    '.wa .body{padding:6px 52px 10px;border-top:1px solid ' + LINE + '}' +
+    '.wa .lbl{font-size:17px;letter-spacing:.2em;text-transform:uppercase;color:' + MUTE + ';margin:34px 0 14px}' +
+    '.wa .boxes{display:grid;gap:14px}' +
+    '.wa .box{border-radius:16px;padding:24px 28px 22px;border:1px solid ' + LINE + '}' +
+    '.wa .box .bn{font-size:23px;color:#334155 !important;display:flex;justify-content:space-between;align-items:baseline}' +
+    '.wa .box .bn small{font-size:17px;color:' + MUTE + ';letter-spacing:.02em}' +
+    '.wa .box .big{font-size:58px;letter-spacing:-.03em;line-height:1.05;margin:8px 0 18px;font-variant-numeric:tabular-nums;font-weight:500;color:' + INK + ' !important}' +
+    '.wa .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid ' + LINE + ';padding-top:14px}' +
+    '.wa .flow div{padding:0 14px 0 0}' +
+    '.wa .flow span{display:block;font-size:16px;color:' + MUTE + ';letter-spacing:.03em}' +
+    '.wa .flow b{display:block;font-weight:400;font-size:24px;color:' + INK + ';font-variant-numeric:tabular-nums;margin-top:4px}' +
+    '.wa .flow b.z{color:#CBD5E1}' +
+    '.wa .glance{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid ' + LINE + ';border-radius:16px}' +
+    '.wa .tile{padding:22px 24px;border:0 !important;border-left:1px solid ' + LINE + ' !important}' +
+    '.wa .tile:first-child{border-left:0 !important}' +
+    '.wa .tile span{font-size:18px;color:' + MUTE + ' !important}' +
+    '.wa .tile b{display:block;font-weight:500;font-size:38px;letter-spacing:-.02em;margin-top:8px;font-variant-numeric:tabular-nums;color:' + INK + ' !important}' +
+    '.wa .tile small{display:block;font-size:16px;color:#94A3B8;margin-top:4px}' +
+    '.wa .sec{margin-top:40px}' +
+    '.wa .sh{display:flex;align-items:baseline;justify-content:space-between;padding:0 2px 14px;border-bottom:1.5px solid ' + INK + '}' +
+    '.wa .sh h2{margin:0;font-size:30px;font-weight:500;letter-spacing:-.015em;color:' + INK + ' !important}' +
+    '.wa .sh .pill{font-size:18px;color:' + MUTE + ' !important}' +
+    '.wa .rows{border:0}' +
+    '.wa .row{display:flex;justify-content:space-between;align-items:center;gap:24px;padding:18px 2px;border-top:1px solid ' + LINE + '}' +
     '.wa .row:first-child{border-top:0}' +
     '.wa .who{min-width:0;flex:1}' +
-    '.wa .nm{font-size:28px;letter-spacing:-.01em;color:#0F172A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
-    '.wa .nm.dim{color:#475569}' +
-    '.wa .meta{font-size:19px;color:#64748B;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
-    '.wa .meta .v{color:#334155;font-variant-numeric:tabular-nums}' +
-    '.wa .tag{display:inline-block;font-size:16px;padding:2px 10px;border-radius:999px;margin-left:8px;vertical-align:2px}' +
-    '.wa .tag.site{background:#CCFBF1;color:#0F766E}.wa .tag.ho{background:#E0F2FE;color:#0369A1}' +
-    '.wa .amt{font-size:32px;letter-spacing:-.015em;font-variant-numeric:tabular-nums;white-space:nowrap}' +
-    '.wa .tot{display:flex;justify-content:space-between;align-items:baseline;padding:16px 22px;border-top:1.5px solid #E2E8F0;font-size:22px;color:#475569}' +
-    '.wa .tot b{font-weight:500;font-size:32px;letter-spacing:-.015em;font-variant-numeric:tabular-nums}' +
-    '.wa .none{padding:20px 22px;font-size:22px;color:#94A3B8}' +
-    '.wa .note{font-size:18px;color:#92400E;padding:0 22px 16px}' +
-    // the footer
-    '.wa .foot{display:flex;justify-content:space-between;align-items:center;padding:22px 52px 30px;border-top:1px solid #EEF2F7;font-size:19px;color:#64748B}' +
-    '.wa .foot .p{color:#0F172A}' +
-    '.wa .brand{font-size:17px;letter-spacing:.2em;text-transform:uppercase;color:#94A3B8}';
+    '.wa .nm{font-size:27px;letter-spacing:-.01em;color:' + INK + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '.wa .nm.dim{color:#334155}' +
+    '.wa .meta{font-size:18px;color:' + MUTE + ';margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '.wa .meta .v{color:#475569;font-variant-numeric:tabular-nums}' +
+    '.wa .tag{display:inline-block;font-size:15px;padding:1px 10px;border-radius:999px;margin-left:8px;vertical-align:2px;border:1px solid ' + LINE + ';color:#475569}' +
+    '.wa .amt{font-size:29px;letter-spacing:-.015em;font-variant-numeric:tabular-nums;white-space:nowrap;color:' + INK + ' !important}' +
+    '.wa .tot{display:flex;justify-content:space-between;align-items:baseline;padding:16px 2px;border-top:1.5px solid ' + INK + ';font-size:20px;color:#475569}' +
+    '.wa .tot b{font-weight:500;font-size:31px;letter-spacing:-.015em;font-variant-numeric:tabular-nums;color:' + INK + ' !important}' +
+    '.wa .none{padding:18px 2px;font-size:21px;color:#94A3B8}' +
+    '.wa .note{font-size:17px;color:' + MUTE + ';padding:0 2px 6px}' +
+    '.wa .foot{display:flex;justify-content:space-between;align-items:center;padding:24px 52px 30px;margin-top:30px;border-top:1px solid ' + LINE + ';font-size:18px;color:' + MUTE + '}' +
+    '.wa .foot .p{color:' + INK + '}' +
+    '.wa .brand{font-size:16px;letter-spacing:.22em;text-transform:uppercase;color:#94A3B8}';
 
   function dateText(iso) {
     var p = String(iso).split('-'), d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
