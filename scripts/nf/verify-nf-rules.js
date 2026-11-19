@@ -237,12 +237,16 @@ if (require.main === module) (async () => {
     // wrapper over nf_get_report_day (nf_require_role accountant/director/
     // viewer) and nf_director_summary (nf_require_role) — both refuse anyone
     // else, including the site role, so the check lives one call down.
+    // ACCEPTED EXCEPTION (owner, 2026-11-19): nf_member_cash_box (20261118i,
+    // granted to authenticated by 20261119e for the row-security policies) is
+    // SECURITY DEFINER and returns only the caller's own cash box via auth.uid();
+    // no other member's data, amounts or balances.
     const roleCheckQuery = `
       SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args
         FROM pg_proc p
        WHERE p.pronamespace = 'public'::regnamespace
          AND p.proname LIKE 'nf\\_%' AND p.proname NOT LIKE '\\_nf\\_%'
-         AND p.proname NOT IN ('nf_require_role','nf_is_member','nf_site_reader','nf_site_bill_writer','nf_get_report')
+         AND p.proname NOT IN ('nf_require_role','nf_is_member','nf_site_reader','nf_site_bill_writer','nf_get_report','nf_member_cash_box')
          AND p.prorettype::regtype::text <> 'trigger'
          AND EXISTS (SELECT 1 FROM unnest(p.proargtypes) t WHERE t = 'uuid'::regtype)
          AND (has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('authenticated', p.oid, 'EXECUTE'))

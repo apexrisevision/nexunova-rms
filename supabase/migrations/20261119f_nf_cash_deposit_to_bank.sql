@@ -1,5 +1,5 @@
 -- ══ NexuFinance: cash deposited in the bank, from a cash box (20261119f) ══
--- NOT APPLIED until the owner says yes.
+-- APPLIED 19-Nov-2026 as 20261119102542, on the owner's yes (rules suite 81/81, browser checks 38/38 first).
 --
 -- Owner, 19-Nov: "jab Sharose cash ko bank mai deposit karta hai to us k pass cash payment mai head mai BOP ya bank
 -- nahi aa raha". A deposit is a transfer (cash box → bank), not an expense, so the bank was never a head — and the
