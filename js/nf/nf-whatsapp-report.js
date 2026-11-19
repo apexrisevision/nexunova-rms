@@ -1,6 +1,6 @@
 /*
  * NexuFinance — the daily WhatsApp report (owner, 2026-11-19; docs/PLAN.md §51): one portrait picture
- * (JPG, 1080 px wide) and the same as a real PDF file, for a date and a view (Site / Head Office / Combined),
+ * (JPG, 1080 px wide) and the same as a real PDF file — redrawn 19-Nov in the report family look, for a date and a view (Site / Head Office / Combined),
  * from nf_day_report. The site login always gets Site — the database decides that, not this file.
  *
  *   NfWaReport.html(report)                   → the report page (pure; the mockups use it too)
@@ -18,21 +18,69 @@
   function pz(n) { return Number(n) ? pk(n) : '–'; }
   function short(s, n) { s = String(s || '').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
+  // The report family's look (bright, light paper; colour carries meaning; hierarchy by size, colour and
+  // tracking — never by heavy weight): Head Office Cash sky, Site Cash teal, the bank violet; received
+  // green, paid rose, transfers amber. Sized for a phone: 1080 px wide.
+  var HUE = {
+    Cash: { ink: '#0369A1', tint: '#E0F2FE', line: '#7DD3FC' },
+    Petty: { ink: '#0F766E', tint: '#CCFBF1', line: '#5EEAD4' },
+    Bank: { ink: '#6D28D9', tint: '#EDE9FE', line: '#C4B5FD' },
+    rec: { ink: '#047857', tint: '#D1FAE5', line: '#6EE7B7' },
+    pay: { ink: '#BE123C', tint: '#FFE4E6', line: '#FDA4AF' },
+    trf: { ink: '#B45309', tint: '#FEF3C7', line: '#FCD34D' },
+  };
   var CSS =
-    '*{box-sizing:border-box}.wa{width:1080px;background:#fff;font-family:"Segoe UI",Inter,Arial,sans-serif;color:#14213d}' +
-    '.wa .top{background:linear-gradient(120deg,#0b3d91,#1565c0 60%,#00a676);color:#fff;padding:40px 48px 34px}' +
-    '.wa .top h1{margin:0;font-size:46px;font-weight:700;letter-spacing:.2px}.wa .top .d{font-size:30px;margin-top:8px;opacity:.95}' +
-    '.wa .view{display:inline-block;margin-top:16px;background:#ffd23f;color:#3d2c00;font-weight:700;font-size:26px;padding:6px 22px;border-radius:999px}' +
-    '.wa .sec{padding:28px 48px 6px}.wa .sec h2{font-size:32px;margin:0 0 14px;padding-left:14px;border-left:8px solid #1565c0}' +
-    '.wa .sec h2 span{font-size:22px;color:#6b7383;font-weight:500;margin-left:10px}.wa .sec h2.in{border-color:#00a676}.wa .sec h2.out{border-color:#e63946}.wa .sec h2.tr{border-color:#f4a300}' +
-    '.wa table{width:100%;border-collapse:collapse;font-size:25px}.wa th{font-size:20px;color:#5b6475;text-align:left;font-weight:600;padding:10px 10px;border-bottom:3px solid #e3e7ee}' +
-    '.wa td{padding:14px 10px;border-bottom:1px solid #edf0f5;vertical-align:top}.wa .r{text-align:right;white-space:nowrap}' +
-    '.wa .bal td{font-size:27px}.wa .bal td:first-child{font-weight:700}.wa .bal .cl{font-weight:800;font-size:30px;color:#0b3d91}.wa .bal .z{color:#9aa3b2}' +
-    '.wa .no{font-weight:700;white-space:nowrap;color:#0b3d91}.wa .pt{font-weight:600}.wa .hd{color:#4a5468;font-size:22px;white-space:nowrap}.wa .amt{font-weight:800;font-size:27px}' +
-    '.wa .lst tfoot td{font-weight:800;font-size:27px;background:#f3f6fb;border-bottom:0}.wa .trf td{background:#fff9e6}' +
-    '.wa .by{font-size:20px;font-weight:700}.wa .by.site{color:#0e7a5a}.wa .by.ho{color:#2b4f8a}.wa .none{font-size:24px;color:#6b7383;margin:0 0 10px}' +
-    '.wa .foot{margin:26px 48px 36px;padding:22px 26px;background:#f3f6fb;border-radius:18px;font-size:23px;color:#4a5468;display:flex;justify-content:space-between;gap:20px}' +
-    '.wa .foot b{color:#14213d}.wa .net{font-size:26px;color:#14213d;font-weight:700}';
+    '*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.wa{width:1080px;background:#EEF2F7;padding:36px 36px 30px;font-family:Inter,"Segoe UI",Roboto,Arial,sans-serif;color:#0F172A;font-weight:400}' +
+    '.wa .paper{background:#fff;border-radius:28px;box-shadow:0 2px 0 rgba(15,23,42,.04),0 12px 40px rgba(15,23,42,.08);overflow:hidden}' +
+    '.wa .mast{padding:44px 52px 30px;display:flex;justify-content:space-between;align-items:flex-start;gap:24px}' +
+    '.wa .eyebrow{font-size:19px;letter-spacing:.22em;color:#64748B;text-transform:uppercase}' +
+    '.wa .title{font-size:64px;line-height:1.05;letter-spacing:-.02em;margin:10px 0 0;font-weight:500;color:#0F172A}' +
+    '.wa .date{font-size:28px;color:#475569;margin-top:12px;letter-spacing:-.005em}' +
+    '.wa .view{flex:none;font-size:22px;padding:10px 22px;border-radius:999px;background:#EFF6FF;color:#1D4ED8;border:1.5px solid #BFDBFE;margin-top:6px}' +
+    '.wa .ribbon{display:flex;height:8px}.wa .ribbon i{flex:1}' +
+    '.wa .body{padding:34px 52px 10px}' +
+    '.wa .lbl{font-size:18px;letter-spacing:.16em;text-transform:uppercase;color:#64748B;margin:0 0 16px}' +
+    // the cash boxes
+    '.wa .boxes{display:grid;gap:18px;margin-bottom:34px}' +
+    '.wa .box{border-radius:22px;padding:24px 28px 22px;border:1.5px solid}' +
+    '.wa .box .bn{font-size:24px;letter-spacing:-.005em;display:flex;justify-content:space-between;align-items:baseline}' +
+    '.wa .box .bn small{font-size:18px;color:#64748B;letter-spacing:.02em}' +
+    '.wa .box .big{font-size:60px;letter-spacing:-.025em;line-height:1.05;margin:8px 0 16px;font-variant-numeric:tabular-nums;font-weight:500}' +
+    '.wa .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}' +
+    '.wa .flow div{background:rgba(255,255,255,.75);border-radius:14px;padding:10px 14px}' +
+    '.wa .flow span{display:block;font-size:16px;color:#64748B;letter-spacing:.04em}' +
+    '.wa .flow b{display:block;font-weight:500;font-size:24px;color:#0F172A;font-variant-numeric:tabular-nums;margin-top:2px}' +
+    '.wa .flow b.z{color:#94A3B8}' +
+    // the day at a glance
+    '.wa .glance{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:38px}' +
+    '.wa .tile{border-radius:20px;padding:20px 22px;border:1.5px solid}' +
+    '.wa .tile span{font-size:19px;letter-spacing:-.005em}.wa .tile b{display:block;font-weight:500;font-size:40px;letter-spacing:-.02em;margin-top:6px;font-variant-numeric:tabular-nums}' +
+    '.wa .tile small{display:block;font-size:17px;color:#64748B;margin-top:4px}' +
+    // the lists
+    '.wa .sec{margin-bottom:34px}' +
+    '.wa .sh{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-radius:18px 18px 0 0}' +
+    '.wa .sh h2{margin:0;font-size:32px;font-weight:500;letter-spacing:-.015em}' +
+    '.wa .sh .pill{font-size:18px;padding:6px 16px;border-radius:999px;background:#fff}' +
+    '.wa .rows{border:1.5px solid #E2E8F0;border-top:0;border-radius:0 0 18px 18px}' +
+    '.wa .row{display:flex;justify-content:space-between;align-items:center;gap:24px;padding:18px 22px;border-top:1px solid #EEF2F7}' +
+    '.wa .row:first-child{border-top:0}' +
+    '.wa .who{min-width:0;flex:1}' +
+    '.wa .nm{font-size:28px;letter-spacing:-.01em;color:#0F172A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '.wa .nm.dim{color:#475569}' +
+    '.wa .meta{font-size:19px;color:#64748B;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '.wa .meta .v{color:#334155;font-variant-numeric:tabular-nums}' +
+    '.wa .tag{display:inline-block;font-size:16px;padding:2px 10px;border-radius:999px;margin-left:8px;vertical-align:2px}' +
+    '.wa .tag.site{background:#CCFBF1;color:#0F766E}.wa .tag.ho{background:#E0F2FE;color:#0369A1}' +
+    '.wa .amt{font-size:32px;letter-spacing:-.015em;font-variant-numeric:tabular-nums;white-space:nowrap}' +
+    '.wa .tot{display:flex;justify-content:space-between;align-items:baseline;padding:16px 22px;border-top:1.5px solid #E2E8F0;font-size:22px;color:#475569}' +
+    '.wa .tot b{font-weight:500;font-size:32px;letter-spacing:-.015em;font-variant-numeric:tabular-nums}' +
+    '.wa .none{padding:20px 22px;font-size:22px;color:#94A3B8}' +
+    '.wa .note{font-size:18px;color:#92400E;padding:0 22px 16px}' +
+    // the footer
+    '.wa .foot{display:flex;justify-content:space-between;align-items:center;padding:22px 52px 30px;border-top:1px solid #EEF2F7;font-size:19px;color:#64748B}' +
+    '.wa .foot .p{color:#0F172A}' +
+    '.wa .brand{font-size:17px;letter-spacing:.2em;text-transform:uppercase;color:#94A3B8}';
 
   function dateText(iso) {
     var p = String(iso).split('-'), d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
@@ -49,41 +97,54 @@
     var combined = rep.view === 'combined';
     var rec = rep.received || [], pay = rep.paid || [], trf = rep.transfers || [];
     function tot(list) { return list.reduce(function (t, x) { return t + Number(x.amount || 0); }, 0); }
-    function list(title, rows, cls, who) {
-      return '<section class="sec"><h2 class="' + cls + '">' + title + ' <span>' + rows.length + (rows.length === 1 ? ' entry' : ' entries') + '</span></h2>' +
-        (rows.length ? '<table class="lst"><thead><tr><th>Voucher</th><th>' + who + '</th><th>For</th>' + (combined ? '<th>By</th>' : '') + '<th class="r">Amount</th></tr></thead><tbody>' +
-          rows.map(function (x) {
-            return '<tr><td class="no">' + esc(x.no) + '</td><td class="pt">' + esc(x.party ? short(x.party, 32) : '–') + '</td><td class="hd">' + esc(short(x['for'], combined ? 38 : 50)) + '</td>' +
-              (combined ? '<td class="by ' + (x.by === 'Head Office' ? 'ho' : 'site') + '">' + esc(x.by) + '</td>' : '') +
-              '<td class="r amt">' + pk(x.amount) + '</td></tr>';
-          }).join('') +
-          '</tbody><tfoot><tr><td colspan="' + (combined ? 4 : 3) + '">Total ' + title.toLowerCase() + '</td><td class="r">' + pk(tot(rows)) + '</td></tr></tfoot></table>'
-          : '<p class="none">None.</p>') + '</section>';
+    function count(n) { return n + (n === 1 ? ' entry' : ' entries'); }
+    function by(x) { return combined && x.by ? '<span class="tag ' + (x.by === 'Head Office' ? 'ho' : 'site') + '">' + esc(x.by) + '</span>' : ''; }
+    function section(title, rows, hue, kind) {
+      var h = HUE[hue];
+      var body = rows.length ? rows.map(function (x) {
+        var name = kind === 'trf' ? esc(x.from) + ' → ' + esc(x.to) : (x.party ? esc(short(x.party, 34)) : '');
+        var first = name || esc(short(x['for'], 40));
+        var meta = '<span class="v">' + esc(x.no) + '</span>' +
+          (kind === 'trf' ? (x.cheque ? ' · cheque …' + esc(x.cheque) : '') : (name ? ' · ' + esc(short(x['for'], combined ? 44 : 54)) : '')) + by(x);
+        return '<div class="row"><div class="who"><div class="nm' + (name ? '' : ' dim') + '">' + first + '</div><div class="meta">' + meta + '</div></div>' +
+          '<div class="amt" style="color:' + h.ink + '">' + pk(x.amount) + '</div></div>';
+      }).join('') : '<div class="none">Nothing today.</div>';
+      return '<section class="sec"><div class="sh" style="background:' + h.tint + '"><h2 style="color:' + h.ink + '">' + title + '</h2>' +
+        '<span class="pill" style="color:' + h.ink + '">' + count(rows.length) + '</span></div>' +
+        '<div class="rows">' + body +
+        (rows.length ? '<div class="tot"><span>' + (kind === 'trf' ? 'Moved between cash and bank' : 'Total ' + title.toLowerCase()) + '</span><b style="color:' + h.ink + '">' + pk(tot(rows)) + '</b></div>' : '') +
+        (kind === 'trf' ? '<div class="note">Transfers are not counted as money received or paid.</div>' : '') +
+        '</div></section>';
     }
-    var transfers = trf.length
-      ? '<section class="sec"><h2 class="tr">Transfers <span>' + trf.length + (trf.length === 1 ? ' entry' : ' entries') + ' · not counted as money received or paid</span></h2>' +
-        '<table class="lst"><thead><tr><th>Voucher</th><th>From</th><th>To</th>' + (combined ? '<th>By</th>' : '') + '<th class="r">Amount</th></tr></thead><tbody>' +
-        trf.map(function (x) {
-          return '<tr class="trf"><td class="no">' + esc(x.no) + '</td><td class="pt">' + esc(x.from) + (x.cheque ? ' <span class="hd">(chq …' + esc(x.cheque) + ')</span>' : '') + '</td><td class="pt">' + esc(x.to) + '</td>' +
-            (combined ? '<td class="by ' + (x.by === 'Head Office' ? 'ho' : 'site') + '">' + esc(x.by) + '</td>' : '') +
-            '<td class="r amt">' + pk(x.amount) + '</td></tr>';
-        }).join('') + '</tbody></table></section>'
-      : '';
-    return '<div class="wa"><style>' + CSS + '</style>' +
-      '<div class="top"><h1>' + esc(rep.title) + '</h1><div class="d">' + esc(dateText(rep.date)) + '</div><span class="view">' + esc(rep.view_name) + '</span></div>' +
-      '<section class="sec"><h2>Balances</h2><table class="bal"><thead><tr><th></th><th class="r">Opening</th><th class="r">Received</th><th class="r">Paid</th><th class="r">Transfers</th><th class="r">Closing</th></tr></thead><tbody>' +
-      (rep.boxes || []).map(function (b) {
-        var t = Number(b.transfers);
-        return '<tr><td>' + esc(b.label) + '</td><td class="r">' + pk(b.opening) + '</td>' +
-          '<td class="r' + (Number(b.received) ? '' : ' z') + '">' + pz(b.received) + '</td>' +
-          '<td class="r' + (Number(b.paid) ? '' : ' z') + '">' + pz(b.paid) + '</td>' +
-          '<td class="r' + (t ? '' : ' z') + '">' + (t > 0 ? '+' : '') + pz(t) + '</td>' +
-          '<td class="r cl">' + pk(b.closing) + '</td></tr>';
-      }).join('') + '</tbody></table></section>' +
-      list('Money received', rec, 'in', 'From') + list('Money paid', pay, 'out', 'Paid to') + transfers +
-      '<div class="foot"><div><div class="net">Received ' + pz(tot(rec)) + ' · Paid ' + pz(tot(pay)) + '</div>' +
-      (trf.length ? 'Transfers (yellow) are not counted in money received or paid.' : '') + '</div>' +
-      '<div style="text-align:right">Prepared by <b>' + esc(rep.prepared_by || '') + '</b><br>Generated ' + esc(stamp(rep.generated_at)) + '</div></div></div>';
+    var boxes = rep.boxes || [];
+    var boxHtml = '<div class="boxes">' + boxes.map(function (b) {
+      var h = HUE[b.via] || HUE.Cash, t = Number(b.transfers);
+      function cell(label, v, sign) {
+        return '<div><span>' + label + '</span><b' + (Number(v) ? '' : ' class="z"') + '>' + (Number(v) ? (sign || '') + pk(v) : '–') + '</b></div>';
+      }
+      return '<div class="box" style="background:' + h.tint + ';border-color:' + h.line + '">' +
+        '<div class="bn" style="color:' + h.ink + '"><span>' + esc(b.label) + '</span><small>closing balance</small></div>' +
+        '<div class="big" style="color:' + h.ink + '">Rs ' + pk(b.closing) + '</div>' +
+        '<div class="flow">' + cell('Opening', b.opening) + cell('Received', b.received, '+') + cell('Paid', b.paid, '−') +
+        '<div><span>Transfers</span><b' + (t ? '' : ' class="z"') + '>' + (t > 0 ? '+' : t < 0 ? '−' : '') + pz(Math.abs(t)) + '</b></div></div></div>';
+    }).join('') + '</div>';
+    function tile(label, rows, hue) {
+      var h = HUE[hue];
+      return '<div class="tile" style="background:' + h.tint + ';border-color:' + h.line + '"><span style="color:' + h.ink + '">' + label + '</span>' +
+        '<b style="color:' + (rows.length ? h.ink : '#94A3B8') + '">' + pz(tot(rows)) + '</b><small>' + count(rows.length) + '</small></div>';
+    }
+    return '<div class="wa"><style>' + CSS + '</style><div class="paper">' +
+      '<div class="mast"><div><div class="eyebrow">' + esc(String(rep.title || '').split(' — ')[0]) + '</div>' +
+      '<h1 class="title">Daily Closing</h1><div class="date">' + esc(dateText(rep.date)) + '</div></div>' +
+      '<span class="view">' + esc(rep.view_name) + ' view</span></div>' +
+      '<div class="ribbon"><i style="background:#0EA5E9"></i><i style="background:#14B8A6"></i><i style="background:#8B5CF6"></i><i style="background:#F59E0B"></i><i style="background:#F43F5E"></i></div>' +
+      '<div class="body">' +
+      '<p class="lbl">' + (boxes.some(function (b) { return b.via === 'Bank'; }) ? 'Cash and bank' : 'Cash') + '</p>' + boxHtml +
+      '<p class="lbl">The day at a glance</p><div class="glance">' + tile('Money received', rec, 'rec') + tile('Money paid', pay, 'pay') + tile('Transfers', trf, 'trf') + '</div>' +
+      section('Money received', rec, 'rec', 'rec') + section('Money paid', pay, 'pay', 'pay') + (trf.length ? section('Transfers', trf, 'trf', 'trf') : '') +
+      '</div>' +
+      '<div class="foot"><div>Prepared by <span class="p">' + esc(rep.prepared_by || '') + '</span> · ' + esc(stamp(rep.generated_at)) + '</div><div class="brand">NexuFinance</div></div>' +
+      '</div></div>';
   }
 
   var api = { vendorBase: '/vendor/' };
