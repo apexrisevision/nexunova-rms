@@ -1,6 +1,6 @@
 /*
  * NexuFinance — the daily WhatsApp report (owner, 2026-11-19; docs/PLAN.md §51): one portrait picture
- * (JPG, 1080 px wide) and the same as a real PDF file — redrawn 19-Nov: sleek and restrained, for a date and a view (Site / Head Office / Combined),
+ * (JPG, 1080 px wide) and the same as a real PDF file — the CFO's one-page daily brief, 1080 × 1350, 19-Nov, for a date and a view (Site / Head Office / Combined),
  * from nf_day_report. The site login always gets Site — the database decides that, not this file.
  *
  *   NfWaReport.html(report)                   → the report page (pure; the mockups use it too)
@@ -19,60 +19,36 @@
   function pz(n) { return Number(n) ? pk(n) : '–'; }
   function short(s, n) { s = String(s || '').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
-  // Sleek and restrained (owner, 19-Nov: "itni colorful report na banao"): white paper, hairline rules,
-  // near-black ink, one blue accent; hierarchy by size and tracking, never by colour or heavy weight.
-  var INK = '#0F172A', MUTE = '#64748B', LINE = '#E5E7EB';
-  var HUE = { Cash: 1, Petty: 1, Bank: 1, rec: 1, pay: 1, trf: 1 };
-  Object.keys(HUE).forEach(function (k) { HUE[k] = { ink: INK, tint: '#FFFFFF', line: LINE }; });
+  // The CFO's end-of-day brief for the directors' group (brief of 19-Nov): one page, 1080 × 1350, like a bank's
+  // daily statement — white, dark navy text, one muted accent, thin grey rules, no bands or cards. Type is fixed:
+  // title 30 / headings 18 caps / body 17 / notes 14 px. A busy day groups more rows into "Small …"; the type
+  // never changes and the page never scrolls. mount() picks the first grouping that fits, in a real layout.
+  var NAVY = '#13294B', INK = '#1B2433', MUTE = '#6B7280', RULE = '#E5E7EB', ACC = '#3B5B8C', W = 1080, H = 1350;
   var CSS =
     '*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-    '.wa{width:1080px;background:#F3F4F6;padding:36px 36px 30px;font-family:Inter,"Segoe UI",Roboto,Arial,sans-serif;color:' + INK + ';font-weight:400}' +
-    '.wa .paper{background:#fff;border-radius:20px;border:1px solid ' + LINE + ';overflow:hidden}' +
-    '.wa .mast{padding:46px 52px 34px;display:flex;justify-content:space-between;align-items:flex-start;gap:24px;border-top:6px solid #2563EB}' +
-    '.wa .eyebrow{font-size:18px;letter-spacing:.24em;color:' + MUTE + ';text-transform:uppercase}' +
-    '.wa .title{font-size:62px;line-height:1.05;letter-spacing:-.025em;margin:12px 0 0;font-weight:500;color:' + INK + '}' +
-    '.wa .date{font-size:27px;color:#475569;margin-top:12px}' +
-    '.wa .view{flex:none;font-size:20px;padding:9px 20px;border-radius:999px;color:#1D4ED8;border:1px solid #BFDBFE;margin-top:6px;letter-spacing:.01em}' +
-    '.wa .ribbon{display:none}' +
-    '.wa .body{padding:6px 52px 10px;border-top:1px solid ' + LINE + '}' +
-    '.wa .lbl{font-size:17px;letter-spacing:.2em;text-transform:uppercase;color:' + MUTE + ';margin:34px 0 14px}' +
-    '.wa .boxes{display:grid;gap:14px}' +
-    '.wa .box{border-radius:16px;padding:24px 28px 22px;border:1px solid ' + LINE + '}' +
-    '.wa .box .bn{font-size:23px;color:#334155 !important;display:flex;justify-content:space-between;align-items:baseline}' +
-    '.wa .box .bn small{font-size:17px;color:' + MUTE + ';letter-spacing:.02em}' +
-    '.wa .box .big{font-size:58px;letter-spacing:-.03em;line-height:1.05;margin:8px 0 18px;font-variant-numeric:tabular-nums;font-weight:500;color:' + INK + ' !important}' +
-    '.wa .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid ' + LINE + ';padding-top:14px}' +
-    '.wa .flow div{padding:0 14px 0 0}' +
-    '.wa .flow span{display:block;font-size:16px;color:' + MUTE + ';letter-spacing:.03em}' +
-    '.wa .flow b{display:block;font-weight:400;font-size:24px;color:' + INK + ';font-variant-numeric:tabular-nums;margin-top:4px}' +
-    '.wa .flow b.z{color:#CBD5E1}' +
-    '.wa .glance{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid ' + LINE + ';border-radius:16px}' +
-    '.wa .tile{padding:22px 24px;border:0 !important;border-left:1px solid ' + LINE + ' !important}' +
-    '.wa .tile:first-child{border-left:0 !important}' +
-    '.wa .tile span{font-size:18px;color:' + MUTE + ' !important}' +
-    '.wa .tile b{display:block;font-weight:500;font-size:38px;letter-spacing:-.02em;margin-top:8px;font-variant-numeric:tabular-nums;color:' + INK + ' !important}' +
-    '.wa .tile small{display:block;font-size:16px;color:#94A3B8;margin-top:4px}' +
-    '.wa .sec{margin-top:40px}' +
-    '.wa .sh{display:flex;align-items:baseline;justify-content:space-between;padding:0 2px 14px;border-bottom:1.5px solid ' + INK + '}' +
-    '.wa .sh h2{margin:0;font-size:30px;font-weight:500;letter-spacing:-.015em;color:' + INK + ' !important}' +
-    '.wa .sh .pill{font-size:18px;color:' + MUTE + ' !important}' +
-    '.wa .rows{border:0}' +
-    '.wa .row{display:flex;justify-content:space-between;align-items:center;gap:24px;padding:18px 2px;border-top:1px solid ' + LINE + '}' +
-    '.wa .row:first-child{border-top:0}' +
-    '.wa .who{min-width:0;flex:1}' +
-    '.wa .nm{font-size:27px;letter-spacing:-.01em;color:' + INK + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
-    '.wa .nm.dim{color:#334155}' +
-    '.wa .meta{font-size:18px;color:' + MUTE + ';margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
-    '.wa .meta .v{color:#475569;font-variant-numeric:tabular-nums}' +
-    '.wa .tag{display:inline-block;font-size:15px;padding:1px 10px;border-radius:999px;margin-left:8px;vertical-align:2px;border:1px solid ' + LINE + ';color:#475569}' +
-    '.wa .amt{font-size:29px;letter-spacing:-.015em;font-variant-numeric:tabular-nums;white-space:nowrap;color:' + INK + ' !important}' +
-    '.wa .tot{display:flex;justify-content:space-between;align-items:baseline;padding:16px 2px;border-top:1.5px solid ' + INK + ';font-size:20px;color:#475569}' +
-    '.wa .tot b{font-weight:500;font-size:31px;letter-spacing:-.015em;font-variant-numeric:tabular-nums;color:' + INK + ' !important}' +
-    '.wa .none{padding:18px 2px;font-size:21px;color:#94A3B8}' +
-    '.wa .note{font-size:17px;color:' + MUTE + ';padding:0 2px 6px}' +
-    '.wa .foot{display:flex;justify-content:space-between;align-items:center;padding:24px 52px 30px;margin-top:30px;border-top:1px solid ' + LINE + ';font-size:18px;color:' + MUTE + '}' +
-    '.wa .foot .p{color:' + INK + '}' +
-    '.wa .brand{font-size:16px;letter-spacing:.22em;text-transform:uppercase;color:#94A3B8}';
+    '.wa{width:' + W + 'px;height:' + H + 'px;overflow:hidden;background:#fff;color:' + INK + ';font-family:Inter,"Segoe UI",Roboto,Arial,sans-serif;' +
+      'font-size:17px;line-height:1.35;padding:48px 60px 34px;display:flex;flex-direction:column}' +
+    '.wa .hd{display:flex;align-items:center;gap:16px;padding-bottom:16px;border-bottom:1px solid ' + RULE + '}' +
+    '.wa .hd img{height:34px;width:auto}.wa .hd .t{flex:1;min-width:0}' +
+    '.wa .hd h1{margin:0;font-size:30px;font-weight:600;letter-spacing:-.015em;color:' + NAVY + ';line-height:1.2}' +
+    '.wa .hd .d{color:' + MUTE + ';margin-top:2px}' +
+    '.wa .tag{font-size:14px;color:' + ACC + ';border:1px solid ' + ACC + ';border-radius:4px;padding:2px 9px;letter-spacing:.04em;white-space:nowrap}' +
+    '.wa h2{margin:22px 0 8px;font-size:18px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:' + MUTE + '}' +
+    '.wa .brief{margin:0;color:' + NAVY + '}.wa .brief p{margin:0 0 4px}' +
+    '.wa table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}' +
+    '.wa th{font-size:14px;font-weight:500;color:' + MUTE + ';text-align:left;padding:0 0 6px;border-bottom:1px solid ' + RULE + '}' +
+    '.wa td{padding:6px 0;border-bottom:1px solid ' + RULE + ';vertical-align:top}' +
+    '.wa .r{text-align:right;white-space:nowrap;padding-left:18px}' +
+    '.wa .cl{color:' + NAVY + ';font-weight:600}' +
+    '.wa .z{color:#B0B6C0}' +
+    '.wa .tw{display:grid;grid-template-columns:1fr 1fr;gap:36px}' +
+    '.wa table.fx{table-layout:fixed}.wa .ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:14px}' +
+    '.wa .sm td{color:' + MUTE + '}' +
+    '.wa tfoot td{border-bottom:0;font-weight:600;color:' + NAVY + ';padding-top:7px}' +
+    '.wa .none{color:' + MUTE + ';padding:4px 0}' +
+    '.wa .sp{flex:1}' +
+    '.wa .ft{border-top:1px solid ' + RULE + ';padding-top:12px;display:flex;justify-content:space-between;font-size:14px;color:' + MUTE + ';font-variant-numeric:tabular-nums}' +
+    '.wa .ft b{color:' + NAVY + ';font-weight:600}';
 
   function dateText(iso) {
     var p = String(iso).split('-'), d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
@@ -84,62 +60,141 @@
       return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Karachi' });
     } catch (e) { return d.toISOString(); }
   }
-
-  function html(rep) {
-    var combined = rep.view === 'combined';
-    var rec = rep.received || [], pay = rep.paid || [], trf = rep.transfers || [];
-    function tot(list) { return list.reduce(function (t, x) { return t + Number(x.amount || 0); }, 0); }
-    function count(n) { return n + (n === 1 ? ' entry' : ' entries'); }
-    function by(x) { return combined && x.by ? '<span class="tag ' + (x.by === 'Head Office' ? 'ho' : 'site') + '">' + esc(x.by) + '</span>' : ''; }
-    function section(title, rows, hue, kind) {
-      var h = HUE[hue];
-      var body = rows.length ? rows.map(function (x) {
-        var name = kind === 'trf' ? esc(x.from) + ' → ' + esc(x.to) : (x.party ? esc(short(x.party, 34)) : '');
-        var first = name || esc(short(x['for'], 40));
-        var meta = '<span class="v">' + esc(x.no) + '</span>' +
-          (kind === 'trf' ? (x.cheque ? ' · cheque …' + esc(x.cheque) : '') : (name ? ' · ' + esc(short(x['for'], combined ? 44 : 54)) : '')) + by(x);
-        return '<div class="row"><div class="who"><div class="nm' + (name ? '' : ' dim') + '">' + first + '</div><div class="meta">' + meta + '</div></div>' +
-          '<div class="amt" style="color:' + h.ink + '">' + pk(x.amount) + '</div></div>';
-      }).join('') : '<div class="none">Nothing today.</div>';
-      return '<section class="sec"><div class="sh" style="background:' + h.tint + '"><h2 style="color:' + h.ink + '">' + title + '</h2>' +
-        '<span class="pill" style="color:' + h.ink + '">' + count(rows.length) + '</span></div>' +
-        '<div class="rows">' + body +
-        (rows.length ? '<div class="tot"><span>' + (kind === 'trf' ? 'Moved between cash and bank' : 'Total ' + title.toLowerCase()) + '</span><b style="color:' + h.ink + '">' + pk(tot(rows)) + '</b></div>' : '') +
-        (kind === 'trf' ? '<div class="note">Transfers are not counted as money received or paid.</div>' : '') +
-        '</div></section>';
-    }
-    var boxes = rep.boxes || [];
-    var boxHtml = '<div class="boxes">' + boxes.map(function (b) {
-      var h = HUE[b.via] || HUE.Cash, t = Number(b.transfers);
-      function cell(label, v, sign) {
-        return '<div><span>' + label + '</span><b' + (Number(v) ? '' : ' class="z"') + '>' + (Number(v) ? (sign || '') + pk(v) : '–') + '</b></div>';
-      }
-      return '<div class="box" style="background:' + h.tint + ';border-color:' + h.line + '">' +
-        '<div class="bn" style="color:' + h.ink + '"><span>' + esc(b.label) + '</span><small>closing balance</small></div>' +
-        '<div class="big" style="color:' + h.ink + '">Rs ' + pk(b.closing) + '</div>' +
-        '<div class="flow">' + cell('Opening', b.opening) + cell('Received', b.received, '+') + cell('Paid', b.paid, '−') +
-        '<div><span>Transfers</span><b' + (t ? '' : ' class="z"') + '>' + (t > 0 ? '+' : t < 0 ? '−' : '') + pz(Math.abs(t)) + '</b></div></div></div>';
-    }).join('') + '</div>';
-    function tile(label, rows, hue) {
-      var h = HUE[hue];
-      return '<div class="tile" style="background:' + h.tint + ';border-color:' + h.line + '"><span style="color:' + h.ink + '">' + label + '</span>' +
-        '<b style="color:' + (rows.length ? h.ink : '#94A3B8') + '">' + pz(tot(rows)) + '</b><small>' + count(rows.length) + '</small></div>';
-    }
-    return '<div class="wa"><style>' + CSS + '</style><div class="paper">' +
-      '<div class="mast"><div><div class="eyebrow">' + esc(String(rep.title || '').split(' — ')[0]) + '</div>' +
-      '<h1 class="title">Daily Closing</h1><div class="date">' + esc(dateText(rep.date)) + '</div></div>' +
-      '<span class="view">' + esc(rep.view_name) + ' view</span></div>' +
-      '<div class="ribbon"><i style="background:#0EA5E9"></i><i style="background:#14B8A6"></i><i style="background:#8B5CF6"></i><i style="background:#F59E0B"></i><i style="background:#F43F5E"></i></div>' +
-      '<div class="body">' +
-      '<p class="lbl">' + (boxes.some(function (b) { return b.via === 'Bank'; }) ? 'Cash and bank' : 'Cash') + '</p>' + boxHtml +
-      '<p class="lbl">The day at a glance</p><div class="glance">' + tile('Money received', rec, 'rec') + tile('Money paid', pay, 'pay') + tile('Transfers', trf, 'trf') + '</div>' +
-      section('Money received', rec, 'rec', 'rec') + section('Money paid', pay, 'pay', 'pay') + (trf.length ? section('Transfers', trf, 'trf', 'trf') : '') +
-      '</div>' +
-      '<div class="foot"><div>Prepared by <span class="p">' + esc(rep.prepared_by || '') + '</span> · ' + esc(stamp(rep.generated_at)) + '</div><div class="brand">NexuFinance</div></div>' +
-      '</div></div>';
+  // GF-250, GF-251, SF-208 → "GF-250/251, SF-208"
+  function shortUnits(units) {
+    var by = {}, order = [];
+    (units || []).forEach(function (u) {
+      var m = /^([A-Z0-9]+)-(.+)$/.exec(u); if (!m) return;
+      if (!by[m[1]]) { by[m[1]] = []; order.push(m[1]); }
+      if (by[m[1]].indexOf(m[2]) < 0) by[m[1]].push(m[2]);
+    });
+    var parts = order.map(function (p) { return p + '-' + by[p].join('/'); });
+    return parts.length > 3 ? parts.slice(0, 3).join(', ') + ' …' : parts.join(', ');
   }
+  function sum(list) { return list.reduce(function (t, x) { return t + Number(x.amount || 0); }, 0); }
+  function lc(s) { return String(s || '').replace(/^[A-Z]/, function (c) { return c.toLowerCase(); }); }
+  function heads(rows, n) {   // the largest heads by amount, plain names
+    var g = {}, order = [];
+    rows.forEach(function (x) { var k = x.token ? 'token money' : (x.party && x.head && x.head.indexOf(x.party) >= 0 ? String(x['for'] || x.head) : (x.head || x['for'] || '')); if (!k) return; if (!g[k]) { g[k] = 0; order.push(k); } g[k] += Number(x.amount || 0); });
+    order.sort(function (a, b) { return g[b] - g[a]; });
+    return order.slice(0, n);
+  }
+  // Head Office's own lines appear as 'Head Office' only in the site box's report (where they are amount-only)
+  function who(x, rep) { return x.party || (rep && rep.view === 'site' && x.by === 'Head Office' ? 'Head Office' : '—'); }
+  function what(x) {
+    // a token: its number and its units in short — "Token #317 · SF-208", "Token · GF-250/251"
+    if (x.token) { var no = (/#s*d+/.exec(String(x['for'] || '')) || [''])[0].replace(/s+/g, ''); var u = shortUnits(x.units); return 'Token' + (no ? ' ' + no : '') + (u ? ' · ' + u : ''); }
+    if (x.party && x.head && x.head.indexOf(x.party) >= 0) return String(x['for'] || x.head);   // an advance to a person: what for
+    return x.party ? (x.head || x['for'] || '') : (x['for'] || x.head || '');
+  }
+  function boxName(b) { return b.label; }
+  // Site view: what the site accountant's OWN entries put through the bank today — never the BOP balance
+  function siteBank(rep) {
+    if (rep.view !== 'site') return null;
+    var mine = function (x) { return x.bank && x.by !== 'Head Office'; };
+    var rec = (rep.received || []).filter(mine), pay = (rep.paid || []).filter(mine);
+    var tin = 0, tout = 0;
+    (rep.transfers || []).forEach(function (x) {
+      if (/BOP/.test(x.to || '')) tin += Number(x.amount || 0);
+      if (/BOP/.test(x.from || '')) tout += Number(x.amount || 0);
+    });
+    if (!rec.length && !pay.length && !tin && !tout) return null;
+    return { inn: sum(rec), out: sum(pay), trf: tin - tout, deposited: tin, rec: rec };
+  }
+  function partyNames(rows) {
+    var n = []; rows.forEach(function (x) { if (x.party && n.indexOf(x.party) < 0) n.push(x.party); });
+    return n.slice(0, 3).join(', ') + (n.length > 3 ? ' and others' : '');
+  }
+  function allUnits(rows) { var u = []; rows.forEach(function (x) { u = u.concat(x.units || []); }); return shortUnits(u); }
 
-  var api = { vendorBase: '/vendor/' };
+  // "Today in brief": three or four plain sentences from the figures
+  function brief(rep) {
+    var rec = rep.received || [], pay = rep.paid || [], trf = rep.transfers || [], out = [];
+    var tok = rec.filter(function (x) { return x.token; }), oth = rec.filter(function (x) { return !x.token; });
+    var sb = siteBank(rep), told = false;
+    if (sb && sb.inn && rec.every(function (x) { return x.party; })) {
+      // "Received 33,02,500 from Ali Haider (GF-250/251): 20,00,000 cash, deposited in BOP the same day, and 13,02,500 in cheques straight to BOP."
+      var cash = sum(rec) - sb.inn, u = allUnits(tok), t = 'Received ' + pk(sum(rec)) + ' from ' + partyNames(rec) + (u ? ' (' + u + ')' : '');
+      var parts = [];
+      if (cash > 0) {
+        var dep = Math.min(sb.deposited, cash);
+        parts.push(pk(cash) + ' cash' + (dep >= cash ? ', deposited in BOP the same day' : dep > 0 ? ', ' + pk(dep) + ' of it deposited in BOP the same day' : ''));
+        told = dep > 0;
+      }
+      parts.push((cash > 0 ? 'and ' : '') + pk(sb.inn) + ' in cheques straight to BOP');
+      out.push(t + ': ' + parts.join(', ') + '.');
+      rec = [];
+    }
+    if (told) trf = trf.filter(function (x) { return !(/BOP/.test(x.to || '') && x.from === 'Site Cash'); });
+    if (!sum(rep.received || [])) out.push('No money was received.');
+    else if (!rec.length) { /* said above */ }
+    else {
+      var s = 'Received ' + pk(sum(rec));
+      if (tok.length && !oth.length) {
+        var names = []; tok.forEach(function (x) { if (x.party && names.indexOf(x.party) < 0) names.push(x.party); });
+        var units = []; tok.forEach(function (x) { units = units.concat(x.units || []); });
+        s += ' in tokens (' + names.slice(0, 3).join(', ') + (names.length > 3 ? ' and others' : '') + (units.length ? ', ' + shortUnits(units) : '') + ')';
+      } else s += ' (' + heads(rec, 3).join(', ') + ')';
+      out.push(s + '.');
+    }
+    pay = rep.paid || [];
+    if (!pay.length) out.push('Nothing was paid.');
+    else out.push('Paid ' + pk(sum(pay)) + (rep.view === 'site' ? ' at site' : '') + ' (' + heads(pay, 3).join(', ') + ').');
+    if (trf.length === 1) out.push(pk(trf[0].amount) + ' moved from ' + trf[0].from + ' to ' + trf[0].to + '.');
+    else if (trf.length > 1) out.push(trf.length + ' transfers between cash and the bank, ' + pk(sum(trf)) + ' in all.');
+    out.push('Closing: ' + (rep.boxes || []).map(function (b) { return boxName(b) + ' ' + pk(b.closing); }).join(' · ') + '.');
+    return out;
+  }
+  function entries(rep, rows, max, smallWord, partyHead) {
+    if (!rows.length) return '<div class="none">None.</div>';
+    var sorted = rows.slice().sort(function (a, b) { return Number(b.amount) - Number(a.amount); });
+    var shown = sorted.length > max ? sorted.slice(0, max - 1) : sorted, rest = sorted.length > max ? sorted.slice(max - 1) : [];
+    var body = shown.map(function (x) {
+      return '<tr><td class="ell">' + esc(who(x, rep)) + '</td><td class="ell">' + esc(what(x)) + '</td><td class="r">' + pk(x.amount) + '</td></tr>';
+    }).join('');
+    if (rest.length) body += '<tr class="sm"><td class="ell" colspan="2">' + smallWord + ' (' + rest.length + ') — ' + esc(heads(rest, 4).join(', ')) + '</td><td class="r">' + pk(sum(rest)) + '</td></tr>';
+    return '<table class="fx"><colgroup><col style="width:38%"><col style="width:42%"><col style="width:20%"></colgroup><thead><tr><th>' + partyHead + '</th><th>For</th><th class="r">Amount</th></tr></thead><tbody>' + body + '</tbody>' +
+      '<tfoot><tr><td colspan="2">Total</td><td class="r">' + pk(sum(rows)) + '</td></tr></tfoot></table>';
+  }
+  function page(rep, lim) {
+    var rec = rep.received || [], pay = rep.paid || [], trf = rep.transfers || [];
+    var co = String(rep.title || '').split(' — ')[0] || 'Daily Closing';
+    var hd = '<div class="hd">' + (/^Awami/i.test(co) ? '<img src="' + esc(api.logo) + '" alt="">' : '') + '<div class="t"><h1>' + esc(co) + ' — Daily Brief</h1><div class="d">' +
+      esc(dateText(rep.date)) + '</div></div><span class="tag">' + esc(String(rep.view_name || '').toUpperCase()) + '</span></div>';
+    var br = '<h2>Today in brief</h2><div class="brief">' + brief(rep).map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') + '</div>';
+    function c(v, sign) { return Number(v) ? (sign && Number(v) > 0 ? sign : '') + (Number(v) < 0 ? '−' : '') + pk(Math.abs(Number(v))) : '<span class="z">–</span>'; }
+    var cb = '<h2>Cash &amp; bank</h2><table><thead><tr><th></th><th class="r">Opening</th><th class="r">In</th><th class="r">Out</th><th class="r">Transfers</th><th class="r">Closing</th></tr></thead><tbody>' +
+      (rep.boxes || []).map(function (b) {
+        return '<tr><td>' + esc(boxName(b)) + '</td><td class="r">' + c(b.opening) + '</td><td class="r">' + c(b.received) + '</td><td class="r">' + c(b.paid) + '</td>' +
+          '<td class="r">' + c(b.transfers, '+') + '</td><td class="r cl">' + pk(b.closing) + '</td></tr>';
+      }).join('') + (function (sb) {
+        return sb ? '<tr><td>BOP (bank) <span class="z">— site entries only</span></td><td class="r"><span class="z">–</span></td><td class="r">' + c(sb.inn) + '</td><td class="r">' + c(sb.out) + '</td>' +
+          '<td class="r">' + c(sb.trf, '+') + '</td><td class="r"><span class="z">–</span></td></tr>' : '';
+      })(siteBank(rep)) + '</tbody></table>';
+    var tables = lim.side
+      ? '<div class="tw"><div><h2>Money received</h2>' + entries(rep, rec, lim.rows, 'Small receipts', 'From') + '</div><div><h2>Money paid</h2>' + entries(rep, pay, lim.rows, 'Small payments', 'Paid to') + '</div></div>'
+      : '<h2>Money received</h2>' + entries(rep, rec, lim.rows, 'Small receipts', 'From') + '<h2>Money paid</h2>' + entries(rep, pay, lim.rows, 'Small payments', 'Paid to');
+    var ct = trf.length ? '<h2>Cheques &amp; transfers</h2><table><tbody>' + trf.map(function (x) {
+      return '<tr><td>' + (x.cheque ? 'Cheque …' + esc(x.cheque) + ' · ' : '') + esc(x.from) + ' → ' + esc(x.to) + '</td><td class="r">' + pk(x.amount) + '</td></tr>';
+    }).join('') + '</tbody></table>' : '';
+    var ft = '<div class="sp"></div><div class="ft"><span>Total in <b>' + pk(sum(rec)) + '</b> · Total out <b>' + pk(sum(pay)) + '</b> <span>(transfers excluded)</span></span>' +
+      '<span>Prepared by ' + esc(rep.prepared_by || '') + ' · ' + esc(stamp(rep.generated_at)) + '</span></div>';
+    return '<div class="wa"><style>' + CSS + '</style>' + hd + br + cb + tables + ct + ft + '</div>';
+  }
+  // the first layout that fits: full-width tables with up to 8 rows each, then fewer rows, then side by side
+  var STEPS = [8, 7, 6, 5].map(function (n) { return { rows: n, side: false }; })
+    .concat([8, 7, 6, 5, 4, 3].map(function (n) { return { rows: n, side: true }; }));
+  function fits(el) { var w = el.firstChild; return w.scrollHeight <= H + 1 && w.scrollWidth <= W + 1; }
+  function mount(el, rep) {
+    for (var i = 0; i < STEPS.length; i++) {
+      el.innerHTML = page(rep, STEPS[i]);
+      if (fits(el)) return STEPS[i];
+    }
+    return STEPS[STEPS.length - 1];
+  }
+  function html(rep) { return page(rep, STEPS[0]); }
+
+  var api = { vendorBase: '/vendor/', logo: 'assets/awami-logo.png?v=20260919q' };
   function load(src, ready) {
     if (ready()) return Promise.resolve();
     return new Promise(function (ok, bad) {
@@ -168,28 +223,40 @@
       // laid out on the page but behind it: html2canvas needs a real layout
       var host = document.createElement('div');
       host.style.cssText = 'position:fixed;left:0;top:0;z-index:-1;pointer-events:none;width:1080px;background:#fff';
-      host.innerHTML = html(rep);
       document.body.appendChild(host);
+      mount(host, rep);
       var name = fileName(rep);
-      return global.html2canvas(host.firstChild, { scale: 1, backgroundColor: '#ffffff', logging: false, width: 1080, windowWidth: 1080 })
-        .then(function (cv) {
+      function draw() { return global.html2canvas(host.firstChild, { scale: 1, backgroundColor: '#ffffff', logging: false, width: W, height: H, windowWidth: W }); }
+      function toJpg(cv) { return cv.toDataURL('image/jpeg', 0.92); }
+      return waitImages(host).then(draw).then(function (cv) {
+          try { return { cv: cv, url: toJpg(cv) }; } catch (e) {
+            [].forEach.call(host.querySelectorAll('img'), function (i) { i.remove(); });
+            return draw().then(function (cv2) { return { cv: cv2, url: toJpg(cv2) }; });
+          }
+        })
+        .then(function (d) {
           host.remove();
-          var jpgUrl = cv.toDataURL('image/jpeg', 0.92);
+          var cv = d.cv, jpgUrl = d.url;
           if (kind !== 'pdf') {
             return fetch(jpgUrl).then(function (x) { return x.blob(); }).then(function (b) { return { blob: b, name: name + '.jpg' }; });
           }
           var L = global.PDFLib;
           return L.PDFDocument.create().then(function (doc) {
             return doc.embedJpg(jpgUrl).then(function (img) {
-              // one page the size of the picture (pt): readable on a phone, printable as is
-              var w = 595.28, h = w * cv.height / cv.width;
-              doc.addPage([w, h]).drawImage(img, { x: 0, y: 0, width: w, height: h });
+              // A4 portrait (pt), the same 4:5 page centred on it with an even margin
+              var pw = 595.28, ph = 841.89, w = pw - 56, h = w * cv.height / cv.width;
+              doc.addPage([pw, ph]).drawImage(img, { x: (pw - w) / 2, y: (ph - h) / 2, width: w, height: h });
               doc.setTitle(name);
               return doc.save();
             });
           }).then(function (bytes) { return { blob: new Blob([bytes], { type: 'application/pdf' }), name: name + '.pdf' }; });
         }, function (e) { host.remove(); throw e; });
     });
+  }
+  function waitImages(el) {
+    return Promise.all([].map.call(el.querySelectorAll('img'), function (i) {
+      return i.complete ? 0 : new Promise(function (ok) { i.onload = i.onerror = ok; });
+    }));
   }
   function download(nfApi, companyId, date, view, kind) {
     return nfApi.dayReport(companyId, date, view).then(function (rep) {
@@ -219,8 +286,9 @@
         (canShare ? '<button type="button" class="pri" data-act="share" disabled>Share</button>' : '') +
         '<button type="button"' + (canShare ? '' : ' class="pri"') + ' data-act="jpg" disabled>Save picture</button>' +
         '<button type="button" data-act="pdf">Save PDF</button><button type="button" data-act="close">Close</button></div>' +
-        '<div class="nfwa-scroll"><div class="nfwa-fit">' + html(rep) + '</div></div><div class="nfwa-msg" aria-live="polite"></div>';
+        '<div class="nfwa-scroll"><div class="nfwa-fit"></div></div><div class="nfwa-msg" aria-live="polite"></div>';
       document.body.appendChild(back);
+      mount(back.querySelector('.nfwa-fit'), rep);
       var scroll = back.querySelector('.nfwa-scroll'), fit = back.querySelector('.nfwa-fit'), msg = back.querySelector('.nfwa-msg');
       function size() {
         var k = Math.min(1, scroll.clientWidth / 1080);
@@ -257,6 +325,8 @@
     });
   }
   api.html = html;
+  api.mount = mount;
+  api.page = page;
   api.download = download;
   api.preview = preview;
   global.NfWaReport = api;

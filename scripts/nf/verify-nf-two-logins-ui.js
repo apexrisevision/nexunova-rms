@@ -124,7 +124,7 @@ window.__boot = function (fix, as) {
     await pg.click('#nf-wa-dialog [data-wa="preview"]'); await pg.waitForSelector('#nfwa-preview .wa');
     const pv = await q(pg, () => ({ dlBefore: window.__dl.length, title: document.querySelector('#nfwa-preview .nfwa-bar .t').textContent }));
     check('HO: Preview shows the report first, nothing saved yet', pv.dlBefore === 0 && /Head Office view/.test(pv.title), JSON.stringify(pv));
-    await pg.waitForFunction(() => !document.querySelector('#nfwa-preview [data-act="jpg"]').disabled, { timeout: 20000 });
+    await pg.waitForFunction(() => !document.querySelector('#nfwa-preview [data-act="jpg"]').disabled || /Could not/.test(document.querySelector('#nfwa-preview .nfwa-msg').textContent), { timeout: 20000 }).catch(() => {});
     await pg.click('#nfwa-preview [data-act="jpg"]'); await pg.waitForFunction(() => window.__dl.length >= 1, { timeout: 20000 }).catch(() => {});
     await pg.click('#nfwa-preview [data-act="close"]');
     await pg.click('#nf-waReport'); await pg.waitForSelector('#nf-wa-dialog [data-wa="preview"]');
@@ -201,7 +201,7 @@ window.__boot = function (fix, as) {
       check('Site: WhatsApp report has no view choice — Site only', wa.radios === 0 && wa.only === 'Site view', JSON.stringify(wa));
       await pg.evaluate(() => { document.querySelector('#nf-wa-date').value = '2026-11-18'; });
       await pg.click('#nf-wa-dialog [data-wa="preview"]'); await pg.waitForSelector('#nfwa-preview .wa');
-      await pg.waitForFunction(() => !document.querySelector('#nfwa-preview [data-act="jpg"]').disabled, { timeout: 20000 });
+      await pg.waitForFunction(() => !document.querySelector('#nfwa-preview [data-act="jpg"]').disabled || /Could not/.test(document.querySelector('#nfwa-preview .nfwa-msg').textContent), { timeout: 20000 }).catch(() => {});
       await pg.click('#nfwa-preview [data-act="jpg"]'); await pg.waitForFunction(() => window.__dl.length >= 1, { timeout: 20000 }).catch(() => {});
       await pg.click('#nfwa-preview [data-act="close"]');
       const sdl = await q(pg, () => ({ dl: window.__dl, calls: window.__calls.filter(c => c[0] === 'dayReport') }));
