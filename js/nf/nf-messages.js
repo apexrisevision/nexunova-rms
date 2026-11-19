@@ -47,6 +47,9 @@
       return 'Already in the books: ' + (d.voucher || 'a voucher') + (d.by ? ' entered by ' + d.by : '') + (d.date ? ' on ' + F.ddMonYyyy(d.date) : '') +
         (d.amount ? ', Rs ' + F.fmt(d.amount) : '') + ' — same ' + String(d.key || 'entry').replace(/^same /, '') + '. Not saved.';
     },
+    'NF:REFERENCE_REQUIRED': function () { return 'Enter the deposit slip / reference number.'; },
+    'NF:CHEQUE_REQUIRED': function () { return 'Enter the cheque number.'; },
+    'NF:DUPLICATE_CHEQUE': function (err) { var d = err.detail || {}; return 'Cheque ' + (d.cheque || '') + ' is already cashed' + (d.hidden ? ' (entered by Head Office).' : (d.voucher ? ' on ' + d.voucher + '.' : '.')); },
     'NF:VOUCHER_PREFIX': function () { return 'Receipts start CRV or BRV; payments start CPV or BPV.'; },
     'NF:VOUCHER_VIA_MISMATCH': function () { return 'A voucher starting with C must be Cash or Petty; one starting with B must be Bank.'; },
     'NF:HEAD_NOT_POSTABLE': function (err) { return 'Choose a specific head from the list — "' + (err.detail || '') + '" is a category, not something you can post to.'; },

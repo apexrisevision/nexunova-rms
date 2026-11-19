@@ -32,11 +32,15 @@ window.__boot = function (fix, as) {
     via: 'Cash', amount: 1200, sort: 99, version: 1, party_id: null, party_name: null, voucher_id: 'ho-v-1',
     by_name: 'Rashid', by_box: 'Cash', mine: !site });
   window.__calls = [];
+  // a deposit he made today (docs/PLAN.md §53)
+  day.transfers = [{ voucher_id: 'tv1', line_id: 'tl1', voucher_no: 'CPV-000300', manual_no: null, number_pending: true, version: 1,
+    narration: 'Cash deposited in BOP from Site Cash — slip DS77123', amount: 50000, from: 'Site Cash', to: 'BOP bank', by_name: 'Sharose', by_box: 'Petty', mine: site }];
   window.NfWaReport.vendorBase = '${url('vendor')}/';
   function ok(x) { return Promise.resolve(JSON.parse(JSON.stringify(x))); }
   var api = {
     getDay: function () { return ok(day); }, listHeads: function () { return ok(fix.heads); }, listFloors: function () { return ok(fix.floors); },
     listVias: function () { return ok(fix.vias); }, listAllParties: function () { return ok(fix.parties); },
+    saveDeposit: function () { window.__calls.push(['saveDeposit'].concat([].slice.call(arguments))); return ok(day); },
     saveLine: function () { window.__calls.push(['saveLine'].concat([].slice.call(arguments))); return ok(day); },
     deleteLine: function () { window.__calls.push(['deleteLine'].concat([].slice.call(arguments))); return ok(day); },
     setRemarks: function () { return ok(day); }, setTransfers: function () { return ok(day); },
@@ -77,7 +81,7 @@ window.__boot = function (fix, as) {
       who: (document.querySelector('.nf-who') || {}).textContent,
       reports: !!document.querySelector('#nf-rpm-toggle'), dir: !!document.querySelector('#nf-toDir'),
       pos: [...document.querySelectorAll('table.pos tbody tr td:first-child')].map(td => td.textContent),
-      tags: [...document.querySelectorAll('.nf-by')].map(x => x.textContent),
+      tags: [...document.querySelectorAll('.row[data-saved] .nf-by')].map(x => x.textContent),
       ro: document.querySelectorAll('.row[data-ro]').length, close: !!document.querySelector('#nf-close'),
       tri: !!document.querySelector('#nf-tPetty'), triLabel: (document.querySelector('#nf-tPetty') || { closest: () => null }).closest('tr') ? document.querySelector('#nf-tPetty').closest('tr').textContent : '',
       rows: document.querySelectorAll('.row[data-saved]').length,
@@ -176,6 +180,21 @@ window.__boot = function (fix, as) {
       await pg.evaluate(() => { const b = document.querySelector('.nf-dialog-backdrop, .vp-backdrop'); if (b) b.remove(); });
       const via = await q(pg, () => { const own = document.querySelector('.row[data-saved]:not([data-ro]) select[data-k="m"]'); return [...own.options].map(o => o.value + ':' + o.textContent); });
       check('Site: a saved cash line can only be on Site Cash', via.length === 1 && via[0] === 'Petty:Site Cash', via.join(','));
+      // cash into the bank, from the Cash payment popup
+      const trf = await q(pg, () => (document.body.innerText.match(/Site Cash → BOP bank/) || []).length);
+      check('Site: his deposit shows under Transfers (Site Cash → BOP bank)', trf === 1);
+      await pg.click('[data-vtype="CPV"]'); await pg.waitForSelector('[data-pick="nfv-head"] .nfpick-in');
+      await pg.type('[data-pick="nfv-head"] .nfpick-in', 'deposit'); await pg.waitForSelector('[data-pick="nfv-head"] .nfpick-opt');
+      const first = await q(pg, () => document.querySelector('[data-pick="nfv-head"] .nfpick-opt').textContent);
+      check('Site: Cash payment offers "Cash deposited in BOP (bank)"', /Cash deposited in BOP \(bank\)/.test(first), first);
+      await pg.click('[data-pick="nfv-head"] .nfpick-opt');
+      const rows = await q(pg, () => ({ party: document.querySelector('#nfv-party-row').hidden, floor: document.querySelector('#nfv-floor-row').hidden, ref: !document.querySelector('#nfv-ref-row').hidden }));
+      check('Site: choosing it asks for the slip, not party or floor', rows.party && rows.floor && rows.ref, JSON.stringify(rows));
+      await pg.type('#nfv-amt', '50000'); await pg.type('#nfv-ref', 'DS-77123'); await pg.click('#nfv-save');
+      await new Promise(r => setTimeout(r, 300));
+      const dep = await q(pg, () => window.__calls.filter(c => c[0] === 'saveDeposit')[0]);
+      check('Site: it saves as a deposit from Site Cash (nf_save_deposit)', dep && dep[3] === 'Petty' && dep[4] === 50000 && dep[5] === 'DS-77123', JSON.stringify(dep));
+      await pg.evaluate(() => { const b = document.querySelector('#nf-vpop'); if (b) b.remove(); });
       await pg.evaluate(() => { window.__dl = []; HTMLAnchorElement.prototype.click = function () { if (this.download) window.__dl.push(this.download); }; });
       await pg.click('#nf-waReport'); await pg.waitForSelector('#nf-wa-dialog [data-wa="preview"]');
       const wa = await q(pg, () => ({ radios: document.querySelectorAll('#nf-wa-dialog input[name="nf-wa-view"]').length, only: (document.querySelector('.nf-wa-only') || {}).textContent }));

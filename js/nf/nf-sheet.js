@@ -111,6 +111,7 @@
         S.pdcs = (res.pdcs || []);
         S.checks = (res.checks || []);
         S.balanced = !!res.balanced;
+        S.transfers = res.transfers || [];   // cash ↔ bank and box ↔ box (docs/PLAN.md §53)
         S.site = res.site || null;   // the site box: Head Office on Site Cash, as amounts (docs/PLAN.md §52)
         // position comes back nested under day payload for nf_day_json; nf_get_day
         // for an existing day returns the same shape as nf_day_json directly.
@@ -344,13 +345,29 @@
         '    <div id="nf-rowsOut">' + rowsOut + '</div>' +
         '    <div class="bf">' + footer('OUT', savedOut) + '</div></div>' +
         '</div></section>' +
-        jvSection() +
+        transferSection() + jvSection() +
         '<section class="sec"><div class="sh"><h2>Payments by head</h2></div><div class="box"><table class="heads"><colgroup><col><col style="width:96px"></colgroup><tbody>' +
         headsTable(savedOut) + '</tbody><tfoot><tr><td>Total</td><td class="r t">' + F.fmt(savedOut.reduce(function (t, l) { return t + F.n(l.amount); }, 0)) + '</td></tr></tfoot></table></div></section>';
     }
     // Journal vouchers dated this day — entered from + JV here or from the
     // Journal Vouchers screen. Shown so the day's full set of vouchers is on
     // one page, and so a missing manual number is visible before Close day.
+    // Cash ↔ bank and cash box ↔ cash box, entered on this sheet. Not cash-book lines, so they used to have no
+    // place here; the paper number is needed before Close day like any voucher's (docs/PLAN.md §53).
+    function transferSection() {
+      var list = S.transfers || [];
+      if (!list.length) return '';
+      return '<section class="sec"><div class="sh"><h2>Transfers</h2><span>cash ↔ bank · not money received or paid</span></div>' +
+        '<div class="box"><table class="nf-dayjv"><thead><tr><th>Voucher <small class="muted">manual / system</small></th><th>From → To</th><th class="r">Amount</th><th></th></tr></thead><tbody>' +
+        list.map(function (x) {
+          var rw = canWrite && mineOrDirector(x);
+          return '<tr' + (x.number_pending ? ' class="vno-pending"' : '') + '><td>' + (x.manual_no ? esc(x.manual_no) : '<span class="nf-pend-tag">manual no. pending</span>') +
+            '<span class="vno-sys" style="display:block">' + esc(x.voucher_no) + '</span>' + byTag(x, mineOrDirector(x)) + '</td>' +
+            '<td>' + esc(x.from) + ' → ' + esc(x.to) + '<small class="muted" style="display:block">' + esc(x.narration || '') + '</small></td>' +
+            '<td class="r t">' + F.fmt(x.amount) + '</td>' +
+            '<td>' + (rw ? '<button class="del" type="button" data-del-saved="' + x.line_id + '" data-version="' + x.version + '" aria-label="Delete transfer">×</button>' : '') + '</td></tr>';
+        }).join('') + '</tbody></table></div></section>';
+    }
     function jvSection() {
       var list = S.jvs || [];
       if (!list.length) return '';
@@ -454,7 +471,9 @@
     function pendingLines() {
       return (S.lines || []).filter(function (l) { return l.number_pending; }).map(function (l) {
         return { voucher_id: l.voucher_id, voucher_no: l.voucher_no, version: l.version, text: l.description || headName(l.head_code) || '', amount: l.amount };
-      }).concat((S.jvs || []).filter(function (v) { return v.number_pending; }).map(function (v) {
+      }).concat((S.transfers || []).filter(function (x) { return x.number_pending && mineOrDirector(x); }).map(function (x) {
+        return { voucher_id: x.voucher_id, voucher_no: x.voucher_no, version: x.version, text: x.narration || (x.from + ' → ' + x.to), amount: x.amount };
+      })).concat((S.jvs || []).filter(function (v) { return v.number_pending; }).map(function (v) {
         return { voucher_id: v.id, voucher_no: v.voucher_no, version: v.version, text: v.narration || '', amount: v.total };
       }));
     }
@@ -586,6 +605,7 @@
       S.pdcs = res.pdcs || [];
       S.checks = res.checks || [];
       S.balanced = !!res.balanced;
+      S.transfers = res.transfers || [];
       S.site = res.site || null;
       render();
     }

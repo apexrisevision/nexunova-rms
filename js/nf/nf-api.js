@@ -142,6 +142,15 @@
       jvDelete: function (voucherId, version) { return call('nf_jv_delete', { p_voucher_id: voucherId, p_version: version }); },
       // only the MANUAL (paper) voucher number, on a cash-book line or a JV —
       // the Close day dialog fills the missing ones through it (docs/PLAN.md §45)
+      // cash from a cash box into the bank, and back out (docs/PLAN.md §53) — transfers, never expenses
+      saveDeposit: function (dayId, manualNo, from, amount, reference, description, realDate) {
+        return call('nf_save_deposit', { p_day_id: dayId, p_voucher_no: manualNo || null, p_from: from, p_amount: amount,
+          p_reference: reference, p_description: description || null, p_real_date: realDate });
+      },
+      saveWithdrawal: function (dayId, manualNo, to, amount, chequeNo, description, realDate) {
+        return call('nf_save_withdrawal', { p_day_id: dayId, p_voucher_no: manualNo || null, p_from: 'Bank', p_to: to, p_amount: amount,
+          p_cheque_no: chequeNo, p_description: description || null, p_real_date: realDate });
+      },
       // the daily WhatsApp report: site | ho | combined — the site login always gets site (docs/PLAN.md §51)
       dayReport: function (companyId, date, view) { return call('nf_day_report', { p_company_id: companyId, p_date: date, p_view: view }); },
       // one date's cash & bank book for the director's Excel (docs/PLAN.md §50)

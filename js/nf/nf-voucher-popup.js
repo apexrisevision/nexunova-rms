@@ -41,6 +41,12 @@
     JV:  { title: 'Journal Voucher', tag: 'jv' },
   };
 
+  // Cash to or from the bank is a transfer, not a head (the bank is never one): the cash popups offer it as
+  // the first choice in the head list and save it with nf_save_deposit / nf_save_withdrawal (docs/PLAN.md §53)
+  var BANK_HEAD = {
+    CPV: { value: '@DEP', label: 'Cash deposited in BOP (bank)', search: ['bank', 'bop', 'deposit', 'deposited', 'jama'] },
+    CRV: { value: '@WDL', label: 'Cash withdrawn from BOP (bank)', search: ['bank', 'bop', 'withdraw', 'withdrawn', 'nikala'] },
+  };
   function headRequiresParty(heads, code) {
     var h = (heads || []).filter(function (x) { return x.code === code; })[0];
     return !!(h && h.requires_party);
@@ -103,10 +109,12 @@
       return '<div class="vp-grid">' +
         manualField() + dateField() +
         '<div class="vp-fld"><label>' + (t.side === 'IN' ? 'Received into' : 'Paid from') + '</label>' + viaChoice + '</div>' +
-        '<div class="vp-fld"><label for="nfv-floor">Floor / class</label><select id="nfv-floor">' + floorOptions(o.floors, '') + '</select></div>' +
+        '<div class="vp-fld" id="nfv-floor-row"><label for="nfv-floor">Floor / class</label><select id="nfv-floor">' + floorOptions(o.floors, '') + '</select></div>' +
         '<div class="vp-fld full"><label>' + esc(t.head) + '</label>' +
         global.NfPick.html({ key: 'nfv-head', value: '', label: '', placeholder: 'Search a head by name or code…', ariaLabel: 'Account head' }) + '</div>' +
-        '<div class="vp-fld full"><label>' + esc(t.party) + ' <span class="opt" id="nfv-party-req">(optional)</span></label>' +
+        (BANK_HEAD[o.type] ? '<div class="vp-fld full" id="nfv-ref-row" hidden><label for="nfv-ref">' + (o.type === 'CPV' ? 'Deposit slip / reference no.' : 'Cheque no.') +
+          '</label><input id="nfv-ref" autocomplete="off"></div>' : '') +
+        '<div class="vp-fld full" id="nfv-party-row"><label>' + esc(t.party) + ' <span class="opt" id="nfv-party-req">(optional)</span></label>' +
         global.NfPick.html({ key: 'nfv-party', value: '', label: '', placeholder: 'Search a party, or type a new name', ariaLabel: 'Party' }) + '</div>' +
         '<div class="vp-fld full"><label for="nfv-desc">Description</label><input id="nfv-desc" autocomplete="off"></div>' +
         '<div class="vp-fld full"><label for="nfv-amt">Amount (Rs)</label><input id="nfv-amt" class="vp-amt" inputmode="decimal" autocomplete="off"></div>' +
@@ -137,7 +145,27 @@
       e.querySelector('#nfv-dup-yes').addEventListener('click', onYes);
     }
 
+    function saveBank(andNew) {
+      var via = viaNow(), amt = F.n(host.querySelector('#nfv-amt').value), ref = host.querySelector('#nfv-ref').value.trim();
+      var desc = host.querySelector('#nfv-desc').value.trim(), manual = host.querySelector('#nfv-manual').value.trim();
+      var missing = [];
+      if (!via) missing.push(o.type === 'CPV' ? 'the cash box it left' : 'the cash box it went into');
+      if (!(amt > 0)) missing.push('an amount');
+      if (!ref) missing.push(o.type === 'CPV' ? 'the deposit slip / reference no.' : 'the cheque no.');
+      if (missing.length) { showErr('Still needed: ' + missing.join(', ') + '.'); return; }
+      busy = true; showErr('');
+      (o.type === 'CPV'
+        ? o.api.saveDeposit(o.day.id, manual, via, amt, ref, desc, o.day.business_date)
+        : o.api.saveWithdrawal(o.day.id, manual, via, amt, ref, desc, o.day.business_date))
+        .then(function (res) {
+          busy = false;
+          if (o.onSaved) o.onSaved(res, { voucher_no: o.type === 'CPV' ? 'Bank deposit' : 'Bank withdrawal', manual_no: manual || null });
+          if (andNew) { resetCashBank(); } else { close(); }
+        })
+        .catch(function (err) { busy = false; showErr(Msg.forLine(err)); });
+    }
     function saveCashBank(andNew) {
+      if (BANK_HEAD[o.type] && pickVal('nfv-head') === BANK_HEAD[o.type].value) { saveBank(andNew); return; }
       var head = pickVal('nfv-head'), floor = host.querySelector('#nfv-floor').value, via = viaNow();
       var party = pickVal('nfv-party') || host.querySelector('[data-pick="nfv-party"] .nfpick-in').value.trim();
       var amt = F.n(host.querySelector('#nfv-amt').value);
@@ -286,9 +314,14 @@
       host.querySelector('#nfv-addline').addEventListener('click', function () { readLines(); jvLines.push(blankLine()); drawLines(); });
     } else {
       global.NfPick.wire(host, {
-        key: 'nfv-head', items: function () { return global.NfPick.accountItems(o.heads); },
+        key: 'nfv-head', items: function () { return (BANK_HEAD[o.type] ? [BANK_HEAD[o.type]] : []).concat(global.NfPick.accountItems(o.heads)); },
         emptyText: 'No head matches that.',
         onPick: function (wrap, code) {
+          // a transfer to / from the bank: slip or cheque instead of party and floor
+          var bank = !!(BANK_HEAD[o.type] && code === BANK_HEAD[o.type].value);
+          ['#nfv-party-row', '#nfv-floor-row'].forEach(function (s) { var el = host.querySelector(s); if (el) el.hidden = bank; });
+          var ref = host.querySelector('#nfv-ref-row'); if (ref) ref.hidden = !bank;
+          if (bank) { host.querySelector('#nfv-ref').focus(); return; }
           // whether the party is required depends on the head — say so
           // beside the label; nothing else redraws
           host.querySelector('#nfv-party-req').textContent = headRequiresParty(o.heads, code) ? '(required for this head)' : '(optional)';

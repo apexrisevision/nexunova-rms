@@ -4193,3 +4193,15 @@ Cash on 16-Nov (CPV-0170/71/72); without it the closing cannot be 53,200. So tho
 Dry run: Sharose's direct reads 62 vouchers / 124 legs, all his; 0 days, PDCs, audit; 19 RPCs scanned for Head
 Office voucher numbers, amounts and balances — 0 leaks; director unchanged (505 vouchers; Combined 16-Nov
 4,15,250 / 53,200 / 2,63,61,788.75). Browser check 34/34; mockups scanned — no Head Office marker.
+
+## 53 · Cash deposited in the bank, from a cash box (2026-11-19, NOT applied)
+
+Owner: Sharose found no BOP / bank in the Cash payment heads when depositing cash. A deposit is a transfer (cash box →
+bank), not an expense, so the bank was never a head — and the site login had no way to record one. **`20261119f`**:
+`nf_save_deposit` (own box only; a CPV, Dr bank / Cr box; slip required, written into the narration as letters and
+digits so the duplicate guard reads it; the same deposit by the other login is refused); `nf_day_json.transfers`
+(the day's cash ↔ bank and box ↔ box vouchers, with who entered each — the site box gets only its own);
+`NF:DUPLICATE_CHEQUE` tells the site box only "Head Office". Screen: the Cash payment popup offers "Cash deposited
+in BOP (bank)" first in the head list (slip instead of party and floor), the Cash receipt popup "Cash withdrawn from
+BOP (bank)" (cheque no., existing `nf_save_withdrawal`); a Transfers list on the sheet with delete and the paper
+number, counted in the Close-day number check. Dry run 12/12; browser check 38/38.
