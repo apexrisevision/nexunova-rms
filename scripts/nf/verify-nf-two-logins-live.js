@@ -60,13 +60,20 @@ const OUT = process.argv[2];
         pos: [...document.querySelectorAll('table.pos tbody tr td:first-child')].map(td => td.textContent).join(' | '),
       }));
       if (key === 'site') {
-        check('live page serves the new sheet', t.scripts.some(s => s.indexOf('nf-sheet.js?v=20261119j') >= 0), t.scripts.join(','));
+        check('live page serves the new sheet', t.scripts.some(s => s.indexOf('nf-sheet.js?v=20261119k') >= 0), t.scripts.join(','));
         check('site login: chip "ZZ Site · Petty cash" (a test company keeps the seed labels), no Reports, no Close day', /ZZ Site · Petty cash/.test(t.who || '') && !t.reports && !t.close, t.who);
         check('site login: no Excel button', !t.xlsx);
         // 20261119e: the site box sees its own lines only — no Head Office line, no lock, no filter
         check('site login: only his own line (no Head Office line, no lock, no filter)', t.ro.length === 0 && t.tags.join(',') === 'ZZ Site' && !t.filter, t.tags.join(',') + ' · filter ' + t.filter);
         check('site login: Site Cash only in the position', t.pos === 'Petty cash | Total', t.pos);
         check('site login on a phone: nothing wider than the screen', t.overflow <= 1, String(t.overflow));
+        // 20261119f: a deposit is offered in the Cash payment heads
+        await pg.click('[data-vtype="CPV"]'); await pg.waitForSelector('[data-pick="nfv-head"] .nfpick-in');
+        await pg.type('[data-pick="nfv-head"] .nfpick-in', 'deposit'); await pg.waitForSelector('[data-pick="nfv-head"] .nfpick-opt');
+        const dep = await pg.evaluate(() => document.querySelector('[data-pick="nfv-head"] .nfpick-opt').textContent);
+        check('site login: Cash payment heads offer "Cash deposited in BOP (bank)"', dep.indexOf('Cash deposited in BOP (bank)') >= 0, dep);
+        await pg.screenshot({ path: path.join(OUT, '9 LIVE - site login, deposit head.png') });
+        await pg.evaluate(() => { const b = document.querySelector('#nf-vpop'); if (b) b.remove(); });
         await pg.screenshot({ path: path.join(OUT, '6 LIVE - site login, phone.png'), fullPage: true });
       } else {
         check('director: Reports and Close day there, no line locked', t.reports && t.close && t.ro.length === 0);
