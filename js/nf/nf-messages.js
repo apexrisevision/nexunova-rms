@@ -26,6 +26,7 @@
     },
     'NF:DUPLICATE_VOUCHER': function (err) {
       var d = err.detail || {};
+      if (d.hidden) return 'That voucher number is already used (entered by Head Office).';
       var used = d.used_on ? ' It was already used' + (d.by ? ' by ' + d.by : '') + ' on ' + F.ddMonYyyy(d.used_on) + '.' : ' It has already been used.';
       return 'Voucher ' + (d.voucher || '') + ' is already on the books.' + used;
     },
@@ -36,11 +37,13 @@
     },
     'NF:NOT_YOUR_ENTRY': function (err) {
       var d = err.detail || {};
+      if (d.hidden) return 'This entry belongs to Head Office.';
       return (d.voucher || 'This voucher') + ' was entered by ' + (d.by || 'someone else') + '. Only they (or a director) can change it.';
     },
     'NF:HEAD_OFFICE_ONLY': function () { return 'Head office does this.'; },
     'NF:DUPLICATE_ENTRY': function (err) {
       var d = err.detail || {};
+      if (d.hidden) return 'This entry is already on the books (entered by Head Office).';
       return 'Already in the books: ' + (d.voucher || 'a voucher') + (d.by ? ' entered by ' + d.by : '') + (d.date ? ' on ' + F.ddMonYyyy(d.date) : '') +
         (d.amount ? ', Rs ' + F.fmt(d.amount) : '') + ' — same ' + String(d.key || 'entry').replace(/^same /, '') + '. Not saved.';
     },

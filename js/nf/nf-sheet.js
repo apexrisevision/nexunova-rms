@@ -111,6 +111,7 @@
         S.pdcs = (res.pdcs || []);
         S.checks = (res.checks || []);
         S.balanced = !!res.balanced;
+        S.site = res.site || null;   // the site box: Head Office on Site Cash, as amounts (docs/PLAN.md §52)
         // position comes back nested under day payload for nf_day_json; nf_get_day
         // for an existing day returns the same shape as nf_day_json directly.
         if (res.position) S.position = res.position;
@@ -161,7 +162,7 @@
         '  <div><label>Closing date</label><span class="v">' + (d ? F.longDate(dateVal) : '–') + '</span></div>' +
         '  <div><label>Day</label><span class="v">' + (d ? F.weekday(dateVal) : '–') + '</span></div>' +
         '  <div><label>Closing no.</label><span class="v">' + esc(closingNo) + '</span></div>' +
-        '  <div><label>Prepared by</label><span class="v">' + esc((d && d.prepared_by_name) || ctx.displayName || '') + '</span></div>' +
+        '  <div><label>Prepared by</label><span class="v">' + esc(isSite && d && d.prepared_by_name && d.prepared_by_name !== ctx.displayName ? 'Head Office' : ((d && d.prepared_by_name) || ctx.displayName || '')) + '</span></div>' +
         '  <div>' + (d ? '<span class="status ' + (statusOk ? 'ok' : 'bad') + '"><i></i><span>' + esc(statusText) + '</span></span>' + statePill : '') + '</div>' +
         '</div>';
     }
@@ -188,16 +189,28 @@
       var net = F.n(S.position.net);
       var receipts = S.position.receipts || 0, payments = S.position.payments || 0;
       return '' +
-        '<section class="sec"><div class="sh"><h2>Cash and bank position</h2><span>Amounts in PKR</span></div>' +
+        '<section class="sec"><div class="sh"><h2>' + (isSite ? esc(viaLabel('Petty')) : 'Cash and bank position') + '</h2><span>Amounts in PKR</span></div>' +
         '<div class="pos-grid">' +
         '  <div class="box"><table class="pos"><thead><tr><th>Account</th><th class="r">Opening</th><th class="r">Received</th><th class="r">Paid</th><th class="r">Transfers</th><th class="r">Closing</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
         '  <div class="kpis">' +
-        '    <div class="kpi"><small>Total closing, cash and bank</small><b>Rs ' + F.fmt(t.closing) + '</b></div>' +
+        '    <div class="kpi"><small>' + (isSite ? esc(viaLabel('Petty')) + ', closing' : 'Total closing, cash and bank') + '</small><b>Rs ' + F.fmt(t.closing) + '</b></div>' +
         '    <div class="kpi"><small>Net movement today</small><span class="sub t" style="color:' + (net < 0 ? 'var(--neg)' : 'var(--pos)') + '">' + (net < 0 ? '−' : '+') + ' Rs ' + F.fmt(Math.abs(net)) + '</span> <span class="muted">received less paid</span></div>' +
         '    <div class="kpi"><small>Entries</small><span class="sub">' + receipts + ' receipt' + (receipts === 1 ? '' : 's') + ', ' + payments + ' payment' + (payments === 1 ? '' : 's') + '</span></div>' +
         '    <div class="words">Rupees ' + F.words(t.closing) + ' only' + (totClose < 0 ? ' (negative)' : '') + '</div>' +
         '  </div>' +
-        '</div></section>';
+        '</div>' + siteFromHo() + '</section>';
+    }
+    // the site box: what Head Office did on Site Cash in this sheet — transfers by date and amount,
+    // its other lines as two totals; never a voucher, a name or a Head Office balance (docs/PLAN.md §52)
+    function siteFromHo() {
+      if (!isSite || !S.site) return '';
+      var x = S.site, rows = (x.transfers || []).map(function (t) {
+        return '<tr><td>' + esc(t.label) + '</td><td>' + esc(F.ddMonYyyy(t.date)) + '</td><td class="r t">' + F.fmt(t.amount) + '</td></tr>';
+      });
+      if (x.ho_received && Number(x.ho_received.count)) rows.push('<tr><td>Received by Head Office into ' + esc(viaLabel('Petty')) + '</td><td>' + x.ho_received.count + (x.ho_received.count == 1 ? ' entry' : ' entries') + '</td><td class="r t">' + F.fmt(x.ho_received.amount) + '</td></tr>');
+      if (x.ho_paid && Number(x.ho_paid.count)) rows.push('<tr><td>Paid by Head Office from ' + esc(viaLabel('Petty')) + '</td><td>' + x.ho_paid.count + (x.ho_paid.count == 1 ? ' entry' : ' entries') + '</td><td class="r t">' + F.fmt(x.ho_paid.amount) + '</td></tr>');
+      if (!rows.length) return '';
+      return '<div class="box nf-site-ho" style="margin-top:14px"><table class="heads"><thead><tr><th>From Head Office</th><th></th><th class="r">Amount</th></tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
     }
 
     // ── books ──────────────────────────────────────────────────────────────
@@ -305,7 +318,7 @@
         var byVia = { Cash: 0, Petty: 0, Bank: 0 };
         var all = 0;
         saved.forEach(function (l) { byVia[l.via] = (byVia[l.via] || 0) + F.n(l.amount); all += F.n(l.amount); });
-        return '<span>' + esc(viaLabel('Cash')) + '</span><span class="r">' + F.fmt(byVia.Cash) + '</span><span>' + esc(viaLabel('Petty')) + '</span><span class="r">' + F.fmt(byVia.Petty) +
+        return (isSite ? '' : '<span>' + esc(viaLabel('Cash')) + '</span><span class="r">' + F.fmt(byVia.Cash) + '</span>') + '<span>' + esc(viaLabel('Petty')) + '</span><span class="r">' + F.fmt(byVia.Petty) +
           '</span><span>Bank</span><span class="r">' + F.fmt(byVia.Bank) + '</span>' +
           '<span class="grand">Total ' + (side === 'IN' ? 'received' : 'paid') + '</span><span class="r grand">' + F.fmt(all) + '</span>';
       }
@@ -319,7 +332,7 @@
           }).join('') + '</section>'
         : '';
       return typeBar +
-        '<section class="sec nf-whose-sec">' + filterBar + '</section>' +
+        (isSite ? '' : '<section class="sec nf-whose-sec">' + filterBar + '</section>') +
         '<section class="sec"><div class="books">' +
         '  <div class="book in"><div class="bh"><h3><i></i>Receipts <small>CRV / BRV</small></h3><span class="cnt">' + savedIn.length + ' ' + (savedIn.length === 1 ? 'entry' : 'entries') + '</span></div>' +
         '    <div class="grid cols"><span>Voucher</span><span>Description and head</span><span>Party</span><span class="c">Floor</span><span class="c">Via</span><span class="r">Amount</span><span></span></div>' +
@@ -572,6 +585,7 @@
       S.pdcs = res.pdcs || [];
       S.checks = res.checks || [];
       S.balanced = !!res.balanced;
+      S.site = res.site || null;
       render();
     }
 

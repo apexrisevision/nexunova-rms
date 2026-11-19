@@ -4170,3 +4170,26 @@ list and are not counted in money received / paid; "From" / "Paid to" is the par
 (html2canvas) or a real PDF (pdf-lib) from `/vendor/`. Button "WhatsApp report" beside "Excel": head office
 chooses Site / Head Office / Combined; the site login has no choice. Dry run: 16-Nov Combined received –, paid
 17,60,940; Sharose asking for Combined gets Site with no Head Office Cash and no bank. Browser check 31/31.
+
+## 52 · The site cash box sees its own closing only (2026-11-19, NOT applied)
+
+Brief of 19-Nov (closes handover item #8). **`20261119e`** — for a member whose cash box is Site Cash:
+- **Row security:** reads only the vouchers and legs he entered (`nf_lines` follows, security_invoker); no direct
+  read of day sheets, PDCs, the audit trail, the combined closings or the retired site-closing tables. Master
+  data stays readable (accounts, floors, members, settings, the party list for the picker — names, no amounts).
+  `nf_member_cash_box` is granted to authenticated so the policies can ask (it only ever returns the caller's box).
+- **RPCs:** `nf_day_json` → his own lines and JVs, the Site Cash row only, no checks / PDCs / remarks / Head Office
+  figures, plus `site`: transfers from / to Head Office (date, amount) and Head Office's other Site Cash lines as two
+  totals. `nf_list_days` Site Cash totals only; `nf_jv_list` his own; the printed day report, the unallocated tokens
+  and every `nf_site_*` function Head Office only. Duplicate messages say only "entered by Head Office".
+  `nf_day_report` (his WhatsApp report) shows Head Office's Site Cash lines as amount only.
+- **Screen:** "Site Cash" heading, no whose-lines filter, no Head Office Cash row, a "From Head Office" box, and
+  "Prepared by Head Office" when someone else closed the day.
+
+A brief conflict, resolved: "only his own entries" vs "16-Nov 14,140 → 53,200". Head Office paid 2,59,000 FROM Site
+Cash on 16-Nov (CPV-0170/71/72); without it the closing cannot be 53,200. So those count, shown to him as one line,
+"Paid by Head Office from Site Cash · 3 entries · 2,59,000" — no voucher, party or narration.
+
+Dry run: Sharose's direct reads 62 vouchers / 124 legs, all his; 0 days, PDCs, audit; 19 RPCs scanned for Head
+Office voucher numbers, amounts and balances — 0 leaks; director unchanged (505 vouchers; Combined 16-Nov
+4,15,250 / 53,200 / 2,63,61,788.75). Browser check 34/34; mockups scanned — no Head Office marker.

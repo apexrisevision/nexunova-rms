@@ -125,6 +125,11 @@
     var confirmedSig = null;
     function showWarn(x, onYes) {
       var e = host.querySelector('#nfv-err');
+      if (x.hidden) {   // the site box is told only that Head Office has something like it (docs/PLAN.md §52)
+        e.innerHTML = 'A similar entry may already be on the books (entered by Head Office).<br>' +
+          '<button type="button" class="btn sm" id="nfv-dup-yes">Yes, this is a different payment — save</button>';
+        e.hidden = false; e.querySelector('#nfv-dup-yes').addEventListener('click', onYes); return;
+      }
       e.innerHTML = 'Possible duplicate: ' + esc(x.voucher) + ' by ' + esc(x.by || 'another login') + ' on ' + esc(F.ddMonYyyy(x.date)) +
         ', Rs ' + esc(F.fmt(x.amount)) + ' (' + esc(x.key) + ').<br><small>' + esc(x.narration || '') + '</small><br>' +
         '<button type="button" class="btn sm" id="nfv-dup-yes">Yes, this is a different payment — save</button>';
