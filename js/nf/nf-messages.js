@@ -48,6 +48,7 @@
         (d.amount ? ', Rs ' + F.fmt(d.amount) : '') + ' — same ' + String(d.key || 'entry').replace(/^same /, '') + '. Not saved.';
     },
     'NF:REFERENCE_REQUIRED': function () { return 'Enter the deposit slip / reference number.'; },
+    'NF:TRANSFER_CASH_AND_SITE_BOX_ONLY': function () { return 'A cash transfer is between Head Office Cash and Site Cash only.'; },
     'NF:CHEQUE_REQUIRED': function () { return 'Enter the cheque number.'; },
     'NF:DUPLICATE_CHEQUE': function (err) { var d = err.detail || {}; return 'Cheque ' + (d.cheque || '') + ' is already cashed' + (d.hidden ? ' (entered by Head Office).' : (d.voucher ? ' on ' + d.voucher + '.' : '.')); },
     'NF:VOUCHER_PREFIX': function () { return 'Receipts start CRV or BRV; payments start CPV or BPV.'; },

@@ -4205,3 +4205,16 @@ digits so the duplicate guard reads it; the same deposit by the other login is r
 in BOP (bank)" first in the head list (slip instead of party and floor), the Cash receipt popup "Cash withdrawn from
 BOP (bank)" (cheque no., existing `nf_save_withdrawal`); a Transfers list on the sheet with delete and the paper
 number, counted in the Close-day number check. Dry run 12/12; browser check 38/38.
+
+## 54 · Cash moved between Head Office Cash and Site Cash (2026-11-19, NOT applied)
+
+Owner: "headoffice cash jab mai site accountant ko dun to entry nahi hoti" — no way on the screen to move cash from
+Head Office Cash to Site Cash or back. (The Head Office sheet's old "Head Office Cash given to Site Cash" box is
+one-way, has no paper number, and the site login cannot use it.) **`20261119h`**: `nf_save_cash_transfer(day, type,
+manual no., from, to, amount, description, date)` — one voucher, Dr the box that got the cash / Cr the box that gave
+it; a CPV when entered by the giver, a CRV when entered by the receiver; a box login only from its own side, a
+director either; the paper number needed before Close day; the same transfer already booked by the other login
+(same two boxes, same direction, same amount, ±1 day) is refused — the site box is told only "Head Office has it".
+Not money received or paid: it shows under Transfers and in the WhatsApp brief's "Cheques & transfers". Screen: the
+Cash payment popup offers "Cash given to <the other box>" and the Cash receipt popup "Cash received from <the other
+box>" next to the bank choice, no party or floor. Dry run 14/14; browser check 43/43.

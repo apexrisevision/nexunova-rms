@@ -147,6 +147,11 @@
         return call('nf_save_deposit', { p_day_id: dayId, p_voucher_no: manualNo || null, p_from: from, p_amount: amount,
           p_reference: reference, p_description: description || null, p_real_date: realDate });
       },
+      // cash between Head Office Cash and Site Cash (docs/PLAN.md §54): type CPV = the box that gave it, CRV = the box that got it
+      saveCashTransfer: function (dayId, type, manualNo, from, to, amount, description, realDate) {
+        return call('nf_save_cash_transfer', { p_day_id: dayId, p_type: type, p_voucher_no: manualNo || null, p_from: from, p_to: to,
+          p_amount: amount, p_description: description || null, p_real_date: realDate });
+      },
       saveWithdrawal: function (dayId, manualNo, to, amount, chequeNo, description, realDate) {
         return call('nf_save_withdrawal', { p_day_id: dayId, p_voucher_no: manualNo || null, p_from: 'Bank', p_to: to, p_amount: amount,
           p_cheque_no: chequeNo, p_description: description || null, p_real_date: realDate });

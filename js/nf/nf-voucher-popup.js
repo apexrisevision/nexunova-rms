@@ -47,6 +47,9 @@
     CPV: { value: '@DEP', label: 'Cash deposited in BOP (bank)', search: ['bank', 'bop', 'deposit', 'deposited', 'jama'] },
     CRV: { value: '@WDL', label: 'Cash withdrawn from BOP (bank)', search: ['bank', 'bop', 'withdraw', 'withdrawn', 'nikala'] },
   };
+  // Cash moved between the two cash boxes (Head Office Cash ↔ Site Cash) is a transfer too: the cash popups offer it
+  // next to the bank choice, named after the OTHER box, and save it with nf_save_cash_transfer (docs/PLAN.md §54)
+  var BOX_HEAD = '@BOX';
   function headRequiresParty(heads, code) {
     var h = (heads || []).filter(function (x) { return x.code === code; })[0];
     return !!(h && h.requires_party);
@@ -145,6 +148,34 @@
       e.querySelector('#nfv-dup-yes').addEventListener('click', onYes);
     }
 
+    // the other cash box: Head Office Cash for the site box, Site Cash for head office
+    function otherBox() { var v = viaNow(); return v === 'Cash' ? 'Petty' : v === 'Petty' ? 'Cash' : ''; }
+    function boxLabel(via) {
+      var v = (o.vias || []).filter(function (x) { return x.via === via; })[0];
+      return (v && v.label) || (via === 'Petty' ? 'Petty cash' : 'Cash');
+    }
+    function boxHeadItem() {
+      var other = otherBox(); if (!t.cash || !other) return [];
+      return [{ value: BOX_HEAD, label: (t.side === 'OUT' ? 'Cash given to ' : 'Cash received from ') + boxLabel(other),
+        search: ['transfer', 'site', 'head office', 'petty', 'cash box', 'diya', 'mila'] }];
+    }
+    function saveBox(andNew) {
+      var via = viaNow(), other = otherBox(), amt = F.n(host.querySelector('#nfv-amt').value);
+      var desc = host.querySelector('#nfv-desc').value.trim(), manual = host.querySelector('#nfv-manual').value.trim();
+      var missing = [];
+      if (!via) missing.push(t.side === 'OUT' ? 'the cash box it left' : 'the cash box it went into');
+      if (!(amt > 0)) missing.push('an amount');
+      if (missing.length) { showErr('Still needed: ' + missing.join(', ') + '.'); return; }
+      busy = true; showErr('');
+      var from = t.side === 'OUT' ? via : other, to = t.side === 'OUT' ? other : via;
+      o.api.saveCashTransfer(o.day.id, o.type, manual, from, to, amt, desc, o.day.business_date)
+        .then(function (res) {
+          busy = false;
+          if (o.onSaved) o.onSaved(res, { voucher_no: 'Cash transfer', manual_no: manual || null });
+          if (andNew) { resetCashBank(); } else { close(); }
+        })
+        .catch(function (err) { busy = false; showErr(Msg.forLine(err)); });
+    }
     function saveBank(andNew) {
       var via = viaNow(), amt = F.n(host.querySelector('#nfv-amt').value), ref = host.querySelector('#nfv-ref').value.trim();
       var desc = host.querySelector('#nfv-desc').value.trim(), manual = host.querySelector('#nfv-manual').value.trim();
@@ -166,6 +197,7 @@
     }
     function saveCashBank(andNew) {
       if (BANK_HEAD[o.type] && pickVal('nfv-head') === BANK_HEAD[o.type].value) { saveBank(andNew); return; }
+      if (pickVal('nfv-head') === BOX_HEAD) { saveBox(andNew); return; }
       var head = pickVal('nfv-head'), floor = host.querySelector('#nfv-floor').value, via = viaNow();
       var party = pickVal('nfv-party') || host.querySelector('[data-pick="nfv-party"] .nfpick-in').value.trim();
       var amt = F.n(host.querySelector('#nfv-amt').value);
@@ -314,7 +346,7 @@
       host.querySelector('#nfv-addline').addEventListener('click', function () { readLines(); jvLines.push(blankLine()); drawLines(); });
     } else {
       global.NfPick.wire(host, {
-        key: 'nfv-head', items: function () { return (BANK_HEAD[o.type] ? [BANK_HEAD[o.type]] : []).concat(global.NfPick.accountItems(o.heads)); },
+        key: 'nfv-head', items: function () { return (BANK_HEAD[o.type] ? [BANK_HEAD[o.type]] : []).concat(boxHeadItem(), global.NfPick.accountItems(o.heads)); },
         emptyText: 'No head matches that.',
         onPick: function (wrap, code) {
           // a transfer to / from the bank: slip or cheque instead of party and floor
@@ -322,6 +354,11 @@
           ['#nfv-party-row', '#nfv-floor-row'].forEach(function (s) { var el = host.querySelector(s); if (el) el.hidden = bank; });
           var ref = host.querySelector('#nfv-ref-row'); if (ref) ref.hidden = !bank;
           if (bank) { host.querySelector('#nfv-ref').focus(); return; }
+          // cash to / from the other cash box: no party, floor or slip
+          if (code === BOX_HEAD) {
+            ['#nfv-party-row', '#nfv-floor-row'].forEach(function (s) { var el = host.querySelector(s); if (el) el.hidden = true; });
+            host.querySelector('#nfv-amt').focus(); return;
+          }
           // whether the party is required depends on the head — say so
           // beside the label; nothing else redraws
           host.querySelector('#nfv-party-req').textContent = headRequiresParty(o.heads, code) ? '(required for this head)' : '(optional)';
@@ -332,6 +369,8 @@
         b.addEventListener('click', function () {
           host.querySelectorAll('.vp-seg button').forEach(function (x) { x.classList.remove('on'); x.setAttribute('aria-checked', 'false'); });
           b.classList.add('on'); b.setAttribute('aria-checked', 'true');
+          // a cash transfer already chosen: it now names the other box
+          if (pickVal('nfv-head') === BOX_HEAD) { var it = boxHeadItem()[0]; if (it) host.querySelector('[data-pick="nfv-head"] .nfpick-in').value = it.label; }
         });
       });
       var amt = host.querySelector('#nfv-amt');

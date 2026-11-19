@@ -40,6 +40,7 @@ window.__boot = function (fix, as) {
   var api = {
     getDay: function () { return ok(day); }, listHeads: function () { return ok(fix.heads); }, listFloors: function () { return ok(fix.floors); },
     listVias: function () { return ok(fix.vias); }, listAllParties: function () { return ok(fix.parties); },
+    saveCashTransfer: function () { window.__calls.push(['saveCashTransfer'].concat([].slice.call(arguments))); return ok(day); },
     saveDeposit: function () { window.__calls.push(['saveDeposit'].concat([].slice.call(arguments))); return ok(day); },
     saveLine: function () { window.__calls.push(['saveLine'].concat([].slice.call(arguments))); return ok(day); },
     deleteLine: function () { window.__calls.push(['deleteLine'].concat([].slice.call(arguments))); return ok(day); },
@@ -104,6 +105,13 @@ window.__boot = function (fix, as) {
     await pg.waitForSelector('.vp-seg');
     const opts = await q(pg, () => [...document.querySelectorAll('.vp-seg [data-via]')].map(b => b.textContent));
     check('HO (director): the cash payment popup offers both cash boxes', opts.length === 2, opts.join(','));
+    await pg.type('[data-pick="nfv-head"] .nfpick-in', 'site');
+    await pg.waitForFunction(() => [...document.querySelectorAll('[data-pick="nfv-head"] .nfpick-opt')].some(o => /Cash given to/.test(o.textContent)), { timeout: 5000 }).catch(() => {});
+    const hoOpt = await q(pg, () => [...document.querySelectorAll('[data-pick="nfv-head"] .nfpick-opt')].map(o => o.textContent).join(' | '));
+    check('HO (director): Cash payment from Head Office Cash offers "Cash given to Site Cash"', hoOpt.indexOf('Cash given to Site Cash') >= 0, hoOpt);
+    await pg.evaluate(() => { const o = [...document.querySelectorAll('[data-pick="nfv-head"] .nfpick-opt')].find(o => /Cash given to/.test(o.textContent)); if (o) o.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); if (o) o.click(); });
+    await pg.type('#nfv-amt', '50000');
+    if (outDir) await pg.screenshot({ path: require('path').join(outDir, 'cash transfer - head office gives Site Cash.png') });
     await pg.keyboard.press('Escape'); await pg.evaluate(() => { const b = document.querySelector('.nf-dialog-backdrop, .vp-backdrop'); if (b) b.remove(); });
     await pg.evaluate(() => { window.__saved = null; window.XLSX.writeFile = function (wb, name) { window.__saved = { name: name, tabs: wb.SheetNames }; }; });
     const hasX = await q(pg, () => !!document.querySelector('#nf-dayXlsx'));
@@ -195,6 +203,23 @@ window.__boot = function (fix, as) {
       const dep = await q(pg, () => window.__calls.filter(c => c[0] === 'saveDeposit')[0]);
       check('Site: it saves as a deposit from Site Cash (nf_save_deposit)', dep && dep[3] === 'Petty' && dep[4] === 50000 && dep[5] === 'DS-77123', JSON.stringify(dep));
       await pg.evaluate(() => { const b = document.querySelector('#nf-vpop'); if (b) b.remove(); });
+      // cash back to head office, from the same Cash payment popup (docs/PLAN.md §54)
+      for (const [vt, word, label, from, to] of [['CPV', 'head office', 'Cash given to Head Office Cash', 'Petty', 'Cash'], ['CRV', 'head office', 'Cash received from Head Office Cash', 'Cash', 'Petty']]) {
+        await pg.click('[data-vtype="' + vt + '"]'); await pg.waitForSelector('[data-pick="nfv-head"] .nfpick-in');
+        await pg.type('[data-pick="nfv-head"] .nfpick-in', word); await pg.waitForSelector('[data-pick="nfv-head"] .nfpick-opt');
+        const opt = await q(pg, () => document.querySelector('[data-pick="nfv-head"] .nfpick-opt').textContent);
+        check('Site: ' + vt + ' offers "' + label + '"', opt.indexOf(label) >= 0, opt);
+        await pg.click('[data-pick="nfv-head"] .nfpick-opt');
+        const hid = await q(pg, () => ({ party: document.querySelector('#nfv-party-row').hidden, floor: document.querySelector('#nfv-floor-row').hidden }));
+        await pg.type('#nfv-manual', vt === 'CPV' ? 'S-CPV-77' : 'S-CRV-78'); await pg.type('#nfv-amt', '25000');
+        if (outDir) await pg.screenshot({ path: require('path').join(outDir, 'cash transfer - site ' + vt + ' ' + label + '.png') });
+        await pg.click('#nfv-save');
+        await new Promise(r => setTimeout(r, 300));
+        const c = await q(pg, () => window.__calls.filter(c => c[0] === 'saveCashTransfer').pop());
+        check('Site: ' + vt + ' cash transfer asks no party or floor, saves ' + from + ' → ' + to + ' (nf_save_cash_transfer)',
+          hid.party && hid.floor && c && c[2] === vt && c[4] === from && c[5] === to && c[6] === 25000, JSON.stringify({ hid, c }));
+        await pg.evaluate(() => { const b = document.querySelector('#nf-vpop'); if (b) b.remove(); });
+      }
       await pg.evaluate(() => { window.__dl = []; HTMLAnchorElement.prototype.click = function () { if (this.download) window.__dl.push(this.download); }; });
       await pg.click('#nf-waReport'); await pg.waitForSelector('#nf-wa-dialog [data-wa="preview"]');
       const wa = await q(pg, () => ({ radios: document.querySelectorAll('#nf-wa-dialog input[name="nf-wa-view"]').length, only: (document.querySelector('.nf-wa-only') || {}).textContent }));
