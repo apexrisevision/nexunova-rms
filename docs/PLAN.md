@@ -4220,7 +4220,7 @@ Cash payment popup offers "Cash given to <the other box>" and the Cash receipt p
 box>" next to the bank choice, no party or floor. Dry run 14/14; browser check 43/43.
 The Head Office sheet's old "Head Office Cash given to Site Cash" box was removed on the owner's word (never used: no XFR-PETTY voucher in Awami).
 
-## 55 · Token lines for units with no RMS hold (2026-11-20, NOT applied)
+## 55 · Token lines for units with no RMS hold (2026-11-20, applied 20261120111609)
 
 Brief: a token line (21100) for a unit with no active RMS hold was saved in NexuFinance and never reached RMS
 (GF-250/251 Ali Haider 33,52,500; GF-256 Uzair Ahmad 50,000, voucher 213; #205 no unit). Owner's choices, 20-Nov:

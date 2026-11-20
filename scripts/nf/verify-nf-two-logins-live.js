@@ -60,7 +60,7 @@ const OUT = process.argv[2];
         pos: [...document.querySelectorAll('table.pos tbody tr td:first-child')].map(td => td.textContent).join(' | '),
       }));
       if (key === 'site') {
-        check('live page serves the new sheet', t.scripts.some(s => s.indexOf('nf-sheet.js?v=20261119n') >= 0), t.scripts.join(','));
+        check('live page serves the new sheet', t.scripts.some(s => s.indexOf('nf-sheet.js?v=20261120a') >= 0), t.scripts.join(','));
         check('site login: chip "ZZ Site · Petty cash" (a test company keeps the seed labels), no Reports, no Close day', /ZZ Site · Petty cash/.test(t.who || '') && !t.reports && !t.close, t.who);
         check('site login: no Excel button', !t.xlsx);
         // 20261119e: the site box sees its own lines only — no Head Office line, no lock, no filter

@@ -1,5 +1,5 @@
 -- ══ NexuFinance → RMS token sync: units with no active hold (20261120a) ══
--- NOT APPLIED until the owner says yes.
+-- Applied 20-Nov-2026 (20261120111609) on the owner's yes.
 --
 -- Brief of 20-Nov: a token line (head 21100) for a unit with no active RMS hold was saved in NexuFinance and never
 -- reached RMS (GF-250/251 Ali Haider 33,52,500; GF-256 Uzair Ahmad 50,000, voucher 213; #205 no unit).
