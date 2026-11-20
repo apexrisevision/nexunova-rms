@@ -4219,3 +4219,20 @@ Not money received or paid: it shows under Transfers and in the WhatsApp brief's
 Cash payment popup offers "Cash given to <the other box>" and the Cash receipt popup "Cash received from <the other
 box>" next to the bank choice, no party or floor. Dry run 14/14; browser check 43/43.
 The Head Office sheet's old "Head Office Cash given to Site Cash" box was removed on the owner's word (never used: no XFR-PETTY voucher in Awami).
+
+## 55 · Token lines for units with no RMS hold (2026-11-20, NOT applied)
+
+Brief: a token line (21100) for a unit with no active RMS hold was saved in NexuFinance and never reached RMS
+(GF-250/251 Ali Haider 33,52,500; GF-256 Uzair Ahmad 50,000, voucher 213; #205 no unit). Owner's choices, 20-Nov:
+a hold is created automatically **only on the owner's login** (his rule since 2026-09-28; Iqra has no NexuFinance
+login), and **even with no WhatsApp number** on record. **`20261120a`**: `_nf_rms_token_unit` — active hold: token as
+before; Available: owner's login → V.Hold 30 days (`rms_hold_units`), client = the voucher's party, holder = the
+login, note = the voucher; orphan V.Hold / Reserved / Booked / Sold - Entry Pending (no reservation, no sale): owner's
+login → the missing reservation record, status kept; anyone else → "no hold in RMS — Head Office to hold it
+(Retry)"; sold with a sale file / Pagri / other statuses → not changed, the reason given. The client name now comes
+from the voucher's party (the narration was read before). `nf_day_json.token_sync` tells the screen what the save
+did; `nf_token_sync_list` = what is still not in RMS (latest sync per voucher); `nf_token_sync_retry` (Head Office).
+Screen: "Saved in NexuFinance, NOT in RMS — <unit>: <reason>" after a save; a "Not in RMS" list with Retry on the
+Head Office sheet; toasts stack. Backfill as the owner: GF-250/251 Ali Haider 16,76,250 each (hold records added,
+V.Hold kept), GF-256 V.Hold for Uzair Ahmad 50,000. Orphans in Awami: GF-250, GF-251 only (325 Pagri without a
+reservation are Pagri by design). Dry run 14/14; browser check 47/47.

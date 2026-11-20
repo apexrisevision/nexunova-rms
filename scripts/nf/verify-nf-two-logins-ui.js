@@ -32,6 +32,8 @@ window.__boot = function (fix, as) {
     via: 'Cash', amount: 1200, sort: 99, version: 1, party_id: null, party_name: null, voucher_id: 'ho-v-1',
     by_name: 'Rashid', by_box: 'Cash', mine: !site });
   window.__calls = [];
+  window.__notInRms = site ? [] : [{ voucher_id: 'v-213', voucher: '213', date: '2026-11-20', by: 'Sharose', party: 'Uzair Ahmad', amount: 50000,
+    description: 'Token money received against Unit GF-256', units: [{ unit: 'GF-256', share: 50000, result: 'no hold in RMS — Head Office to hold it (Retry)' }] }];
   // a deposit he made today (docs/PLAN.md §53)
   day.transfers = [{ voucher_id: 'tv1', line_id: 'tl1', voucher_no: 'CPV-000300', manual_no: null, number_pending: true, version: 1,
     narration: 'Cash deposited in BOP from Site Cash — slip DS77123', amount: 50000, from: 'Site Cash', to: 'BOP bank', by_name: 'Sharose', by_box: 'Petty', mine: site }];
@@ -42,7 +44,12 @@ window.__boot = function (fix, as) {
     listVias: function () { return ok(fix.vias); }, listAllParties: function () { return ok(fix.parties); },
     saveCashTransfer: function () { window.__calls.push(['saveCashTransfer'].concat([].slice.call(arguments))); return ok(day); },
     saveDeposit: function () { window.__calls.push(['saveDeposit'].concat([].slice.call(arguments))); return ok(day); },
-    saveLine: function () { window.__calls.push(['saveLine'].concat([].slice.call(arguments))); return ok(day); },
+    // a token line answers with what the sync did in RMS (docs/PLAN.md §55)
+    saveLine: function () { window.__calls.push(['saveLine'].concat([].slice.call(arguments)));
+      return ok(/^Token/.test(arguments[4] || '') ? Object.assign({}, day, { token_sync: { voucher: 'S-CRV-77', units: [{ unit: 'GF-256', share: 50000, result: 'no hold in RMS — Head Office to hold it (Retry)' }] } }) : day); },
+    checkDuplicate: function () { return ok({ block: [], warn: [] }); },
+    tokenSyncList: function () { window.__calls.push(['tokenSyncList']); return ok(window.__notInRms || []); },
+    tokenSyncRetry: function (c, v) { window.__calls.push(['tokenSyncRetry', v]); window.__notInRms = []; return ok([]); },
     deleteLine: function () { window.__calls.push(['deleteLine'].concat([].slice.call(arguments))); return ok(day); },
     setRemarks: function () { return ok(day); }, setTransfers: function () { return ok(day); },
     dayReport: function (c, d, v) { window.__calls.push(['dayReport', d, v]); return ok({ title: 'Awami Market Karkhano — Daily Closing', date: d, view: site ? 'site' : v, view_name: site || v === 'site' ? 'Site' : v === 'ho' ? 'Head Office' : 'Combined', boxes: [{ via: 'Petty', label: 'Site Cash', opening: 0, received: 0, paid: 0, transfers: 0, closing: 0 }], received: [], paid: [], transfers: [], prepared_by: site ? 'Sharose' : 'Rashid' }); },
@@ -94,6 +101,15 @@ window.__boot = function (fix, as) {
     check('HO (director): no line is read-only, no lock', t.ro === 0 && !t.tags.some(s => /🔒/.test(s)));
     check('HO: Close day is there', t.close);
     check('HO: the old "Head Office Cash given to Site Cash" box is gone (a popup voucher now, §54)', !t.tri && !t.triLabel, t.triLabel.trim());
+    // Not in RMS (§55): the list, then Retry
+    const nr = await q(pg, () => { const s = document.querySelector('#nf-notrms'); return s ? { n: s.querySelectorAll('tbody tr').length, txt: s.innerText, retry: !!s.querySelector('[data-rms-retry="v-213"]') } : null; });
+    check('HO: "Not in RMS" list shows voucher 213 (Uzair Ahmad, GF-256) with Retry', nr && nr.n === 1 && /Uzair Ahmad/.test(nr.txt) && /GF-256/.test(nr.txt) && nr.retry, JSON.stringify(nr));
+    if (outDir) await pg.screenshot({ path: require('path').join(outDir, 'not in RMS - head office list.png'), fullPage: true });
+    if (nr && nr.retry) {
+      await pg.click('[data-rms-retry="v-213"]'); await new Promise(r => setTimeout(r, 400));
+      const after = await q(pg, () => ({ gone: !document.querySelector('#nf-notrms'), call: window.__calls.filter(c => c[0] === 'tokenSyncRetry')[0], toast: [...document.querySelectorAll('.nf-toast')].map(t => t.textContent).join(' | ') }));
+      check('HO: Retry sends voucher 213 to RMS; the list empties', after.gone && after.call && after.call[1] === 'v-213' && /Sent to RMS/.test(after.toast), JSON.stringify(after));
+    }
     await pg.screenshot({ path: path.join(outDir, '3 Head Office - real screen.png'), fullPage: true });
     await pg.click('[data-whose="site"]');
     const nSite = await q(pg, () => document.querySelectorAll('.row[data-saved]').length);
@@ -202,6 +218,21 @@ window.__boot = function (fix, as) {
       await new Promise(r => setTimeout(r, 300));
       const dep = await q(pg, () => window.__calls.filter(c => c[0] === 'saveDeposit')[0]);
       check('Site: it saves as a deposit from Site Cash (nf_save_deposit)', dep && dep[3] === 'Petty' && dep[4] === 50000 && dep[5] === 'DS-77123', JSON.stringify(dep));
+      // a token he saves for a unit with no hold: saved here, the screen says it is NOT in RMS (§55)
+      await pg.evaluate(() => { const b = document.querySelector('#nf-vpop'); if (b) b.remove(); document.querySelectorAll('.nf-toast').forEach(t => t.remove()); });
+      await pg.click('[data-vtype="CRV"]'); await pg.waitForSelector('[data-pick="nfv-head"] .nfpick-in');
+      await pg.type('[data-pick="nfv-head"] .nfpick-in', '21100');
+      await pg.waitForFunction(() => [...document.querySelectorAll('[data-pick="nfv-head"] .nfpick-opt')].some(o => /21100/.test(o.textContent)), { timeout: 5000 }).catch(() => {});
+      await pg.evaluate(() => { const o = [...document.querySelectorAll('[data-pick="nfv-head"] .nfpick-opt')].find(o => /21100/.test(o.textContent)); if (o) { o.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); o.click(); } });
+      await pg.evaluate(() => { const f = document.querySelector('#nfv-floor'); if (f && f.options.length > 1) f.value = f.options[1].value; });
+      await pg.type('[data-pick="nfv-party"] .nfpick-in', 'Uzair Ahmad');
+      await pg.type('#nfv-desc', 'Token money received against Unit GF-256'); await pg.type('#nfv-amt', '50000'); await pg.type('#nfv-manual', 'S-CRV-77');
+      await pg.click('#nfv-save'); await new Promise(r => setTimeout(r, 500));
+      const tn = await q(pg, () => ({ call: window.__calls.filter(c => c[0] === 'saveLine').pop(), toast: [...document.querySelectorAll('.nf-toast')].map(t => t.textContent).join(' | ') }));
+      check('Site: a token for GF-256 with no hold — "Saved in NexuFinance, NOT in RMS — GF-256: …"', /Saved in NexuFinance, NOT in RMS — GF-256: no hold in RMS/.test(tn.toast), JSON.stringify(tn));
+      if (outDir) await pg.screenshot({ path: require('path').join(outDir, 'not in RMS - site login warning.png') });
+      check('Site: no "Not in RMS" list on his sheet', await q(pg, () => !document.querySelector('#nf-notrms')));
+      await pg.evaluate(() => { const b = document.querySelector('#nf-vpop'); if (b) b.remove(); });
       await pg.evaluate(() => { const b = document.querySelector('#nf-vpop'); if (b) b.remove(); });
       // cash back to head office, from the same Cash payment popup (docs/PLAN.md §54)
       for (const [vt, word, label, from, to] of [['CPV', 'head office', 'Cash given to Head Office Cash', 'Petty', 'Cash'], ['CRV', 'head office', 'Cash received from Head Office Cash', 'Cash', 'Petty']]) {

@@ -192,6 +192,10 @@ td{padding:7px 10px;border-bottom:1px solid var(--line)}
 .nf-gate p{color:var(--ink2);font-size:13px;margin:0 0 16px;line-height:1.6}
 .nf-toast{position:fixed;right:18px;bottom:18px;max-width:340px;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);padding:12px 14px;font-size:12.5px;z-index:200}
 .nf-toast.bad{border-color:var(--neg);color:var(--neg)}
+/* several at once (a save + its RMS warning) stack instead of covering each other */
+#nf-toast-host{position:fixed;right:18px;bottom:18px;z-index:200;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+#nf-toast-host .nf-toast{position:static}
+.nf-badge-warn{display:inline-block;min-width:20px;padding:0 6px;margin-left:6px;border-radius:999px;background:var(--neg);color:#fff;font-size:11px;line-height:18px;text-align:center;vertical-align:middle}
 .nf-dialog-backdrop{position:fixed;inset:0;background:rgba(10,14,20,.45);display:grid;place-items:center;z-index:150}
 .nf-dialog{background:var(--card);border-radius:12px;box-shadow:var(--shadow);max-width:420px;width:92vw;padding:22px}
 .nf-dialog h3{margin:0 0 6px;font-size:15px}

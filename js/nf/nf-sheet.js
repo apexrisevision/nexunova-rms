@@ -81,7 +81,7 @@
     // message and, because the throw happened inside a .catch handler, wedged
     // serialDebounce's queue. Re-create the host if it is gone rather than
     // giving up on the message: the toast is the only signal the person gets.
-    function toast(msg, bad) {
+    function toast(msg, bad, ms) {
       var host = root.querySelector('#nf-toast-host');
       if (!host) {
         try {
@@ -97,7 +97,7 @@
       el.className = 'nf-toast' + (bad ? ' bad' : '');
       el.textContent = msg;
       host.appendChild(el);
-      setTimeout(function () { el.remove(); }, 5000);
+      setTimeout(function () { el.remove(); }, ms || 5000);
     }
 
     // ── loading ────────────────────────────────────────────────────────────
@@ -116,8 +116,13 @@
         // position comes back nested under day payload for nf_day_json; nf_get_day
         // for an existing day returns the same shape as nf_day_json directly.
         if (res.position) S.position = res.position;
-        return res;
+        return loadNotInRms().then(function () { return res; });
       });
+    }
+    // token lines saved in NexuFinance that never reached RMS (Head Office; docs/PLAN.md §55)
+    function loadNotInRms() {
+      if (isSite || !api.tokenSyncList) { S.notInRms = []; return Promise.resolve(); }
+      return api.tokenSyncList(companyId).then(function (l) { S.notInRms = l || []; }, function () { S.notInRms = []; });
     }
 
     function loadLookups() {
@@ -434,6 +439,23 @@
       return '<section class="sec"><div class="pdcs">' + table('nf-pdcIn', 'Post-dated cheques received', inn) + table('nf-pdcOut', 'Post-dated cheques issued', out) + '</div></section>';
     }
 
+    // ── not in RMS (docs/PLAN.md §55) ───────────────────────────────────────
+    function renderNotInRms() {
+      var list = S.notInRms || [];
+      if (isSite || !list.length) return '';
+      return '<section class="sec" id="nf-notrms"><div class="sh"><h2>Not in RMS <span class="nf-badge-warn">' + list.length + '</span></h2>' +
+        '<span>token lines saved here that did not reach the unit’s hold in RMS</span></div>' +
+        '<div class="box"><table class="nf-dayjv"><thead><tr><th>Voucher</th><th>Party · units</th><th>Why</th><th class="r">Amount</th><th></th></tr></thead><tbody>' +
+        list.map(function (x) {
+          var units = (x.units || []);
+          return '<tr><td>' + esc(x.voucher || '') + '<span class="vno-sys" style="display:block">' + esc(F.ddMonYyyy(x.date)) + (x.by ? ' · ' + esc(x.by) : '') + '</span></td>' +
+            '<td>' + esc(x.party || '') + '<small class="muted" style="display:block">' + esc(units.map(function (u) { return u.unit || 'no unit named'; }).join(', ')) + '</small></td>' +
+            '<td><small>' + esc(units.map(function (u) { return u.result; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).join('; ')) + '</small></td>' +
+            '<td class="r t">' + F.fmt(x.amount) + '</td>' +
+            '<td>' + (units.some(function (u) { return u.unit; }) ? '<button class="btn sm" type="button" data-rms-retry="' + esc(x.voucher_id) + '">Retry</button>' : '') + '</td></tr>';
+        }).join('') + '</tbody></table></div></section>';
+    }
+
     // ── checks / sign-off ───────────────────────────────────────────────────
     function renderChecks() {
       if (!S.day) return '';
@@ -566,7 +588,7 @@
       canWrite = (role === 'accountant' || role === 'director') && S.day && S.day.status === 'OPEN';
       var html = renderHeader();
       if (S.day) {
-        html += renderPosition() + renderBooks() + renderTri() + renderPdcs() + renderChecks();
+        html += renderPosition() + renderBooks() + renderTri() + renderNotInRms() + renderPdcs() + renderChecks();
       } else {
         html += renderNoDay();
       }
@@ -606,6 +628,18 @@
       S.transfers = res.transfers || [];
       S.site = res.site || null;
       render();
+      tokenNotice(res.token_sync);
+    }
+    // what the save did in RMS: say plainly when a token did NOT reach it (docs/PLAN.md §55)
+    function tokenNotice(ts) {
+      if (!ts || !ts.units) return;
+      var miss = ts.units.filter(function (u) { return u.result !== 'synced'; });
+      var made = ts.units.filter(function (u) { return u.result === 'synced' && u.hold; });
+      if (miss.length) {
+        toast('Saved in NexuFinance, NOT in RMS — ' + miss.map(function (u) { return (u.unit ? u.unit + ': ' : '') + u.result; }).join('; ') + '.', true, 12000);
+      }
+      if (made.length) toast('RMS: ' + made.map(function (u) { return u.unit + ' ' + u.hold; }).join('; ') + ', token added.');
+      if (!isSite) loadNotInRms().then(render);
     }
 
     // ── the voucher popups (js/nf/nf-voucher-popup.js) ─────────────────────
@@ -714,6 +748,17 @@
 
     // ── wiring ─────────────────────────────────────────────────────────────
     function wire() {
+      root.querySelectorAll('[data-rms-retry]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          b.disabled = true;
+          api.tokenSyncRetry(companyId, b.getAttribute('data-rms-retry')).then(function (list) {
+            var before = (S.notInRms || []).length;
+            S.notInRms = list || [];
+            render();
+            toast(S.notInRms.length < before ? 'Sent to RMS.' : 'Still not in RMS — see the reason in the list.', S.notInRms.length >= before);
+          }, function (err) { b.disabled = false; toast(Msg.forLine(err), true); });
+        });
+      });
       var sheetBack = root.querySelector('#nf-sheet-back');
       if (sheetBack) sheetBack.addEventListener('click', function () { ctx.onBack(); });
       var themeBtn = root.querySelector('#nf-theme');

@@ -157,6 +157,9 @@
           p_cheque_no: chequeNo, p_description: description || null, p_real_date: realDate });
       },
       // the daily WhatsApp report: site | ho | combined — the site login always gets site (docs/PLAN.md §51)
+      // token lines that did not reach RMS, and trying one again (Head Office; docs/PLAN.md §55)
+      tokenSyncList: function (companyId) { return call('nf_token_sync_list', { p_company_id: companyId }); },
+      tokenSyncRetry: function (companyId, voucherId) { return call('nf_token_sync_retry', { p_company_id: companyId, p_voucher_id: voucherId }); },
       dayReport: function (companyId, date, view) { return call('nf_day_report', { p_company_id: companyId, p_date: date, p_view: view }); },
       // one date's cash & bank book for the director's Excel (docs/PLAN.md §50)
       dayBook: function (companyId, date) { return call('nf_day_book', { p_company_id: companyId, p_date: date }); },
