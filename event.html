@@ -192,6 +192,51 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 #burst { position: absolute; inset: 0; }
 
 #msg { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; background: rgba(7,11,24,.92); }
+/* offer by type */
+.offer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-top: 44px; }
+.oc { padding: 36px 40px; display: grid; gap: 18px; align-content: start; }
+.oc .ty { font-family: var(--display); font-weight: 300; font-size: 46px; letter-spacing: -1px; }
+.oc .big-n { font-family: var(--display); font-weight: 200; font-size: 132px; line-height: .9; letter-spacing: -4px; color: var(--avail); font-variant-numeric: tabular-nums; }
+.oc .of { font-size: 22px; color: var(--soft); margin-top: -6px; }
+.oc dl { display: grid; grid-template-columns: auto 1fr; gap: 12px 24px; margin: 8px 0 0; font-size: 22px; border-top: 1px solid var(--glass-line); padding-top: 20px; }
+.oc dt { color: var(--soft); } .oc dd { margin: 0; text-align: right; font-family: var(--display); font-weight: 300; font-size: 28px; }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip { font-size: 19px; padding: 7px 14px; border-radius: 20px; border: 1px solid var(--glass-line); background: rgba(255,255,255,.04); color: var(--ink); }
+.chip b { font-weight: 500; color: var(--avail); margin-left: 6px; }
+
+/* selling fast */
+.fast { display: grid; grid-template-columns: repeat(7, 1fr); gap: 20px; margin-top: 50px; }
+.fc2 { padding: 30px 18px 26px; display: grid; justify-items: center; gap: 12px; text-align: center; position: relative; }
+.fc2 svg { width: 170px; height: 170px; transform: rotate(-90deg); }
+.fc2 circle { fill: none; stroke-width: 11; }
+.fc2 .bg { stroke: rgba(255,255,255,.08); }
+.fc2 .fg { stroke: url(#g1); stroke-linecap: round; stroke-dasharray: 471; stroke-dashoffset: 471; transition: stroke-dashoffset 2s cubic-bezier(.16,.8,.24,1) .5s; }
+.fc2 .pct { position: absolute; top: 88px; left: 0; right: 0; font-family: var(--display); font-weight: 300; font-size: 50px; font-variant-numeric: tabular-nums; }
+.fc2 .pct small { font-size: 22px; }
+.fc2 .fn { font-family: var(--display); font-weight: 300; font-size: 28px; }
+.fc2 .left { font-size: 20px; color: var(--avail); }
+.fc2 .tag { position: absolute; top: -14px; font-family: var(--mono); font-size: 14px; letter-spacing: 2px; padding: 5px 12px; border-radius: 14px; background: var(--grad); color: #0b0f1e; }
+.fc2.first { border-color: rgba(244,114,182,.55); box-shadow: 0 0 60px rgba(167,139,250,.22); }
+
+/* budget */
+.budget { display: grid; grid-template-columns: repeat(6, 1fr); gap: 26px; margin-top: 40px; height: 560px; align-items: end; }
+.bc { display: grid; grid-template-rows: auto 1fr auto auto; height: 100%; text-align: center; gap: 12px; }
+.bc .n { font-family: var(--display); font-weight: 300; font-size: 64px; font-variant-numeric: tabular-nums; line-height: 1; }
+.bc .col { align-self: end; border-radius: 18px 18px 6px 6px; background: var(--grad); box-shadow: 0 0 40px rgba(167,139,250,.3); transform-origin: bottom; transform: scaleY(0); transition: transform 1.4s cubic-bezier(.16,.8,.24,1); }
+.bc .rg { font-family: var(--display); font-weight: 300; font-size: 30px; }
+.bc .mix { font-size: 18px; color: var(--soft); min-height: 46px; }
+
+/* today, more */
+.goal { margin-top: 26px; }
+.goal .bar { height: 16px; border-radius: 10px; background: rgba(255,255,255,.08); overflow: hidden; }
+.goal .bar i { display: block; height: 100%; width: 0; background: var(--grad); transition: width 1.8s cubic-bezier(.16,.8,.24,1) .4s; }
+.goal .gl { display: flex; justify-content: space-between; font-size: 20px; color: var(--soft); margin-top: 10px; }
+.hours { display: grid; grid-template-columns: repeat(12, 1fr); gap: 10px; align-items: end; height: 220px; margin-top: 26px; padding: 26px 30px 16px; }
+.hours div { display: grid; grid-template-rows: auto 1fr auto; height: 100%; text-align: center; gap: 6px; font-family: var(--mono); font-size: 15px; color: var(--faint); }
+.hours i { align-self: end; display: block; border-radius: 6px 6px 2px 2px; background: var(--grad); min-height: 3px; }
+.hours b { font-weight: 500; color: var(--ink); font-size: 18px; }
+.live .upd { color: var(--faint); font-size: 16px; }
+
 /* bottom */
 .prog { position: absolute; left: 72px; right: 72px; bottom: 84px; display: flex; gap: 8px; z-index: 6; }
 .prog i { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
@@ -219,7 +264,7 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
     <img src="/assets/awami-mark-white.png" alt="">
     <div class="brand">AWAMI MARKET<small>KARKHANO MARKET · PESHAWAR</small></div>
     <div class="sp"></div>
-    <div class="live"><span class="dot"></span><b id="livelbl">LIVE</b><span id="clock">--:--</span></div>
+    <div class="live"><span class="dot"></span><b id="livelbl">LIVE</b><span id="clock">--:--</span><span class="upd" id="upd"></span></div>
   </div>
 
   <!-- 1 -->
@@ -227,7 +272,7 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
     <div>
       <div class="kicker in">Booking open today</div>
       <h1 class="h-xl in" style="animation-delay:.15s">Awami<br><span class="grad">Market</span></h1>
-      <p class="lede in" style="animation-delay:.35s">Shops and flats across seven floors at Karkhano Market, Peshawar.</p>
+      <p class="lede in" style="animation-delay:.35s">Shops, offices and apartments across seven floors at Karkhano Market, Peshawar.</p>
     </div>
     <div class="rings">
       <div class="ring glass in" style="animation-delay:.4s">
@@ -245,6 +290,12 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
     </div>
   </section>
 
+  <section class="scene" id="s-offer" data-dur="13">
+    <div class="kicker in">What is on offer</div>
+    <h2 class="h-l in" style="animation-delay:.1s">Shops, offices <span class="grad">and homes</span></h2>
+    <div class="offer" id="offer"></div>
+  </section>
+
   <!-- 2 -->
   <section class="scene" id="s-tower" data-dur="12">
     <div>
@@ -253,6 +304,12 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
       <div class="flist" id="flist"></div>
     </div>
     <svg id="tower" viewBox="0 0 1100 840"></svg>
+  </section>
+
+  <section class="scene" id="s-fast" data-dur="11">
+    <div class="kicker in">Selling fast</div>
+    <h2 class="h-l in" id="fast-h" style="animation-delay:.1s">&nbsp;</h2>
+    <div class="fast" id="fast"></div>
   </section>
 
   <!-- 3 -->
@@ -269,6 +326,12 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
       <svg id="plan" preserveAspectRatio="xMidYMid meet"></svg>
       <div class="spotcard glass" id="spot"></div>
     </div>
+  </section>
+
+  <section class="scene" id="s-budget" data-dur="12">
+    <div class="kicker in">Your budget</div>
+    <h2 class="h-l in" style="animation-delay:.1s">What <span class="grad">your budget</span> buys today</h2>
+    <div class="budget" id="budget"></div>
   </section>
 
   <!-- 4 -->
@@ -303,11 +366,14 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
   <section class="scene" id="s-today" data-dur="11">
     <div>
       <div class="kicker in">At the event today</div>
-      <div class="big glass in" style="animation-delay:.15s"><div class="num grad" id="t-booked">0</div><div class="label" style="font-size:26px">units booked today</div></div>
+      <div class="big glass in" style="animation-delay:.15s"><div class="num grad" id="t-booked">0</div><div class="label" style="font-size:26px">units booked today</div>
+        <div class="goal" id="goal" hidden><div class="bar"><i id="goal-bar"></i></div><div class="gl"><span id="goal-l"></span><span id="goal-r"></span></div></div></div>
       <div class="big glass in" style="animation-delay:.3s"><div class="num" id="t-left" style="color:var(--avail)">0</div><div class="label" style="font-size:26px">still open</div></div>
     </div>
     <div>
-      <div class="kicker in">Latest bookings</div>
+      <div class="kicker in">Bookings by the hour</div>
+      <div class="hours glass in" id="hours" style="animation-delay:.2s"></div>
+      <div class="kicker in" style="margin-top:30px">Latest bookings</div>
       <div class="feed" id="feed"></div>
     </div>
   </section>
@@ -370,7 +436,8 @@ const POLL_MS = 20000;
 const UP = ['LG','GF','FF','SF','TF','4F','5F'];
 const NAMES = { LG: 'Lower Ground', GF: 'Ground', FF: 'First', SF: 'Second', TF: 'Third', '4F': 'Fourth', '5F': 'Fifth' };
 const floorName = f => NAMES[f] + (f === 'LG' ? '' : ' Floor');
-let FLOORS = [], by = {}, open = [], PLANS = {}, PROJECT = '';
+let FLOORS = [], by = {}, open = [], PLANS = {}, PROJECT = '', lastRead = 0;
+const GOAL = +(new URLSearchParams(location.search).get('goal') || 0);   // ?goal=50 shows progress to the day's target
 
 const lac = k => (k / 100).toLocaleString('en-US', { maximumFractionDigits: 1 });   // k = price in thousands
 const fmt = n => n.toLocaleString('en-US');
@@ -411,7 +478,7 @@ async function read() {
   const fl = {};
   (d.floors || []).forEach(f => (f.units || []).forEach(u => {
     const p = prefix(u.n); if (!NAMES[p]) return;
-    (fl[p] = fl[p] || []).push([u.n, kindOf(u), Math.round(+u.a || 0), Math.round((+u.v || 0) / 1000)]);
+    (fl[p] = fl[p] || []).push([u.n, kindOf(u), Math.round(+u.a || 0), Math.round((+u.v || 0) / 1000), u.t || '']);
   }));
   return UP.filter(p => fl[p]).map(p => ({ f: p, units: fl[p] }));
 }
@@ -429,14 +496,15 @@ function apply(floors) {
     const list = today(), now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     floors.forEach(f => f.units.forEach(u => {
       if (prevKind[u[0]] === 'a' && (u[1] === 'h' || u[1] === 's') && !list.some(x => x.c === u[0])) {
-        const b = { c: u[0], f: f.f, a: u[2], t: now }; list.push(b); queue.push(b);
+        const b = { c: u[0], f: f.f, a: u[2], t: now, h: new Date().getHours() }; list.push(b); queue.push(b);
       }
     }));
     remember(list);
   }
   prevKind = kinds;
   FLOORS = floors; by = Object.fromEntries(FLOORS.map(f => [f.f, f]));
-  open = FLOORS.flatMap(f => f.units.filter(u => u[1] === 'a').map(u => ({ c: u[0], f: f.f, a: u[2], p: u[3] })));
+  open = FLOORS.flatMap(f => f.units.filter(u => u[1] === 'a').map(u => ({ c: u[0], f: f.f, a: u[2], p: u[3], t: u[4] })));
+  lastRead = Date.now();
   if (!showing) nextBooking();
 }
 
@@ -557,6 +625,50 @@ function drawLadder() {
   document.getElementById('lowest').textContent = lo.length ? lac(Math.min(...lo)) + ' Lac' : '—';
 }
 
+/* ── what is on offer, by kind of unit ── */
+const GROUPS = [['Shops', t => /shop/i.test(t)], ['Offices', t => /office/i.test(t)], ['Apartments', t => /apartment|studio|bed/i.test(t)]];
+function drawOffer() {
+  const all = FLOORS.flatMap(f => f.units.map(u => ({ f: f.f, k: u[1], a: u[2], p: u[3], t: u[4] })));
+  document.getElementById('offer').innerHTML = GROUPS.map(([name, test], i) => {
+    const us = all.filter(u => test(u.t)); if (!us.length) return '';
+    const av = us.filter(u => u.k === 'a'), ok = av.length ? av : us, fl = [...new Set(us.map(u => u.f))];
+    let extra = '';
+    if (name === 'Apartments') {
+      const kinds = [...new Set(us.map(u => u.t))].sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0));
+      extra = '<div class="chips">' + kinds.map(k => `<span class="chip">${k.replace(/ Apartment$/, '')}<b>${av.filter(u => u.t === k).length}</b></span>`).join('') + '</div>';
+    }
+    return `<div class="oc glass in" style="animation-delay:${.25 + i * .15}s"><div class="ty">${name}</div>
+      <div><div class="big-n" data-count="${av.length}">0</div><div class="of">open of ${fmt(us.length)}</div></div>${extra}
+      <dl><dt>Size</dt><dd>${fmt(Math.min(...ok.map(u => u.a)))}–${fmt(Math.max(...ok.map(u => u.a)))} sq ft</dd>
+      <dt>From</dt><dd class="grad">${lac(Math.min(...ok.map(u => u.p)))} Lac</dd>
+      <dt>Floors</dt><dd>${fl.join(' · ')}</dd></dl></div>`; }).join('');
+}
+
+/* ── selling fast: how much of each floor is gone (Pagri and Landowner left out) ── */
+function drawFast() {
+  const rows = FLOORS.map(f => { const sell = f.units.filter(u => u[1] !== 'x'), gone = sell.filter(u => u[1] === 'h' || u[1] === 's').length;
+    return { f: f.f, pct: sell.length ? Math.round(gone * 100 / sell.length) : 0, left: sell.length - gone }; }).sort((a, b) => b.pct - a.pct);
+  const top = rows[0];
+  document.getElementById('fast-h').innerHTML = top ? `${floorName(top.f)} is <span class="grad">${top.pct}% gone</span>` : '&nbsp;';
+  document.getElementById('fast').innerHTML = rows.map((x, i) => `<div class="fc2 glass in${i === 0 ? ' first' : ''}" style="animation-delay:${.25 + i * .1}s">
+    ${i === 0 ? '<span class="tag">FASTEST</span>' : x.left > 0 && x.left <= 70 ? '<span class="tag">FEW LEFT</span>' : ''}
+    <svg viewBox="0 0 170 170"><circle class="bg" cx="85" cy="85" r="75"/><circle class="fg" cx="85" cy="85" r="75" data-frac="${x.pct / 100}"/></svg>
+    <div class="pct"><span data-count="${x.pct}">0</span><small>%</small></div>
+    <div class="fn">${NAMES[x.f]}</div><div class="left">${x.left} left</div></div>`).join('');
+}
+
+/* ── budget: open units by price band ── */
+const BANDS = [[0, 40, 'Under 40'], [40, 60, '40–60'], [60, 80, '60–80'], [80, 100, '80–100'], [100, 150, '100–150'], [150, 1e9, '150+']];
+function drawBudget() {
+  const rows = BANDS.map(([lo, hi, label]) => { const us = open.filter(u => u.p > 0 && u.p / 100 >= lo && u.p / 100 < hi);
+    const mix = GROUPS.map(([n, t]) => [n, us.filter(u => t(u.t)).length]).filter(x => x[1]).map(x => `${x[0]} ${x[1]}`).join(' · ');
+    return { label, n: us.length, mix }; });
+  const max = Math.max(1, ...rows.map(x => x.n));
+  document.getElementById('budget').innerHTML = rows.map((x, i) => `<div class="bc in" style="animation-delay:${.2 + i * .1}s">
+    <div class="n" data-count="${x.n}">0</div><i class="col" style="height:${Math.max(2, x.n / max * 100)}%"></i>
+    <div class="rg">${x.label} <small style="font-size:18px;color:var(--soft)">Lac</small></div><div class="mix">${x.mix || '—'}</div></div>`).join('');
+}
+
 /* ── 6 location (approximate, fixed) ── */
 (() => { const st = [['Torkham', 70, 'west', 1], ['Hayatabad', 520, '5', 0], ['Ring Road', 700, '10', 1], ['University Town', 870, '15', 0], ['Saddar', 1050, '25', 1]];
   let s = `<defs><linearGradient id="lg" gradientUnits="userSpaceOnUse" x1="300" x2="1050" y1="0" y2="0"><stop offset="0" stop-color="#60a5fa"/><stop offset=".5" stop-color="#a78bfa"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs>
@@ -574,9 +686,15 @@ function drawLadder() {
 function drawToday() {
   const list = today();
   countUp(document.getElementById('t-booked'), list.length); countUp(document.getElementById('t-left'), open.length);
+  const goal = document.getElementById('goal'); goal.hidden = !GOAL;
+  if (GOAL) { const bar = document.getElementById('goal-bar'); bar.style.width = '0'; setTimeout(() => bar.style.width = Math.min(100, list.length * 100 / GOAL) + '%', 50);
+    document.getElementById('goal-l').textContent = 'Target for today: ' + GOAL; document.getElementById('goal-r').textContent = Math.round(Math.min(100, list.length * 100 / GOAL)) + '%'; }
+  const per = {}; list.forEach(b => { if (b.h != null) per[b.h] = (per[b.h] || 0) + 1; });
+  const hrs = Array.from({ length: 12 }, (_, i) => 9 + i), mx = Math.max(1, ...hrs.map(x => per[x] || 0));
+  document.getElementById('hours').innerHTML = hrs.map(x => `<div><b>${per[x] || ''}</b><i style="height:${(per[x] || 0) / mx * 100}%"></i><span>${x > 12 ? x - 12 : x}${x >= 12 ? 'pm' : 'am'}</span></div>`).join('');
   const feed = document.getElementById('feed');
   feed.innerHTML = list.length
-    ? list.slice(-4).reverse().map((b, i) => `<div class="fd glass in" style="animation-delay:${.3 + i * .12}s"><div><div class="u">${b.c}</div><div class="m">${floorName(b.f)} · ${fmt(b.a)} sq ft</div></div><div class="t">${b.t}</div></div>`).join('')
+    ? list.slice(-3).reverse().map((b, i) => `<div class="fd glass in" style="animation-delay:${.3 + i * .12}s"><div><div class="u">${b.c}</div><div class="m">${floorName(b.f)} · ${fmt(b.a)} sq ft</div></div><div class="t">${b.t}</div></div>`).join('')
     : `<div class="fd glass in" style="animation-delay:.3s"><div><div class="u">Be the first</div><div class="m">Bookings made today appear here as they happen</div></div></div>`;
 }
 
@@ -595,11 +713,15 @@ function enter(sc) {
   if (sc.id === 's-tower') drawTower();
   if (sc.id === 's-ladder') drawLadder();
   if (sc.id === 's-today') drawToday();
+  if (sc.id === 's-offer') drawOffer();
+  if (sc.id === 's-fast') drawFast();
+  if (sc.id === 's-budget') drawBudget();
   sc.querySelectorAll('[data-count]').forEach(el => countUp(el, +el.dataset.count));
-  sc.querySelectorAll('.ring .fg').forEach(c => { c.style.transition = 'none'; c.style.strokeDashoffset = 471; void c.getBBox();
+  sc.querySelectorAll('.ring .fg, .fc2 .fg').forEach(c => { c.style.transition = 'none'; c.style.strokeDashoffset = 471; void c.getBBox();
     c.style.transition = ''; requestAnimationFrame(() => c.style.strokeDashoffset = 471 * (1 - +c.dataset.frac)); });
   if (sc.id !== 's-floor') clearInterval(spotT);
   if (sc.id === 's-board') { fillBoard(); boardT = setInterval(fillBoard, 6500); } else clearInterval(boardT);
+  if (sc.id === 's-budget') setTimeout(() => sc.querySelectorAll('.bc .col').forEach(c => c.style.transform = 'scaleY(1)'), 400);
   if (sc.id === 's-ladder') sc.querySelectorAll('.track i').forEach(t => { t.style.transform = 'scaleX(0)'; t.style.left = t.dataset.l + '%'; t.style.width = Math.max(t.dataset.w, 1) + '%'; setTimeout(() => t.style.transform = 'scaleX(1)', 500); });
   clearInterval(hotT);
   if (sc.id === 's-tower') { let k = 0; const rows = [...document.querySelectorAll('#flist .frow')];
@@ -642,6 +764,7 @@ function say(title, line) {
   const m = document.getElementById('msg'); m.hidden = false;
   m.querySelector('.h-m').textContent = title; m.querySelector('.label').textContent = line;
 }
+setInterval(() => { if (lastRead) { const s = Math.round((Date.now() - lastRead) / 1000); document.getElementById('upd').textContent = s < 5 ? ' · just updated' : ' · updated ' + s + 's ago'; } }, 1000);
 function live(ok) { document.getElementById('livelbl').textContent = ok ? 'LIVE' : 'RECONNECTING'; }
 async function poll() {
   try { apply(await read()); live(true); document.getElementById('msg').hidden = true; }
