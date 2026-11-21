@@ -286,6 +286,61 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 .prices span { display: block; font-size: 18px; color: var(--soft); letter-spacing: 1px; }
 .prices b { font-family: var(--display); font-weight: 300; font-size: 44px; }
 
+/* ── fly-in: Peshawar from the air, down to Karkhano, then Awami Market ── */
+#s-fly { background: #05070f; overflow: hidden; perspective: 1700px; }
+.world { position: absolute; left: 50%; top: 50%; width: 2048px; height: 1280px; margin: -640px 0 0 -1024px; background-size: cover; }
+.world::after { content: ""; position: absolute; inset: 0; mix-blend-mode: screen;
+  background: radial-gradient(60% 60% at var(--fx) var(--fy), rgba(96,165,250,.22), rgba(139,92,246,.12) 45%, rgba(7,11,24,0) 75%); }
+.world.city { background-image: url(/assets/event/map-city.jpg); transform-origin: 28.67% 49.64%; --fx: 28.67%; --fy: 49.64%; }
+.world.near { background-image: url(/assets/event/map-near.jpg); transform-origin: 54.39% 57.09%; --fx: 54.39%; --fy: 57.09%; opacity: 0; }
+.on .world.city { animation: flyCity 10s cubic-bezier(.45,0,.3,1) forwards, fadeOut 1.6s ease 8.4s forwards; }
+.on .world.near { animation: flyNear 9s cubic-bezier(.2,0,.25,1) 8.2s forwards; }
+@keyframes flyCity { from { transform: rotateX(48deg) rotateZ(-6deg) scale(.92) } to { transform: translate(437px, 5px) rotateX(34deg) rotateZ(4deg) scale(4.2) } }
+@keyframes flyNear { 0% { opacity: 0; transform: translate(-90px, -91px) rotateX(34deg) rotateZ(4deg) scale(.55) }
+  18% { opacity: 1 } 100% { opacity: 1; transform: translate(-90px, -91px) rotateX(22deg) rotateZ(0deg) scale(1.5) } }
+@keyframes fadeOut { to { opacity: 0 } }
+.place { position: absolute; transform: translate(-50%, -100%); opacity: 0; text-align: center; white-space: nowrap; }
+.on .place { animation: lit .9s ease var(--a) forwards, fadeOut .6s ease var(--z) forwards; }
+.place { --z: 3.4s; }
+.place.home { --z: 4s; }
+.place b { display: block; font-family: var(--display); font-weight: 300; font-size: 46px; color: #fff; text-shadow: 0 4px 24px rgba(0,0,0,.9); }
+.place i { display: block; width: 14px; height: 14px; margin: 10px auto 0; border-radius: 50%; background: #c4b5fd; box-shadow: 0 0 20px #a78bfa; }
+.place.home b { font-size: 60px; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; }
+.place.home i { width: 22px; height: 22px; background: #fff; box-shadow: 0 0 0 8px rgba(244,114,182,.35), 0 0 40px #f472b6; }
+.flytext { position: absolute; left: 72px; top: 150px; z-index: 2; }
+.flytext .h-l { text-shadow: 0 8px 40px rgba(0,0,0,.7); }
+.flytext .step { position: absolute; left: 0; top: 0; white-space: nowrap; opacity: 0; }
+.on .flytext .s1 { animation: lit .8s ease .4s forwards, fadeOut .6s ease 7.6s forwards; }
+.on .flytext .s2 { animation: lit .8s ease 8.6s forwards, fadeOut .6s ease 13.4s forwards; }
+.droppin { position: absolute; left: 50%; top: 50%; z-index: 2; opacity: 0; transform: translate(-50%, -100%); }
+.on .droppin { animation: pinDrop .9s cubic-bezier(.3,1.6,.5,1) 11s forwards, fadeOut .5s ease 14s forwards; }
+@keyframes pinDrop { from { opacity: 0; transform: translate(-50%, -260%) } to { opacity: 1; transform: translate(-50%, -100%) } }
+.droppin svg { width: 120px; height: 150px; filter: drop-shadow(0 12px 30px rgba(244,114,182,.6)); }
+.droppin .ring { position: absolute; left: 50%; bottom: -30px; width: 90px; height: 36px; margin-left: -45px; border-radius: 50%; border: 3px solid #f9a8d4; animation: ringOut 1.8s ease-out infinite; }
+@keyframes ringOut { from { transform: scale(.4); opacity: 1 } to { transform: scale(3); opacity: 0 } }
+.reveal { position: absolute; inset: 0; z-index: 3; clip-path: circle(0% at 50% 50%); }
+.on .reveal { animation: iris 2.2s cubic-bezier(.7,0,.2,1) 14s forwards; }
+@keyframes iris { to { clip-path: circle(80% at 50% 50%) } }
+.reveal img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.25); }
+.on .reveal img { animation: settle 6s cubic-bezier(.2,0,.2,1) 14s forwards; }
+@keyframes settle { to { transform: scale(1.04) } }
+.reveal .ptext { bottom: 150px; }
+.osm { position: absolute; right: 72px; bottom: 96px; z-index: 2; font-family: var(--mono); font-size: 13px; color: rgba(255,255,255,.45); }
+
+/* holds and reservations glow on the building */
+.on #tower .win.hw { animation: lit .35s ease forwards, holdGlow 1.8s ease-in-out 3.2s infinite; }
+@keyframes holdGlow { 50% { fill: #fff1c2 } }
+.tlegend { display: flex; flex-wrap: wrap; gap: 14px 26px; margin-top: 30px; font-size: 22px; color: var(--soft); }
+.tlegend span { display: inline-flex; align-items: center; gap: 10px; }
+.tlegend i { width: 18px; height: 18px; border-radius: 4px; display: inline-block; }
+.tlegend b { color: var(--ink); font-weight: 500; }
+.frow .fh { color: var(--hold); font-size: 19px; margin-left: 10px; white-space: nowrap; }
+#s-tower .frow { grid-template-columns: 100px 1fr 150px; font-size: 22px; }
+
+/* the drawing itself, under the coloured units */
+#plan .lines * { stroke: rgba(214,224,255,.5) !important; fill: none !important; }
+#plan path.u { fill-opacity: .82; }
+
 /* bottom */
 .prog { position: absolute; left: 72px; right: 72px; bottom: 84px; display: flex; gap: 8px; z-index: 6; }
 .prog i { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
@@ -315,6 +370,30 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
     <div class="sp"></div>
     <div class="live"><span class="dot"></span><b id="livelbl">LIVE</b><span id="clock">--:--</span><span class="upd" id="upd"></span></div>
   </div>
+
+  <section class="scene full" id="s-fly" data-dur="21">
+    <div class="world city anim">
+      <div class="place  anim" style="left:72.67%;top:42.12%;--a:0.4s"><b>Peshawar</b><i></i></div>
+      <div class="place  anim" style="left:61.66%;top:50.31%;--a:0.7s"><b>Saddar</b><i></i></div>
+      <div class="place  anim" style="left:49.34%;top:52.13%;--a:1.0s"><b>University Town</b><i></i></div>
+      <div class="place  anim" style="left:54.75%;top:53.81%;--a:1.3s"><b>Airport</b><i></i></div>
+      <div class="place  anim" style="left:32.43%;top:61.7%;--a:1.6s"><b>Hayatabad</b><i></i></div>
+      <div class="place home anim" style="left:28.67%;top:49.64%;--a:2.0s"><b>Karkhano Market</b><i></i></div>
+    </div>
+    <div class="world near anim"></div>
+    <div class="flytext">
+      <div class="step s1 anim"><div class="kicker">From above</div><h2 class="h-l">Peshawar</h2></div>
+      <div class="step s2 anim"><div class="kicker">On the Grand Trunk Road</div><h2 class="h-l">Karkhano <span class="grad">Market</span></h2></div>
+    </div>
+    <div class="droppin anim"><svg viewBox="0 0 80 100"><defs><linearGradient id="pg" x1="0" x2="1"><stop offset="0" stop-color="#60a5fa"/><stop offset=".5" stop-color="#a78bfa"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs>
+      <path d="M40 98 C 22 70, 6 56, 6 36 a34 34 0 1 1 68 0 c0 20 -16 34 -34 62z" fill="url(#pg)" stroke="#fff" stroke-width="3"/><circle cx="40" cy="36" r="13" fill="#fff"/></svg><span class="ring"></span></div>
+    <div class="reveal anim">
+      <img class="anim" src="/assets/event/aerial-dusk.jpg" alt="Awami Market from above">
+      <div class="shade"></div>
+      <div class="ptext"><div class="kicker" style="color:#dfe4f5">You have arrived</div><h1 class="h-xl" style="margin-top:18px">Awami <span class="grad">Market</span></h1></div>
+    </div>
+    <div class="osm">Map © OpenStreetMap contributors</div>
+  </section>
 
   <section class="scene full" id="s-intro" data-dur="14">
     <div class="kb zoom-in anim" style="--d:14s">
@@ -379,8 +458,9 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
   <section class="scene" id="s-tower" data-dur="12">
     <div>
       <div class="kicker in">The building, live</div>
-      <h2 class="h-l in" style="animation-delay:.1s">Every window<br>is a <span class="grad">unit</span></h2>
-      <div class="flist" id="flist"></div>
+      <h2 class="h-l in" style="animation-delay:.1s;font-size:84px">Every window<br>is a <span class="grad">unit</span></h2>
+      <div class="tlegend in" id="tlegend" style="animation-delay:.2s"></div>
+      <div class="flist" id="flist" style="margin-top:22px"></div>
     </div>
     <svg id="tower" viewBox="0 0 1100 840"></svg>
   </section>
@@ -556,6 +636,7 @@ async function loadPlans(project) {
     const ix = await (await fetch('/plans/manifest.json')).json(), have = ix[slug(project)] || [];
     await Promise.all(have.map(async k => {
       try { const r = await fetch('/plans/' + slug(project) + '/' + k + '.json'); if (r.ok) PLANS[k] = await r.json(); } catch (e) {}
+      try { const s = await fetch('/plans/' + slug(project) + '/' + k + '.svg'); if (s.ok && PLANS[k]) PLANS[k].lines = (await s.text()).replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, ''); } catch (e) {}
     }));
   } catch (e) {}
 }
@@ -646,7 +727,7 @@ function drawTower() {
       let pts; const zz0 = z0 + 12, zz1 = z1 - 12;
       if (k < nl) { const x0 = A * k / nl + .6, x1 = A * (k + 1) / nl - .6; pts = [P(x0, B, zz0), P(x1, B, zz0), P(x1, B, zz1), P(x0, B, zz1)]; }
       else { const j = k - nl, y0 = B - B * j / nr - .6, y1 = B - B * (j + 1) / nr + .6; pts = [P(A, y0, zz0), P(A, y1, zz0), P(A, y1, zz1), P(A, y0, zz1)]; }
-      g += `<polygon class="win" points="${poly(pts)}" fill="${col[u[1]]}" style="animation-delay:${(1.4 + i * .18 + k * .006).toFixed(3)}s"/>`;
+      g += `<polygon class="win${u[1] === 'h' ? ' hw' : ''}" points="${poly(pts)}" fill="${col[u[1]]}" style="animation-delay:${(1.4 + i * .18 + k * .006).toFixed(3)}s"/>`;
     });
     const lp = P(0, B, (z0 + z1) / 2);
     g += `<text x="${(lp[0] - 26).toFixed(0)}" y="${(lp[1] + 10).toFixed(0)}" text-anchor="end" font-size="30" font-weight="300">${f.f}</text>`;
@@ -654,7 +735,9 @@ function drawTower() {
   });
   svg.innerHTML = out;
   document.getElementById('flist').innerHTML = [...FLOORS].reverse().map((f, i) => { const s = stats(f);
-    return `<div class="frow in" style="animation-delay:${.3 + i * .08}s"><span class="fc">${f.f}</span><span>${NAMES[f.f]} · from ${lac(s.minP)} Lac</span><span class="fa">${s.a} open</span></div>`; }).join('');
+    return `<div class="frow in" style="animation-delay:${.3 + i * .08}s"><span class="fc">${f.f}</span><span>${NAMES[f.f]} · from ${lac(s.minP)} Lac${s.h ? `<span class="fh">${s.h} reserved</span>` : ''}</span><span class="fa">${s.a} open</span></div>`; }).join('');
+  const all = FLOORS.flatMap(f => f.units), cnt = k => fmt(all.filter(u => u[1] === k).length);
+  document.getElementById('tlegend').innerHTML = `<span><i style="background:var(--avail)"></i>Available <b>${cnt('a')}</b></span><span><i style="background:var(--hold)"></i>Reserved / on hold <b>${cnt('h')}</b></span><span><i style="background:var(--sold)"></i>Sold <b>${cnt('s')}</b></span><span><i style="background:var(--na)"></i>Not for sale <b>${cnt('x')}</b></span>`;
 }
 
 /* ── 3 floor plan with spotlight units ── */
@@ -668,7 +751,7 @@ function drawFloor() {
   svg.setAttribute('viewBox', `0 0 ${plan.h} ${plan.w}`);
   svg.innerHTML = Object.entries(plan.units).map(([c, u]) => {
     const pts = u.p, d = 'M' + pts.map(([x, y]) => `${(y * plan.h).toFixed(1)} ${((1 - x) * plan.w).toFixed(1)}`).join('L') + 'Z';
-    return `<path class="${kinds[c] || 'x'}" data-c="${c}" d="${d}" style="animation-delay:${(.4 + Math.min(...pts.map(q => q[1])) * 1.4).toFixed(2)}s"/>`; }).join('');
+    return `<path class="u ${kinds[c] || 'x'}" data-c="${c}" d="${d}" style="animation-delay:${(.4 + Math.min(...pts.map(q => q[1])) * 1.4).toFixed(2)}s"/>`; }).join('') + (plan.lines ? `<g class="lines" transform="matrix(0 -1 1 0 0 ${plan.w})">${plan.lines}</g>` : '');
   document.getElementById('f-name').textContent = floorName(code);
   document.getElementById('f-area').textContent = `${s.minA}–${s.maxA}`;
   document.getElementById('f-from').textContent = lac(s.minP) + ' Lac';
