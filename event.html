@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/assets/awami-mark.png">
+<title>Awami Market Event Screen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500&family=Manrope:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a fixed 1920x1080 broadcast stage, scaled to the screen. Aurora ground, glass panels,
+   one gradient accent; hierarchy by size alone (200 / 96 / 54 / 30 / 20 / 15). */
+:root {
+  color-scheme: dark;
+  --ground: #070b18;
+  --glass: rgba(255,255,255,.045);
+  --glass-line: rgba(255,255,255,.09);
+  --ink: #eef1fb;
+  --soft: #aab3cf;
+  --faint: #6b7596;
+  --blue: #3b82f6; --violet: #8b5cf6; --pink: #f472b6;
+  --grad: linear-gradient(100deg, #60a5fa 0%, #a78bfa 45%, #f472b6 100%);
+  --avail: #34e3a4; --hold: #fbbf3c; --sold: #fb5f7c; --na: #2a3150;
+  --display: "Outfit", "Segoe UI", system-ui, sans-serif;
+  --body: "Manrope", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+html, body { height: 100%; margin: 0; }
+[hidden] { display: none !important; }
+body { background: var(--ground); color: var(--ink); font-family: var(--body); overflow: hidden; }
+#fit { position: fixed; inset: 0; display: grid; place-items: center; background: var(--ground); }
+#stage { width: 1920px; height: 1080px; position: relative; overflow: hidden; flex: none; background: var(--ground); }
+
+/* aurora */
+.aurora { position: absolute; inset: -20%; filter: blur(90px); opacity: .55; pointer-events: none; }
+.aurora i { position: absolute; border-radius: 50%; }
+.aurora i:nth-child(1) { width: 900px; height: 700px; left: 5%; top: 0; background: #1d4ed8; animation: drift1 26s ease-in-out infinite alternate; }
+.aurora i:nth-child(2) { width: 800px; height: 650px; right: 5%; top: 10%; background: #6d28d9; animation: drift2 31s ease-in-out infinite alternate; }
+.aurora i:nth-child(3) { width: 700px; height: 520px; left: 40%; bottom: 0; background: #be185d; opacity: .6; animation: drift3 23s ease-in-out infinite alternate; }
+@keyframes drift1 { to { transform: translate(260px, 160px) scale(1.15) } }
+@keyframes drift2 { to { transform: translate(-300px, 120px) scale(.9) } }
+@keyframes drift3 { to { transform: translate(-220px, -180px) scale(1.2) } }
+.grain { position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px); background-size: 4px 4px; opacity: .35; pointer-events: none; }
+#stars { position: absolute; inset: 0; pointer-events: none; }
+
+/* chrome */
+.top { position: absolute; top: 0; left: 0; right: 0; height: 120px; display: flex; align-items: center; gap: 20px; padding: 0 72px; z-index: 6; }
+.top img { height: 58px; }
+.brand { font-family: var(--display); font-weight: 400; font-size: 30px; letter-spacing: 6px; }
+.brand small { display: block; font-family: var(--body); font-size: 15px; letter-spacing: 4px; color: var(--soft); margin-top: 2px; }
+.top .sp { flex: 1; }
+.live { display: flex; align-items: center; gap: 14px; font-family: var(--mono); font-size: 20px; color: var(--soft); padding: 10px 20px; border: 1px solid var(--glass-line); border-radius: 40px; background: var(--glass); }
+.live .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--sold); animation: ping 1.6s infinite; }
+@keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(251,95,124,.6) } 80%,100% { box-shadow: 0 0 0 14px rgba(251,95,124,0) } }
+.live b { color: var(--ink); font-weight: 500; letter-spacing: 3px; }
+.mock-unused { position: absolute; left: 72px; bottom: 110px; font-family: var(--mono); font-size: 13px; color: var(--faint); letter-spacing: 1px; z-index: 6; }
+
+.scene { position: absolute; inset: 120px 72px 120px; opacity: 0; visibility: hidden; transition: opacity 1s ease, visibility 0s 1s; }
+.scene.on { opacity: 1; visibility: visible; transition: opacity 1s ease; }
+.kicker { font-family: var(--mono); font-size: 18px; letter-spacing: 6px; text-transform: uppercase; color: var(--soft); display: flex; align-items: center; gap: 16px; }
+.kicker::before { content: ""; width: 48px; height: 2px; background: var(--grad); }
+.h-xl { font-family: var(--display); font-weight: 200; font-size: 200px; line-height: .9; letter-spacing: -6px; margin: 0; }
+.h-l { font-family: var(--display); font-weight: 300; font-size: 96px; line-height: 1; letter-spacing: -2.5px; margin: 18px 0 0; text-wrap: balance; }
+.h-m { font-family: var(--display); font-weight: 300; font-size: 54px; line-height: 1.05; letter-spacing: -1px; margin: 0; }
+.grad { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lede { font-size: 30px; color: var(--soft); line-height: 1.4; max-width: 30ch; margin-top: 26px; }
+.label { font-size: 20px; color: var(--soft); }
+.glass { background: var(--glass); border: 1px solid var(--glass-line); border-radius: 28px; backdrop-filter: blur(16px); }
+.num { font-family: var(--display); font-weight: 300; font-variant-numeric: tabular-nums; letter-spacing: -1px; }
+
+.in { opacity: 0; transform: translateY(40px); filter: blur(8px); }
+.on .in { animation: in 1.1s cubic-bezier(.16,.8,.24,1) forwards; }
+@keyframes in { to { opacity: 1; transform: none; filter: none } }
+
+/* 1 hero */
+#s-hero { display: grid; grid-template-columns: 1.15fr .85fr; align-items: center; }
+#s-hero .h-xl { margin-top: 24px; }
+.rings { display: grid; gap: 26px; }
+.ring { display: grid; grid-template-columns: 170px 1fr; align-items: center; gap: 30px; padding: 26px 34px; }
+.ring svg { width: 170px; height: 170px; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 12; }
+.ring .bg { stroke: rgba(255,255,255,.08); }
+.ring .fg { stroke-linecap: round; stroke-dasharray: 471; stroke-dashoffset: 471; transition: stroke-dashoffset 2.2s cubic-bezier(.16,.8,.24,1) .4s; }
+.ring .num { font-size: 84px; line-height: 1; }
+.ring .label { margin-top: 6px; }
+
+/* 2 tower */
+#s-tower { display: grid; grid-template-columns: .78fr 1.22fr; align-items: center; }
+#tower { width: 100%; height: 840px; }
+#tower .win { opacity: 0; }
+.on #tower .win { animation: lit .35s ease forwards; }
+@keyframes lit { to { opacity: 1 } }
+#tower .slab { opacity: 0; transform: translateY(60px); }
+.on #tower .slab { animation: rise 1s cubic-bezier(.16,.8,.24,1) forwards; }
+@keyframes rise { to { opacity: 1; transform: none } }
+#tower text { font-family: var(--display); fill: var(--ink); }
+.flist { display: grid; gap: 4px; margin-top: 40px; }
+.frow { display: grid; grid-template-columns: 150px 1fr 150px; align-items: baseline; padding: 12px 0; border-bottom: 1px solid var(--glass-line); font-size: 24px; color: var(--soft); transition: color .4s, background .4s; }
+.frow .fc { font-family: var(--display); font-size: 30px; color: var(--ink); font-weight: 300; }
+.frow .fa { font-family: var(--display); font-size: 34px; color: var(--avail); text-align: right; font-weight: 300; }
+.frow.hot { color: var(--ink); }
+.frow.hot .fc { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* 3 floor */
+#s-floor { display: grid; grid-template-rows: auto 1fr; }
+.fhead { display: flex; justify-content: space-between; align-items: flex-end; }
+.planwrap { position: relative; perspective: 1800px; margin-top: 10px; }
+#plan { width: 1776px; height: 400px; transform: rotateX(22deg); transform-origin: 50% 80%; filter: drop-shadow(0 40px 60px rgba(0,0,0,.6)); }
+#plan path { stroke: rgba(7,11,24,.9); stroke-width: 1.2; vector-effect: non-scaling-stroke; opacity: 0; }
+.on #plan path { animation: lit .5s ease forwards; }
+#plan path.a { fill: var(--avail); } #plan path.h { fill: var(--hold); } #plan path.s { fill: var(--sold); } #plan path.x { fill: var(--na); }
+#plan path.spot { fill: #fff !important; filter: drop-shadow(0 0 14px #fff); }
+.spotcard { position: absolute; left: 0; right: 0; top: 430px; padding: 26px 44px; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 60px; }
+.spotcard .tag { font-family: var(--mono); font-size: 16px; letter-spacing: 4px; color: var(--pink); text-transform: uppercase; }
+.spotcard .u { font-family: var(--display); font-weight: 200; font-size: 128px; line-height: 1; letter-spacing: -4px; margin-top: 10px; }
+.spotcard dl { display: grid; grid-template-columns: repeat(3, auto); grid-auto-flow: column; grid-template-rows: auto auto; justify-content: end; gap: 4px 90px; margin: 0; font-size: 22px; }
+.spotcard dt { color: var(--soft); text-align: right; } .spotcard dd { margin: 0; text-align: right; font-family: var(--display); font-size: 30px; font-weight: 300; }
+.spotcard dd { font-size: 46px; } .spotcard dd.p { font-size: 64px; }
+.swap { animation: swap .7s cubic-bezier(.16,.8,.24,1); }
+@keyframes swap { from { opacity: 0; transform: translateX(40px); filter: blur(6px) } }
+.fstats { display: flex; gap: 56px; }
+.fstats div { text-align: right; }
+.fstats .num { font-size: 64px; line-height: 1; display: block; }
+
+/* 4 departures board */
+.board { margin-top: 36px; padding: 18px 34px 26px; }
+.brow { display: grid; grid-template-columns: 1fr 1.9fr .8fr 1.15fr 1fr .95fr; gap: 18px; align-items: center; padding: 13px 0; border-bottom: 1px solid var(--glass-line); font-family: var(--mono); font-size: 30px; }
+.brow:last-child { border-bottom: 0; }
+.brow.hd { font-size: 15px; letter-spacing: 4px; color: var(--faint); padding-bottom: 12px; }
+.brow .c { display: inline-flex; gap: 3px; }
+.brow .c span { display: inline-block; min-width: .64em; text-align: center; background: rgba(255,255,255,.05); border-radius: 4px; padding: 2px 1px; }
+.pill { justify-self: start; font-family: var(--body); font-size: 19px; padding: 6px 16px; border-radius: 30px; background: rgba(52,227,164,.12); color: var(--avail); border: 1px solid rgba(52,227,164,.35); }
+
+/* 5 price ladder */
+.ladder { margin-top: 46px; display: grid; gap: 16px; }
+.lrow { display: grid; grid-template-columns: 220px 1fr 300px; align-items: center; gap: 30px; }
+.lrow .nm { font-family: var(--display); font-weight: 300; font-size: 30px; }
+.track { height: 40px; position: relative; border-radius: 20px; background: rgba(255,255,255,.04); }
+.track i { position: absolute; top: 0; bottom: 0; border-radius: 20px; background: var(--grad); box-shadow: 0 0 30px rgba(167,139,250,.35); transform-origin: left; transform: scaleX(0); transition: transform 1.4s cubic-bezier(.16,.8,.24,1); }
+.lrow .rg { font-family: var(--display); font-weight: 300; font-size: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+.lrow .rg small { font-size: 18px; color: var(--soft); margin-left: 6px; }
+.axis { display: grid; grid-template-columns: 220px 1fr 300px; gap: 30px; font-family: var(--mono); font-size: 15px; color: var(--faint); }
+.axis div { display: flex; justify-content: space-between; }
+
+/* 6 location */
+#s-loc { display: grid; grid-template-columns: 1.3fr .7fr; gap: 50px; align-items: center; }
+#loc { width: 100%; height: 640px; }
+#loc .road { stroke: rgba(255,255,255,.08); stroke-width: 18; stroke-linecap: round; fill: none; }
+#loc .glow { stroke: url(#lg); stroke-width: 6; fill: none; stroke-linecap: round; stroke-dasharray: 1100; stroke-dashoffset: 1100; filter: drop-shadow(0 0 10px #a78bfa); }
+.on #loc .glow { animation: draw 2.6s cubic-bezier(.6,.1,.2,1) .6s forwards; }
+@keyframes draw { to { stroke-dashoffset: 0 } }
+#loc text { fill: var(--ink); font-family: var(--display); font-weight: 300; font-size: 32px; }
+#loc text.t { fill: var(--soft); font-family: var(--mono); font-size: 20px; }
+#loc .stop { fill: var(--ground); stroke: #c4b5fd; stroke-width: 4; }
+.beacon { transform-box: fill-box; transform-origin: center; animation: beacon 2.4s infinite; }
+@keyframes beacon { from { transform: scale(.3); opacity: .9 } to { transform: scale(3); opacity: 0 } }
+.tline { display: flex; justify-content: space-between; align-items: baseline; padding: 20px 0; border-bottom: 1px solid var(--glass-line); font-size: 28px; color: var(--soft); }
+.tline .num { font-size: 50px; color: var(--ink); }
+.tline .num small { font-size: 22px; color: var(--soft); margin-left: 6px; }
+
+#loc .fade { opacity: 0; }
+.on #loc .fade { animation: lit .8s ease forwards; }
+/* 7 today */
+#s-today { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; }
+.big { padding: 40px 46px; margin-top: 30px; }
+.big .num { font-size: 170px; line-height: .95; }
+.feed { margin-top: 30px; display: grid; gap: 14px; }
+.fd { display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 22px 30px; }
+.fd .u { font-family: var(--display); font-weight: 300; font-size: 44px; }
+.fd .m { font-size: 20px; color: var(--soft); }
+.fd .t { font-family: var(--mono); font-size: 20px; color: var(--faint); }
+
+/* 8 qr */
+#s-qr { display: grid; grid-template-columns: 1.1fr .9fr; align-items: center; }
+.qrbox { justify-self: center; width: 470px; height: 470px; padding: 34px; display: grid; place-items: center; position: relative; }
+.qrbox::before { content: ""; position: absolute; inset: -2px; border-radius: 30px; padding: 2px; background: var(--grad); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: spinhue 6s linear infinite; }
+@keyframes spinhue { to { filter: hue-rotate(360deg) } }
+.qrbox .ph { font-family: var(--mono); color: var(--soft); font-size: 22px; text-align: center; line-height: 1.6; }
+.steps { margin-top: 40px; display: grid; gap: 24px; }
+.st { display: grid; grid-template-columns: 64px 1fr; gap: 24px; align-items: center; font-size: 32px; font-weight: 400; }
+.st b { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-weight: 300; font-size: 30px; border: 1px solid var(--glass-line); background: var(--glass); }
+
+/* booked */
+#booked { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; background: radial-gradient(circle at 50% 50%, rgba(7,11,24,.6), rgba(7,11,24,.94)); opacity: 0; visibility: hidden; transition: opacity .6s, visibility 0s .6s; }
+#booked.on { opacity: 1; visibility: visible; transition: opacity .6s; }
+#booked .card { text-align: center; transform: scale(.6); filter: blur(12px); transition: transform .9s cubic-bezier(.3,1.5,.5,1), filter .6s; }
+#booked.on .card { transform: none; filter: none; }
+#booked .k { font-family: var(--mono); letter-spacing: 10px; font-size: 26px; color: var(--soft); }
+#booked .u { font-family: var(--display); font-weight: 200; font-size: 330px; line-height: 1; letter-spacing: -10px; }
+#booked .m { font-size: 34px; color: var(--soft); }
+#burst { position: absolute; inset: 0; }
+
+#msg { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; background: rgba(7,11,24,.92); }
+/* bottom */
+.prog { position: absolute; left: 72px; right: 72px; bottom: 84px; display: flex; gap: 8px; z-index: 6; }
+.prog i { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
+.prog i b { display: block; height: 100%; width: 0; background: var(--grad); }
+.prog i.done b { width: 100%; }
+.ticker { position: absolute; left: 0; right: 0; bottom: 0; height: 64px; display: flex; align-items: center; overflow: hidden; z-index: 6; border-top: 1px solid var(--glass-line); background: rgba(7,11,24,.7); }
+.ticker .lbl { flex: none; height: 100%; display: flex; align-items: center; gap: 12px; padding: 0 40px 0 72px; font-family: var(--mono); font-size: 17px; letter-spacing: 4px; color: var(--avail); background: var(--ground); box-shadow: 30px 0 30px var(--ground); z-index: 1; }
+.ticker .run { display: flex; gap: 64px; white-space: nowrap; font-size: 24px; color: var(--soft); animation: run 140s linear infinite; }
+.ticker .run b { font-family: var(--display); font-weight: 400; color: var(--ink); margin-right: 12px; }
+@keyframes run { to { transform: translateX(-50%) } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<div id="fit"><div id="stage">
+  <div class="aurora"><i></i><i></i><i></i></div>
+  <canvas id="stars" width="1920" height="1080"></canvas>
+  <div class="grain"></div>
+
+  <div class="top">
+    <img src="/assets/awami-mark-white.png" alt="">
+    <div class="brand">AWAMI MARKET<small>KARKHANO MARKET · PESHAWAR</small></div>
+    <div class="sp"></div>
+    <div class="live"><span class="dot"></span><b id="livelbl">LIVE</b><span id="clock">--:--</span></div>
+  </div>
+
+  <!-- 1 -->
+  <section class="scene" id="s-hero" data-dur="10">
+    <div>
+      <div class="kicker in">Booking open today</div>
+      <h1 class="h-xl in" style="animation-delay:.15s">Awami<br><span class="grad">Market</span></h1>
+      <p class="lede in" style="animation-delay:.35s">Shops and flats across seven floors at Karkhano Market, Peshawar.</p>
+    </div>
+    <div class="rings">
+      <div class="ring glass in" style="animation-delay:.4s">
+        <svg viewBox="0 0 170 170"><circle class="bg" cx="85" cy="85" r="75"/><circle class="fg" cx="85" cy="85" r="75" stroke="url(#g1)" data-frac="1"/></svg>
+        <div><div class="num" data-count="0">0</div><div class="label">units in <span id="h-floors">seven</span> floors</div></div>
+      </div>
+      <div class="ring glass in" style="animation-delay:.55s">
+        <svg viewBox="0 0 170 170"><circle class="bg" cx="85" cy="85" r="75"/><circle class="fg" cx="85" cy="85" r="75" stroke="#34e3a4" data-frac="0"/></svg>
+        <div><div class="num" data-count="0" style="color:var(--avail)">0</div><div class="label">open for booking right now</div></div>
+      </div>
+      <div class="ring glass in" style="animation-delay:.7s">
+        <svg viewBox="0 0 170 170"><circle class="bg" cx="85" cy="85" r="75"/><circle class="fg" cx="85" cy="85" r="75" stroke="#fb5f7c" data-frac="0"/></svg>
+        <div><div class="num" data-count="0">0</div><div class="label">already sold or on hold</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="scene" id="s-tower" data-dur="12">
+    <div>
+      <div class="kicker in">The building, live</div>
+      <h2 class="h-l in" style="animation-delay:.1s">Every window<br>is a <span class="grad">unit</span></h2>
+      <div class="flist" id="flist"></div>
+    </div>
+    <svg id="tower" viewBox="0 0 1100 840"></svg>
+  </section>
+
+  <!-- 3 -->
+  <section class="scene" id="s-floor" data-dur="15">
+    <div class="fhead">
+      <div><div class="kicker in">Floor plan · live</div><h2 class="h-l in" id="f-name" style="animation-delay:.1s">Ground Floor</h2></div>
+      <div class="fstats in" style="animation-delay:.2s">
+        <div><span class="num" id="f-av" style="color:var(--avail)">0</span><span class="label">open</span></div>
+        <div><span class="num" id="f-area">0</span><span class="label">sq ft</span></div>
+        <div><span class="num grad" id="f-from">0</span><span class="label">from, PKR</span></div>
+      </div>
+    </div>
+    <div class="planwrap">
+      <svg id="plan" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="spotcard glass" id="spot"></div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="scene" id="s-board" data-dur="14">
+    <div class="kicker in">Open now</div>
+    <h2 class="h-l in" style="animation-delay:.1s">Pick yours <span class="grad">today</span></h2>
+    <div class="board glass in" style="animation-delay:.25s">
+      <div class="brow hd"><span>UNIT</span><span>FLOOR</span><span>AREA</span><span>PRICE</span><span>PER SQ FT</span><span>STATUS</span></div>
+      <div id="rows"></div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="scene" id="s-ladder" data-dur="11">
+    <div class="kicker in">Prices by floor</div>
+    <h2 class="h-l in" style="animation-delay:.1s">From <span class="grad" id="lowest">23 Lac</span></h2>
+    <div class="ladder" id="ladder"></div>
+  </section>
+
+  <!-- 6 -->
+  <section class="scene" id="s-loc" data-dur="11">
+    <svg id="loc" viewBox="0 0 1120 640"></svg>
+    <div>
+      <div class="kicker in">Location</div>
+      <h2 class="h-m in" style="animation-delay:.1s;margin-top:18px">On Jamrud Road,<br>minutes from <span class="grad">everywhere</span></h2>
+      <div style="margin-top:30px" id="tlines"></div>
+      <p class="label in" style="animation-delay:1.2s;margin-top:18px;color:var(--faint)">Approximate drive times in normal traffic</p>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="scene" id="s-today" data-dur="11">
+    <div>
+      <div class="kicker in">At the event today</div>
+      <div class="big glass in" style="animation-delay:.15s"><div class="num grad" id="t-booked">0</div><div class="label" style="font-size:26px">units booked today</div></div>
+      <div class="big glass in" style="animation-delay:.3s"><div class="num" id="t-left" style="color:var(--avail)">0</div><div class="label" style="font-size:26px">still open</div></div>
+    </div>
+    <div>
+      <div class="kicker in">Latest bookings</div>
+      <div class="feed" id="feed"></div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="scene" id="s-qr" data-dur="10">
+    <div>
+      <div class="kicker in">On your phone</div>
+      <h2 class="h-l in" style="animation-delay:.1s">Scan, choose,<br>get your <span class="grad">plan</span></h2>
+      <div class="steps">
+        <div class="st in" style="animation-delay:.3s"><b>1</b>Scan with your phone camera</div>
+        <div class="st in" style="animation-delay:.45s"><b>2</b>See every open unit with its price</div>
+        <div class="st in" style="animation-delay:.6s"><b>3</b>Get the payment plan as a PDF</div>
+      </div>
+    </div>
+    <div class="qrbox glass in" style="animation-delay:.4s"><div class="ph">QR code<br>for the availability link</div></div>
+  </section>
+
+  <div id="booked"><canvas id="burst" width="1920" height="1080"></canvas>
+    <div class="card"><div class="k">JUST BOOKED</div><div class="u grad" id="b-unit"></div><div class="m" id="b-meta"></div></div>
+  </div>
+
+  <svg width="0" height="0" style="position:absolute"><defs>
+    <linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#60a5fa"/><stop offset=".5" stop-color="#a78bfa"/><stop offset="1" stop-color="#f472b6"/></linearGradient>
+  </defs></svg>
+  <div id="msg" hidden><div class="glass" style="padding:60px 70px;max-width:1100px"><div class="kicker">Event screen</div><h2 class="h-m" style="margin-top:20px"></h2><p class="label" style="margin-top:20px;font-size:26px"></p></div></div>
+  <div class="prog" id="prog"></div>
+  <div class="ticker"><div class="lbl">● OPEN NOW</div><div class="run" id="run"></div></div>
+</div></div>
+
+<script src="/js/vendor/supabase-js-2.34.0.umd.js?v=20260616"></script>
+<script>
+/* ── EVENT SCREEN ───────────────────────────────────────────────────────────
+   A loop for the big screen at the 28-Nov Awami Market event. It reads ONE
+   thing: get_public_availability(link), the same call and the same link the
+   dealers' /a/ page uses. No login, nothing written except the link's view
+   count. It asks again every 20 seconds; a unit that was open on one read and
+   held or sold on the next is announced as "Just booked".
+
+   What it never shows, although the call returns it: on whose word a unit is
+   held (w) and whether a token came in (r). The hall sees units, areas and
+   prices only.
+
+   Today's bookings are the ones this screen saw happen, kept in this
+   browser for the day, so a reload does not lose them. */
+const SUPABASE_URL = 'https://itqxljtfbrppntgyfush.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'nx-event-no-auth' },
+  global: { headers: { Authorization: 'Bearer ' + SUPABASE_ANON_KEY } }
+});
+const LINK = (function () {
+  var q = new URLSearchParams(location.search).get('t');
+  if (q) return q;
+  var m = location.pathname.match(/\/e\/([A-Za-z0-9_-]{8,})/);
+  return m ? m[1] : '';
+})();
+const POLL_MS = 20000;
+
+const UP = ['LG','GF','FF','SF','TF','4F','5F'];
+const NAMES = { LG: 'Lower Ground', GF: 'Ground', FF: 'First', SF: 'Second', TF: 'Third', '4F': 'Fourth', '5F': 'Fifth' };
+const floorName = f => NAMES[f] + (f === 'LG' ? '' : ' Floor');
+let FLOORS = [], by = {}, open = [], PLANS = {}, PROJECT = '';
+
+const lac = k => (k / 100).toLocaleString('en-US', { maximumFractionDigits: 1 });   // k = price in thousands
+const fmt = n => n.toLocaleString('en-US');
+const stats = f => { const u = f.units, av = u.filter(x => x[1] === 'a'), ok = av.length ? av : u;
+  return { total: u.length, a: av.length, h: u.filter(x => x[1] === 'h').length, s: u.filter(x => x[1] === 's').length,
+    minA: Math.min(...ok.map(x => x[2])), maxA: Math.max(...ok.map(x => x[2])),
+    minP: Math.min(...ok.map(x => x[3])), maxP: Math.max(...ok.map(x => x[3])) }; };
+
+/* what a unit is on this screen: open, on hold, sold, or not for sale.
+   k is the tenant's public wording for a unit that is gone. Pagri ("Sold (P)")
+   and Landowner were never for sale, so they sit in grey, not in red. */
+function kindOf(u) {
+  if (u.s === 'available') return 'a';
+  const k = String(u.k || '');
+  if (k === 'Sold (P)' || k === 'Landowner') return 'x';
+  if (/^sold/i.test(k)) return 's';
+  return 'h';
+}
+function prefix(code) { const m = /^([A-Za-z0-9]+)-/.exec(String(code || '')); return m ? m[1].toUpperCase() : ''; }
+function slug(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+
+async function loadPlans(project) {
+  try {
+    const ix = await (await fetch('/plans/manifest.json')).json(), have = ix[slug(project)] || [];
+    await Promise.all(have.map(async k => {
+      try { const r = await fetch('/plans/' + slug(project) + '/' + k + '.json'); if (r.ok) PLANS[k] = await r.json(); } catch (e) {}
+    }));
+  } catch (e) {}
+}
+
+/* one read of the building → FLOORS, in the shape every scene draws from */
+async function read() {
+  const r = await sb.rpc('get_public_availability', { p_token: LINK });
+  if (r.error) throw r.error;
+  const d = r.data;
+  if (!d || !d.success) { const e = new Error('link'); e.link = true; throw e; }
+  PROJECT = d.project;
+  const fl = {};
+  (d.floors || []).forEach(f => (f.units || []).forEach(u => {
+    const p = prefix(u.n); if (!NAMES[p]) return;
+    (fl[p] = fl[p] || []).push([u.n, kindOf(u), Math.round(+u.a || 0), Math.round((+u.v || 0) / 1000)]);
+  }));
+  return UP.filter(p => fl[p]).map(p => ({ f: p, units: fl[p] }));
+}
+
+/* ── today's bookings, as this screen saw them ── */
+const dayKey = () => 'nx-event-' + new Date().toISOString().slice(0, 10);
+function today() { try { return JSON.parse(localStorage.getItem(dayKey()) || '[]'); } catch (e) { return []; } }
+function remember(list) { try { localStorage.setItem(dayKey(), JSON.stringify(list.slice(-200))); } catch (e) {} }
+
+let prevKind = null, queue = [], showing = false;
+function apply(floors) {
+  const kinds = {};
+  floors.forEach(f => f.units.forEach(u => kinds[u[0]] = u[1]));
+  if (prevKind) {
+    const list = today(), now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    floors.forEach(f => f.units.forEach(u => {
+      if (prevKind[u[0]] === 'a' && (u[1] === 'h' || u[1] === 's') && !list.some(x => x.c === u[0])) {
+        const b = { c: u[0], f: f.f, a: u[2], t: now }; list.push(b); queue.push(b);
+      }
+    }));
+    remember(list);
+  }
+  prevKind = kinds;
+  FLOORS = floors; by = Object.fromEntries(FLOORS.map(f => [f.f, f]));
+  open = FLOORS.flatMap(f => f.units.filter(u => u[1] === 'a').map(u => ({ c: u[0], f: f.f, a: u[2], p: u[3] })));
+  if (!showing) nextBooking();
+}
+
+const stage = document.getElementById('stage');
+function fit() { stage.style.transform = `scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`; }
+addEventListener('resize', fit); fit();
+const clock = () => document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+clock(); setInterval(clock, 1000);
+/* an SMD screen must not go to sleep half way through the day */
+async function wake() { try { if (navigator.wakeLock) await navigator.wakeLock.request('screen'); } catch (e) {} }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') wake(); });
+wake();
+
+function countUp(el, to, ms = 1800, f = fmt) { const t0 = performance.now();
+  (function s(t) { const p = Math.min(1, (t - t0) / ms), e = 1 - Math.pow(1 - p, 4); el.textContent = f(Math.round(to * e)); if (p < 1) requestAnimationFrame(s); })(t0); }
+
+/* drifting stars */
+(() => { const c = document.getElementById('stars'), x = c.getContext('2d');
+  const s = Array.from({ length: 90 }, () => ({ x: Math.random() * 1920, y: Math.random() * 1080, r: Math.random() * 1.4 + .3, v: Math.random() * .25 + .05, a: Math.random() }));
+  (function f() { x.clearRect(0, 0, 1920, 1080); s.forEach(p => { p.y -= p.v; if (p.y < 0) p.y = 1080; p.a += .01;
+    x.globalAlpha = .3 + Math.abs(Math.sin(p.a)) * .5; x.fillStyle = '#c7d2fe'; x.beginPath(); x.arc(p.x, p.y, p.r, 0, 7); x.fill(); });
+    requestAnimationFrame(f); })(); })();
+
+/* ── 1 hero ── */
+function drawHero() {
+  const all = FLOORS.flatMap(f => f.units), tot = all.length, av = open.length, tk = all.filter(u => u[1] === 'h' || u[1] === 's').length;
+  const set = (i, n, frac) => { const r = document.querySelectorAll('#s-hero .ring')[i];
+    r.querySelector('.num').dataset.count = n; r.querySelector('.fg').dataset.frac = tot ? frac : 0; };
+  set(0, tot, 1); set(1, av, av / tot); set(2, tk, tk / tot);
+  document.getElementById('h-floors').textContent = FLOORS.length === 7 ? 'seven' : FLOORS.length;
+}
+
+/* ── 2 tower: isometric slabs, each unit a lit window on the facade ── */
+function drawTower() {
+  const svg = document.getElementById('tower'), A = 540, B = 290, H = 64, G = 9, c = Math.cos(Math.PI / 6), sn = Math.sin(Math.PI / 6);
+  const P = (x, y, z) => [560 + (x - y) * c, 270 + (x + y) * sn - z];
+  const poly = pts => pts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ');
+  const col = { a: '#34e3a4', h: '#fbbf3c', s: '#fb5f7c', x: '#2a3150' };
+  let out = '<defs><linearGradient id="topg" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#1e2a55"/><stop offset="1" stop-color="#2c1f55"/></linearGradient></defs>';
+  FLOORS.forEach((f, i) => {
+    const z0 = i * (H + G) - 120, z1 = z0 + H, n = f.units.length, nl = Math.round(n * .62), nr = n - nl;
+    let g = `<g class="slab" style="animation-delay:${.2 + i * .18}s">`;
+    g += `<polygon points="${poly([P(0, B, z0), P(A, B, z0), P(A, B, z1), P(0, B, z1)])}" fill="#0d1430" stroke="#2b3866"/>`;
+    g += `<polygon points="${poly([P(A, 0, z0), P(A, B, z0), P(A, B, z1), P(A, 0, z1)])}" fill="#0a1028" stroke="#2b3866"/>`;
+    g += `<polygon points="${poly([P(0, 0, z1), P(A, 0, z1), P(A, B, z1), P(0, B, z1)])}" fill="url(#topg)" stroke="#3b4a85"/>`;
+    f.units.forEach((u, k) => {
+      let pts; const zz0 = z0 + 12, zz1 = z1 - 12;
+      if (k < nl) { const x0 = A * k / nl + .6, x1 = A * (k + 1) / nl - .6; pts = [P(x0, B, zz0), P(x1, B, zz0), P(x1, B, zz1), P(x0, B, zz1)]; }
+      else { const j = k - nl, y0 = B - B * j / nr - .6, y1 = B - B * (j + 1) / nr + .6; pts = [P(A, y0, zz0), P(A, y1, zz0), P(A, y1, zz1), P(A, y0, zz1)]; }
+      g += `<polygon class="win" points="${poly(pts)}" fill="${col[u[1]]}" style="animation-delay:${(1.4 + i * .18 + k * .006).toFixed(3)}s"/>`;
+    });
+    const lp = P(0, B, (z0 + z1) / 2);
+    g += `<text x="${(lp[0] - 26).toFixed(0)}" y="${(lp[1] + 10).toFixed(0)}" text-anchor="end" font-size="30" font-weight="300">${f.f}</text>`;
+    out += g + '</g>';
+  });
+  svg.innerHTML = out;
+  document.getElementById('flist').innerHTML = [...FLOORS].reverse().map((f, i) => { const s = stats(f);
+    return `<div class="frow in" style="animation-delay:${.3 + i * .08}s"><span class="fc">${f.f}</span><span>${NAMES[f.f]} · from ${lac(s.minP)} Lac</span><span class="fa">${s.a} open</span></div>`; }).join('');
+}
+
+/* ── 3 floor plan with spotlight units ── */
+let floorIx = 0, spotT;
+function drawFloor() {
+  const withPlan = FLOORS.filter(f => PLANS[f.f]);
+  const order = ['GF','LG','FF','SF','TF','4F','5F'].filter(k => withPlan.some(f => f.f === k));
+  if (!order.length) return false;
+  const code = order[floorIx++ % order.length], f = by[code], plan = PLANS[code], s = stats(f), svg = document.getElementById('plan');
+  const kinds = Object.fromEntries(f.units.map(u => [u[0], u[1]]));
+  svg.setAttribute('viewBox', `0 0 ${plan.h} ${plan.w}`);
+  svg.innerHTML = Object.entries(plan.units).map(([c, u]) => {
+    const pts = u.p, d = 'M' + pts.map(([x, y]) => `${(y * plan.h).toFixed(1)} ${((1 - x) * plan.w).toFixed(1)}`).join('L') + 'Z';
+    return `<path class="${kinds[c] || 'x'}" data-c="${c}" d="${d}" style="animation-delay:${(.4 + Math.min(...pts.map(q => q[1])) * 1.4).toFixed(2)}s"/>`; }).join('');
+  document.getElementById('f-name').textContent = floorName(code);
+  document.getElementById('f-area').textContent = `${s.minA}–${s.maxA}`;
+  document.getElementById('f-from').textContent = lac(s.minP) + ' Lac';
+  countUp(document.getElementById('f-av'), s.a);
+  const av = f.units.filter(u => u[1] === 'a' && u[2] > 0 && u[3] > 0), card = document.getElementById('spot');
+  clearInterval(spotT);
+  if (!av.length) { card.innerHTML = '<div><div class="tag">This floor</div><div class="u grad">Fully booked</div></div><dl></dl>'; return true; }
+  const picks = [['Lowest price', [...av].sort((a, b) => a[3] - b[3])[0]], ['Largest open', [...av].sort((a, b) => b[2] - a[2])[0]],
+                 ['Best rate per sq ft', [...av].sort((a, b) => a[3] / a[2] - b[3] / b[2])[0]]];
+  let j = 0;
+  const show = () => { const [tag, u] = picks[j++ % picks.length];
+    svg.querySelectorAll('.spot').forEach(p => p.classList.remove('spot'));
+    const el = svg.querySelector(`[data-c="${u[0]}"]`); if (el) el.classList.add('spot');
+    card.innerHTML = `<div><div class="tag">${tag}</div><div class="u grad">${u[0]}</div></div><dl><dt>Area</dt><dd>${fmt(u[2])} sq ft</dd><dt>Rate</dt><dd>${fmt(Math.round(u[3] * 1000 / u[2]))} / sq ft</dd><dt>Price</dt><dd class="p">${lac(u[3])} Lac</dd></dl>`;
+    card.classList.remove('swap'); void card.offsetWidth; card.classList.add('swap'); };
+  setTimeout(show, 1800); spotT = setInterval(show, 4300);
+  return true;
+}
+
+/* ── 4 departures board ── */
+const ROWS = 8, CH = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-';
+const pad = (s, n) => s.padEnd(n, ' ').slice(0, n);
+const cells = s => [...s].map(ch => `<span>${ch === ' ' ? '&nbsp;' : ch}</span>`).join('');
+function flipTo(el, target) { const spans = el.querySelectorAll('span'); let t = 0;
+  const iv = setInterval(() => { t++; spans.forEach((sp, i) => { const done = t > 4 + i * 1.3;
+    sp.textContent = done ? (target[i] === ' ' ? ' ' : target[i]) : CH[Math.random() * CH.length | 0]; });
+    if (t > 6 + spans.length * 1.3) clearInterval(iv); }, 55); }
+const rowsEl = document.getElementById('rows');
+for (let i = 0; i < ROWS; i++) rowsEl.insertAdjacentHTML('beforeend', `<div class="brow"><span class="c">${cells(pad('', 6))}</span><span class="c">${cells(pad('', 12))}</span><span class="c">${cells(pad('', 5))}</span><span class="c">${cells(pad('', 7))}</span><span class="c">${cells(pad('', 6))}</span><span class="pill">Available</span></div>`);
+let boardT;
+function fillBoard() {
+  const pool = open.filter(u => u.a > 0 && u.p > 0);
+  const pick = [...pool].sort(() => Math.random() - .5).slice(0, ROWS).sort((a, b) => UP.indexOf(a.f) - UP.indexOf(b.f));
+  [...rowsEl.children].forEach((r, i) => { const u = pick[i]; r.style.visibility = u ? '' : 'hidden'; if (!u) return;
+    const c = r.querySelectorAll('.c');
+    setTimeout(() => { flipTo(c[0], pad(u.c, 6)); flipTo(c[1], pad(NAMES[u.f].toUpperCase(), 12)); flipTo(c[2], pad(String(u.a), 5));
+      flipTo(c[3], pad(lac(u.p) + 'L', 7)); flipTo(c[4], pad(fmt(Math.round(u.p * 1000 / u.a)), 6)); }, i * 160); }); }
+
+/* ── 5 price ladder, axis to 300 Lac ── */
+function drawLadder() {
+  const scale = 30000;
+  document.getElementById('ladder').innerHTML = FLOORS.map((f, i) => { const s = stats(f);
+    return `<div class="lrow in" style="animation-delay:${.2 + i * .08}s"><span class="nm">${NAMES[f.f]}</span><div class="track"><i data-l="${Math.min(100, s.minP / scale * 100)}" data-w="${Math.min(100, (s.maxP - s.minP) / scale * 100)}"></i></div><span class="rg">${lac(s.minP)}–${lac(s.maxP)}<small>Lac</small></span></div>`; }).join('')
+    + `<div class="axis"><span></span><div><span>0</span><span>50</span><span>100</span><span>150</span><span>200</span><span>250</span><span>300 Lac</span></div><span></span></div>`;
+  const lo = open.filter(u => u.p > 0).map(u => u.p);
+  document.getElementById('lowest').textContent = lo.length ? lac(Math.min(...lo)) + ' Lac' : '—';
+}
+
+/* ── 6 location (approximate, fixed) ── */
+(() => { const st = [['Torkham', 70, 'west', 1], ['Hayatabad', 520, '5', 0], ['Ring Road', 700, '10', 1], ['University Town', 870, '15', 0], ['Saddar', 1050, '25', 1]];
+  let s = `<defs><linearGradient id="lg" gradientUnits="userSpaceOnUse" x1="300" x2="1050" y1="0" y2="0"><stop offset="0" stop-color="#60a5fa"/><stop offset=".5" stop-color="#a78bfa"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs>
+    <path class="road" d="M40 360 L1090 360"/><path class="glow" d="M300 360 L1050 360"/>
+    <text class="t" x="40" y="440">JAMRUD ROAD</text>`;
+  st.forEach(([n, x, t, up], i) => { const ty = up ? 290 : 430;
+    s += `<g class="fade" style="animation-delay:${1 + i * .3}s"><circle class="stop" cx="${x}" cy="360" r="13"/><text x="${x}" y="${ty}" text-anchor="middle">${n}</text>${t === 'west' ? '' : `<text class="t" x="${x}" y="${ty + (up ? -40 : 34)}" text-anchor="middle">≈ ${t} min</text>`}</g>`; });
+  s += `<circle class="beacon" cx="300" cy="360" r="26" fill="#f472b6"/><circle cx="300" cy="360" r="20" fill="url(#lg)"/><circle cx="300" cy="360" r="8" fill="#fff"/>
+    <text x="300" y="200" text-anchor="middle" style="font-size:46px">Awami Market</text><text class="t" x="300" y="236" text-anchor="middle">KARKHANO MARKET</text>
+    <line x1="300" y1="252" x2="300" y2="330" stroke="rgba(255,255,255,.25)" stroke-dasharray="4 6"/>`;
+  document.getElementById('loc').innerHTML = s;
+  document.getElementById('tlines').innerHTML = st.slice(1).map(([n, , t], i) => `<div class="tline in" style="animation-delay:${.4 + i * .15}s"><span>${n}</span><span class="num">${t}<small>min</small></span></div>`).join(''); })();
+
+/* ── 7 today ── */
+function drawToday() {
+  const list = today();
+  countUp(document.getElementById('t-booked'), list.length); countUp(document.getElementById('t-left'), open.length);
+  const feed = document.getElementById('feed');
+  feed.innerHTML = list.length
+    ? list.slice(-4).reverse().map((b, i) => `<div class="fd glass in" style="animation-delay:${.3 + i * .12}s"><div><div class="u">${b.c}</div><div class="m">${floorName(b.f)} · ${fmt(b.a)} sq ft</div></div><div class="t">${b.t}</div></div>`).join('')
+    : `<div class="fd glass in" style="animation-delay:.3s"><div><div class="u">Be the first</div><div class="m">Bookings made today appear here as they happen</div></div></div>`;
+}
+
+function drawTicker() {
+  const tk = [...open].filter(u => u.p > 0).sort(() => Math.random() - .5).slice(0, 36).map(u => `<span><b>${u.c}</b>${fmt(u.a)} sq ft · ${lac(u.p)} Lac</span>`).join('');
+  document.getElementById('run').innerHTML = tk + tk;
+}
+
+/* ── scene loop ── */
+const scenes = [...document.querySelectorAll('.scene')], bars = [];
+document.getElementById('prog').innerHTML = scenes.map(() => '<i><b></b></i>').join('');
+document.querySelectorAll('#prog i').forEach(b => bars.push(b));
+let ix = -1, timer, hotT;
+function enter(sc) {
+  if (sc.id === 's-hero') drawHero();
+  if (sc.id === 's-tower') drawTower();
+  if (sc.id === 's-ladder') drawLadder();
+  if (sc.id === 's-today') drawToday();
+  sc.querySelectorAll('[data-count]').forEach(el => countUp(el, +el.dataset.count));
+  sc.querySelectorAll('.ring .fg').forEach(c => { c.style.transition = 'none'; c.style.strokeDashoffset = 471; void c.getBBox();
+    c.style.transition = ''; requestAnimationFrame(() => c.style.strokeDashoffset = 471 * (1 - +c.dataset.frac)); });
+  if (sc.id !== 's-floor') clearInterval(spotT);
+  if (sc.id === 's-board') { fillBoard(); boardT = setInterval(fillBoard, 6500); } else clearInterval(boardT);
+  if (sc.id === 's-ladder') sc.querySelectorAll('.track i').forEach(t => { t.style.transform = 'scaleX(0)'; t.style.left = t.dataset.l + '%'; t.style.width = Math.max(t.dataset.w, 1) + '%'; setTimeout(() => t.style.transform = 'scaleX(1)', 500); });
+  clearInterval(hotT);
+  if (sc.id === 's-tower') { let k = 0; const rows = [...document.querySelectorAll('#flist .frow')];
+    hotT = setInterval(() => { rows.forEach(r => r.classList.remove('hot')); rows[k++ % rows.length].classList.add('hot'); }, 1300); }
+}
+function next() {
+  if (ix >= 0) scenes[ix].classList.remove('on');
+  ix = (ix + 1) % scenes.length;
+  if (scenes[ix].id === 's-floor' && !drawFloor()) ix = (ix + 1) % scenes.length;   // no drawings: skip the plan
+  if (ix === 0) { bars.forEach(b => b.classList.remove('done')); drawTicker(); }
+  const sc = scenes[ix], dur = +sc.dataset.dur * 1000;
+  sc.querySelectorAll('.in, .fade').forEach(el => { el.style.animationName = 'none'; void el.offsetWidth; el.style.animationName = ''; });
+  sc.classList.add('on'); enter(sc);
+  bars.forEach((b, i) => b.classList.toggle('done', i < ix));
+  const fl = bars[ix].firstChild; fl.style.transition = 'none'; fl.style.width = '0'; void fl.offsetWidth; fl.style.transition = `width ${dur}ms linear`; fl.style.width = '100%';
+  clearTimeout(timer); timer = setTimeout(next, dur);
+}
+
+/* ── just booked ── */
+const bc = document.getElementById('burst'), bx = bc.getContext('2d');
+function burst() { const cols = ['#60a5fa', '#a78bfa', '#f472b6', '#34e3a4', '#ffffff'];
+  const ps = Array.from({ length: 260 }, () => { const a = Math.random() * Math.PI * 2, v = Math.random() * 18 + 4;
+    return { x: 960, y: 540, vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: Math.random() * 3 + 1, c: cols[Math.random() * 5 | 0], l: 1 }; });
+  (function f() { bx.clearRect(0, 0, 1920, 1080); let alive = 0;
+    ps.forEach(p => { p.x += p.vx; p.y += p.vy; p.vx *= .965; p.vy = p.vy * .965 + .12; p.l -= .008; if (p.l > 0) { alive++;
+      bx.globalAlpha = p.l; bx.fillStyle = p.c; bx.shadowColor = p.c; bx.shadowBlur = 12; bx.beginPath(); bx.arc(p.x, p.y, p.r, 0, 7); bx.fill(); } });
+    if (alive) requestAnimationFrame(f); else bx.clearRect(0, 0, 1920, 1080); })(); }
+function nextBooking() {
+  const b = queue.shift(); if (!b) { showing = false; return; }
+  showing = true;
+  document.getElementById('b-unit').textContent = b.c;
+  document.getElementById('b-meta').textContent = `${floorName(b.f)} · ${fmt(b.a)} sq ft · welcome to Awami Market`;
+  const ov = document.getElementById('booked'); ov.classList.add('on');
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) burst();
+  setTimeout(() => { ov.classList.remove('on'); setTimeout(nextBooking, 900); }, 6000);
+}
+
+/* ── boot and the 20-second read ── */
+function say(title, line) {
+  const m = document.getElementById('msg'); m.hidden = false;
+  m.querySelector('.h-m').textContent = title; m.querySelector('.label').textContent = line;
+}
+function live(ok) { document.getElementById('livelbl').textContent = ok ? 'LIVE' : 'RECONNECTING'; }
+async function poll() {
+  try { apply(await read()); live(true); document.getElementById('msg').hidden = true; }
+  catch (e) { if (e && e.link) say('This link is turned off', 'Make a new share link in the sales portal and open /e/<link> on this screen.'); else live(false); }
+}
+(async function boot() {
+  if (!LINK) return say('Open this screen with the event link', 'Use the Awami Market share link: replace /a/ with /e/ in its address.');
+  try { const floors = await read(); await loadPlans(PROJECT); apply(floors); document.getElementById('msg').hidden = true; }
+  catch (e) { console.error('event screen read failed', e); return say(e && e.link ? 'This link is turned off' : 'Cannot reach RMS', e && e.link ? 'Make a new share link in the sales portal.' : 'Check the internet connection; the screen will try again.'), setTimeout(boot, 15000); }
+  drawTicker(); next();
+  setInterval(poll, POLL_MS);
+})();
+</script>
+</body>
+</html>
