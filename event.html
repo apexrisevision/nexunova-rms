@@ -237,6 +237,55 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 .hours b { font-weight: 500; color: var(--ink); font-size: 18px; }
 .live .upd { color: var(--faint); font-size: 16px; }
 
+/* ── photo scenes: the renders, full bleed ── */
+.scene.full { inset: 0; padding: 0; }
+.kb { position: absolute; inset: 0; transform-origin: 50% 45%; }
+.kb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.on .kb.zoom-in { animation: kbIn var(--d, 14s) linear forwards; }
+.on .kb.zoom-out { animation: kbOut var(--d, 14s) linear forwards; }
+@keyframes kbIn { from { transform: scale(1.02) } to { transform: scale(1.14) translate(-1.5%, -1%) } }
+@keyframes kbOut { from { transform: scale(1.16) translate(1.5%, 1%) } to { transform: scale(1.03) } }
+.shade { position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(7,11,24,.72) 0%, rgba(7,11,24,0) 22%, rgba(7,11,24,0) 42%, rgba(7,11,24,.6) 66%, rgba(7,11,24,.92) 100%); }
+.shade.side { background: linear-gradient(90deg, rgba(7,11,24,.82) 0%, rgba(7,11,24,.35) 38%, rgba(7,11,24,0) 60%), linear-gradient(180deg, rgba(7,11,24,.6) 0%, rgba(7,11,24,0) 20%, rgba(7,11,24,0) 75%, rgba(7,11,24,.75) 100%); }
+.ptext { position: absolute; left: 72px; bottom: 150px; max-width: 1200px; }
+.ptext .h-xl { font-size: 190px; text-shadow: 0 10px 60px rgba(0,0,0,.5); }
+.ptext .lede { color: #dfe4f5; max-width: none; text-shadow: 0 4px 30px rgba(0,0,0,.6); }
+.ptext .lede b { font-weight: 500; color: #fff; }
+
+/* day turns to night: the night render is wiped in behind a line of light */
+.kb .night { clip-path: inset(0 100% 0 0); }
+.on .kb .night { animation: wipe 3.6s cubic-bezier(.65,0,.25,1) 3.2s forwards; }
+@keyframes wipe { to { clip-path: inset(0 0 0 0) } }
+.sweep { position: absolute; top: 0; bottom: 0; width: 4px; left: 0; opacity: 0;
+  background: linear-gradient(180deg, transparent, #fff6e0 30%, #fff 50%, #fff6e0 70%, transparent);
+  box-shadow: 0 0 40px 14px rgba(255,214,140,.55), 0 0 140px 50px rgba(255,190,110,.25); }
+.on .sweep { animation: sweep 3.6s cubic-bezier(.65,0,.25,1) 3.2s forwards; }
+@keyframes sweep { 0% { left: 0; opacity: 0 } 6% { opacity: 1 } 94% { opacity: 1 } 100% { left: 100%; opacity: 0 } }
+
+/* aerial: day fades to dusk, the places on it are pinned */
+.kb .later { opacity: 0; }
+.on .kb .later { animation: lit 2.4s ease 5.5s forwards; }
+.pin2 { position: absolute; transform: translate(-50%, -50%); opacity: 0; }
+.on .pin2 { animation: lit .8s ease forwards; }
+.pin2 .dot { display: block; position: relative; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 6px rgba(167,139,250,.45), 0 0 30px rgba(255,255,255,.8); }
+.pin2 .dot::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid #fff; animation: beacon 2.2s infinite; }
+.pin2 .tag2 { position: absolute; left: 34px; top: 50%; transform: translateY(-50%); white-space: nowrap; padding: 12px 22px; border-radius: 30px;
+  background: rgba(7,11,24,.62); border: 1px solid rgba(255,255,255,.2); backdrop-filter: blur(10px); font-size: 26px; font-family: var(--display); font-weight: 300; }
+.pin2.l .tag2 { left: auto; right: 34px; }
+.ptitle { position: absolute; left: 72px; top: 150px; }
+.ptitle .h-l { text-shadow: 0 8px 40px rgba(0,0,0,.5); }
+
+/* gallery: two evening views, one after the other, with live prices */
+.on .kb .second { animation: lit 1.6s ease 6.5s forwards; }
+.kb .second { opacity: 0; }
+.lower { position: absolute; left: 72px; right: 72px; bottom: 140px; display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 40px; }
+.lower .h-l { font-size: 88px; text-shadow: 0 8px 40px rgba(0,0,0,.5); }
+.prices { display: flex; gap: 18px; }
+.prices div { padding: 20px 28px; border-radius: 22px; background: rgba(7,11,24,.6); border: 1px solid rgba(255,255,255,.16); backdrop-filter: blur(12px); }
+.prices span { display: block; font-size: 18px; color: var(--soft); letter-spacing: 1px; }
+.prices b { font-family: var(--display); font-weight: 300; font-size: 44px; }
+
 /* bottom */
 .prog { position: absolute; left: 72px; right: 72px; bottom: 84px; display: flex; gap: 8px; z-index: 6; }
 .prog i { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
@@ -267,6 +316,20 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
     <div class="live"><span class="dot"></span><b id="livelbl">LIVE</b><span id="clock">--:--</span><span class="upd" id="upd"></span></div>
   </div>
 
+  <section class="scene full" id="s-intro" data-dur="14">
+    <div class="kb zoom-in anim" style="--d:14s">
+      <img src="/assets/event/front-day.jpg" alt="Awami Market by day">
+      <img class="night anim" src="/assets/event/front-night.jpg" alt="Awami Market at night">
+      <i class="sweep anim"></i>
+    </div>
+    <div class="shade"></div>
+    <div class="ptext">
+      <div class="kicker in" style="animation-delay:.6s;color:#dfe4f5">Booking open today</div>
+      <h1 class="h-xl in" style="animation-delay:.9s;margin-top:18px">Awami <span class="grad">Market</span></h1>
+      <p class="lede in" style="animation-delay:1.3s;font-size:36px"><b id="i-total">1,430</b> shops, offices and apartments · <b id="i-open" style="color:var(--avail)">851</b> open for booking today</p>
+    </div>
+  </section>
+
   <!-- 1 -->
   <section class="scene" id="s-hero" data-dur="10">
     <div>
@@ -294,6 +357,22 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
     <div class="kicker in">What is on offer</div>
     <h2 class="h-l in" style="animation-delay:.1s">Shops, offices <span class="grad">and homes</span></h2>
     <div class="offer" id="offer"></div>
+  </section>
+
+  <section class="scene full" id="s-aerial" data-dur="14">
+    <div class="kb zoom-out anim" style="--d:14s">
+      <img src="/assets/event/aerial-day.jpg" alt="Awami Market from above">
+      <img class="later anim" src="/assets/event/aerial-dusk.jpg" alt="Awami Market from above at dusk">
+      <div class="pin2 anim" style="left:47%;top:19%;animation-delay:1.6s"><span class="dot"></span><span class="tag2">Rooftop terraces</span></div>
+      <div class="pin2 anim" style="left:56%;top:52%;animation-delay:2.2s"><span class="dot"></span><span class="tag2">Glass front, LED screen</span></div>
+      <div class="pin2 anim" style="left:69%;top:68%;animation-delay:2.8s"><span class="dot"></span><span class="tag2">Parking in and out</span></div>
+      <div class="pin2 l anim" style="left:86%;top:80%;animation-delay:3.4s"><span class="dot"></span><span class="tag2">Main road frontage</span></div>
+    </div>
+    <div class="shade side"></div>
+    <div class="ptitle">
+      <div class="kicker in" style="animation-delay:.4s;color:#dfe4f5">The landmark</div>
+      <h2 class="h-l in" style="animation-delay:.6s">A whole block,<br><span class="grad">on the main road</span></h2>
+    </div>
   </section>
 
   <!-- 2 -->
@@ -341,6 +420,19 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
     <div class="board glass in" style="animation-delay:.25s">
       <div class="brow hd"><span>UNIT</span><span>FLOOR</span><span>AREA</span><span>PRICE</span><span>PER SQ FT</span><span>STATUS</span></div>
       <div id="rows"></div>
+    </div>
+  </section>
+
+  <section class="scene full" id="s-gallery" data-dur="13">
+    <div class="kb zoom-in anim" style="--d:13s">
+      <img src="/assets/event/street-dusk.jpg" alt="Awami Market from the street at dusk">
+      <img class="second anim" src="/assets/event/street-evening.jpg" alt="Awami Market in the evening">
+    </div>
+    <div class="shade"></div>
+    <div class="lower">
+      <div><div class="kicker in" style="animation-delay:.4s;color:#dfe4f5">Open for booking</div>
+        <h2 class="h-l in" style="animation-delay:.6s">Your name<br>on <span class="grad">this front</span></h2></div>
+      <div class="prices in" id="g-prices" style="animation-delay:1s"></div>
     </div>
   </section>
 
@@ -683,6 +775,16 @@ function drawBudget() {
   document.getElementById('tlines').innerHTML = st.slice(1).map(([n, , t], i) => `<div class="tline in" style="animation-delay:${.4 + i * .15}s"><span>${n}</span><span class="num">${t}<small>min</small></span></div>`).join(''); })();
 
 /* ── 7 today ── */
+function drawIntro() {
+  const tot = FLOORS.reduce((s, f) => s + f.units.length, 0);
+  document.getElementById('i-total').textContent = fmt(tot);
+  document.getElementById('i-open').textContent = fmt(open.length);
+}
+function drawGallery() {
+  document.getElementById('g-prices').innerHTML = GROUPS.map(([name, test]) => {
+    const ps = open.filter(u => u.p > 0 && test(u.t)).map(u => u.p);
+    return ps.length ? `<div><span>${name.toUpperCase()} FROM</span><b>${lac(Math.min(...ps))} Lac</b></div>` : ''; }).join('');
+}
 function drawToday() {
   const list = today();
   countUp(document.getElementById('t-booked'), list.length); countUp(document.getElementById('t-left'), open.length);
@@ -714,6 +816,8 @@ function enter(sc) {
   if (sc.id === 's-ladder') drawLadder();
   if (sc.id === 's-today') drawToday();
   if (sc.id === 's-offer') drawOffer();
+  if (sc.id === 's-intro') drawIntro();
+  if (sc.id === 's-gallery') drawGallery();
   if (sc.id === 's-fast') drawFast();
   if (sc.id === 's-budget') drawBudget();
   sc.querySelectorAll('[data-count]').forEach(el => countUp(el, +el.dataset.count));
@@ -733,7 +837,7 @@ function next() {
   if (scenes[ix].id === 's-floor' && !drawFloor()) ix = (ix + 1) % scenes.length;   // no drawings: skip the plan
   if (ix === 0) { bars.forEach(b => b.classList.remove('done')); drawTicker(); }
   const sc = scenes[ix], dur = +sc.dataset.dur * 1000;
-  sc.querySelectorAll('.in, .fade').forEach(el => { el.style.animationName = 'none'; void el.offsetWidth; el.style.animationName = ''; });
+  sc.querySelectorAll('.in, .fade, .anim').forEach(el => { el.style.animationName = 'none'; void el.offsetWidth; el.style.animationName = ''; });
   sc.classList.add('on'); enter(sc);
   bars.forEach((b, i) => b.classList.toggle('done', i < ix));
   const fl = bars[ix].firstChild; fl.style.transition = 'none'; fl.style.width = '0'; void fl.offsetWidth; fl.style.transition = `width ${dur}ms linear`; fl.style.width = '100%';
