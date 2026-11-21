@@ -28,8 +28,9 @@
 html, body { height: 100%; margin: 0; }
 [hidden] { display: none !important; }
 body { background: var(--ground); color: var(--ink); font-family: var(--body); overflow: hidden; }
-#fit { position: fixed; inset: 0; display: grid; place-items: center; background: var(--ground); }
-#stage { width: 1920px; height: 1080px; position: relative; overflow: hidden; flex: none; background: var(--ground); }
+#fit { position: fixed; inset: 0; overflow: hidden; background: var(--ground); }
+/* pinned at the centre of any screen, then scaled about that centre */
+#stage { width: 1920px; height: 1080px; position: absolute; left: 50%; top: 50%; transform-origin: 50% 50%; overflow: hidden; flex: none; background: var(--ground); }
 
 /* aurora */
 .aurora { position: absolute; inset: -20%; filter: blur(90px); opacity: .55; pointer-events: none; }
@@ -440,7 +441,7 @@ function apply(floors) {
 }
 
 const stage = document.getElementById('stage');
-function fit() { stage.style.transform = `scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`; }
+function fit() { stage.style.transform = `translate(-50%, -50%) scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`; }
 addEventListener('resize', fit); fit();
 const clock = () => document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 clock(); setInterval(clock, 1000);
