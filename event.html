@@ -351,6 +351,24 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 #plan .lines * { stroke: rgba(214,224,255,.5) !important; fill: none !important; }
 #plan path.u { fill-opacity: .82; }
 
+/* loading screen */
+#loader { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: #070b18; transition: opacity .6s; }
+#loader.gone { opacity: 0; pointer-events: none; }
+#loader .in2 { display: grid; justify-items: center; gap: 22px; color: #aab3cf; font-family: "Manrope", system-ui, sans-serif; font-size: 15px; letter-spacing: 3px; text-transform: uppercase; }
+#loader img { width: 84px; animation: breathe2 1.8s ease-in-out infinite; }
+@keyframes breathe2 { 50% { opacity: .55; transform: scale(.94) } }
+#loader .bar2 { width: 220px; height: 3px; border-radius: 2px; background: rgba(255,255,255,.12); overflow: hidden; }
+#loader .bar2 i { display: block; height: 100%; width: 8%; background: linear-gradient(90deg, #60a5fa, #a78bfa, #f472b6); transition: width .4s; }
+/* phones: no heavy blur, no blurred glass, no star field */
+.lite .aurora { filter: none; opacity: .35; }
+.lite .aurora i { animation: none; filter: blur(0); border-radius: 50%; background: radial-gradient(closest-side, currentColor, transparent); }
+.lite .aurora i:nth-child(1) { color: #1d4ed8; } .lite .aurora i:nth-child(2) { color: #6d28d9; } .lite .aurora i:nth-child(3) { color: #be185d; }
+.lite .glass, .lite .pin2 .tag2, .lite .prices div, .lite #awpin .card, .lite .hud { backdrop-filter: none; }
+.lite .grain, .lite #stars { display: none; }
+.lite #route .glow { filter: none; }
+#turn { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 50; padding: 10px 18px; border-radius: 22px;
+  background: rgba(7,11,24,.8); border: 1px solid rgba(255,255,255,.15); color: #dfe4f5; font: 500 13px "Manrope", system-ui, sans-serif; letter-spacing: .5px; white-space: nowrap; transition: opacity .6s; }
+
 /* bottom */
 .prog { position: absolute; left: 72px; right: 72px; bottom: 84px; display: flex; gap: 8px; z-index: 6; }
 .prog i { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
@@ -369,6 +387,8 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 </head>
 <body>
 
+<div id="loader"><div class="in2"><img src="/assets/awami-mark-white.png" alt=""><div class="bar2"><i id="ldbar"></i></div><span id="ldtxt">Loading live figures</span></div></div>
+<div id="turn" hidden>Turn your phone sideways · tap for full screen</div>
 <div id="fit"><div id="stage">
   <div class="aurora"><i></i><i></i><i></i></div>
   <canvas id="stars" width="1920" height="1080"></canvas>
@@ -382,13 +402,13 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
   </div>
 
   <section class="scene full" id="s-fly" data-dur="25">
-    <img class="lay" data-z="12" src="/assets/event/map-z12.jpg" width="3072" height="1792" alt="">
-    <img class="lay" data-z="13" src="/assets/event/map-z13.jpg" width="2816" height="1536" alt="">
-    <img class="lay" data-z="14" src="/assets/event/map-z14.jpg" width="2816" height="1536" alt="">
-    <img class="lay" data-z="15" src="/assets/event/map-z15.jpg" width="2816" height="1536" alt="">
-    <img class="lay" data-z="16" src="/assets/event/map-z16.jpg" width="2816" height="1536" alt="">
-    <img class="lay" data-z="17" src="/assets/event/map-z17.jpg" width="2816" height="1536" alt="">
-    <img class="lay" data-z="18" src="/assets/event/map-z18.jpg" width="2816" height="1536" alt="">
+    <img class="lay" data-z="12" data-src="/assets/event/map-z12" width="3072" height="1792" alt="">
+    <img class="lay" data-z="13" data-src="/assets/event/map-z13" width="2816" height="1536" alt="">
+    <img class="lay" data-z="14" data-src="/assets/event/map-z14" width="2816" height="1536" alt="">
+    <img class="lay" data-z="15" data-src="/assets/event/map-z15" width="2816" height="1536" alt="">
+    <img class="lay" data-z="16" data-src="/assets/event/map-z16" width="2816" height="1536" alt="">
+    <img class="lay" data-z="17" data-src="/assets/event/map-z17" width="2816" height="1536" alt="">
+    <img class="lay" data-z="18" data-src="/assets/event/map-z18" width="2816" height="1536" alt="">
     <svg id="route"><defs><linearGradient id="rg" x1="1" x2="0"><stop offset="0" stop-color="#60a5fa"/><stop offset=".5" stop-color="#a78bfa"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs>
       <path class="glow"/><path class="line"/><circle class="head" r="11"/></svg>
     <div id="marks"></div>
@@ -407,7 +427,7 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
     </div>
     <div class="hud"><div>VIEW <b id="hud-w">—</b></div><div><b>33.9987° N · 71.4237° E</b></div><div class="bar"><i id="hud-z"></i></div></div>
     <div class="reveal" id="reveal">
-      <img src="/assets/event/aerial-dusk.jpg" alt="Awami Market from above">
+      <img data-src="/assets/event/aerial-dusk" alt="Awami Market from above">
       <div class="shade"></div>
       <div class="ptext"><div class="kicker" style="color:#dfe4f5">You have arrived</div><h1 class="h-xl" style="margin-top:18px">Awami <span class="grad">Market</span></h1></div>
     </div>
@@ -416,8 +436,8 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 
   <section class="scene full" id="s-intro" data-dur="14">
     <div class="kb zoom-in anim" style="--d:14s">
-      <img src="/assets/event/front-day.jpg" alt="Awami Market by day">
-      <img class="night anim" src="/assets/event/front-night.jpg" alt="Awami Market at night">
+      <img data-src="/assets/event/front-day" alt="Awami Market by day">
+      <img class="night anim" data-src="/assets/event/front-night" alt="Awami Market at night">
       <i class="sweep anim"></i>
     </div>
     <div class="shade"></div>
@@ -459,8 +479,8 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 
   <section class="scene full" id="s-aerial" data-dur="14">
     <div class="kb zoom-out anim" style="--d:14s">
-      <img src="/assets/event/aerial-day.jpg" alt="Awami Market from above">
-      <img class="later anim" src="/assets/event/aerial-dusk.jpg" alt="Awami Market from above at dusk">
+      <img data-src="/assets/event/aerial-day" alt="Awami Market from above">
+      <img class="later anim" data-src="/assets/event/aerial-dusk" alt="Awami Market from above at dusk">
       <div class="pin2 anim" style="left:47%;top:19%;animation-delay:1.6s"><span class="dot"></span><span class="tag2">Rooftop terraces</span></div>
       <div class="pin2 anim" style="left:56%;top:52%;animation-delay:2.2s"><span class="dot"></span><span class="tag2">Glass front, LED screen</span></div>
       <div class="pin2 anim" style="left:69%;top:68%;animation-delay:2.8s"><span class="dot"></span><span class="tag2">Parking in and out</span></div>
@@ -524,8 +544,8 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 
   <section class="scene full" id="s-gallery" data-dur="13">
     <div class="kb zoom-in anim" style="--d:13s">
-      <img src="/assets/event/street-dusk.jpg" alt="Awami Market from the street at dusk">
-      <img class="second anim" src="/assets/event/street-evening.jpg" alt="Awami Market in the evening">
+      <img data-src="/assets/event/street-dusk" alt="Awami Market from the street at dusk">
+      <img class="second anim" data-src="/assets/event/street-evening" alt="Awami Market in the evening">
     </div>
     <div class="shade"></div>
     <div class="lower">
@@ -701,8 +721,26 @@ function apply(floors) {
 }
 
 const stage = document.getElementById('stage');
-function fit() { stage.style.transform = `translate(-50%, -50%) scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`; }
-addEventListener('resize', fit); fit();
+function fit() {
+  const tall = innerHeight > innerWidth * 1.15;
+  const s = tall ? Math.min(innerHeight / 1920, innerWidth / 1080) : Math.min(innerWidth / 1920, innerHeight / 1080);
+  stage.style.transform = `translate(-50%, -50%)${tall ? ' rotate(90deg)' : ''} scale(${s})`;
+  const t = document.getElementById('turn'); if (t) t.hidden = !tall;
+}
+/* phones and small screens: lighter effects, smaller pictures */
+const SMALL = matchMedia('(pointer: coarse)').matches || Math.max(innerWidth, innerHeight) < 1100;   // phones and tablets, never the big screen
+if (SMALL) document.documentElement.classList.add('lite');
+addEventListener('click', () => { try { const d = document.documentElement; if (!document.fullscreenElement && d.requestFullscreen) d.requestFullscreen().catch(() => {}); } catch (e) {} });
+/* fetch a scene's pictures; resolves when they are in (or after 8 s, so a slow picture never stops the loop) */
+function loadImgs(sc) {
+  const imgs = [...sc.querySelectorAll('img[data-src]')];
+  return Promise.race([Promise.all(imgs.map(im => new Promise(res => {
+    if (!im.getAttribute('src')) im.src = im.dataset.src + (SMALL ? '-m' : '') + '.jpg';
+    if (im.complete && im.naturalWidth) return res();
+    im.addEventListener('load', res, { once: true }); im.addEventListener('error', res, { once: true });
+  }))), new Promise(res => setTimeout(res, 8000))]);
+}
+addEventListener('resize', fit); addEventListener('orientationchange', () => setTimeout(fit, 300)); fit();
 const clock = () => document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 clock(); setInterval(clock, 1000);
 /* an SMD screen must not go to sleep half way through the day */
@@ -716,6 +754,7 @@ function countUp(el, to, ms = 1800, f = fmt) { const t0 = performance.now();
 /* drifting stars */
 (() => { const c = document.getElementById('stars'), x = c.getContext('2d');
   const s = Array.from({ length: 90 }, () => ({ x: Math.random() * 1920, y: Math.random() * 1080, r: Math.random() * 1.4 + .3, v: Math.random() * .25 + .05, a: Math.random() }));
+  if (SMALL) return;
   (function f() { x.clearRect(0, 0, 1920, 1080); s.forEach(p => { p.y -= p.v; if (p.y < 0) p.y = 1080; p.a += .01;
     x.globalAlpha = .3 + Math.abs(Math.sin(p.a)) * .5; x.fillStyle = '#c7d2fe'; x.beginPath(); x.arc(p.x, p.y, p.r, 0, 7); x.fill(); });
     requestAnimationFrame(f); })(); })();
@@ -1011,6 +1050,7 @@ function next() {
   const sc = scenes[ix], dur = +sc.dataset.dur * 1000;
   sc.querySelectorAll('.in, .fade, .anim').forEach(el => { el.style.animationName = 'none'; void el.offsetWidth; el.style.animationName = ''; });
   sc.classList.add('on'); enter(sc);
+  loadImgs(scenes[(ix + 1) % scenes.length]); loadImgs(scenes[(ix + 2) % scenes.length]);
   bars.forEach((b, i) => b.classList.toggle('done', i < ix));
   const fl = bars[ix].firstChild; fl.style.transition = 'none'; fl.style.width = '0'; void fl.offsetWidth; fl.style.transition = `width ${dur}ms linear`; fl.style.width = '100%';
   clearTimeout(timer); timer = setTimeout(next, dur);
@@ -1046,11 +1086,16 @@ async function poll() {
   try { apply(await read()); live(true); document.getElementById('msg').hidden = true; }
   catch (e) { if (e && e.link) say('This link is turned off', 'Make a new share link in the sales portal and open /e/<link> on this screen.'); else live(false); }
 }
+const ld = (pc, txt) => { document.getElementById('ldbar').style.width = pc + '%'; if (txt) document.getElementById('ldtxt').textContent = txt; };
+const ldDone = () => document.getElementById('loader').classList.add('gone');
 (async function boot() {
-  if (!LINK) return say('Open this screen with the event link', 'Use the Awami Market share link: replace /a/ with /e/ in its address.');
-  try { const floors = await read(); await loadPlans(PROJECT); apply(floors); document.getElementById('msg').hidden = true; }
-  catch (e) { console.error('event screen read failed', e); return say(e && e.link ? 'This link is turned off' : 'Cannot reach RMS', e && e.link ? 'Make a new share link in the sales portal.' : 'Check the internet connection; the screen will try again.'), setTimeout(boot, 15000); }
-  drawTicker(); next();
+  if (!LINK) { ldDone(); return say('Open this screen with the event link', 'Use the Awami Market share link: replace /a/ with /e/ in its address.'); }
+  ld(20, 'Loading live figures');
+  try { const floors = await read(); ld(55, 'Loading the building'); loadPlans(PROJECT);   // drawings come in behind; the floor scene is skipped until they do
+    await loadImgs(scenes[0]); ld(100); apply(floors); document.getElementById('msg').hidden = true; }
+  catch (e) { ldDone(); console.error('event screen read failed', e); return say(e && e.link ? 'This link is turned off' : 'Cannot reach RMS', e && e.link ? 'Make a new share link in the sales portal.' : 'Check the internet connection; the screen will try again.'), setTimeout(boot, 15000); }
+  drawTicker(); next(); setTimeout(ldDone, 300);
+  loadImgs(scenes[1]);
   setInterval(poll, POLL_MS);
 })();
 </script>
