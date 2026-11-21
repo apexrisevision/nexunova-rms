@@ -469,6 +469,19 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 #qrfix span { font-family: var(--mono); font-size: 13px; line-height: 1.35; letter-spacing: 1.5px; text-transform: uppercase; color: #e6ebfa; text-align: center; }
 #qrfix.hide { opacity: 0; transform: translateY(12px); pointer-events: none; }
 
+/* scene menu: shown while the mouse moves, gone after 3 s, so the TV stays clean */
+#nav { position: absolute; left: 60px; right: 290px; bottom: 100px; z-index: 36; display: flex; flex-wrap: nowrap; gap: 6px; padding: 8px; border-radius: 30px; background: rgba(7,11,24,.88); border: 1px solid rgba(255,255,255,.12); opacity: 0; transform: translateY(10px); pointer-events: none; transition: opacity .35s, transform .35s; }
+#stage.awake #nav { opacity: 1; transform: none; pointer-events: auto; }
+#nav button { flex: none; font: 500 14px var(--body); color: #dfe4f5; background: rgba(7,11,24,.82); border: 1px solid rgba(255,255,255,.16); border-radius: 22px; padding: 8px 12px; cursor: pointer; transition: background .2s, border-color .2s, color .2s; }
+#nav button:hover { border-color: rgba(255,255,255,.5); color: #fff; }
+#nav button.cur { background: #fff; color: #0b1022; border-color: #fff; }
+#nav button:focus-visible { outline: 2px solid #a78bfa; outline-offset: 2px; }
+#nav .pause { margin-left: auto; font-family: var(--mono); letter-spacing: 1px; }
+.prog i { cursor: pointer; position: relative; }
+.prog i::after { content: ""; position: absolute; left: 0; right: 0; top: -12px; bottom: -12px; }
+#stage.awake .prog i { height: 6px; }
+#stage.idle, #stage.idle * { cursor: none !important; }
+
 /* bottom */
 .prog { position: absolute; left: 72px; right: 300px; bottom: 84px; display: flex; gap: 8px; z-index: 6; }
 .prog i { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
@@ -717,6 +730,7 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
     <linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#60a5fa"/><stop offset=".5" stop-color="#a78bfa"/><stop offset="1" stop-color="#f472b6"/></linearGradient>
   </defs></svg>
   <div id="msg" hidden><div class="glass" style="padding:60px 70px;max-width:1100px"><div class="kicker">Event screen</div><h2 class="h-m" style="margin-top:20px"></h2><p class="label" style="margin-top:20px;font-size:26px"></p></div></div>
+  <div id="nav" aria-label="Scenes"></div>
   <div class="prog" id="prog"></div>
   <div id="qrfix"><div class="code" id="qr2"></div><span>Scan for updated<br>availability</span></div>
   <div class="ticker"><div class="lbl">● OPEN NOW</div><div class="run" id="run"></div></div>
@@ -847,7 +861,7 @@ function fit() {
 /* phones and small screens: lighter effects, smaller pictures */
 const SMALL = matchMedia('(pointer: coarse)').matches || Math.max(innerWidth, innerHeight) < 1100;   // phones and tablets, never the big screen
 if (SMALL) document.documentElement.classList.add('lite');
-addEventListener('click', () => { try { const d = document.documentElement; if (!document.fullscreenElement && d.requestFullscreen) d.requestFullscreen().catch(() => {}); } catch (e) {} });
+addEventListener('click', e => { if (e.target.closest && e.target.closest('#nav, .prog')) return; try { const d = document.documentElement; if (!document.fullscreenElement && d.requestFullscreen) d.requestFullscreen().catch(() => {}); } catch (e) {} });
 /* fetch a scene's pictures; resolves when they are in (or after 8 s, so a slow picture never stops the loop) */
 function loadImgs(sc) {
   const imgs = [...sc.querySelectorAll('img[data-src]')];
@@ -1236,6 +1250,43 @@ function enter(sc) {
   if (sc.id === 's-tower') { let k = 0; const rows = [...document.querySelectorAll('#flist .frow')];
     hotT = setInterval(() => { rows.forEach(r => r.classList.remove('hot')); rows[k++ % rows.length].classList.add('hot'); }, 1300); }
 }
+const SCENE_NAMES = { 's-fly': 'Map', 's-intro': 'Opening', 's-hero': 'Numbers', 's-offer': 'On offer', 's-aerial': 'Landmark', 's-tower': 'Building',
+  's-fast': 'Selling fast', 's-floor': 'Floor plan', 's-budget': 'Budget', 's-board': 'Open units', 's-gallery': 'Gallery', 's-ladder': 'Prices',
+  's-loc': 'Location', 's-today': 'Today', 's-qr': 'Scan' };
+let paused = false;
+function goTo(i) {
+  if (ix >= 0) scenes[ix].classList.remove('on');
+  ix = (i - 1 + scenes.length) % scenes.length; next();
+}
+function setPause(p) {
+  paused = p; const fl = bars[ix] && bars[ix].firstChild;
+  if (p) { clearTimeout(timer); if (fl) { const w = getComputedStyle(fl).width; fl.style.transition = 'none'; fl.style.width = w; } }
+  else { clearTimeout(timer); const dur = +scenes[ix].dataset.dur * 1000; if (fl) { fl.style.transition = `width ${dur / 2}ms linear`; fl.style.width = '100%'; } timer = setTimeout(next, dur / 2); }
+  const b = document.querySelector('#nav .pause'); if (b) b.textContent = p ? '▶ Play' : '❚❚ Pause';
+}
+function drawNav() {
+  document.getElementById('nav').innerHTML = scenes.map((s, i) => `<button type="button" data-i="${i}">${SCENE_NAMES[s.id] || s.id}</button>`).join('') + '<button type="button" class="pause">❚❚ Pause</button>';
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('#nav button');
+  if (b) { if (b.classList.contains('pause')) setPause(!paused); else { goTo(+b.dataset.i); if (paused) setPause(true); } return; }
+  const bar = e.target.closest && e.target.closest('.prog i');
+  if (bar) { goTo(bars.indexOf(bar)); if (paused) setPause(true); }
+});
+addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'PageDown') { goTo(ix + 1); if (paused) setPause(true); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { goTo(ix - 1); if (paused) setPause(true); }
+  else if (e.key === ' ') { e.preventDefault(); setPause(!paused); }
+  else if (/^[1-9]$/.test(e.key)) { goTo(+e.key - 1); if (paused) setPause(true); }
+  else return;
+  wakeUp();
+});
+let idleT;
+function wakeUp() {
+  stage.classList.add('awake'); stage.classList.remove('idle');
+  clearTimeout(idleT); idleT = setTimeout(() => { stage.classList.remove('awake'); stage.classList.add('idle'); }, 3000);
+}
+addEventListener('mousemove', wakeUp); addEventListener('touchstart', wakeUp, { passive: true });
 function next() {
   if (ix >= 0) scenes[ix].classList.remove('on');
   ix = (ix + 1) % scenes.length;
@@ -1248,7 +1299,8 @@ function next() {
   loadImgs(scenes[(ix + 1) % scenes.length]); loadImgs(scenes[(ix + 2) % scenes.length]);
   bars.forEach((b, i) => b.classList.toggle('done', i < ix));
   const fl = bars[ix].firstChild; fl.style.transition = 'none'; fl.style.width = '0'; void fl.offsetWidth; fl.style.transition = `width ${dur}ms linear`; fl.style.width = '100%';
-  clearTimeout(timer); timer = setTimeout(next, dur);
+  clearTimeout(timer); if (!paused) timer = setTimeout(next, dur); else { fl.style.transition = 'none'; fl.style.width = '0'; }
+  document.querySelectorAll('#nav button[data-i]').forEach(b => b.classList.toggle('cur', +b.dataset.i === ix));
 }
 
 /* ── just booked ── */
@@ -1289,7 +1341,7 @@ const ldDone = () => document.getElementById('loader').classList.add('gone');
   try { const floors = await read(); ld(55, 'Loading the building'); loadPlans(PROJECT);   // drawings come in behind; the floor scene is skipped until they do
     await loadImgs(scenes[0]); ld(100); apply(floors); document.getElementById('msg').hidden = true; }
   catch (e) { ldDone(); console.error('event screen read failed', e); return say(e && e.link ? 'This link is turned off' : 'Cannot reach RMS', e && e.link ? 'Make a new share link in the sales portal.' : 'Check the internet connection; the screen will try again.'), setTimeout(boot, 15000); }
-  drawTicker(); drawQr(); next(); setTimeout(ldDone, 300);
+  drawTicker(); drawQr(); drawNav(); next(); setTimeout(ldDone, 300);
   loadImgs(scenes[1]);
   setInterval(poll, POLL_MS);
 })();
