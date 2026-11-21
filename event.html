@@ -87,7 +87,30 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 
 /* 2 tower */
 #s-tower { display: grid; grid-template-columns: .78fr 1.22fr; align-items: center; }
-#tower { width: 100%; height: 840px; }
+#tower { width: 100%; height: 840px; overflow: visible; }
+/* the building as it stands: three long blocks side by side, the way the plans and the renders show it */
+#tower .f3 { opacity: 0; }
+.on #tower .f3 { animation: lit .6s ease forwards; }
+#tower .side { fill: #121a3a; } #tower .face { fill: #1a2450; } #tower .roof { fill: #232f63; stroke: rgba(170,190,255,.45); stroke-width: 1; }
+#tower .glass { fill: url(#glassG); stroke: rgba(255,255,255,.25); stroke-width: 1; }
+#tower .mull { stroke: rgba(255,255,255,.28); stroke-width: 1; fill: none; }
+.on #tower { animation: floatY 7s ease-in-out 3s infinite alternate; }
+@keyframes floatY { to { transform: translateY(-10px) } }
+#tower .fline { stroke: rgba(170,190,255,.22); stroke-width: 1; fill: none; }
+#tower .w { opacity: 0; }
+.on #tower .w { animation: lit .35s ease forwards; }
+#tower .w.a { fill: #34e3a4; } #tower .w.h { fill: #fbbf3c; } #tower .w.s { fill: #fb5f7c; } #tower .w.x { fill: #33406e; }
+.on #tower .w.h { animation: lit .35s ease forwards, holdGlow 2s ease-in-out 4s infinite; }
+#tower .sign { font-family: var(--display); font-weight: 500; font-size: 15px; letter-spacing: 2px; fill: #fff; }
+#tower .green { fill: #1f6b4f; opacity: .9; }
+#tower .pergola { fill: none; stroke: rgba(255,255,255,.35); stroke-width: 1; }
+#tower .flab { font-family: var(--display); font-weight: 300; font-size: 26px; fill: #fff; }
+#tower .flab2 { font-family: var(--mono); font-size: 14px; letter-spacing: 2px; fill: #34e3a4; }
+#tower .lead3 { stroke: rgba(255,255,255,.35); stroke-width: 1; }
+#tower .front { font-family: var(--mono); font-size: 14px; letter-spacing: 3px; fill: rgba(255,255,255,.75); }
+#tower .sweep3 { fill: url(#sweepG); mix-blend-mode: screen; opacity: 0; }
+.on #tower .sweep3 { animation: scanUp 2.6s cubic-bezier(.45,0,.25,1) 2.2s forwards; }
+@keyframes scanUp { 0% { opacity: 0; transform: translateY(160px) } 20% { opacity: 1 } 100% { opacity: 0; transform: translateY(-760px) } }
 #tower .win { opacity: 0; }
 .on #tower .win { animation: lit .35s ease forwards; }
 @keyframes lit { to { opacity: 1 } }
@@ -863,7 +886,61 @@ function drawHero() {
 }
 
 /* ── 2 tower: isometric slabs, each unit a lit window on the facade ── */
+/* the building: three long blocks (left, middle, right rows of the plans), seven floors,
+   every shop a window on the face it stands on, coloured live */
+function drawTower3D() {
+  const svg = document.getElementById('tower');
+  const O = [120, 735], A = [290, 125], D = [560, -268], FH = 50, N = FLOORS.length;
+  const P = (a, d, z) => [O[0] + a * A[0] + d * D[0], O[1] + a * A[1] + d * D[1] - z];
+  const pts = arr => arr.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const BARS = [[0, .29], [.38, .62], [.71, 1]];            // across the plot: left, middle, right
+  const rowOf = x => x < .335 ? 0 : x < .665 ? 1 : 2;
+  /* sort every floor's units onto a bar, and onto its side face or its front face */
+  const wins = BARS.map(() => []);
+  FLOORS.forEach((f, i) => {
+    const plan = PLANS[f.f], kinds = Object.fromEntries(f.units.map(u => [u[0], u[1]]));
+    Object.entries(plan.units).forEach(([code, u]) => {
+      const xs = u.p.map(q => q[0]), ys = u.p.map(q => q[1]);
+      const cx = xs.reduce((s, v) => s + v, 0) / xs.length, y0 = Math.min(...ys), y1 = Math.max(...ys);
+      const b = rowOf(cx);
+      wins[b].push({ i, k: kinds[code] || 'x', y0, y1 });
+    });
+  });
+  let out = '<defs><linearGradient id="glassG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe2ad"/><stop offset=".55" stop-color="#c99a63"/><stop offset="1" stop-color="#3b4687"/></linearGradient></defs>';
+  BARS.forEach(([a0, a1], b) => {
+    const top = N * FH;
+    /* walls, floor by floor so the building rises */
+    for (let i = 0; i < N; i++) {
+      const z0 = i * FH, z1 = z0 + FH, dl = (.2 + i * .22).toFixed(2);
+      let g = `<g class="f3" style="animation-delay:${dl}s">`;
+      g += `<polygon class="side" points="${pts([P(a1, 0, z0), P(a1, 1, z0), P(a1, 1, z1), P(a1, 0, z1)])}"/>`;
+      g += `<polygon class="glass" points="${pts([P(a0, 0, z0), P(a1, 0, z0), P(a1, 0, z1), P(a0, 0, z1)])}"/>`;
+      for (let m = 1; m < 4; m++) { const a = a0 + (a1 - a0) * m / 4; g += `<polyline class="mull" points="${pts([P(a, 0, z0), P(a, 0, z1)])}"/>`; }
+      g += `<polyline class="fline" points="${pts([P(a0, 0, z1), P(a1, 0, z1), P(a1, 1, z1)])}"/>`;
+      /* windows: side face by depth, front face by position across */
+      wins[b].filter(w => w.i === i).forEach(w => {
+        const zz0 = z0 + 8, zz1 = z1 - 7;
+        const q = [P(a1, Math.max(w.y0, .03) + .002, zz0), P(a1, Math.max(w.y1, .04) - .002, zz0), P(a1, Math.max(w.y1, .04) - .002, zz1), P(a1, Math.max(w.y0, .03) + .002, zz1)];
+        g += `<polygon class="w ${w.k}" points="${pts(q)}" style="animation-delay:${(.5 + i * .22 + w.y0 * .8).toFixed(2)}s"/>`;
+      });
+      out += g + '</g>';
+    }
+    /* roof, with a terrace garden and a pergola like the renders */
+    let g = `<g class="f3" style="animation-delay:${(.2 + N * .22).toFixed(2)}s">`;
+    g += `<polygon class="roof" points="${pts([P(a0, 0, top), P(a1, 0, top), P(a1, 1, top), P(a0, 1, top)])}"/>`;
+    g += `<polygon class="green" points="${pts([P(a0 + .03, .02, top), P(a1 - .03, .02, top), P(a1 - .03, .12, top), P(a0 + .03, .12, top)])}"/>`;
+    for (let k = 0; k < 6; k++) { const d = .02 + k * .02; g += `<polyline class="pergola" points="${pts([P(a0 + .02, d, top + 16), P(a1 - .02, d, top + 16)])}"/>`; }
+    g += `<polyline class="pergola" points="${pts([P(a0 + .02, .02, top), P(a0 + .02, .02, top + 16), P(a0 + .02, .12, top + 16), P(a0 + .02, .12, top)])}"/>`;
+    if (b === 1) { const s = P((a0 + a1) / 2, 0, top - 14); g += `<text class="sign" x="${s[0].toFixed(0)}" y="${s[1].toFixed(0)}" text-anchor="middle">AWAMI MARKET</text>`; }
+    out += g + '</g>';
+  });
+  /* floor codes beside the front of the left block */
+  FLOORS.forEach((f, i) => { const p = P(0, 0, i * FH + FH / 2); out += `<text class="f3 flab" style="animation-delay:${(.2 + i * .22).toFixed(2)}s;font-size:20px" x="${(p[0] - 14).toFixed(0)}" y="${(p[1] + 7).toFixed(0)}" text-anchor="end">${f.f}</text>`; });
+  const gt = P(.5, -.02, -34); out += `<text class="front" x="${gt[0].toFixed(0)}" y="${gt[1].toFixed(0)}" text-anchor="middle">GT ROAD · FRONT</text>`;
+  svg.innerHTML = out;
+}
 function drawTower() {
+  if (FLOORS.every(f => PLANS[f.f])) { drawTower3D(); drawTowerList(); return; }
   const svg = document.getElementById('tower'), A = 540, B = 290, H = 64, G = 9, c = Math.cos(Math.PI / 6), sn = Math.sin(Math.PI / 6);
   const P = (x, y, z) => [560 + (x - y) * c, 270 + (x + y) * sn - z];
   const poly = pts => pts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ');
@@ -886,6 +963,9 @@ function drawTower() {
     out += g + '</g>';
   });
   svg.innerHTML = out;
+  drawTowerList();
+}
+function drawTowerList() {
   document.getElementById('flist').innerHTML = [...FLOORS].reverse().map((f, i) => { const s = stats(f);
     return `<div class="frow in" style="animation-delay:${.3 + i * .08}s"><span class="fc">${f.f}</span><span>${NAMES[f.f]} · from ${lac(s.minP)} Lac${s.h ? `<span class="fh">${s.h} reserved</span>` : ''}</span><span class="fa">${s.a} open</span></div>`; }).join('');
   const all = FLOORS.flatMap(f => f.units), cnt = k => fmt(all.filter(u => u[1] === k).length);
