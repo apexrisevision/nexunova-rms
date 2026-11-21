@@ -286,46 +286,56 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 .prices span { display: block; font-size: 18px; color: var(--soft); letter-spacing: 1px; }
 .prices b { font-family: var(--display); font-weight: 300; font-size: 44px; }
 
-/* ── fly-in: Peshawar from the air, down to Karkhano, then Awami Market ── */
-#s-fly { background: #05070f; overflow: hidden; perspective: 1700px; }
-.world { position: absolute; left: 50%; top: 50%; width: 2048px; height: 1280px; margin: -640px 0 0 -1024px; background-size: cover; }
-.world::after { content: ""; position: absolute; inset: 0; mix-blend-mode: screen;
-  background: radial-gradient(60% 60% at var(--fx) var(--fy), rgba(96,165,250,.22), rgba(139,92,246,.12) 45%, rgba(7,11,24,0) 75%); }
-.world.city { background-image: url(/assets/event/map-city.jpg); transform-origin: 28.67% 49.64%; --fx: 28.67%; --fy: 49.64%; }
-.world.near { background-image: url(/assets/event/map-near.jpg); transform-origin: 54.39% 57.09%; --fx: 54.39%; --fy: 57.09%; opacity: 0; }
-.on .world.city { animation: flyCity 10s cubic-bezier(.45,0,.3,1) forwards, fadeOut 1.6s ease 8.4s forwards; }
-.on .world.near { animation: flyNear 9s cubic-bezier(.2,0,.25,1) 8.2s forwards; }
-@keyframes flyCity { from { transform: rotateX(48deg) rotateZ(-6deg) scale(.92) } to { transform: translate(437px, 5px) rotateX(34deg) rotateZ(4deg) scale(4.2) } }
-@keyframes flyNear { 0% { opacity: 0; transform: translate(-90px, -91px) rotateX(34deg) rotateZ(4deg) scale(.55) }
-  18% { opacity: 1 } 100% { opacity: 1; transform: translate(-90px, -91px) rotateX(22deg) rotateZ(0deg) scale(1.5) } }
-@keyframes fadeOut { to { opacity: 0 } }
-.place { position: absolute; transform: translate(-50%, -100%); opacity: 0; text-align: center; white-space: nowrap; }
-.on .place { animation: lit .9s ease var(--a) forwards, fadeOut .6s ease var(--z) forwards; }
-.place { --z: 3.4s; }
-.place.home { --z: 4s; }
-.place b { display: block; font-family: var(--display); font-weight: 300; font-size: 46px; color: #fff; text-shadow: 0 4px 24px rgba(0,0,0,.9); }
-.place i { display: block; width: 14px; height: 14px; margin: 10px auto 0; border-radius: 50%; background: #c4b5fd; box-shadow: 0 0 20px #a78bfa; }
-.place.home b { font-size: 60px; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; }
-.place.home i { width: 22px; height: 22px; background: #fff; box-shadow: 0 0 0 8px rgba(244,114,182,.35), 0 0 40px #f472b6; }
+/* ── fly-in: one camera from the region down to the building, over four map zooms ── */
+#s-fly { background: #e9e5dc; overflow: hidden; }
+#s-fly .lay { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform, opacity; filter: saturate(1.12) contrast(1.04); }
+#s-fly .tint { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 90% at 55% 55%, rgba(7,11,24,0) 55%, rgba(7,11,24,.55) 100%),
+              linear-gradient(90deg, rgba(7,11,24,.78) 0%, rgba(7,11,24,.35) 26%, rgba(7,11,24,0) 42%),
+              linear-gradient(180deg, rgba(7,11,24,.55) 0%, rgba(7,11,24,0) 18%, rgba(7,11,24,0) 80%, rgba(7,11,24,.6) 100%); }
+#route { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+#route .glow { fill: none; stroke: #7c3aed; stroke-width: 18; stroke-linecap: round; stroke-linejoin: round; opacity: .25; filter: blur(6px); }
+#route .line { fill: none; stroke: url(#rg); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+#route .head { fill: #fff; filter: drop-shadow(0 0 12px #f472b6) drop-shadow(0 0 4px #fff); }
+.mk { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 12px; white-space: nowrap; transform: translate(-22px, -50%); transition: opacity .6s; will-change: transform, opacity; }
+.mk .ic { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.35); border: 3px solid #fff; flex: none; }
+.mk .tx { font-family: var(--display); font-weight: 400; font-size: 32px; color: #111827; paint-order: stroke; -webkit-text-stroke: 7px #fff; letter-spacing: .2px; }
+.mk .tx small { display: block; font-family: var(--body); font-size: 19px; font-weight: 500; color: #4b5563; -webkit-text-stroke: 6px #fff; }
+.mk.city .tx { font-size: 46px; font-weight: 500; }
+.mk.road .ic { border-radius: 8px; width: auto; padding: 0 10px; height: 34px; font-family: var(--mono); font-size: 18px; background: #2563eb; }
+#awpin { position: absolute; left: 0; top: 0; opacity: 0; transition: opacity .4s; will-change: transform; }
+#awpin .drop { position: absolute; left: -46px; top: -120px; width: 92px; height: 120px; transform: translateY(-260px); opacity: 0; }
+#awpin.dropped .drop { animation: pinIn .9s cubic-bezier(.3,1.6,.5,1) forwards; }
+@keyframes pinIn { to { transform: none; opacity: 1 } }
+#awpin .drop svg { width: 100%; height: 100%; filter: drop-shadow(0 14px 24px rgba(124,58,237,.55)); }
+#awpin .pulse { position: absolute; left: -70px; top: -28px; width: 140px; height: 56px; border-radius: 50%; border: 4px solid #f472b6; opacity: 0; }
+#awpin.dropped .pulse { animation: ringOut 1.8s ease-out .7s infinite; }
+#awpin .area { position: absolute; left: -150px; top: -150px; width: 300px; height: 300px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(244,114,182,.28), rgba(167,139,250,.12) 55%, rgba(167,139,250,0) 70%); opacity: 0; transition: opacity 1s; }
+#awpin.dropped .area { opacity: 1; }
+#awpin .card { position: absolute; left: 70px; top: -190px; padding: 22px 28px; border-radius: 22px; background: rgba(7,11,24,.86); border: 1px solid rgba(255,255,255,.18);
+  backdrop-filter: blur(12px); box-shadow: 0 20px 50px rgba(0,0,0,.45); opacity: 0; transform: translateX(-20px); transition: opacity .7s .6s, transform .7s .6s; white-space: nowrap; }
+#awpin.dropped .card { opacity: 1; transform: none; }
+#awpin .card b { display: block; font-family: var(--display); font-weight: 300; font-size: 54px; line-height: 1; }
+#awpin .card span { display: block; font-size: 22px; color: var(--soft); margin-top: 8px; }
+#awpin .card i { font-style: normal; color: var(--avail); }
 .flytext { position: absolute; left: 72px; top: 150px; z-index: 2; }
-.flytext .h-l { text-shadow: 0 8px 40px rgba(0,0,0,.7); }
-.flytext .step { position: absolute; left: 0; top: 0; white-space: nowrap; opacity: 0; }
-.on .flytext .s1 { animation: lit .8s ease .4s forwards, fadeOut .6s ease 7.6s forwards; }
-.on .flytext .s2 { animation: lit .8s ease 8.6s forwards, fadeOut .6s ease 13.4s forwards; }
-.droppin { position: absolute; left: 50%; top: 50%; z-index: 2; opacity: 0; transform: translate(-50%, -100%); }
-.on .droppin { animation: pinDrop .9s cubic-bezier(.3,1.6,.5,1) 11s forwards, fadeOut .5s ease 14s forwards; }
-@keyframes pinDrop { from { opacity: 0; transform: translate(-50%, -260%) } to { opacity: 1; transform: translate(-50%, -100%) } }
-.droppin svg { width: 120px; height: 150px; filter: drop-shadow(0 12px 30px rgba(244,114,182,.6)); }
-.droppin .ring { position: absolute; left: 50%; bottom: -30px; width: 90px; height: 36px; margin-left: -45px; border-radius: 50%; border: 3px solid #f9a8d4; animation: ringOut 1.8s ease-out infinite; }
-@keyframes ringOut { from { transform: scale(.4); opacity: 1 } to { transform: scale(3); opacity: 0 } }
+.flytext .step { position: absolute; left: 0; top: 0; white-space: nowrap; opacity: 0; transform: translateY(20px); transition: opacity .7s, transform .7s; }
+.flytext .step.show { opacity: 1; transform: none; }
+.flytext .h-l { text-shadow: 0 8px 40px rgba(0,0,0,.6); }
+.hud { position: absolute; right: 72px; bottom: 110px; z-index: 2; padding: 16px 22px; border-radius: 16px; background: rgba(7,11,24,.7); border: 1px solid rgba(255,255,255,.15);
+  font-family: var(--mono); font-size: 17px; color: var(--soft); display: grid; gap: 6px; min-width: 300px; }
+.hud b { color: #fff; font-weight: 500; }
+.hud .bar { height: 4px; border-radius: 2px; background: rgba(255,255,255,.12); overflow: hidden; }
+.hud .bar i { display: block; height: 100%; background: var(--grad); width: 0; }
 .reveal { position: absolute; inset: 0; z-index: 3; clip-path: circle(0% at 50% 50%); }
-.on .reveal { animation: iris 2.2s cubic-bezier(.7,0,.2,1) 14s forwards; }
+.reveal.go { animation: iris 2.2s cubic-bezier(.7,0,.2,1) forwards; }
 @keyframes iris { to { clip-path: circle(80% at 50% 50%) } }
-.reveal img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.25); }
-.on .reveal img { animation: settle 6s cubic-bezier(.2,0,.2,1) 14s forwards; }
-@keyframes settle { to { transform: scale(1.04) } }
+.reveal img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.25); transition: transform 6s cubic-bezier(.2,0,.2,1); }
+.reveal.go img { transform: scale(1.04); }
 .reveal .ptext { bottom: 150px; }
-.osm { position: absolute; right: 72px; bottom: 96px; z-index: 2; font-family: var(--mono); font-size: 13px; color: rgba(255,255,255,.45); }
+.osm { position: absolute; right: 72px; bottom: 84px; z-index: 4; font-family: var(--mono); font-size: 13px; color: rgba(255,255,255,.6); }
+@keyframes ringOut { from { transform: scale(.4); opacity: 1 } to { transform: scale(3); opacity: 0 } }
 
 /* holds and reservations glow on the building */
 .on #tower .win.hw { animation: lit .35s ease forwards, holdGlow 1.8s ease-in-out 3.2s infinite; }
@@ -371,28 +381,37 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
     <div class="live"><span class="dot"></span><b id="livelbl">LIVE</b><span id="clock">--:--</span><span class="upd" id="upd"></span></div>
   </div>
 
-  <section class="scene full" id="s-fly" data-dur="21">
-    <div class="world city anim">
-      <div class="place  anim" style="left:72.67%;top:42.12%;--a:0.4s"><b>Peshawar</b><i></i></div>
-      <div class="place  anim" style="left:61.66%;top:50.31%;--a:0.7s"><b>Saddar</b><i></i></div>
-      <div class="place  anim" style="left:49.34%;top:52.13%;--a:1.0s"><b>University Town</b><i></i></div>
-      <div class="place  anim" style="left:54.75%;top:53.81%;--a:1.3s"><b>Airport</b><i></i></div>
-      <div class="place  anim" style="left:32.43%;top:61.7%;--a:1.6s"><b>Hayatabad</b><i></i></div>
-      <div class="place home anim" style="left:28.67%;top:49.64%;--a:2.0s"><b>Karkhano Market</b><i></i></div>
+  <section class="scene full" id="s-fly" data-dur="25">
+    <img class="lay" data-z="12" src="/assets/event/map-z12.jpg" width="3072" height="1792" alt="">
+    <img class="lay" data-z="13" src="/assets/event/map-z13.jpg" width="2816" height="1536" alt="">
+    <img class="lay" data-z="14" src="/assets/event/map-z14.jpg" width="2816" height="1536" alt="">
+    <img class="lay" data-z="15" src="/assets/event/map-z15.jpg" width="2816" height="1536" alt="">
+    <img class="lay" data-z="16" src="/assets/event/map-z16.jpg" width="2816" height="1536" alt="">
+    <img class="lay" data-z="17" src="/assets/event/map-z17.jpg" width="2816" height="1536" alt="">
+    <img class="lay" data-z="18" src="/assets/event/map-z18.jpg" width="2816" height="1536" alt="">
+    <svg id="route"><defs><linearGradient id="rg" x1="1" x2="0"><stop offset="0" stop-color="#60a5fa"/><stop offset=".5" stop-color="#a78bfa"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs>
+      <path class="glow"/><path class="line"/><circle class="head" r="11"/></svg>
+    <div id="marks"></div>
+    <div id="awpin"><div class="area"></div><span class="pulse"></span>
+      <div class="drop"><svg viewBox="0 0 80 104"><defs><linearGradient id="pg2" x1="0" x2="1"><stop offset="0" stop-color="#60a5fa"/><stop offset=".5" stop-color="#a78bfa"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs>
+        <path d="M40 102 C 22 74, 4 58, 4 38 a36 36 0 1 1 72 0 c0 20 -18 36 -36 64z" fill="url(#pg2)" stroke="#fff" stroke-width="4"/>
+        <path d="M24 26h5l5 18h17l4-13H31" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="36" cy="51" r="3.5" fill="#fff"/><circle cx="49" cy="51" r="3.5" fill="#fff"/></svg></div>
+      <div class="card"><b class="grad">Awami Market</b><span>Karkhano Market · GT Road · <i id="pin-open">851 open</i></span></div>
     </div>
-    <div class="world near anim"></div>
+    <div class="tint"></div>
     <div class="flytext">
-      <div class="step s1 anim"><div class="kicker">From above</div><h2 class="h-l">Peshawar</h2></div>
-      <div class="step s2 anim"><div class="kicker">On the Grand Trunk Road</div><h2 class="h-l">Karkhano <span class="grad">Market</span></h2></div>
+      <div class="step" data-from="0" data-to="5.6"><div class="kicker">From above</div><h2 class="h-l">Peshawar</h2></div>
+      <div class="step" data-from="5.8" data-to="11.4"><div class="kicker">Along the Grand Trunk Road</div><h2 class="h-l">Towards <span class="grad">Khyber</span></h2></div>
+      <div class="step" data-from="11.6" data-to="15.4"><div class="kicker">Karkhano</div><h2 class="h-l">The market <span class="grad">everyone knows</span></h2></div>
+      <div class="step" data-from="15.6" data-to="20.6"><div class="kicker">Right on the road</div><h2 class="h-l">Awami <span class="grad">Market</span></h2></div>
     </div>
-    <div class="droppin anim"><svg viewBox="0 0 80 100"><defs><linearGradient id="pg" x1="0" x2="1"><stop offset="0" stop-color="#60a5fa"/><stop offset=".5" stop-color="#a78bfa"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs>
-      <path d="M40 98 C 22 70, 6 56, 6 36 a34 34 0 1 1 68 0 c0 20 -16 34 -34 62z" fill="url(#pg)" stroke="#fff" stroke-width="3"/><circle cx="40" cy="36" r="13" fill="#fff"/></svg><span class="ring"></span></div>
-    <div class="reveal anim">
-      <img class="anim" src="/assets/event/aerial-dusk.jpg" alt="Awami Market from above">
+    <div class="hud"><div>VIEW <b id="hud-w">—</b></div><div><b>33.9987° N · 71.4237° E</b></div><div class="bar"><i id="hud-z"></i></div></div>
+    <div class="reveal" id="reveal">
+      <img src="/assets/event/aerial-dusk.jpg" alt="Awami Market from above">
       <div class="shade"></div>
       <div class="ptext"><div class="kicker" style="color:#dfe4f5">You have arrived</div><h1 class="h-xl" style="margin-top:18px">Awami <span class="grad">Market</span></h1></div>
     </div>
-    <div class="osm">Map © OpenStreetMap contributors</div>
+    <div class="osm">Map data © OpenStreetMap contributors</div>
   </section>
 
   <section class="scene full" id="s-intro" data-dur="14">
@@ -800,6 +819,75 @@ function drawLadder() {
   document.getElementById('lowest').textContent = lo.length ? lac(Math.min(...lo)) + ' Lac' : '—';
 }
 
+/* ── fly-in camera: one zoom value drives four map layers, the route and the markers ── */
+const AW = [33.998653, 71.423698];
+const ROUTE = [[34.01468,71.5742],[34.01447,71.57289],[34.01447,71.56938],[34.01448,71.56748],[34.01458,71.56495],[34.01452,71.56264],[34.01466,71.56091],[34.01468,71.55781],[34.01458,71.55479],[34.01453,71.55237],[34.01441,71.55111],[34.01427,71.54774],[34.01413,71.54516],[34.0138,71.54206],[34.01177,71.54001],[34.00938,71.53784],[34.00625,71.53471],[34.00649,71.53314],[34.00673,71.53013],[34.00662,71.52702],[34.00706,71.52486],[34.00806,71.52215],[34.00842,71.52074],[34.00843,71.51861],[34.00879,71.51482],[34.00886,71.51277],[34.00712,71.50935],[34.00631,71.50786],[34.005,71.5053],[34.00336,71.5025],[34.00237,71.50029],[34.00051,71.49651],[33.99986,71.49571],[33.99793,71.49204],[33.99778,71.49081],[33.99767,71.48805],[33.99776,71.48553],[33.99811,71.48202],[33.99816,71.47984],[33.99819,71.47808],[33.99817,71.47483],[33.99826,71.47291],[33.99784,71.4697],[33.99757,71.46709],[33.99712,71.46485],[33.99668,71.46219],[33.99655,71.45978],[33.99677,71.45833],[33.99689,71.45559],[33.99701,71.45246],[33.99708,71.4505],[33.99718,71.44815],[33.99729,71.44488],[33.99726,71.44265],[33.99742,71.44007],[33.99744,71.43742],[33.99758,71.43553],[33.99829,71.43304],[33.99892,71.42957],[33.99906,71.42778],[33.99868,71.4252],[33.99828,71.4237]];
+const MARKS = [
+  { g: [34.01238, 71.57874], t: 'Peshawar', c: 'city', ic: '★', bg: '#dc2626', z: [10, 13.6] },
+  { g: [33.99108, 71.51574], t: 'Airport', ic: '✈', bg: '#2563eb', z: [12.6, 14.4] },
+  { g: [33.99414, 71.49671], t: 'University Town', ic: '◆', bg: '#7c3aed', z: [11, 14.4] },
+  { g: [34.00203, 71.38083], t: 'Jamrud', ic: '◆', bg: '#0d9488', z: [10.5, 14.6] },
+  { g: [33.97671, 71.43725], t: 'Hayatabad', ic: '◆', bg: '#0d9488', z: [11, 15] },
+  { g: [33.99024, 71.45489], t: 'Bab-e-Khyber', ic: '◆', bg: '#b45309', z: [12.6, 15.6] },
+  { g: [33.98129, 71.44419], t: 'Tatara Park', ic: '♣', bg: '#16a34a', z: [13.2, 16] },
+  { g: [34.0048, 71.4165], t: 'N5', c: 'road', ic: 'N5', bg: '#2563eb', z: [13.4, 16.2] },
+  { g: [33.99869, 71.42405], t: 'Karkhano Market', ic: '🛒', bg: '#2563eb', z: [12.6, 16.1] },
+  { g: [33.998664, 71.421867], t: 'Sitara Market', ic: '🛒', bg: '#2563eb', z: [16.6, 20] },
+];
+const KEYS = [   /* t seconds, lat, lon, zoom */
+  [0, 33.999, 71.488, 11.55], [5.6, 34.001, 71.468, 12.2], [11.2, 33.9988, 71.432, 14.5],
+  [15.2, AW[0], AW[1], 16.6], [19, AW[0], AW[1], 18.15], [24, AW[0], AW[1], 18.3]];
+const wpx = (lat, lon, z) => { const n = 256 * 2 ** z, rr = lat * Math.PI / 180;
+  return [(lon + 180) / 360 * n, (1 - Math.log(Math.tan(rr) + 1 / Math.cos(rr)) / Math.PI) / 2 * n]; };
+const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+function camAt(t) {
+  let i = 0; while (i < KEYS.length - 2 && t > KEYS[i + 1][0]) i++;
+  const a = KEYS[i], b = KEYS[i + 1], u = ease(Math.max(0, Math.min(1, (t - a[0]) / (b[0] - a[0]))));
+  const z = a[3] + (b[3] - a[3]) * u;
+  const pa = wpx(a[1], a[2], 20), pb = wpx(b[1], b[2], 20);
+  return { z, wx: (pa[0] + (pb[0] - pa[0]) * u) / 2 ** (20 - z), wy: (pa[1] + (pb[1] - pa[1]) * u) / 2 ** (20 - z) };
+}
+let flyRaf = 0;
+function startFly() {
+  cancelAnimationFrame(flyRaf);
+  const sc = document.getElementById('s-fly'), lays = [...sc.querySelectorAll('.lay')];
+  const marks = document.getElementById('marks');
+  marks.innerHTML = MARKS.map(m => `<div class="mk ${m.c || ''}"><span class="ic" style="background:${m.bg}">${m.ic}</span>${m.c === 'road' ? '' : `<span class="tx">${m.t}</span>`}</div>`).join('');
+  const mEls = [...marks.children], pin = document.getElementById('awpin'), rev = document.getElementById('reveal');
+  const line = sc.querySelector('#route .line'), glow = sc.querySelector('#route .glow'), head = sc.querySelector('#route .head');
+  const steps = [...sc.querySelectorAll('.flytext .step')];
+  pin.classList.remove('dropped'); rev.classList.remove('go'); void rev.offsetWidth;
+  document.getElementById('pin-open').textContent = fmt(open.length) + ' open today';
+  const t0 = performance.now(); let pinned = false, revealed = false;
+  (function frame(now) {
+    const t = (now - t0) / 1000, cam = camAt(t);
+    const scr = (lat, lon) => { const p = wpx(lat, lon, cam.z); return [960 + p[0] - cam.wx, 540 + p[1] - cam.wy]; };
+    const [ax, ay] = scr(AW[0], AW[1]);
+    lays.forEach(l => { const z = +l.dataset.z, s = 2 ** (cam.z - z), w = +l.width, hh = +l.height;
+      /* show a finer layer once it is sharp enough and covers the whole screen */
+      const L0 = ax - w / 2 * s, R0 = ax + w / 2 * s, T0 = ay - hh / 2 * s, B0 = ay + hh / 2 * s;
+      const cover = Math.min(-L0, R0 - 1920, -T0, B0 - 1080);
+      const op = z === 12 ? 1 : Math.max(0, Math.min(1, (cam.z - (z - .55)) / .25)) * Math.max(0, Math.min(1, cover / 120));
+      l.style.opacity = op; l.style.transform = `translate(${ax - w / 2 * s}px, ${ay - hh / 2 * s}px) scale(${s})`; });
+    /* the GT Road from the city to the market, drawn between 1.2 s and 9 s */
+    const d = 'M' + ROUTE.map(([la, lo]) => scr(la, lo).map(v => v.toFixed(1)).join(' ')).join('L');
+    line.setAttribute('d', d); glow.setAttribute('d', d);
+    const L = line.getTotalLength(), pr = Math.max(0, Math.min(1, (t - 1.2) / 7.8)), fade = Math.max(0, Math.min(1, (16 - cam.z) / .8));
+    [line, glow].forEach(p => { p.style.strokeDasharray = L; p.style.strokeDashoffset = L * (1 - pr); p.style.opacity = (p === glow ? .25 : 1) * fade; });
+    const hp = line.getPointAtLength(L * pr); head.setAttribute('cx', hp.x); head.setAttribute('cy', hp.y); head.style.opacity = pr > 0 && pr < 1 ? fade : 0;
+    MARKS.forEach((m, i) => { const [x, y] = scr(m.g[0], m.g[1]), on = cam.z >= m.z[0] && cam.z <= m.z[1] && t < 20;
+      mEls[i].style.opacity = on ? 1 : 0; mEls[i].style.transform = `translate(${x - 22}px, ${y}px) translateY(-50%)`; });
+    pin.style.transform = `translate(${ax}px, ${ay}px)`; pin.style.opacity = cam.z > 15.6 ? 1 : 0;
+    if (!pinned && t > 15.4) { pinned = true; pin.classList.add('dropped'); }
+    steps.forEach(s => s.classList.toggle('show', t >= +s.dataset.from && t < +s.dataset.to));
+    const mpp = 156543.03 * Math.cos(AW[0] * Math.PI / 180) / 2 ** cam.z, wkm = 1920 * mpp / 1000;
+    document.getElementById('hud-w').textContent = wkm >= 1 ? wkm.toFixed(1) + ' km wide' : Math.round(wkm * 1000) + ' m wide';
+    document.getElementById('hud-z').style.width = ((cam.z - 11.5) / 6.8 * 100).toFixed(1) + '%';
+    if (!revealed && t > 20.6) { revealed = true; rev.classList.add('go'); }
+    if (t < 25 && sc.classList.contains('on')) flyRaf = requestAnimationFrame(frame);
+  })(t0);
+}
+
 /* ── what is on offer, by kind of unit ── */
 const GROUPS = [['Shops', t => /shop/i.test(t)], ['Offices', t => /office/i.test(t)], ['Apartments', t => /apartment|studio|bed/i.test(t)]];
 function drawOffer() {
@@ -900,6 +988,7 @@ function enter(sc) {
   if (sc.id === 's-today') drawToday();
   if (sc.id === 's-offer') drawOffer();
   if (sc.id === 's-intro') drawIntro();
+  if (sc.id === 's-fly') startFly();
   if (sc.id === 's-gallery') drawGallery();
   if (sc.id === 's-fast') drawFast();
   if (sc.id === 's-budget') drawBudget();
