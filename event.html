@@ -264,13 +264,19 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 .ptext .lede b { font-weight: 500; color: #fff; }
 
 /* day turns to night: the night render is wiped in behind a line of light */
-.kb .night { clip-path: inset(0 100% 0 0); }
-.on .kb .night { animation: wipe 3.6s cubic-bezier(.65,0,.25,1) 3.2s forwards; }
-@keyframes wipe { to { clip-path: inset(0 0 0 0) } }
-.sweep { position: absolute; top: 0; bottom: 0; width: 4px; left: 0; opacity: 0;
+/* the front lights up floor by floor, ground first */
+.kb .night { clip-path: inset(100% 0 0 0); }
+.on .kb .night { animation: lightsUp 4.2s steps(7, end) 3s forwards; }
+@keyframes lightsUp { to { clip-path: inset(0 0 0 0) } }
+.sweep-old { position: absolute; top: 0; bottom: 0; width: 4px; left: 0; opacity: 0;
   background: linear-gradient(180deg, transparent, #fff6e0 30%, #fff 50%, #fff6e0 70%, transparent);
   box-shadow: 0 0 40px 14px rgba(255,214,140,.55), 0 0 140px 50px rgba(255,190,110,.25); }
-.on .sweep { animation: sweep 3.6s cubic-bezier(.65,0,.25,1) 3.2s forwards; }
+.on .sweep-old { animation: none; }
+.sweep { position: absolute; left: 0; right: 0; top: 100%; height: 3px; opacity: 0; pointer-events: none;
+  background: linear-gradient(90deg, transparent, #ffe7b0 20%, #fff 50%, #ffe7b0 80%, transparent);
+  box-shadow: 0 0 30px 10px rgba(255,214,140,.55), 0 0 120px 40px rgba(255,190,110,.22); }
+.on .sweep { animation: lightLine 4.2s steps(7, end) 3s forwards, fadeOut .6s ease 7.2s forwards; }
+@keyframes lightLine { 0% { top: 100%; opacity: 1 } 100% { top: 0%; opacity: 1 } }
 @keyframes sweep { 0% { left: 0; opacity: 0 } 6% { opacity: 1 } 94% { opacity: 1 } 100% { left: 100%; opacity: 0 } }
 
 /* aerial: day fades to dusk, the places on it are pinned */
@@ -381,6 +387,41 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 #turn { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 50; padding: 10px 18px; border-radius: 22px;
   background: rgba(7,11,24,.8); border: 1px solid rgba(255,255,255,.15); color: #dfe4f5; font: 500 13px "Manrope", system-ui, sans-serif; letter-spacing: .5px; white-space: nowrap; transition: opacity .6s; }
 
+/* ── overlays drawn on the renders, in the render's own pixel frame (2000 x 1116) ── */
+.ovl { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
+.ovl .late { opacity: 0; }
+.on .ovl .late { animation: lit 1.4s ease var(--at, 7.4s) forwards; }
+/* the building's own LED screen, playing live figures */
+.led-bg { fill: url(#ledG); }
+.led { transition: opacity .5s; }
+.led.off { opacity: 0; }
+.led-txt { font-family: var(--display); font-weight: 500; fill: #fff; text-anchor: middle; dominant-baseline: middle; letter-spacing: 1px; }
+.led-sub { font-family: var(--mono); fill: #fff3c4; text-anchor: middle; dominant-baseline: middle; letter-spacing: 2px; }
+.led-scan { fill: url(#ledScan); opacity: .35; }
+.led-glow { fill: #ffb347; opacity: .18; filter: blur(14px); }
+.lite .led-glow { filter: none; opacity: .08; }
+.led-on { animation: ledFlick .5s steps(3) 1; }
+@keyframes ledFlick { 0% { opacity: .2 } 50% { opacity: 1 } 70% { opacity: .5 } 100% { opacity: 1 } }
+/* searchlights from the rooftops */
+.beam { fill: url(#beamG); transform-box: fill-box; mix-blend-mode: screen; }
+.beam.b1 { transform-origin: 50% 100%; animation: beamSwing 7s ease-in-out infinite alternate; }
+.beam.b2 { transform-origin: 50% 100%; animation: beamSwing 8.5s ease-in-out -3s infinite alternate-reverse; }
+@keyframes beamSwing { from { transform: rotate(-16deg) } to { transform: rotate(14deg) } }
+/* glass glint across the facade */
+.glint { fill: url(#glintG); mix-blend-mode: screen; transform: translateX(-900px); }
+.on .glint { animation: glint 3.2s cubic-bezier(.5,0,.3,1) 8.6s forwards; }
+@keyframes glint { to { transform: translateX(2400px) } }
+/* car light trails on the main road */
+.trail { fill: none; stroke-linecap: round; }
+.trail.w { stroke: #fff7e0; } .trail.r { stroke: #ff3b3b; }
+.trail.halo { stroke-width: 14; opacity: .28; } .trail.core { stroke-width: 4; }
+.on .trail { animation: drive var(--sp, 3s) linear var(--dl, 0s) infinite; }
+@keyframes drive { from { stroke-dashoffset: var(--from) } to { stroke-dashoffset: var(--to) } }
+/* rooftop string lights */
+.twk { fill: #ffe2a0; }
+.on .twk { animation: twinkle var(--tw, 1.6s) ease-in-out var(--td, 0s) infinite; }
+@keyframes twinkle { 0%, 100% { opacity: .25 } 50% { opacity: 1 } }
+
 /* bottom */
 .prog { position: absolute; left: 72px; right: 72px; bottom: 84px; display: flex; gap: 8px; z-index: 6; }
 .prog i { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
@@ -451,6 +492,22 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
       <img data-src="/assets/event/front-day" alt="Awami Market by day">
       <img class="night anim" data-src="/assets/event/front-night" alt="Awami Market at night">
       <i class="sweep anim"></i>
+      <svg class="ovl" viewBox="0 0 2000 1116" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs>
+          <linearGradient id="beamG" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fff3d1" stop-opacity=".85"/><stop offset="1" stop-color="#fff3d1" stop-opacity="0"/></linearGradient>
+          <linearGradient id="glintG" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".28"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+          <linearGradient id="ledG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2563eb"/><stop offset=".5" stop-color="#7c3aed"/><stop offset="1" stop-color="#db2777"/></linearGradient>
+          <pattern id="ledScan" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="1.4" fill="#000"/></pattern>
+        </defs>
+        <polygon class="glint" points="0,250 180,250 60,1000 -120,1000"/>
+        <g class="late" style="--at:7.4s">
+          <rect class="led-glow" x="930" y="585" width="205" height="150" rx="10"/>
+          <g class="led" id="led-1"><rect class="led-bg" x="946" y="598" width="175" height="122"/>
+          <text class="led-txt" id="led-a" x="1033" y="645" font-size="34">AWAMI</text>
+          <text class="led-sub" id="led-b" x="1033" y="688" font-size="15">MARKET</text>
+          <rect class="led-scan" x="946" y="598" width="175" height="122"/></g>
+        </g>
+      </svg>
     </div>
     <div class="shade"></div>
     <div class="ptext">
@@ -497,6 +554,17 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
       <div class="pin2 anim" style="left:56%;top:52%;animation-delay:2.2s"><span class="dot"></span><span class="tag2">Glass front, LED screen</span></div>
       <div class="pin2 anim" style="left:69%;top:68%;animation-delay:2.8s"><span class="dot"></span><span class="tag2">Parking in and out</span></div>
       <div class="pin2 l anim" style="left:86%;top:80%;animation-delay:3.4s"><span class="dot"></span><span class="tag2">Main road frontage</span></div>
+      <svg class="ovl" viewBox="0 0 2000 1116" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <g class="late" style="--at:6.6s">
+          <path class="trail halo r" d="M1240 1030 L1625 910 L1780 862 L2010 790" style="stroke-dasharray:70 900;--from:970;--to:0;--sp:2.6s;--dl:0s"/><path class="trail core r" d="M1240 1030 L1625 910 L1780 862 L2010 790" style="stroke-dasharray:70 900;--from:970;--to:0;--sp:2.6s;--dl:0s"/><path class="trail halo r" d="M1240 1030 L1625 910 L1780 862 L2010 790" style="stroke-dasharray:70 900;--from:970;--to:0;--sp:3.4s;--dl:-1.3s"/><path class="trail core r" d="M1240 1030 L1625 910 L1780 862 L2010 790" style="stroke-dasharray:70 900;--from:970;--to:0;--sp:3.4s;--dl:-1.3s"/><path class="trail halo r" d="M1240 1030 L1625 910 L1780 862 L2010 790" style="stroke-dasharray:70 900;--from:970;--to:0;--sp:2.9s;--dl:-2.2s"/><path class="trail core r" d="M1240 1030 L1625 910 L1780 862 L2010 790" style="stroke-dasharray:70 900;--from:970;--to:0;--sp:2.9s;--dl:-2.2s"/>
+          <path class="trail halo w" d="M1250 1085 L1700 948 L2010 852" style="stroke-dasharray:70 900;--from:0;--to:970;--sp:2.2s;--dl:0s"/><path class="trail core w" d="M1250 1085 L1700 948 L2010 852" style="stroke-dasharray:70 900;--from:0;--to:970;--sp:2.2s;--dl:0s"/><path class="trail halo w" d="M1250 1085 L1700 948 L2010 852" style="stroke-dasharray:70 900;--from:0;--to:970;--sp:3.1s;--dl:-1.1s"/><path class="trail core w" d="M1250 1085 L1700 948 L2010 852" style="stroke-dasharray:70 900;--from:0;--to:970;--sp:3.1s;--dl:-1.1s"/><path class="trail halo w" d="M1250 1085 L1700 948 L2010 852" style="stroke-dasharray:70 900;--from:0;--to:970;--sp:2.5s;--dl:-1.9s"/><path class="trail core w" d="M1250 1085 L1700 948 L2010 852" style="stroke-dasharray:70 900;--from:0;--to:970;--sp:2.5s;--dl:-1.9s"/>
+          <circle class="twk" cx="1035" cy="232" r="3.2" style="--tw:1.20s;--td:0.00s"/><circle class="twk" cx="1062" cy="240" r="3.2" style="--tw:1.55s;--td:-0.37s"/><circle class="twk" cx="1092" cy="236" r="3.2" style="--tw:1.90s;--td:-0.74s"/><circle class="twk" cx="1120" cy="232" r="3.2" style="--tw:2.25s;--td:-1.11s"/><circle class="twk" cx="1150" cy="240" r="3.2" style="--tw:2.60s;--td:-1.48s"/><circle class="twk" cx="930" cy="205" r="3.2" style="--tw:1.20s;--td:-1.85s"/><circle class="twk" cx="962" cy="214" r="3.2" style="--tw:1.55s;--td:-0.22s"/><circle class="twk" cx="704" cy="172" r="3.2" style="--tw:1.90s;--td:-0.59s"/><circle class="twk" cx="662" cy="162" r="3.2" style="--tw:2.25s;--td:-0.96s"/><circle class="twk" cx="842" cy="238" r="3.2" style="--tw:2.60s;--td:-1.33s"/><circle class="twk" cx="872" cy="248" r="3.2" style="--tw:1.20s;--td:-1.70s"/><circle class="twk" cx="482" cy="262" r="3.2" style="--tw:1.55s;--td:-0.07s"/><circle class="twk" cx="520" cy="276" r="3.2" style="--tw:1.90s;--td:-0.44s"/><circle class="twk" cx="1290" cy="300" r="3.2" style="--tw:2.25s;--td:-0.81s"/><circle class="twk" cx="1330" cy="310" r="3.2" style="--tw:2.60s;--td:-1.18s"/><circle class="twk" cx="1370" cy="318" r="3.2" style="--tw:1.20s;--td:-1.55s"/><circle class="twk" cx="1220" cy="288" r="3.2" style="--tw:1.55s;--td:-1.92s"/>
+          <g class="led" id="led-2"><rect class="led-bg" x="1058" y="645" width="118" height="80"/>
+          <text class="led-txt" id="led-c" x="1117" y="676" font-size="22">AWAMI</text>
+          <text class="led-sub" id="led-d" x="1117" y="704" font-size="11">MARKET</text>
+          <rect class="led-scan" x="1058" y="645" width="118" height="80"/></g>
+        </g>
+      </svg>
     </div>
     <div class="shade side"></div>
     <div class="ptitle">
@@ -1012,7 +1080,22 @@ function drawBudget() {
   document.getElementById('tlines').innerHTML = st.slice(1).map(([n, , t], i) => `<div class="tline in" style="animation-delay:${.4 + i * .15}s"><span>${n}</span><span class="num">${t}<small>min</small></span></div>`).join(''); })();
 
 /* ── 7 today ── */
+let ledT = 0;
+function ledMessages() {
+  const list = today(), last = list[list.length - 1];
+  const m = [['AWAMI', 'MARKET'], [fmt(open.length), 'OPEN TODAY'], ['BOOK', 'YOUR SHOP'], ['GT ROAD', 'KARKHANO']];
+  if (last) m.splice(2, 0, [last.c, 'JUST BOOKED']);
+  return m;
+}
+function runLed(a, b, g) {
+  clearInterval(ledT); let k = 0;
+  const show = () => { const box = document.getElementById(g); if (k % 2) { box.classList.add('off'); k++; return; } box.classList.remove('off'); const m = ledMessages(), [x, y] = m[(k++ / 2 | 0) % m.length];
+    a.forEach(e => { const el = document.getElementById(e); el.textContent = x; el.classList.remove('led-on'); void el.getBBox(); el.classList.add('led-on'); });
+    b.forEach(e => { document.getElementById(e).textContent = y; }); };
+  show(); ledT = setInterval(show, 1800);
+}
 function drawIntro() {
+  runLed(['led-a'], ['led-b'], 'led-1');
   const tot = FLOORS.reduce((s, f) => s + f.units.length, 0);
   document.getElementById('i-total').textContent = fmt(tot);
   document.getElementById('i-open').textContent = fmt(open.length);
@@ -1057,6 +1140,7 @@ function enter(sc) {
   if (sc.id === 's-qr') drawQr();
   if (sc.id === 's-fly') startFly();
   if (sc.id === 's-gallery') drawGallery();
+  if (sc.id === 's-aerial') runLed(['led-c'], ['led-d'], 'led-2');
   if (sc.id === 's-fast') drawFast();
   if (sc.id === 's-budget') drawBudget();
   sc.querySelectorAll('[data-count]').forEach(el => countUp(el, +el.dataset.count));
@@ -1076,7 +1160,7 @@ function next() {
   if (scenes[ix].id === 's-floor' && !drawFloor()) ix = (ix + 1) % scenes.length;   // no drawings: skip the plan
   if (ix === 0) { bars.forEach(b => b.classList.remove('done')); drawTicker(); }
   const sc = scenes[ix], dur = +sc.dataset.dur * 1000;
-  sc.querySelectorAll('.in, .fade, .anim').forEach(el => { el.style.animationName = 'none'; void el.offsetWidth; el.style.animationName = ''; });
+  sc.querySelectorAll('.in, .fade, .anim, .late, .glint, .sweep').forEach(el => { el.style.animationName = 'none'; void el.offsetWidth; el.style.animationName = ''; });
   sc.classList.add('on'); enter(sc);
   loadImgs(scenes[(ix + 1) % scenes.length]); loadImgs(scenes[(ix + 2) % scenes.length]);
   bars.forEach((b, i) => b.classList.toggle('done', i < ix));
