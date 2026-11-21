@@ -832,7 +832,7 @@ const MARKS = [
   { g: [33.98129, 71.44419], t: 'Tatara Park', ic: '♣', bg: '#16a34a', z: [13.2, 16] },
   { g: [34.0048, 71.4165], t: 'N5', c: 'road', ic: 'N5', bg: '#2563eb', z: [13.4, 16.2] },
   { g: [33.99869, 71.42405], t: 'Karkhano Market', ic: '🛒', bg: '#2563eb', z: [12.6, 16.1] },
-  { g: [33.998664, 71.421867], t: 'Sitara Market', ic: '🛒', bg: '#2563eb', z: [16.6, 20] },
+  { g: [33.998664, 71.421867], t: 'Sitara Market', ic: '🛒', bg: '#2563eb', z: [17.6, 20] },
 ];
 const KEYS = [   /* t seconds, lat, lon, zoom */
   [0, 33.999, 71.488, 11.55], [5.6, 34.001, 71.468, 12.2], [11.2, 33.9988, 71.432, 14.5],
@@ -877,8 +877,8 @@ function startFly() {
     const hp = line.getPointAtLength(L * pr); head.setAttribute('cx', hp.x); head.setAttribute('cy', hp.y); head.style.opacity = pr > 0 && pr < 1 ? fade : 0;
     MARKS.forEach((m, i) => { const [x, y] = scr(m.g[0], m.g[1]), on = cam.z >= m.z[0] && cam.z <= m.z[1] && t < 20;
       mEls[i].style.opacity = on ? 1 : 0; mEls[i].style.transform = `translate(${x - 22}px, ${y}px) translateY(-50%)`; });
-    pin.style.transform = `translate(${ax}px, ${ay}px)`; pin.style.opacity = cam.z > 15.6 ? 1 : 0;
-    if (!pinned && t > 15.4) { pinned = true; pin.classList.add('dropped'); }
+    pin.style.transform = `translate(${ax}px, ${ay}px)`; pin.style.opacity = cam.z > 16.9 ? 1 : 0;
+    if (!pinned && cam.z > 16.9) { pinned = true; pin.classList.add('dropped'); }
     steps.forEach(s => s.classList.toggle('show', t >= +s.dataset.from && t < +s.dataset.to));
     const mpp = 156543.03 * Math.cos(AW[0] * Math.PI / 180) / 2 ** cam.z, wkm = 1920 * mpp / 1000;
     document.getElementById('hud-w').textContent = wkm >= 1 ? wkm.toFixed(1) + ' km wide' : Math.round(wkm * 1000) + ' m wide';
