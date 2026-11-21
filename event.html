@@ -251,10 +251,15 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 .scene.full { inset: 0; padding: 0; }
 .kb { position: absolute; inset: 0; transform-origin: 50% 45%; }
 .kb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.on .kb.zoom-in { animation: kbIn var(--d, 14s) linear forwards; }
-.on .kb.zoom-out { animation: kbOut var(--d, 14s) linear forwards; }
-@keyframes kbIn { from { transform: scale(1.02) } to { transform: scale(1.14) translate(-1.5%, -1%) } }
-@keyframes kbOut { from { transform: scale(1.16) translate(1.5%, 1%) } to { transform: scale(1.03) } }
+.kb img { will-change: opacity; }
+.on .kb.zoom-in { animation: kbIn var(--d, 14s) cubic-bezier(.25,.1,.25,1) forwards; }
+.on .kb.zoom-out { animation: kbOut var(--d, 14s) cubic-bezier(.25,.1,.25,1) forwards; }
+.on .kb.pan { animation: kbPan var(--d, 14s) cubic-bezier(.45,.05,.35,1) forwards; }
+@keyframes kbIn { from { transform: scale(1.0) } to { transform: scale(1.09) translateY(-1%) } }
+@keyframes kbOut { from { transform: scale(1.12) } to { transform: scale(1.0) } }
+@keyframes kbPan { from { transform: scale(1.1) translateX(2.2%) } to { transform: scale(1.1) translateX(-2.2%) } }
+/* a soft vignette and a fine line of film grain keep the renders from looking flat */
+.kb::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 90% at 50% 45%, rgba(0,0,0,0) 55%, rgba(0,0,0,.42) 100%); }
 .shade { position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(180deg, rgba(7,11,24,.72) 0%, rgba(7,11,24,0) 22%, rgba(7,11,24,0) 42%, rgba(7,11,24,.6) 66%, rgba(7,11,24,.92) 100%); }
 .shade.side { background: linear-gradient(90deg, rgba(7,11,24,.82) 0%, rgba(7,11,24,.35) 38%, rgba(7,11,24,0) 60%), linear-gradient(180deg, rgba(7,11,24,.6) 0%, rgba(7,11,24,0) 20%, rgba(7,11,24,0) 75%, rgba(7,11,24,.75) 100%); }
@@ -263,39 +268,48 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 .ptext .lede { color: #dfe4f5; max-width: none; text-shadow: 0 4px 30px rgba(0,0,0,.6); }
 .ptext .lede b { font-weight: 500; color: #fff; }
 
-/* day turns to night: the night render is wiped in behind a line of light */
-/* the front lights up floor by floor, ground first */
-.kb .night { clip-path: inset(100% 0 0 0); }
-.on .kb .night { animation: lightsUp 4.2s steps(7, end) 3s forwards; }
-@keyframes lightsUp { to { clip-path: inset(0 0 0 0) } }
-.sweep-old { position: absolute; top: 0; bottom: 0; width: 4px; left: 0; opacity: 0;
-  background: linear-gradient(180deg, transparent, #fff6e0 30%, #fff 50%, #fff6e0 70%, transparent);
-  box-shadow: 0 0 40px 14px rgba(255,214,140,.55), 0 0 140px 50px rgba(255,190,110,.25); }
-.on .sweep-old { animation: none; }
-.sweep { position: absolute; left: 0; right: 0; top: 100%; height: 3px; opacity: 0; pointer-events: none;
-  background: linear-gradient(90deg, transparent, #ffe7b0 20%, #fff 50%, #ffe7b0 80%, transparent);
-  box-shadow: 0 0 30px 10px rgba(255,214,140,.55), 0 0 120px 40px rgba(255,190,110,.22); }
-.on .sweep { animation: lightLine 4.2s steps(7, end) 3s forwards, fadeOut .6s ease 7.2s forwards; }
-@keyframes lightLine { 0% { top: 100%; opacity: 1 } 100% { top: 0%; opacity: 1 } }
-@keyframes sweep { 0% { left: 0; opacity: 0 } 6% { opacity: 1 } 94% { opacity: 1 } 100% { left: 100%; opacity: 0 } }
+/* day to dusk: one long, even cross-fade, the way a time-lapse does it */
+.kb .night { opacity: 0; }
+.on .kb .night { animation: dissolve 3.6s cubic-bezier(.45,0,.25,1) 4.6s forwards; }
+@keyframes dissolve { to { opacity: 1 } }
+
+/* headline in photo scenes: each line rises out of a mask */
+.mask { display: block; overflow: hidden; padding-bottom: .08em; }
+.mask > span { display: block; transform: translateY(105%); }
+.on .mask > span { animation: maskUp 1.2s cubic-bezier(.16,1,.3,1) var(--md, .4s) forwards; }
+@keyframes maskUp { to { transform: none } }
+.rule { display: block; height: 1px; width: 0; margin: 22px 0 18px; background: linear-gradient(90deg, rgba(255,255,255,.85), rgba(255,255,255,0)); }
+.on .rule { animation: ruleIn 1.4s cubic-bezier(.16,1,.3,1) var(--md, 1s) forwards; }
+@keyframes ruleIn { to { width: 520px } }
+.stats3 { display: flex; gap: 56px; }
+.stats3 div { opacity: 0; transform: translateY(14px); }
+.on .stats3 div { animation: in .9s cubic-bezier(.16,1,.3,1) forwards; }
+.stats3 b { display: block; font-family: var(--display); font-weight: 200; font-size: 76px; line-height: 1; letter-spacing: -2px; font-variant-numeric: tabular-nums; }
+.stats3 span { display: block; margin-top: 8px; font-family: var(--mono); font-size: 15px; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,.7); }
 
 /* aerial: day fades to dusk, the places on it are pinned */
 .kb .later { opacity: 0; }
-.on .kb .later { animation: lit 2.4s ease 5.5s forwards; }
-.pin2 { position: absolute; transform: translate(-50%, -50%); opacity: 0; }
-.on .pin2 { animation: lit .8s ease forwards; }
-.pin2 .dot { display: block; position: relative; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 6px rgba(167,139,250,.45), 0 0 30px rgba(255,255,255,.8); }
-.pin2 .dot::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid #fff; animation: beacon 2.2s infinite; }
-.pin2 .tag2 { position: absolute; left: 34px; top: 50%; transform: translateY(-50%); white-space: nowrap; padding: 12px 22px; border-radius: 30px;
-  background: rgba(7,11,24,.62); border: 1px solid rgba(255,255,255,.2); backdrop-filter: blur(10px); font-size: 26px; font-family: var(--display); font-weight: 300; }
-.pin2.l .tag2 { left: auto; right: 34px; }
+.on .kb .later { animation: dissolve 3.4s cubic-bezier(.45,0,.25,1) 5s forwards; }
+.pin2 { position: absolute; width: 0; height: 0; opacity: 0; }
+.on .pin2 { animation: lit .7s ease forwards; }
+.pin2 .dot { position: absolute; left: -6px; top: -6px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 4px rgba(255,255,255,.22); }
+.pin2 .dot::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 1px solid rgba(255,255,255,.7); animation: beacon 2.6s ease-out infinite; }
+.pin2 .lead { position: absolute; left: 12px; top: 0; height: 1px; width: 0; background: rgba(255,255,255,.8); }
+.on .pin2 .lead { animation: leadIn .7s cubic-bezier(.16,1,.3,1) forwards; animation-delay: inherit; }
+@keyframes leadIn { to { width: 56px } }
+.pin2 .tag2 { position: absolute; left: 80px; top: 0; transform: translateY(-50%); white-space: nowrap; opacity: 0;
+  font-family: var(--display); font-weight: 300; font-size: 28px; line-height: 1.1; color: #fff; text-shadow: 0 2px 14px rgba(0,0,0,.9), 0 0 40px rgba(0,0,0,.6); }
+.pin2 .tag2 small { display: block; font-family: var(--mono); font-size: 12px; letter-spacing: 3px; color: rgba(255,255,255,.75); margin-bottom: 4px; }
+.on .pin2 .tag2 { animation: lit .8s ease forwards; animation-delay: inherit; }
+.pin2.l .lead { left: auto; right: 12px; }
+.pin2.l .tag2 { left: auto; right: 80px; text-align: right; }
 .ptitle { position: absolute; left: 72px; top: 150px; }
 .ptitle .h-l { text-shadow: 0 8px 40px rgba(0,0,0,.5); }
 
 /* gallery: two evening views, one after the other, with live prices */
-.on .kb .second { animation: lit 1.6s ease 6.5s forwards; }
+.on .kb .second { animation: dissolve 2.8s cubic-bezier(.45,0,.25,1) 6s forwards; }
 .kb .second { opacity: 0; }
-.lower { position: absolute; left: 72px; right: 72px; bottom: 140px; display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 40px; }
+.lower { position: absolute; left: 72px; right: 300px; bottom: 140px; display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 40px; }
 .lower .h-l { font-size: 88px; text-shadow: 0 8px 40px rgba(0,0,0,.5); }
 .prices { display: flex; gap: 18px; }
 .prices div { padding: 20px 28px; border-radius: 22px; background: rgba(7,11,24,.6); border: 1px solid rgba(255,255,255,.16); backdrop-filter: blur(12px); }
@@ -339,7 +353,7 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 .flytext .step { position: absolute; left: 0; top: 0; white-space: nowrap; opacity: 0; transform: translateY(20px); transition: opacity .7s, transform .7s; }
 .flytext .step.show { opacity: 1; transform: none; }
 .flytext .h-l { text-shadow: 0 8px 40px rgba(0,0,0,.6); }
-.hud { position: absolute; right: 72px; bottom: 110px; z-index: 2; padding: 16px 22px; border-radius: 16px; background: rgba(7,11,24,.7); border: 1px solid rgba(255,255,255,.15);
+.hud { position: absolute; left: 72px; bottom: 110px; z-index: 2; padding: 16px 22px; border-radius: 16px; background: rgba(7,11,24,.7); border: 1px solid rgba(255,255,255,.15);
   font-family: var(--mono); font-size: 17px; color: var(--soft); display: grid; gap: 6px; min-width: 300px; }
 .hud b { color: #fff; font-weight: 500; }
 .hud .bar { height: 4px; border-radius: 2px; background: rgba(255,255,255,.12); overflow: hidden; }
@@ -350,7 +364,7 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 .reveal img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.25); transition: transform 6s cubic-bezier(.2,0,.2,1); }
 .reveal.go img { transform: scale(1.04); }
 .reveal .ptext { bottom: 150px; }
-.osm { position: absolute; right: 72px; bottom: 84px; z-index: 4; font-family: var(--mono); font-size: 13px; color: rgba(255,255,255,.6); }
+.osm { position: absolute; left: 72px; bottom: 84px; z-index: 4; font-family: var(--mono); font-size: 13px; color: rgba(255,255,255,.6); }
 @keyframes ringOut { from { transform: scale(.4); opacity: 1 } to { transform: scale(3); opacity: 0 } }
 
 /* holds and reservations glow on the building */
@@ -422,13 +436,24 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
 .on .twk { animation: twinkle var(--tw, 1.6s) ease-in-out var(--td, 0s) infinite; }
 @keyframes twinkle { 0%, 100% { opacity: .25 } 50% { opacity: 1 } }
 
+/* the QR, always on screen; scenes that reach the bottom-right corner keep clear of it */
+#budget, .board { margin-right: 240px; }
+.spotcard { right: 240px !important; }
+#qrfix { position: absolute; right: 40px; bottom: 16px; z-index: 35; width: 200px; display: grid; justify-items: center; gap: 8px; padding: 14px 14px 12px; border-radius: 18px;
+  background: #0b1022; border: 1px solid rgba(255,255,255,.16); box-shadow: 0 18px 50px rgba(0,0,0,.45); transition: opacity .6s, transform .6s; }
+#qrfix .code { width: 168px; height: 168px; padding: 10px; border-radius: 10px; background: #fff; }
+#qrfix .code svg { width: 100%; height: 100%; display: block; }
+#qrfix span { font-family: var(--mono); font-size: 13px; line-height: 1.35; letter-spacing: 1.5px; text-transform: uppercase; color: #e6ebfa; text-align: center; }
+#qrfix.hide { opacity: 0; transform: translateY(12px); pointer-events: none; }
+
 /* bottom */
-.prog { position: absolute; left: 72px; right: 72px; bottom: 84px; display: flex; gap: 8px; z-index: 6; }
+.prog { position: absolute; left: 72px; right: 300px; bottom: 84px; display: flex; gap: 8px; z-index: 6; }
 .prog i { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
 .prog i b { display: block; height: 100%; width: 0; background: var(--grad); }
 .prog i.done b { width: 100%; }
 .ticker { position: absolute; left: 0; right: 0; bottom: 0; height: 64px; display: flex; align-items: center; overflow: hidden; z-index: 6; border-top: 1px solid var(--glass-line); background: rgba(7,11,24,.7); }
 .ticker .lbl { flex: none; height: 100%; display: flex; align-items: center; gap: 12px; padding: 0 40px 0 72px; font-family: var(--mono); font-size: 17px; letter-spacing: 4px; color: var(--avail); background: var(--ground); box-shadow: 30px 0 30px var(--ground); z-index: 1; }
+.ticker { clip-path: inset(0 252px 0 0); }
 .ticker .run { display: flex; gap: 64px; white-space: nowrap; font-size: 24px; color: var(--soft); animation: run 140s linear infinite; }
 .ticker .run b { font-family: var(--display); font-weight: 400; color: var(--ink); margin-right: 12px; }
 @keyframes run { to { transform: translateX(-50%) } }
@@ -491,29 +516,18 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
     <div class="kb zoom-in anim" style="--d:14s">
       <img data-src="/assets/event/front-day" alt="Awami Market by day">
       <img class="night anim" data-src="/assets/event/front-night" alt="Awami Market at night">
-      <i class="sweep anim"></i>
-      <svg class="ovl" viewBox="0 0 2000 1116" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <defs>
-          <linearGradient id="beamG" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fff3d1" stop-opacity=".85"/><stop offset="1" stop-color="#fff3d1" stop-opacity="0"/></linearGradient>
-          <linearGradient id="glintG" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".28"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
-          <linearGradient id="ledG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2563eb"/><stop offset=".5" stop-color="#7c3aed"/><stop offset="1" stop-color="#db2777"/></linearGradient>
-          <pattern id="ledScan" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="1.4" fill="#000"/></pattern>
-        </defs>
-        <polygon class="glint" points="0,250 180,250 60,1000 -120,1000"/>
-        <g class="late" style="--at:7.4s">
-          <rect class="led-glow" x="930" y="585" width="205" height="150" rx="10"/>
-          <g class="led" id="led-1"><rect class="led-bg" x="946" y="598" width="175" height="122"/>
-          <text class="led-txt" id="led-a" x="1033" y="645" font-size="34">AWAMI</text>
-          <text class="led-sub" id="led-b" x="1033" y="688" font-size="15">MARKET</text>
-          <rect class="led-scan" x="946" y="598" width="175" height="122"/></g>
-        </g>
-      </svg>
     </div>
     <div class="shade"></div>
+    <div class="shade" style="background:linear-gradient(75deg, rgba(7,11,24,.85) 0%, rgba(7,11,24,.45) 34%, rgba(7,11,24,0) 55%)"></div>
     <div class="ptext">
-      <div class="kicker in" style="animation-delay:.6s;color:#dfe4f5">Booking open today</div>
-      <h1 class="h-xl in" style="animation-delay:.9s;margin-top:18px">Awami <span class="grad">Market</span></h1>
-      <p class="lede in" style="animation-delay:1.3s;font-size:36px"><b id="i-total">1,430</b> shops, offices and apartments · <b id="i-open" style="color:var(--avail)">851</b> open for booking today</p>
+      <div class="kicker in" style="animation-delay:.3s;color:#dfe4f5">Karkhano Market · GT Road · Peshawar</div>
+      <h1 class="h-xl" style="margin-top:14px"><span class="mask" style="--md:.5s"><span>Awami <span class="grad">Market</span></span></span></h1>
+      <i class="rule" style="--md:1.2s"></i>
+      <div class="stats3">
+        <div style="animation-delay:1.5s"><b id="i-total">1,430</b><span>Units</span></div>
+        <div style="animation-delay:1.7s"><b id="i-open" style="color:var(--avail)">851</b><span>Open today</span></div>
+        <div style="animation-delay:1.9s"><b>7</b><span>Floors</span></div>
+      </div>
     </div>
   </section>
 
@@ -550,26 +564,15 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
     <div class="kb zoom-out anim" style="--d:14s">
       <img data-src="/assets/event/aerial-day" alt="Awami Market from above">
       <img class="later anim" data-src="/assets/event/aerial-dusk" alt="Awami Market from above at dusk">
-      <div class="pin2 anim" style="left:47%;top:19%;animation-delay:1.6s"><span class="dot"></span><span class="tag2">Rooftop terraces</span></div>
-      <div class="pin2 anim" style="left:56%;top:52%;animation-delay:2.2s"><span class="dot"></span><span class="tag2">Glass front, LED screen</span></div>
-      <div class="pin2 anim" style="left:69%;top:68%;animation-delay:2.8s"><span class="dot"></span><span class="tag2">Parking in and out</span></div>
-      <div class="pin2 l anim" style="left:86%;top:80%;animation-delay:3.4s"><span class="dot"></span><span class="tag2">Main road frontage</span></div>
-      <svg class="ovl" viewBox="0 0 2000 1116" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <g class="late" style="--at:6.6s">
-          <path class="trail halo r" d="M1240 1030 L1625 910 L1780 862 L2010 790" style="stroke-dasharray:70 900;--from:970;--to:0;--sp:2.6s;--dl:0s"/><path class="trail core r" d="M1240 1030 L1625 910 L1780 862 L2010 790" style="stroke-dasharray:70 900;--from:970;--to:0;--sp:2.6s;--dl:0s"/><path class="trail halo r" d="M1240 1030 L1625 910 L1780 862 L2010 790" style="stroke-dasharray:70 900;--from:970;--to:0;--sp:3.4s;--dl:-1.3s"/><path class="trail core r" d="M1240 1030 L1625 910 L1780 862 L2010 790" style="stroke-dasharray:70 900;--from:970;--to:0;--sp:3.4s;--dl:-1.3s"/><path class="trail halo r" d="M1240 1030 L1625 910 L1780 862 L2010 790" style="stroke-dasharray:70 900;--from:970;--to:0;--sp:2.9s;--dl:-2.2s"/><path class="trail core r" d="M1240 1030 L1625 910 L1780 862 L2010 790" style="stroke-dasharray:70 900;--from:970;--to:0;--sp:2.9s;--dl:-2.2s"/>
-          <path class="trail halo w" d="M1250 1085 L1700 948 L2010 852" style="stroke-dasharray:70 900;--from:0;--to:970;--sp:2.2s;--dl:0s"/><path class="trail core w" d="M1250 1085 L1700 948 L2010 852" style="stroke-dasharray:70 900;--from:0;--to:970;--sp:2.2s;--dl:0s"/><path class="trail halo w" d="M1250 1085 L1700 948 L2010 852" style="stroke-dasharray:70 900;--from:0;--to:970;--sp:3.1s;--dl:-1.1s"/><path class="trail core w" d="M1250 1085 L1700 948 L2010 852" style="stroke-dasharray:70 900;--from:0;--to:970;--sp:3.1s;--dl:-1.1s"/><path class="trail halo w" d="M1250 1085 L1700 948 L2010 852" style="stroke-dasharray:70 900;--from:0;--to:970;--sp:2.5s;--dl:-1.9s"/><path class="trail core w" d="M1250 1085 L1700 948 L2010 852" style="stroke-dasharray:70 900;--from:0;--to:970;--sp:2.5s;--dl:-1.9s"/>
-          <circle class="twk" cx="1035" cy="232" r="3.2" style="--tw:1.20s;--td:0.00s"/><circle class="twk" cx="1062" cy="240" r="3.2" style="--tw:1.55s;--td:-0.37s"/><circle class="twk" cx="1092" cy="236" r="3.2" style="--tw:1.90s;--td:-0.74s"/><circle class="twk" cx="1120" cy="232" r="3.2" style="--tw:2.25s;--td:-1.11s"/><circle class="twk" cx="1150" cy="240" r="3.2" style="--tw:2.60s;--td:-1.48s"/><circle class="twk" cx="930" cy="205" r="3.2" style="--tw:1.20s;--td:-1.85s"/><circle class="twk" cx="962" cy="214" r="3.2" style="--tw:1.55s;--td:-0.22s"/><circle class="twk" cx="704" cy="172" r="3.2" style="--tw:1.90s;--td:-0.59s"/><circle class="twk" cx="662" cy="162" r="3.2" style="--tw:2.25s;--td:-0.96s"/><circle class="twk" cx="842" cy="238" r="3.2" style="--tw:2.60s;--td:-1.33s"/><circle class="twk" cx="872" cy="248" r="3.2" style="--tw:1.20s;--td:-1.70s"/><circle class="twk" cx="482" cy="262" r="3.2" style="--tw:1.55s;--td:-0.07s"/><circle class="twk" cx="520" cy="276" r="3.2" style="--tw:1.90s;--td:-0.44s"/><circle class="twk" cx="1290" cy="300" r="3.2" style="--tw:2.25s;--td:-0.81s"/><circle class="twk" cx="1330" cy="310" r="3.2" style="--tw:2.60s;--td:-1.18s"/><circle class="twk" cx="1370" cy="318" r="3.2" style="--tw:1.20s;--td:-1.55s"/><circle class="twk" cx="1220" cy="288" r="3.2" style="--tw:1.55s;--td:-1.92s"/>
-          <g class="led" id="led-2"><rect class="led-bg" x="1058" y="645" width="118" height="80"/>
-          <text class="led-txt" id="led-c" x="1117" y="676" font-size="22">AWAMI</text>
-          <text class="led-sub" id="led-d" x="1117" y="704" font-size="11">MARKET</text>
-          <rect class="led-scan" x="1058" y="645" width="118" height="80"/></g>
-        </g>
-      </svg>
+      <div class="pin2 anim" style="left:52%;top:24%;animation-delay:2.2s"><span class="dot"></span><span class="lead" style="animation-delay:2.3000000000000003s"></span><span class="tag2" style="animation-delay:2.5500000000000003s"><small>ROOF</small>Terrace gardens</span></div>
+      <div class="pin2 anim" style="left:58%;top:62%;animation-delay:3.6s"><span class="dot"></span><span class="lead" style="animation-delay:3.7s"></span><span class="tag2" style="animation-delay:3.95s"><small>FRONT</small>Glass façade, LED screen</span></div>
+      <div class="pin2 anim" style="left:70%;top:72%;animation-delay:5s"><span class="dot"></span><span class="lead" style="animation-delay:5.1s"></span><span class="tag2" style="animation-delay:5.35s"><small>ACCESS</small>Parking in and out</span></div>
+      <div class="pin2 l anim" style="left:83%;top:83%;animation-delay:6.4s"><span class="dot"></span><span class="lead" style="animation-delay:6.5s"></span><span class="tag2" style="animation-delay:6.75s"><small>GT ROAD</small>Main road frontage</span></div>
     </div>
     <div class="shade side"></div>
     <div class="ptitle">
       <div class="kicker in" style="animation-delay:.4s;color:#dfe4f5">The landmark</div>
-      <h2 class="h-l in" style="animation-delay:.6s">A whole block,<br><span class="grad">on the main road</span></h2>
+      <h2 class="h-l" style="margin-top:14px"><span class="mask" style="--md:.5s"><span>A whole block,</span></span><span class="mask" style="--md:.65s"><span class="grad">on the main road</span></span></h2>
     </div>
   </section>
 
@@ -623,14 +626,14 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
   </section>
 
   <section class="scene full" id="s-gallery" data-dur="13">
-    <div class="kb zoom-in anim" style="--d:13s">
+    <div class="kb pan anim" style="--d:13s">
       <img data-src="/assets/event/street-dusk" alt="Awami Market from the street at dusk">
       <img class="second anim" data-src="/assets/event/street-evening" alt="Awami Market in the evening">
     </div>
     <div class="shade"></div>
     <div class="lower">
       <div><div class="kicker in" style="animation-delay:.4s;color:#dfe4f5">Open for booking</div>
-        <h2 class="h-l in" style="animation-delay:.6s">Your name<br>on <span class="grad">this front</span></h2></div>
+        <h2 class="h-l" style="margin-top:14px"><span class="mask" style="--md:.5s"><span>Your name</span></span><span class="mask" style="--md:.65s"><span>on <span class="grad">this front</span></span></span></h2></div>
       <div class="prices in" id="g-prices" style="animation-delay:1s"></div>
     </div>
   </section>
@@ -680,7 +683,7 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
         <div class="st in" style="animation-delay:.6s"><b>3</b>Get the payment plan as a PDF</div>
       </div>
     </div>
-    <div class="qrbox glass in" style="animation-delay:.4s"><div class="code" id="qr"></div><i class="scan"></i><div class="url" id="qr-url"></div></div>
+    <div class="qrbox glass in" style="animation-delay:.4s"><div class="code" id="qr"></div><i class="scan"></i><div class="url">Scan for updated availability</div></div>
   </section>
 
   <div id="booked"><canvas id="burst" width="1920" height="1080"></canvas>
@@ -692,6 +695,7 @@ body { background: var(--ground); color: var(--ink); font-family: var(--body); o
   </defs></svg>
   <div id="msg" hidden><div class="glass" style="padding:60px 70px;max-width:1100px"><div class="kicker">Event screen</div><h2 class="h-m" style="margin-top:20px"></h2><p class="label" style="margin-top:20px;font-size:26px"></p></div></div>
   <div class="prog" id="prog"></div>
+  <div id="qrfix"><div class="code" id="qr2"></div><span>Scan for updated<br>availability</span></div>
   <div class="ticker"><div class="lbl">● OPEN NOW</div><div class="run" id="run"></div></div>
 </div></div>
 
@@ -725,13 +729,13 @@ const LINK = (function () {
 })();
 const POLL_MS = 20000;
 const AVAIL_URL = location.origin + '/a/' + LINK;
-function drawQr() {
-  const box = document.getElementById('qr'); if (!box || box.firstChild || !window.qrcode || !LINK) return;
+function drawQr() { ['qr', 'qr2'].forEach(qrInto); }
+function qrInto(id) {
+  const box = document.getElementById(id); if (!box || box.firstChild || !window.qrcode || !LINK) return;
   const q = qrcode(0, 'M'); q.addData(AVAIL_URL); q.make();
   const n = q.getModuleCount(); let d = '';
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (q.isDark(y, x)) d += 'M' + x + ' ' + y + 'h1v1h-1z';
   box.innerHTML = '<svg viewBox="0 0 ' + n + ' ' + n + '" shape-rendering="crispEdges"><path d="' + d + '" fill="#070b18"/></svg>';
-  document.getElementById('qr-url').innerHTML = location.host + '<span>/a/' + LINK.slice(0, 6) + '…</span>';
 }
 
 const UP = ['LG','GF','FF','SF','TF','4F','5F'];
@@ -1095,7 +1099,6 @@ function runLed(a, b, g) {
   show(); ledT = setInterval(show, 1800);
 }
 function drawIntro() {
-  runLed(['led-a'], ['led-b'], 'led-1');
   const tot = FLOORS.reduce((s, f) => s + f.units.length, 0);
   document.getElementById('i-total').textContent = fmt(tot);
   document.getElementById('i-open').textContent = fmt(open.length);
@@ -1140,7 +1143,6 @@ function enter(sc) {
   if (sc.id === 's-qr') drawQr();
   if (sc.id === 's-fly') startFly();
   if (sc.id === 's-gallery') drawGallery();
-  if (sc.id === 's-aerial') runLed(['led-c'], ['led-d'], 'led-2');
   if (sc.id === 's-fast') drawFast();
   if (sc.id === 's-budget') drawBudget();
   sc.querySelectorAll('[data-count]').forEach(el => countUp(el, +el.dataset.count));
@@ -1162,6 +1164,7 @@ function next() {
   const sc = scenes[ix], dur = +sc.dataset.dur * 1000;
   sc.querySelectorAll('.in, .fade, .anim, .late, .glint, .sweep').forEach(el => { el.style.animationName = 'none'; void el.offsetWidth; el.style.animationName = ''; });
   sc.classList.add('on'); enter(sc);
+  document.getElementById('qrfix').classList.toggle('hide', sc.id === 's-qr');
   loadImgs(scenes[(ix + 1) % scenes.length]); loadImgs(scenes[(ix + 2) % scenes.length]);
   bars.forEach((b, i) => b.classList.toggle('done', i < ix));
   const fl = bars[ix].firstChild; fl.style.transition = 'none'; fl.style.width = '0'; void fl.offsetWidth; fl.style.transition = `width ${dur}ms linear`; fl.style.width = '100%';
@@ -1206,7 +1209,7 @@ const ldDone = () => document.getElementById('loader').classList.add('gone');
   try { const floors = await read(); ld(55, 'Loading the building'); loadPlans(PROJECT);   // drawings come in behind; the floor scene is skipped until they do
     await loadImgs(scenes[0]); ld(100); apply(floors); document.getElementById('msg').hidden = true; }
   catch (e) { ldDone(); console.error('event screen read failed', e); return say(e && e.link ? 'This link is turned off' : 'Cannot reach RMS', e && e.link ? 'Make a new share link in the sales portal.' : 'Check the internet connection; the screen will try again.'), setTimeout(boot, 15000); }
-  drawTicker(); next(); setTimeout(ldDone, 300);
+  drawTicker(); drawQr(); next(); setTimeout(ldDone, 300);
   loadImgs(scenes[1]);
   setInterval(poll, POLL_MS);
 })();
