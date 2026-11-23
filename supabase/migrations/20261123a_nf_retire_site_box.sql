@@ -1,5 +1,5 @@
 -- ══ NexuFinance: retire the site cash box — back to one Daily Closing, one login (20261123a) ══
--- NOT APPLIED. Owner, 23-Nov-2026: "sharose banaye ga excel mai hee closing aur ham phir khud osay nexufinance pe
+-- APPLIED 23-Nov-2026 as 20261123071949, on the owner's yes. Owner, 23-Nov-2026: "sharose banaye ga excel mai hee closing aur ham phir khud osay nexufinance pe
 -- update karaingay, is liye ham ne jo 2 closing concept banaya hai remove it … pehle jaisay kar do".
 -- Owner's terms (23-Nov):
 --   * Sharose's 75 vouchers (05-20 Nov) STAY, with their created_by and audit as they are.

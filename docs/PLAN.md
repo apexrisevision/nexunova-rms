@@ -4237,7 +4237,7 @@ Head Office sheet; toasts stack. Backfill as the owner: GF-250/251 Ali Haider 16
 V.Hold kept), GF-256 V.Hold for Uzair Ahmad 50,000. Orphans in Awami: GF-250, GF-251 only (325 Pagri without a
 reservation are Pagri by design). Dry run 14/14; browser check 47/47.
 
-## 56 · The site cash box retired — one Daily Closing, one login again (2026-11-23, NOT applied)
+## 56 · The site cash box retired — one Daily Closing, one login again (2026-11-23, applied 20261123071949)
 
 Owner, 23-Nov-2026: Sharose keeps his closing in Excel and head office posts it into NexuFinance, so the
 two-closing / two-login concept (§46–§49, §52) goes and NexuFinance works as it did before 17-Nov. Owner's terms:
