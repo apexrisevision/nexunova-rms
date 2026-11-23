@@ -1,5 +1,5 @@
 -- ══ Reserve Desk: Sharose gets the full reservation desk, like Iqra (20261123b) ══
--- NOT APPLIED. Owner, 23-Nov-2026: "Reservation link pe Sharose k liye login, jaisay ham ne IQRA ka banaya tha
+-- APPLIED 23-Nov-2026 as 20261123093504, on the owner's yes. Owner, 23-Nov-2026: "Reservation link pe Sharose k liye login, jaisay ham ne IQRA ka banaya tha
 -- taakay Sharose unit reservation, approve, hold sold wagaira kar sakay" — "poora desk, Iqra jaisa".
 -- Contact 03459102787.
 --
