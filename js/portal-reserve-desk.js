@@ -634,6 +634,9 @@
     // get_reserve_desk anyway, this only saves them a wasted screen.
     if (!ME || !ME.role) return true;               // unknown yet — let the server decide
     if (ME.role === 'lead_entry') return false;
+    // a login the server has named for the desk (can_authorize / can_decide) is let in
+    // whatever its role — Sharose is an 'accounts' login (20261123b); the server still decides
+    try { if ((typeof CAN_AUTH !== 'undefined' && CAN_AUTH) || (typeof CAN_DECIDE !== 'undefined' && CAN_DECIDE)) return true; } catch (e) {}
     try { if (_isOfficeRole(ME.role)) return false; } catch (e) {}
     return true;
   }

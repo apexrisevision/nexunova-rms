@@ -3378,7 +3378,7 @@ function setTab(t,_back){
   // The office side has no selling screens to wander into. Their app is their
   // own record, the company's notices and their profile — which for a guard or
   // an office boy is not a lesser app, it is the whole one.
-  if(ME && _isOfficeRole(ME.role) && !['myrecord','ess-att','ess-leave','ess-visit','ess-pay','ess-docs','ess-file','project','board','unitmap','home','updates','profile','torecover','collection','site'].includes(t)) t='myrecord';
+  if(ME && _isOfficeRole(ME.role) && !['myrecord','ess-att','ess-leave','ess-visit','ess-pay','ess-docs','ess-file','project','board','unitmap','home','updates','profile','torecover','collection','site'].concat((CAN_AUTH||CAN_DECIDE)?['desk','daybook']:[]).includes(t)) t='myrecord';
   if(_ESS_OFF.includes(t)) t='home';
   if(t==='desk' && !CAN_AUTH && !CAN_DECIDE) t='board';
   if(ESS_HIDDEN && t==='home' && ME && _isOfficeRole(ME.role)) t=_officeLanding(ME.role);
@@ -12921,7 +12921,11 @@ function _areaTxt(u){ const a=Number(u&&u.area||0); return a>0 ? a.toLocaleStrin
 // Units tab segmented control: All units (board) ⇄ My Bookings (reservations).
 // An office role cannot reserve or sell — reserve_unit refuses them server-side —
 // so a bookings tab that could only ever be empty is not offered to them.
-function _unitsSeg(){ if(_isOfficeRole(ME&&ME.role)) return '';
+function _unitsSeg(){ if(_isOfficeRole(ME&&ME.role)){
+    // an office login named for the desk (20261123b) gets the Desk beside the units; no "My Bookings" — it books for others
+    if(!(CAN_AUTH||CAN_DECIDE)) return '';
+    return '<div class="seg" style="margin:0 0 14px"><button class="so'+(TAB==='board'?' on':'')+'" onclick="setTab(\'board\')">All units</button>'
+      +'<button class="so'+(TAB==='desk'?' on':'')+'" onclick="setTab(\'desk\')">Desk</button></div>'; }
   return '<div class="seg" style="margin:0 0 14px">'
   +'<button class="so'+(TAB==='board'?' on':'')+'" onclick="setTab(\'board\')">All units</button>'
   +((CAN_AUTH||CAN_DECIDE)?'<button class="so'+(TAB==='desk'?' on':'')+'" onclick="setTab(\'desk\')">Desk</button>':'')
@@ -14116,7 +14120,7 @@ bootstrap().finally(function(){ _navReady = true; _armBack(); });
 <!-- portal-copy defines _portalCopy and MUST load before anything that copies -->
 <script src="js/portal-copy.js?v=20260907desk"></script>
 <script src="js/portal-sharelink.js?v=20260911pass"></script>
-<script src="js/portal-reserve-desk.js?v=20261022chgwa"></script>
+<script src="js/portal-reserve-desk.js?v=20261123desk"></script>
 <script src="js/portal-report-pdf.js?v=20260819detail"></script>
 <script src="js/portal-teamreport.js?v=20260818pdf"></script>
 <script src="js/portal-givenleads.js?v=20260820done"></script>
