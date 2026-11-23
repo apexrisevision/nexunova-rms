@@ -4236,3 +4236,27 @@ Screen: "Saved in NexuFinance, NOT in RMS — <unit>: <reason>" after a save; a 
 Head Office sheet; toasts stack. Backfill as the owner: GF-250/251 Ali Haider 16,76,250 each (hold records added,
 V.Hold kept), GF-256 V.Hold for Uzair Ahmad 50,000. Orphans in Awami: GF-250, GF-251 only (325 Pagri without a
 reservation are Pagri by design). Dry run 14/14; browser check 47/47.
+
+## 56 · The site cash box retired — one Daily Closing, one login again (2026-11-23, NOT applied)
+
+Owner, 23-Nov-2026: Sharose keeps his closing in Excel and head office posts it into NexuFinance, so the
+two-closing / two-login concept (§46–§49, §52) goes and NexuFinance works as it did before 17-Nov. Owner's terms:
+Sharose's 75 vouchers (05–20 Nov) stay with their created_by and audit; Cash in hand ↔ Petty cash transfer,
+nf_save_withdrawal (bank → petty) and the petty → bank deposit stay; DC-011 (20-Nov, OPEN, started by Sharose) goes
+into head office's name so the owner can close it; Sharose's NexuFinance access ends (nf_members.active = false,
+auth user and RMS login untouched); the Site Closing tables are dropped only when they hold 0 rows.
+
+Migration `20261123a_nf_retire_site_box.sql` (generated from the live database by
+`scripts/nf/gen-20261123a-retire-site-box.js`) and its rollback `20261123a_nf_retire_site_box_rollback.sql` (the live
+text and grants of every dropped function). It drops nf_site_days / nf_site_lines / nf_combined_closings (0 rows,
+checked inside the migration, which stops otherwise), 31 site functions, the site-match trigger on nf_vouchers, the
+bill-photo storage policies and the 'site' role; puts the cash-box labels back to "Cash in hand" / "Petty cash".
+The nf-site-bills bucket stays (empty, private): storage does not allow deleting it from SQL.
+Dry run (`scripts/nf/dryrun-20261123a.js`, migration + checks + rollback in one rolled-back request): books identical
+before / after / after rollback (533 vouchers, 1,124 legs, cash 4,80,250, petty 1,09,770, BOP 2,79,34,288.75, tokens
+14,88,16,000, Sharose's 75 vouchers); DC-011 in head office's name and head office can close it; Sharose has no
+membership and is refused; the combined WhatsApp brief says Petty cash, never Site Cash; the rollback restores every
+object.
+Screens: Site Closing screens and their API calls removed; no Head Office / site filter on the sheet; the WhatsApp
+report has one (combined) view; messages say Cash in hand / Petty cash. `scripts/nf/verify-nf-one-login-ui.js` 10/10.
+The two-login tests (verify-nf-two-logins-ui / -live) are retired with the feature.

@@ -43,7 +43,7 @@
     // transfers, no PDCs and no Submit / Close — head office does those.
     var isDirector = role === 'director';
     var myBox = ctx.cashVia || 'Cash';
-    var isSite = !isDirector && myBox === 'Petty';
+    var isSite = false;   // the site cash box login is retired (owner, 23-Nov-2026); its screen paths stay off
 
     // ── state ──────────────────────────────────────────────────────────────
     var S = {
@@ -307,7 +307,7 @@
       var siteName = ((S.lines || []).filter(function (l) { return l.by_box === 'Petty'; })[0] || {}).by_name ||
         (isSite ? ctx.displayName : '') || 'Site';
       var shown = S.lines.filter(function (l) {
-        return S.filter === 'all' || (S.filter === 'site' ? l.by_box === 'Petty' : l.by_box !== 'Petty');
+        return true;   // one Daily Closing, one login again (owner, 23-Nov-2026): no Head Office / site split
       });
       var savedIn = shown.filter(function (l) { return l.side === 'IN'; });
       var savedOut = shown.filter(function (l) { return l.side === 'OUT'; });
@@ -339,7 +339,6 @@
           }).join('') + '</section>'
         : '';
       return typeBar +
-        (isSite ? '' : '<section class="sec nf-whose-sec">' + filterBar + '</section>') +
         '<section class="sec"><div class="books">' +
         '  <div class="book in"><div class="bh"><h3><i></i>Receipts <small>CRV / BRV</small></h3><span class="cnt">' + savedIn.length + ' ' + (savedIn.length === 1 ? 'entry' : 'entries') + '</span></div>' +
         '    <div class="grid cols"><span>Voucher</span><span>Description and head</span><span>Party</span><span class="c">Floor</span><span class="c">Via</span><span class="r">Amount</span><span></span></div>' +
@@ -944,10 +943,7 @@
       var old = root.querySelector('#nf-wa-dialog'); if (old) old.remove();
       var host = document.createElement('div');
       host.className = 'nf-dialog-backdrop'; host.id = 'nf-wa-dialog';
-      var views = isSite ? '<p class="nf-wa-only">Site view</p>' :
-        '<div class="nf-wa-views" role="radiogroup" aria-label="View">' + [['site', 'Site only'], ['ho', 'Head Office only'], ['combined', 'Combined']].map(function (x, i) {
-          return '<label><input type="radio" name="nf-wa-view" value="' + x[0] + '"' + (x[0] === 'combined' ? ' checked' : '') + '> ' + x[1] + '</label>';
-        }).join('') + '</div>';
+      var views = '';   // one view again (owner, 23-Nov-2026): the whole day
       host.innerHTML = '<div class="nf-dialog" role="dialog" aria-modal="true" aria-labelledby="nf-wa-title" style="max-width:400px">' +
         '<h3 id="nf-wa-title">WhatsApp report</h3>' +
         '<div class="fld-row" style="grid-template-columns:1fr"><div><label for="nf-wa-date">Date</label><input type="date" id="nf-wa-date" value="' + esc(S.day ? S.day.business_date : '') + '"></div></div>' +
@@ -964,7 +960,7 @@
           if (!date) { err.textContent = 'Pick a date.'; err.hidden = false; return; }
           host.querySelectorAll('[data-wa]').forEach(function (x) { x.disabled = true; }); err.hidden = true;
           // preview first; Share / Save picture / Save PDF are on the preview (owner, 19-Nov)
-          global.NfWaReport.preview(api, companyId, date, isSite ? 'site' : (pick ? pick.value : 'combined'))
+          global.NfWaReport.preview(api, companyId, date, 'combined')
             .then(function () { host.remove(); })
             .catch(function (e) { host.querySelectorAll('[data-wa]').forEach(function (x) { x.disabled = false; }); err.textContent = Msg.forDay(e); err.hidden = false; });
         });
@@ -979,7 +975,7 @@
       host.className = 'nf-dialog-backdrop'; host.id = 'nf-xlsx-dialog';
       host.innerHTML = '<div class="nf-dialog" role="dialog" aria-modal="true" aria-labelledby="nf-xlsx-title" style="max-width:360px">' +
         '<h3 id="nf-xlsx-title">Daily cash &amp; bank book — Excel</h3>' +
-        '<p>Pick a date. The tab lists every entry of that date with who entered it, and Head Office Cash, Site Cash and the bank.</p>' +
+        '<p>Pick a date. The tab lists every entry of that date with who entered it, and the cash and bank closing.</p>' +
         '<div class="fld-row" style="grid-template-columns:1fr"><div><label for="nf-xlsx-date">Date</label><input type="date" id="nf-xlsx-date" value="' + esc(S.day ? S.day.business_date : '') + '"></div></div>' +
         '<p class="nfn-err" id="nf-xlsx-err" hidden></p>' +
         '<div class="actions"><button class="btn" type="button" id="nf-xlsx-cancel">Cancel</button><button class="btn primary" type="button" id="nf-xlsx-go">Download</button></div></div>';

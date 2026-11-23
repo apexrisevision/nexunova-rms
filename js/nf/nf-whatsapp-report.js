@@ -125,7 +125,7 @@
       out.push(t + ': ' + parts.join(', ') + '.');
       rec = [];
     }
-    if (told) trf = trf.filter(function (x) { return !(/BOP/.test(x.to || '') && x.from === 'Site Cash'); });
+    if (told) trf = trf.filter(function (x) { return !(/BOP/.test(x.to || '') && (x.from === 'Site Cash' || x.from === 'Petty cash')); });
     if (!sum(rep.received || [])) out.push('No money was received.');
     else if (!rec.length) { /* said above */ }
     else {

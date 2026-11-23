@@ -33,7 +33,7 @@
     // one closing, two logins (docs/PLAN.md §49)
     'NF:NOT_YOUR_CASH_BOX': function (err) {
       var d = err.detail || {};
-      return d.yours === 'Petty' ? 'Your cash entries go to Site Cash. Choose Site Cash or Bank.' : 'Your cash entries go to Head Office Cash. Choose Head Office Cash or Bank.';
+      return d.yours === 'Petty' ? 'Your cash entries go to Petty cash. Choose Petty cash or Bank.' : 'Your cash entries go to Cash in hand. Choose Cash in hand or Bank.';
     },
     'NF:NOT_YOUR_ENTRY': function (err) {
       var d = err.detail || {};
@@ -48,7 +48,7 @@
         (d.amount ? ', Rs ' + F.fmt(d.amount) : '') + ' — same ' + String(d.key || 'entry').replace(/^same /, '') + '. Not saved.';
     },
     'NF:REFERENCE_REQUIRED': function () { return 'Enter the deposit slip / reference number.'; },
-    'NF:TRANSFER_CASH_AND_SITE_BOX_ONLY': function () { return 'A cash transfer is between Head Office Cash and Site Cash only.'; },
+    'NF:TRANSFER_CASH_AND_SITE_BOX_ONLY': function () { return 'A cash transfer is between Cash in hand and Petty cash only.'; },
     'NF:CHEQUE_REQUIRED': function () { return 'Enter the cheque number.'; },
     'NF:DUPLICATE_CHEQUE': function (err) { var d = err.detail || {}; return 'Cheque ' + (d.cheque || '') + ' is already cashed' + (d.hidden ? ' (entered by Head Office).' : (d.voucher ? ' on ' + d.voucher + '.' : '.')); },
     'NF:VOUCHER_PREFIX': function () { return 'Receipts start CRV or BRV; payments start CPV or BPV.'; },

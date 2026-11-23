@@ -196,69 +196,11 @@
         return call('nf_get_monthly_trend', { p_company_id: companyId, p_from: from || null, p_to: to || null });
       },
 
-      // ── Site Closing (docs/SITE_CLOSING_SPEC.md) ──
-      // the site accountant's own day
-      siteGetDay: function (companyId, date) { return call('nf_site_get_day', { p_company_id: companyId, p_business_date: date }); },
-      siteListDays: function (companyId, from, to) {
-        return call('nf_site_list_days', { p_company_id: companyId, p_from: from || null, p_to: to || null });
-      },
-      siteListHeads: function (companyId) { return call('nf_site_list_heads', { p_company_id: companyId }); },
-      siteListUnits: function (companyId) { return call('nf_site_list_units', { p_company_id: companyId }); },
-      siteSaveLine: function (companyId, date, lineId, line, version) {
-        return call('nf_site_save_line', {
-          p_company_id: companyId, p_business_date: date, p_line_id: lineId || null, p_side: line.side,
-          p_doc_no: line.doc_no || null, p_party_name: line.party_name || null, p_unit_codes: line.unit_codes || null,
-          p_token_no: line.token_no === '' || line.token_no === null || line.token_no === undefined ? null : Number(line.token_no),
-          p_head_code: line.head_code, p_via: line.via, p_amount: line.amount,
-          p_bank_ref: line.bank_ref || null, p_remarks: line.remarks || null, p_attachment_url: line.attachment_url || null,
-          p_version: version === undefined ? null : version,
-        });
-      },
-      siteDeleteLine: function (lineId, version) { return call('nf_site_delete_line', { p_line_id: lineId, p_version: version }); },
-      siteSubmit: function (siteDayId, counted, denominations, varianceReason, version) {
-        return call('nf_site_submit', {
-          p_site_day_id: siteDayId, p_counted_cash: counted === undefined ? null : counted,
-          p_denominations: denominations || null, p_variance_reason: varianceReason || null, p_version: version,
-        });
-      },
-      siteReopen: function (siteDayId, reason, version) { return call('nf_site_reopen', { p_site_day_id: siteDayId, p_reason: reason || null, p_version: version }); },
-      // head office's review
-      siteReview: function (siteDayId) { return call('nf_site_review', { p_site_day_id: siteDayId }); },
-      siteMatch: function (siteDayId) { return call('nf_site_match', { p_site_day_id: siteDayId }); },
-      siteAccept: function (lineId, version, headCode, partyName) {
-        return call('nf_site_accept', { p_line_id: lineId, p_version: version, p_head_code: headCode || null, p_party_name: partyName || null });
-      },
-      siteAcceptNew: function (siteDayId, version) { return call('nf_site_accept_new', { p_site_day_id: siteDayId, p_version: version }); },
-      siteReject: function (lineId, version, reason) { return call('nf_site_reject', { p_line_id: lineId, p_version: version, p_reason: reason }); },
-      siteLink: function (lineId, version, voucherId, reason) {
-        return call('nf_site_link', { p_line_id: lineId, p_version: version, p_voucher_id: voucherId, p_reason: reason || null });
-      },
-      siteMarkDuplicate: function (lineId, version, voucherId) {
-        return call('nf_site_mark_duplicate', { p_line_id: lineId, p_version: version, p_voucher_id: voucherId });
-      },
-      siteReturn: function (siteDayId, reason, version) { return call('nf_site_return', { p_site_day_id: siteDayId, p_reason: reason, p_version: version }); },
-      // a bill photo, into the private bucket (migration 20261118b — not applied yet). Not an rpc:
-      // storage is the one other door this module opens, and only here.
-      uploadSiteBill: function (companyId, date, file) {
-        if (!sb.storage || typeof sb.storage.from !== 'function') return Promise.reject(new Error('Photo storage is not available.'));
-        var ext = ((file && file.name) || '').split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-        var path = companyId + '/' + date + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
-        return sb.storage.from('nf-site-bills').upload(path, file, { upsert: false, contentType: file.type || 'image/jpeg' })
-          .then(function (r) {
-            if (r.error) { var e = new Error('NF:PHOTO_UPLOAD'); e.code = 'NF:PHOTO_UPLOAD'; e.detail = r.error.message; throw e; }
-            return path;
-          });
-      },
-      // each HO voucher's manual no and real business date, for "Link to…" search (nf_get_journal
-      // does not carry them). A plain table read under the existing nf_vouchers read policy —
-      // HO roles only; a site user reads nothing here.
+      // each voucher's manual no and real business date (nf_get_journal does not carry them).
+      // A plain table read under the existing nf_vouchers read policy.
       voucherFacts: function (companyId) {
         return sb.from('nf_vouchers').select('id,manual_no,real_date').eq('company_id', companyId)
           .then(function (r) { if (r.error) { var e = new Error('NF:READ'); e.code = 'NF:READ'; e.detail = r.error.message; throw e; } return r.data || []; });
-      },
-      siteBillUrl: function (path) {
-        if (!path || !sb.storage) return Promise.resolve(null);
-        return sb.storage.from('nf-site-bills').createSignedUrl(path, 600).then(function (r) { return r.error ? null : r.data.signedUrl; });
       },
 
       // membership
