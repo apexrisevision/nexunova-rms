@@ -2978,12 +2978,14 @@ async function printApplicationForm() {
   const kind  = /bed|apartment|flat|studio|penthouse|residen/i.test(ut) ? 'Residential'
               : /shop|office|commercial|kiosk|showroom|counter/i.test(ut) ? 'Commercial' : '';
 
-  // Nominee: prefer the client's next-of-kin (the booking-nominee template);
-  // fall back to the sale-level nominee fields for legacy sales.
-  const nomName  = c.next_of_kin_name     || d.nominee_name     || '';
-  const nomCnic  = c.next_of_kin_cnic     || d.nominee_cnic     || '';
-  const nomRel   = c.next_of_kin_relation || d.nominee_relation || '';
-  const nomPhoto = c.next_of_kin_photo_url || '';
+  // Nominee: the sale's own first (a buyer with two units names one per unit — GF-250 / GF-251,
+  // 20261125a), then the client's next-of-kin for older sales that never stored one.
+  const ownNom   = !!d.nominee_name;
+  const nomName  = d.nominee_name     || c.next_of_kin_name     || '';
+  const nomCnic  = ownNom ? (d.nominee_cnic || '') : (c.next_of_kin_cnic || '');
+  const nomRel   = ownNom ? (d.nominee_relation || '') : (c.next_of_kin_relation || '');
+  const nomPhoto = d.nominee_photo_url
+    || ((!ownNom || d.nominee_name === c.next_of_kin_name) ? (c.next_of_kin_photo_url || '') : '');
 
   const Y = y => ((y > 3.6 ? 3.6 + (y - 3.6) * AF_SQ : y) + AF_DY).toFixed(3) + 'in';
   const X = x => x.toFixed(3) + 'in';
