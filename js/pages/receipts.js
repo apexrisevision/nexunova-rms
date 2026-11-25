@@ -87,7 +87,9 @@ async function _rvLoadAndRender() {
   tbl.innerHTML = NX.card(NX.empty({ icon:'info', message:'Loading…' }));
 
   try {
-    const filters = { date_from: _rvFilter.fr || null, date_to: _rvFilter.to || null, limit: 1000 };
+    // every voucher in range: the list RPC returns the OLDEST rows first, so a cap of 1,000 hid every receipt
+    // after the thousandth (FMH 1,580, KBH 2,136 on 25-Nov-2026) — a new receipt was saved but never listed
+    const filters = { date_from: _rvFilter.fr || null, date_to: _rvFilter.to || null, limit: 50000 };
     if (_rvFilter.mode !== 'All') filters.payment_method = _rvFilter.mode;
     const { data, error } = await supabase.rpc('list_payments_filtered', { p_company_id: S.cid, p_filters: filters });
     if (error) throw error;

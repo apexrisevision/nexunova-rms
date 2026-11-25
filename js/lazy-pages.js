@@ -84,7 +84,7 @@
 
     recovery: ['js/pages/recovery.js?v=20260614rec'],
     addpayment: ['js/pages/payments.js?v=20260721shift'],
-    receipts: ['js/pages/receipts.js?v=20260902words'],
+    receipts: ['js/pages/receipts.js?v=20261125all'],
     pdc: ['js/pages/pdc.js?v=20260613ps'],
     cancelledunits: ['js/pages/cancelled.js?v=20260720cxl'],
     transferunits: ['js/pages/transferred.js?v=20260613ps'],
