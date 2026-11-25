@@ -1,5 +1,5 @@
 -- ══ A sale keeps its own nominee (20261125a) ══
--- NOT APPLIED. Owner, 25-Nov-2026: "GF 250 aur GF251 … sale approval form banaya to us mai Nominee 250 mai aik dafa aur
+-- APPLIED 25-Nov-2026 as 20261125075944, on the owner's yes. Owner, 25-Nov-2026: "GF 250 aur GF251 … sale approval form banaya to us mai Nominee 250 mai aik dafa aur
 -- 251 mai dosra Nominee tha magar jab dono units ki sale banai to us mai aik hee nominee aa raha hai dono units mai"
 -- and "GF250 mai change the Zarbat Sair name to Zarafat Sair".
 -- Cause: _saf_make_sale wrote the form's nominee only onto the CLIENT (next of kin), never onto the sale. Ali Haider is
