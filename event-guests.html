@@ -75,12 +75,17 @@ td a{color:var(--g500);text-decoration:none;font-weight:600}
   <div><h1 id="hTitle">Event guests</h1><p id="hSub">Directors only · updates every 30 seconds</p></div>
   <div class="sp"></div>
   <select class="btn" id="evSel" hidden></select>
-  <button class="btn" id="csv" type="button">Excel (CSV)</button>
-  <button class="btn solid" id="pdf" type="button">Download PDF report</button>
+  <button class="btn" id="csv" type="button" hidden>Excel (CSV)</button>
+  <button class="btn solid" id="pdf" type="button" hidden>PDF report</button>
 </div></header>
 
 <div class="state" id="msg"><div><h2 id="msgT">Loading…</h2><p id="msgS"></p><p id="msgA" hidden><a class="btn solid" href="/crm" style="text-decoration:none">Open sales portal to sign in</a></p></div></div>
 
+<div id="pdfBar" hidden style="max-width:1280px;margin:14px auto 0;padding:0 16px"><div style="background:#fff7e2;border:1px solid #e3c57a;border-radius:12px;padding:12px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+  <b id="pdfMsg" style="color:#7a5d1c">PDF report is ready.</b>
+  <a id="pdfOpen" class="btn solid" target="_blank" rel="noopener" style="text-decoration:none">Open PDF</a>
+  <a id="pdfSave" class="btn" style="text-decoration:none;color:#0a2419;border-color:#c9a24b">Save to device</a>
+  <button type="button" class="btn" id="pdfClose" style="color:#0a2419;border-color:#d9d0bb;background:#fff;margin-left:auto">Close</button></div></div>
 <main id="app" hidden>
   <section class="kpis">
     <div class="kpi gold"><span>Total guests</span><b id="kTotal">0</b></div>
@@ -114,15 +119,15 @@ var $=function(id){return document.getElementById(id)};
 var TOK=null; try{ TOK=localStorage.getItem('rms.sales.token'); }catch(e){}
 var DATA=null, EV=null;
 function rpc(n,a){return fetch(API+n,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+KEY},body:JSON.stringify(a)}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})}
-function msg(t,s,signin){ $('app').hidden=true; $('msg').hidden=false; $('msgT').textContent=t; $('msgS').textContent=s||''; $('msgA').hidden=!signin; }
+function msg(t,s,signin){ $('csv').hidden=true; $('pdf').hidden=true; $('app').hidden=true; $('msg').hidden=false; $('msgT').textContent=t; $('msgS').textContent=s||''; $('msgA').hidden=!signin; }
 function pkt(ts){ return new Date(ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Karachi'}); }
 function hourOf(ts){ return +new Date(ts).toLocaleString('en-GB',{hour:'2-digit',hour12:false,timeZone:'Asia/Karachi'}); }
 function fmtPhone(p){ return /^03\d{9}$/.test(p)?p.slice(0,4)+' '+p.slice(4):p; }
 function load(){
-  if(!TOK){ msg('Sign in first','Open the sales portal on this browser with a director login, then come back to this page.',true); return; }
+  if(!TOK){ msg('Sign in first','Sign in to the sales portal in THIS same browser with a director login, then open this page again. (A link opened inside WhatsApp uses its own browser: open it in Chrome instead.)',true); return; }
   rpc('event_guest_list',{p_session_token:TOK,p_event_code:EV}).then(function(r){
     if(!r||!r.success){ if(r&&r.error==='not_allowed') msg('Directors only','Your login cannot see the guest register.'); else msg('Sign in again','Your session has ended. Open the sales portal and sign in.',true); return; }
-    DATA=r; EV=r.event; $('msg').hidden=true; $('app').hidden=false;
+    DATA=r; EV=r.event; $('msg').hidden=true; $('app').hidden=false; $('csv').hidden=false; $('pdf').hidden=false;
     var sel=$('evSel'); if((r.events||[]).length>1){ sel.hidden=false; sel.textContent=''; r.events.forEach(function(e){var o=document.createElement('option');o.value=e.code;o.textContent=e.title+' · '+e.date;if(e.code===EV)o.selected=true;sel.appendChild(o)}); }
     var e0=(r.events||[]).filter(function(e){return e.code===EV})[0]; if(e0){ $('hTitle').textContent=e0.title; }
     render();
@@ -170,7 +175,8 @@ function csv(){
 /* ── PDF report: every guest, desk-registered and self-registered (owner, 27-Nov) ── */
 function W(s){ return String(s==null?'':s).replace(/[–—]/g,'-').replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[^\x20-\x7E -ÿ]/g,''); }
 function pdfReport(){
-  if(!DATA||!window.PDFLib){ alert('Report not ready yet, try again in a moment.'); return; }
+  if(!DATA){ return; }
+  if(!window.PDFLib){ showPdf(null,'The PDF tool did not load. Check the internet and reload this page.'); return; }
   var btn=$('pdf'); btn.disabled=true; btn.textContent='Preparing…';
   var L=window.PDFLib, G=(DATA.guests||[]).slice();
   var ev=(DATA.events||[]).filter(function(e){return e.code===EV})[0]||{title:'Event guests',date:''};
@@ -223,11 +229,19 @@ function pdfReport(){
     });
     if(!G.length){ page.drawText('No guests registered yet.',{x:M+4,y:y-14,size:10,font:F,color:INK3}); }
     pages.forEach(function(pg,i){ pg.drawText('Page '+(i+1)+' of '+pages.length,{x:PW-M-60,y:14,size:7.5,font:F,color:INK3}); pg.drawText('Awami Market - confidential guest list',{x:M,y:14,size:7.5,font:F,color:INK3}); });
-    var out=await doc.save(); var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([out],{type:'application/pdf'}));
-    a.download='Guest Report - '+W(ev.title)+' ('+new Date().toLocaleDateString('en-GB',{timeZone:'Asia/Karachi'}).replace(/\//g,'-')+').pdf'; document.body.appendChild(a); a.click(); a.remove();
-  })().catch(function(e){ alert('Could not make the PDF: '+e.message); }).then(function(){ btn.disabled=false; btn.textContent='Download PDF report'; });
+    var out=await doc.save(); var url=URL.createObjectURL(new Blob([out],{type:'application/pdf'}));
+    var fname='Guest Report - '+W(ev.title)+' ('+new Date().toLocaleDateString('en-GB',{timeZone:'Asia/Karachi'}).replace(/\//g,'-')+').pdf';
+    showPdf({url:url,name:fname,n:G.length,pages:pages.length});
+  })().catch(function(e){ showPdf(null,'Could not make the PDF: '+e.message); }).then(function(){ btn.disabled=false; btn.textContent='PDF report'; });
 }
 $('pdf').addEventListener('click',pdfReport);
+function showPdf(r,err){
+  var bar=$('pdfBar'); bar.hidden=false; window.scrollTo({top:0,behavior:'smooth'});
+  if(!r){ $('pdfMsg').textContent=err; $('pdfOpen').hidden=true; $('pdfSave').hidden=true; return; }
+  $('pdfMsg').textContent='PDF report is ready: '+r.n+' guests, '+r.pages+' page'+(r.pages>1?'s':'')+'.';
+  $('pdfOpen').hidden=false; $('pdfSave').hidden=false; $('pdfOpen').href=r.url; $('pdfSave').href=r.url; $('pdfSave').setAttribute('download',r.name);
+}
+$('pdfClose').addEventListener('click',function(){ $('pdfBar').hidden=true; });
 $('q').addEventListener('input',table); $('fInt').addEventListener('change',table); $('fVip').addEventListener('change',table); $('csv').addEventListener('click',csv);
 $('evSel').addEventListener('change',function(){ EV=this.value; load(); });
 load(); setInterval(load,30000);
