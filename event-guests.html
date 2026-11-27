@@ -75,7 +75,8 @@ td a{color:var(--g500);text-decoration:none;font-weight:600}
   <div><h1 id="hTitle">Event guests</h1><p id="hSub">Directors only · updates every 30 seconds</p></div>
   <div class="sp"></div>
   <select class="btn" id="evSel" hidden></select>
-  <button class="btn solid" id="csv" type="button">Download Excel (CSV)</button>
+  <button class="btn" id="csv" type="button">Excel (CSV)</button>
+  <button class="btn solid" id="pdf" type="button">Download PDF report</button>
 </div></header>
 
 <div class="state" id="msg"><div><h2 id="msgT">Loading…</h2><p id="msgS"></p><p id="msgA" hidden><a class="btn solid" href="/crm" style="text-decoration:none">Open sales portal to sign in</a></p></div></div>
@@ -103,6 +104,7 @@ td a{color:var(--g500);text-decoration:none;font-weight:600}
   </section>
 </main>
 
+<script src="/vendor/pdf-lib.min.js?v=1.17.1"></script>
 <script>
 (function(){
 'use strict';
@@ -164,6 +166,68 @@ function csv(){
   var txt='﻿'+rows.map(function(r){return r.map(function(v){v=v==null?'':String(v); if(/^[=+\-@]/.test(v)) v="'"+v; return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')}).join('\r\n');
   var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'})); a.download='Event guests '+(EV||'')+'.csv'; document.body.appendChild(a); a.click(); a.remove();
 }
+
+/* ── PDF report: every guest, desk-registered and self-registered (owner, 27-Nov) ── */
+function W(s){ return String(s==null?'':s).replace(/[–—]/g,'-').replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[^\x20-\x7E -ÿ]/g,''); }
+function pdfReport(){
+  if(!DATA||!window.PDFLib){ alert('Report not ready yet, try again in a moment.'); return; }
+  var btn=$('pdf'); btn.disabled=true; btn.textContent='Preparing…';
+  var L=window.PDFLib, G=(DATA.guests||[]).slice();
+  var ev=(DATA.events||[]).filter(function(e){return e.code===EV})[0]||{title:'Event guests',date:''};
+  var GREEN=L.rgb(0.039,0.141,0.098), GOLD=L.rgb(0.79,0.635,0.294), INK=L.rgb(0.08,0.13,0.11), INK3=L.rgb(0.48,0.53,0.5), BAND=L.rgb(0.965,0.937,0.875), LINE=L.rgb(0.88,0.86,0.8);
+  (async function(){
+    var doc=await L.PDFDocument.create(); var F=await doc.embedFont(L.StandardFonts.Helvetica), FB=await doc.embedFont(L.StandardFonts.HelveticaBold);
+    var logo=null; try{ var bytes=await fetch('/assets/awami-logo-white.png').then(function(r){return r.arrayBuffer()}); logo=await doc.embedPng(bytes);}catch(e){}
+    var PW=842, PH=595, M=28;
+    var cols=[['#',26],['Time',38],['Guest name',112],['Mobile',70],['Reference',118],['Interest',62],['Guest type',96],['Area / City',66],['Remarks',112],['Registered by',86]];
+    var tw=cols.reduce(function(a,c){return a+c[1]},0); cols[8][1]+= (PW-2*M)-tw;
+    function wrap(t,font,size,w){ t=W(t); if(!t) return ['']; var words=t.split(' '), out=[], cur='';
+      words.forEach(function(wd){ var tr=cur?cur+' '+wd:wd; if(font.widthOfTextAtSize(tr,size)<=w) cur=tr; else { if(cur) out.push(cur); while(font.widthOfTextAtSize(wd,size)>w&&wd.length>1){ var k=wd.length; while(k>1&&font.widthOfTextAtSize(wd.slice(0,k),size)>w) k--; out.push(wd.slice(0,k)); wd=wd.slice(k);} cur=wd; } });
+      if(cur) out.push(cur); return out.slice(0,4); }
+    var pages=[], page, y;
+    var gen=new Date().toLocaleString('en-GB',{timeZone:'Asia/Karachi',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    function header(first){
+      page=doc.addPage([PW,PH]); pages.push(page);
+      page.drawRectangle({x:0,y:PH-(first?74:44),width:PW,height:first?74:44,color:GREEN});
+      page.drawRectangle({x:0,y:PH-(first?76:46),width:PW,height:2,color:GOLD});
+      if(logo){ var lh=first?30:20, lw=lh*logo.width/logo.height; page.drawImage(logo,{x:M,y:PH-(first?52:32),width:lw,height:lh}); }
+      page.drawText(W(ev.title)+' - Guest Report',{x:first?220:170,y:PH-(first?34:27),size:first?16:11,font:FB,color:L.rgb(1,1,1)});
+      if(first) page.drawText(W((ev.date?new Date(ev.date+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})+'   |   ':'')+'Generated '+gen+' PKT'),{x:220,y:PH-54,size:9,font:F,color:L.rgb(0.89,0.77,0.48)});
+      y=PH-(first?76:46)-14;
+    }
+    header(true);
+    // summary
+    var nDesk=G.filter(function(g){return g.source==='desk'}).length, nSelf=G.length-nDesk;
+    var boxes=[['Total guests',G.length],['Registered at desks',nDesk],['Self-registered (QR)',nSelf],['VIP',G.filter(function(g){return g.vip}).length],['Shields given',G.filter(function(g){return g.shield}).length]];
+    var bw=(PW-2*M-4*10)/5;
+    boxes.forEach(function(b,i){ var x=M+i*(bw+10); page.drawRectangle({x:x,y:y-44,width:bw,height:44,color:i===0?L.rgb(0.98,0.93,0.8):BAND});
+      page.drawText(W(b[0]).toUpperCase(),{x:x+10,y:y-15,size:7.5,font:FB,color:INK3}); page.drawText(String(b[1]),{x:x+10,y:y-36,size:17,font:FB,color:i===0?L.rgb(0.48,0.36,0.11):GREEN}); });
+    y-=58;
+    function tally(key){ var m={}; G.forEach(function(g){var k=g[key]||'Not given'; m[k]=(m[k]||0)+1}); return Object.keys(m).sort(function(a,b){return m[b]-m[a]}).map(function(k){return k+' '+m[k]}).join('   |   '); }
+    [['Interested in',tally('interest')],['Guest type',tally('guest_type')]].forEach(function(r){ page.drawText(W(r[0]+':'),{x:M,y:y,size:8.5,font:FB,color:INK}); page.drawText(W(r[1]||'-').slice(0,190),{x:M+70,y:y,size:8.5,font:F,color:INK}); y-=13; });
+    y-=6;
+    function thead(){ page.drawRectangle({x:M,y:y-16,width:PW-2*M,height:18,color:GREEN}); var x=M; cols.forEach(function(c){ page.drawText(c[0].toUpperCase(),{x:x+4,y:y-11,size:7,font:FB,color:L.rgb(1,1,1)}); x+=c[1]; }); y-=18; }
+    thead();
+    var FS=8, LH=10;
+    G.forEach(function(g,ri){
+      var t=new Date(g.at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Karachi'});
+      var name=(g.vip?'[VIP] ':'')+(g.shield?'[Shield] ':'')+g.name;
+      var vals=['#'+g.no,t,name,g.phone,[g.reference,g.reference_detail].filter(Boolean).join(' - '),g.interest,g.guest_type,g.city,g.remarks,g.source==='self'?'Self (QR)':((g.desk||'')+(g.receptionist?' - '+g.receptionist:''))];
+      var cells=vals.map(function(v,i){ return wrap(v,i===2?FB:F,FS,cols[i][1]-8); });
+      var lines=Math.max.apply(null,cells.map(function(c){return c.length})), h=lines*LH+8;
+      if(y-h<M+16){ header(false); thead(); }
+      if(ri%2===1) page.drawRectangle({x:M,y:y-h,width:PW-2*M,height:h,color:BAND});
+      var x=M; cells.forEach(function(c,i){ c.forEach(function(ln,j){ page.drawText(ln,{x:x+4,y:y-11-j*LH,size:FS,font:i===2?FB:F,color:i===0?L.rgb(0.48,0.36,0.11):INK}); }); x+=cols[i][1]; });
+      page.drawLine({start:{x:M,y:y-h},end:{x:PW-M,y:y-h},thickness:0.5,color:LINE});
+      y-=h;
+    });
+    if(!G.length){ page.drawText('No guests registered yet.',{x:M+4,y:y-14,size:10,font:F,color:INK3}); }
+    pages.forEach(function(pg,i){ pg.drawText('Page '+(i+1)+' of '+pages.length,{x:PW-M-60,y:14,size:7.5,font:F,color:INK3}); pg.drawText('Awami Market - confidential guest list',{x:M,y:14,size:7.5,font:F,color:INK3}); });
+    var out=await doc.save(); var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([out],{type:'application/pdf'}));
+    a.download='Guest Report - '+W(ev.title)+' ('+new Date().toLocaleDateString('en-GB',{timeZone:'Asia/Karachi'}).replace(/\//g,'-')+').pdf'; document.body.appendChild(a); a.click(); a.remove();
+  })().catch(function(e){ alert('Could not make the PDF: '+e.message); }).then(function(){ btn.disabled=false; btn.textContent='Download PDF report'; });
+}
+$('pdf').addEventListener('click',pdfReport);
 $('q').addEventListener('input',table); $('fInt').addEventListener('change',table); $('fVip').addEventListener('change',table); $('csv').addEventListener('click',csv);
 $('evSel').addEventListener('change',function(){ EV=this.value; load(); });
 load(); setInterval(load,30000);

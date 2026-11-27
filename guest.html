@@ -226,7 +226,9 @@ textarea.in{height:auto;min-height:76px;padding:12px 14px;resize:vertical;font-s
 .foot img{height:18px;opacity:.7;vertical-align:middle;margin-right:6px}
 
 /* ── compact one-screen layout (27-Nov): the whole desk form fits a laptop / tablet screen ── */
-.wrap{padding:14px 16px 16px;gap:16px;grid-template-columns:minmax(0,1fr) 330px}
+.wrap{padding:14px 16px 16px;gap:16px}
+@media (min-width:1021px){.wrap{grid-template-columns:minmax(0,1fr) 330px}}
+@media (max-width:1020px){.wrap{grid-template-columns:minmax(0,1fr)}}
 .form-card{padding:16px 20px 16px}
 .f-head{align-items:center;margin-bottom:12px}
 .f-head h1{font-size:23px}
@@ -255,7 +257,7 @@ textarea.in{height:auto;min-height:76px;padding:12px 14px;resize:vertical;font-s
 .save-row{margin-top:14px;gap:10px}
 .save{height:52px;font-size:17px}
 .clear{height:52px}
-.side{top:72px;gap:12px;max-height:calc(100vh - 88px)}
+.side{top:72px;gap:12px;max-height:calc(100vh - 106px)}
 .side .card{padding:14px}
 .side h2{font-size:17px;margin-bottom:10px}
 .mstat{padding:8px}
@@ -265,6 +267,7 @@ textarea.in{height:auto;min-height:76px;padding:12px 14px;resize:vertical;font-s
 .recent li{padding:8px 10px}
 @media (max-width:1020px){.side{max-height:none}.recent-card{flex:none}}
 @media (max-width:760px){.c2,.c3,.c4{grid-column:1/-1}.row-chips{display:block}.row-chips .lbl{margin-bottom:5px}}
+@media (max-width:560px){.wrap{padding:10px 10px 24px}.form-card{padding:14px 14px 14px}.f-head h1{font-size:21px}.chip{height:36px;font-size:14px;padding:0 11px}.save .k{display:none}.fld label em{flex-basis:auto;margin-top:0}}
 </style>
 </head>
 <body>
@@ -302,8 +305,8 @@ textarea.in{height:auto;min-height:76px;padding:12px 14px;resize:vertical;font-s
             <div class="hint" id="hName"></div>
           </div>
           <div class="fld c3">
-            <label for="gPhone">Mobile (WhatsApp) <span class="req">*</span> <em>overseas with +</em></label>
-            <div class="phone-wrap"><input class="in big" id="gPhone" inputmode="tel" maxlength="18" placeholder="03xx xxxxxxx" enterkeyhint="next"><span class="badge" id="phBadge" hidden></span></div>
+            <label for="gPhone">Mobile (WhatsApp) <span class="req">*</span> <em>11 digits, e.g. 03001234567</em></label>
+            <div class="phone-wrap"><input class="in big" id="gPhone" inputmode="numeric" maxlength="14" placeholder="03001234567" enterkeyhint="next"><span class="badge" id="phBadge" hidden></span></div>
             <div class="hint" id="hPhone"></div>
           </div>
           <div class="dup c6" id="dupBox" hidden></div>
@@ -369,7 +372,7 @@ textarea.in{height:auto;min-height:76px;padding:12px 14px;resize:vertical;font-s
       <form id="sf" autocomplete="on" novalidate>
         <div class="grid" style="grid-template-columns:1fr">
           <div class="fld"><label for="sName">Your name <span class="req">*</span></label><input class="in big" id="sName" maxlength="80" autocomplete="name" autocapitalize="words" placeholder="Full name"><div class="hint" id="shName"></div></div>
-          <div class="fld"><label for="sPhone">Mobile (WhatsApp) <span class="req">*</span></label><input class="in big" id="sPhone" inputmode="tel" autocomplete="tel" maxlength="18" placeholder="03xx xxxxxxx"><div class="hint" id="shPhone"></div></div>
+          <div class="fld"><label for="sPhone">Mobile (WhatsApp) <span class="req">*</span> <em>11 digits</em></label><input class="in big" id="sPhone" inputmode="numeric" autocomplete="tel" maxlength="14" placeholder="03001234567"><div class="hint" id="shPhone"></div></div>
           <div class="fld"><label for="sCity">Area / City</label><input class="in" id="sCity" maxlength="60" placeholder="e.g. Hayatabad" list="cityList2"><datalist id="cityList2"></datalist></div>
           <div class="fld"><span class="lbl">I am interested in</span><div class="chips" id="sInterest"></div></div>
           <div class="fld"><span class="lbl">How did you hear about the event?</span><div class="chips" id="sRef"></div></div>
@@ -433,10 +436,18 @@ function uuid(){ if(window.crypto&&crypto.randomUUID) return crypto.randomUUID()
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0;return (c=='x'?r:(r&3|8)).toString(16)}); }
 function cleanName(s){return String(s||'').replace(/\s+/g,' ').trim()}
 function titleCase(s){return s.replace(/\b([a-z])/g,function(m){return m.toUpperCase()})}
-function normPhone(p){
-  var raw=String(p||'').trim(), d=raw.replace(/[^0-9]/g,'');
-  if(/^\+/.test(raw)||/^00/.test(d)){ var core=d.replace(/^00/,''); if(/^92/.test(core)){ d=core; } else { return /^[1-9][0-9]{7,13}$/.test(core)?'+'+core:null; } }
-  d=d.replace(/^(0092|92|0)/,''); return /^3[0-9]{9}$/.test(d)?'0'+d:null;
+/* Mobile: exactly 11 digits, 03XXXXXXXXX (owner, 27-Nov). +92 / 0092 pasted from a contact is turned into 03. */
+function normPhone(p){ var d=digits11(p); return /^03\d{9}$/.test(d)?d:null; }
+function digits11(p){
+  var d=String(p||'').replace(/[^0-9]/g,'');
+  if(/^0092/.test(d)) d='0'+d.slice(4); else if(/^92/.test(d)&&d.length>=12) d='0'+d.slice(2);
+  return d.slice(0,11);
+}
+function phoneInput(inp,hint){
+  var d=digits11(inp.value); if(inp.value!==d) inp.value=d;
+  if(!d){ hint.textContent=''; hint.className='hint'; return; }
+  if(!/^0(3?)$/.test(d.slice(0,2))&&!/^03/.test(d)){ hint.textContent='Mobile must start with 03'; hint.className='hint bad'; return; }
+  hint.textContent=d.length<11?(d.length+' / 11 digits'):''; hint.className='hint';
 }
 function fmtPhone(p){ return /^03\d{9}$/.test(p)?p.slice(0,4)+' '+p.slice(4):p; }
 function initials(s){var p=String(s).replace(/\(.*\)/,'').trim().split(/\s+/);return ((p[0]||'')[0]||'').toUpperCase()+((p[1]||'')[0]||'').toUpperCase()}
@@ -551,7 +562,8 @@ $('refSearch').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.pr
 /* phone check */
 var phTimer;
 function phoneChanged(){
-  var v=$('gPhone').value, p=normPhone(v); DUP_FORCE=false; $('dupBox').hidden=true; $('gPhone').classList.remove('bad'); $('hPhone').textContent=''; $('hPhone').className='hint';
+  DUP_FORCE=false; $('dupBox').hidden=true; $('gPhone').classList.remove('bad'); phoneInput($('gPhone'),$('hPhone'));
+  var v=$('gPhone').value, p=normPhone(v);
   var bd=$('phBadge'); bd.hidden=true; clearTimeout(phTimer);
   if(!p) return;
   if(EDIT&&EDIT.phone===p) return;
@@ -574,14 +586,12 @@ function showDup(r){
   line.append(' at '+(r.desk||'another desk')+(r.at?(', '+r.at):'')+'.');
   box.appendChild(line);
   var acts=document.createElement('div'); acts.className='acts';
-  var a1=document.createElement('button'); a1.type='button'; a1.className='btn-s'; a1.textContent='Same guest · clear form'; a1.addEventListener('click',function(){ resetForm(); toast('','Not added again','This guest is already in the register.'); });
-  var a2=document.createElement('button'); a2.type='button'; a2.className='btn-s warn'; a2.textContent='Different person, same number'; a2.addEventListener('click',function(){ DUP_FORCE=true; box.hidden=true; $('hPhone').textContent='Will be saved as a second guest on this number.'; });
-  acts.appendChild(a1); acts.appendChild(a2); box.appendChild(acts);
+  var a1=document.createElement('button'); a1.type='button'; a1.className='btn-s'; a1.textContent='Clear form'; a1.addEventListener('click',function(){ resetForm(); toast('','Not added again','This guest is already in the register.'); });
+  acts.appendChild(a1); box.appendChild(acts);
 }
 
 function wireForm(){
   $('gPhone').addEventListener('input',phoneChanged);
-  $('gPhone').addEventListener('blur',function(){ var p=normPhone(this.value); if(p&&/^03/.test(p)) this.value=fmtPhone(p); });
   $('gName').addEventListener('blur',function(){ var n=cleanName(this.value); if(n && n===n.toLowerCase()) this.value=titleCase(n); });
   $('gName').addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.ctrlKey){ e.preventDefault(); $('gPhone').focus(); } });
   $('gPhone').addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.ctrlKey){ e.preventDefault(); openRef(); } });
@@ -601,14 +611,14 @@ function collect(){
 function validate(g){
   var ok=true;
   if(!g.guest_name||g.guest_name.length<2){ $('gName').classList.add('bad'); $('hName').textContent='Type the guest name.'; $('hName').className='hint bad'; ok=false; } else { $('gName').classList.remove('bad'); $('hName').textContent=''; }
-  if(!g.phone){ $('gPhone').classList.add('bad'); $('hPhone').textContent='Mobile must be 11 digits starting with 03, or an overseas number starting with +.'; $('hPhone').className='hint bad'; ok=false; }
+  if(!g.phone){ $('gPhone').classList.add('bad'); $('hPhone').textContent='Mobile must be exactly 11 digits starting with 03, e.g. 03001234567.'; $('hPhone').className='hint bad'; ok=false; }
   if(!ok) (!g.guest_name||g.guest_name.length<2?$('gName'):$('gPhone')).focus();
   return ok;
 }
 var saving=false;
 function save(){
   if(saving||!ME) return; var g=collect(); if(!validate(g)) return;
-  if(!$('dupBox').hidden && !DUP_FORCE){ toast('warn','Already registered','Choose "Same guest" or "Different person" first.'); return; }
+  if(!$('dupBox').hidden && !DUP_FORCE){ toast('warn','Already registered','This mobile is already in the register. One mobile, one guest.'); return; }
   saving=true; $('btnSave').disabled=true;
   if(EDIT){
     rpc('event_guest_edit',{p_token:TOKEN,p_id:EDIT.id,p_desk:ME.desk,p_guest:g}).then(function(r){
@@ -656,7 +666,7 @@ function resetForm(){
 }
 function startEdit(g){
   EDIT=g; resetFormKeepEdit();
-  $('gName').value=g.name||''; $('gPhone').value=fmtPhone(g.phone||''); $('gRefDetail').value=g.reference_detail||''; $('gCity').value=g.city||''; $('gRemarks').value=g.remarks||'';
+  $('gName').value=g.name||''; $('gPhone').value=g.phone||''; $('gRefDetail').value=g.reference_detail||''; $('gCity').value=g.city||''; $('gRemarks').value=g.remarks||'';
   var grp=null; (CFG.references||[]).forEach(function(x){ if(!x.channel&&(x.items||[]).indexOf(g.reference)>=0) grp=x.group; }); setRef(g.reference||null,grp);
   setChip($('cInterest'),g.interest); setChip($('cType'),g.guest_type); setChip($('cCity'),g.city);
   $('tVip').setAttribute('aria-pressed',g.vip?'true':'false'); $('tShield').setAttribute('aria-pressed',g.shield?'true':'false');
@@ -695,7 +705,7 @@ function row(g){
 }
 
 /* ═════════ SELF ═════════ */
-var SREF=null;
+var SREF=null, SELF_DUP=false;
 function bootSelf(ds){
   show('selfApp');
   $('sKicker').textContent=(EVENT.title||'Grand Launch')+(ds?(' · '+ds):'');
@@ -705,6 +715,9 @@ function bootSelf(ds){
   var dl=$('cityList2'); CFG.cities.forEach(function(c){var o=document.createElement('option');o.value=c;dl.appendChild(o)});
   var done=LS.get(KP+'done'); if(done){ thanks(done.no,done.name,true); }
   $('sf').addEventListener('submit',function(e){ e.preventDefault(); selfSave(); });
+  var sT; $('sPhone').addEventListener('input',function(){ $('sPhone').classList.remove('bad'); phoneInput(this,$('shPhone')); clearTimeout(sT); SELF_DUP=false; var p=normPhone(this.value); if(!p) return;
+    sT=setTimeout(function(){ rpc('event_guest_check',{p_token:TOKEN,p_phone:p}).then(function(r){ if(normPhone($('sPhone').value)!==p) return;
+      if(r&&r.success&&r.found){ SELF_DUP=true; $('shPhone').textContent='This mobile number is already registered. Please visit the reception desk.'; $('shPhone').className='hint bad'; } }).catch(function(){}); },250); });
   $('another').addEventListener('click',function(){ try{localStorage.removeItem(KP+'done')}catch(e){} ['sName','sPhone','sCity','sRefDetail'].forEach(function(id){$(id).value=''}); setChip($('sInterest'),null); setChip($('sRef'),null); SREF=null; $('sRefDetailBox').hidden=true; $('thanks').hidden=true; $('selfFormCard').hidden=false; $('sName').focus(); });
 }
 var sBusy=false;
@@ -712,7 +725,9 @@ function selfSave(){
   if(sBusy) return;
   var name=titleCase(cleanName($('sName').value)), ph=normPhone($('sPhone').value), ok=true;
   if(name.length<2){ $('sName').classList.add('bad'); $('shName').textContent='Please type your name.'; $('shName').className='hint bad'; ok=false; } else { $('sName').classList.remove('bad'); $('shName').textContent=''; }
-  if(!ph){ $('sPhone').classList.add('bad'); $('shPhone').textContent='Please type an 11-digit mobile, e.g. 0300 1234567.'; $('shPhone').className='hint bad'; ok=false; } else { $('sPhone').classList.remove('bad'); $('shPhone').textContent=''; }
+  if(!ph){ $('sPhone').classList.add('bad'); $('shPhone').textContent='Please type your 11-digit mobile, e.g. 03001234567.'; $('shPhone').className='hint bad'; ok=false; }
+  else if(SELF_DUP){ $('sPhone').classList.add('bad'); $('shPhone').textContent='This mobile number is already registered. Please visit the reception desk.'; $('shPhone').className='hint bad'; ok=false; }
+  else { $('sPhone').classList.remove('bad'); $('shPhone').textContent=''; }
   if(!ok) return;
   sBusy=true; $('sSave').disabled=true;
   var g={client_ref:(LS.get(KP+'ref')||uuid()),guest_name:name,phone:ph,city:cleanName($('sCity').value)||null,interest:chipVal($('sInterest')),reference:SREF,reference_detail:cleanName($('sRefDetail').value)||null};
