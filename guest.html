@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#071d15">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/assets/awami-mark.png">
+<title>Awami Market · Guest Register</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Awami Market guest register. Brand surface: deep green + gold, ivory cards.
+   Type: Playfair Display for titles, Inter for everything a receptionist reads fast. */
+:root{
+  --g900:#06170f; --g800:#0a2419; --g700:#0f3326; --g600:#164634; --g500:#1f5c45;
+  --gold:#c9a24b; --gold2:#e3c57a; --gold-ink:#7a5d1c; --gold-soft:#f6edd6;
+  --ivory:#fbf8f1; --card:#ffffff; --line:#e7e1d2; --line2:#d9d0bb;
+  --ink:#14211b; --ink2:#43524b; --ink3:#7b877f;
+  --ok:#15803d; --ok-bg:#e8f6ec; --warn:#a15c07; --warn-bg:#fdf3e1; --bad:#b42318; --bad-bg:#fdecea;
+  --r:16px; --r-sm:11px;
+  --shadow:0 1px 2px rgba(6,23,15,.06),0 8px 28px rgba(6,23,15,.10);
+  --serif:"Playfair Display",Georgia,serif; --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font-family:var(--sans);color:var(--ink);background:var(--g900);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+
+/* ground: the building at dusk, deep green over it */
+.ground{position:fixed;inset:0;z-index:-1;background:
+  linear-gradient(180deg,rgba(6,23,15,.72) 0%,rgba(6,23,15,.90) 38%,var(--g900) 70%),
+  url(/assets/event-guest-hero.jpg) center top/cover no-repeat;}
+.ground::after{content:"";position:absolute;inset:0;background:radial-gradient(1200px 500px at 85% -10%,rgba(201,162,75,.22),transparent 60%)}
+
+/* ── top bar ── */
+.top{position:sticky;top:0;z-index:20;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  background:rgba(6,23,15,.78);border-bottom:1px solid rgba(201,162,75,.25)}
+.top-in{max-width:1240px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top))}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand img{height:30px;width:auto;display:block}
+.brand .ev{border-left:1px solid rgba(201,162,75,.35);padding-left:12px;min-width:0}
+.brand .ev b{display:block;font-family:var(--serif);font-weight:500;color:#fff;font-size:16px;letter-spacing:.2px;white-space:nowrap}
+.brand .ev span{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold2);white-space:nowrap}
+.spacer{flex:1}
+.stats{display:flex;gap:6px}
+.stat{min-width:64px;text-align:center;padding:5px 10px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08)}
+.stat b{display:block;font-size:18px;line-height:1.1;color:#fff;font-variant-numeric:tabular-nums}
+.stat span{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.6)}
+.stat.gold b{color:var(--gold2)}
+.who{display:flex;align-items:center;gap:8px;padding:6px 6px 6px 12px;border-radius:999px;background:rgba(201,162,75,.14);border:1px solid rgba(201,162,75,.4);color:#fff}
+.who .dot{width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,.2)}
+.who.off .dot{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.25)}
+.who b{font-size:13px;font-weight:600;white-space:nowrap}
+.who small{font-size:12px;color:rgba(255,255,255,.7);white-space:nowrap}
+.who button{border:0;background:rgba(255,255,255,.1);color:#fff;border-radius:999px;padding:5px 10px;font-size:12px}
+
+/* ── layout ── */
+.wrap{max-width:1240px;margin:0 auto;padding:22px 16px 60px;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:22px;align-items:start}
+@media (max-width:1020px){.wrap{grid-template-columns:minmax(0,1fr)}.stats{display:none}}
+@media (max-width:560px){.brand .ev{display:none}.who small{display:none}.f-head p{display:none}.fld label{flex-wrap:wrap}.fld label em{flex-basis:100%;margin-top:2px}.f-head h1{font-size:24px}}
+
+.card{background:var(--ivory);border-radius:var(--r);box-shadow:var(--shadow);border:1px solid rgba(255,255,255,.6)}
+.form-card{padding:26px 26px 22px;position:relative;overflow:hidden}
+.form-card::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,var(--gold),var(--gold2),var(--gold))}
+@media (max-width:560px){.form-card{padding:20px 16px 18px}}
+.f-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:18px}
+.f-head h1{margin:0;font-family:var(--serif);font-weight:500;font-size:28px;line-height:1.15;color:var(--g800)}
+.f-head h1 i{color:var(--gold-ink)}
+.f-head p{margin:4px 0 0;color:var(--ink3);font-size:13px}
+.next-no{text-align:right;color:var(--ink3);font-size:11px;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap}
+.next-no b{display:block;font-family:var(--serif);font-size:26px;color:var(--gold-ink);letter-spacing:0;text-transform:none}
+
+.editing{display:flex;align-items:center;gap:10px;background:var(--gold-soft);border:1px solid #ead9a8;color:var(--gold-ink);padding:10px 12px;border-radius:var(--r-sm);margin:-4px 0 16px;font-size:14px}
+.editing b{font-weight:600}
+.editing button{margin-left:auto;border:1px solid #d9c389;background:#fff;border-radius:8px;padding:6px 10px;font-size:13px;color:var(--gold-ink)}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 16px}
+.full{grid-column:1/-1}
+@media (max-width:700px){.grid{grid-template-columns:1fr}}
+.fld label,.lbl{display:flex;align-items:baseline;gap:6px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin-bottom:7px}
+.lbl em,.fld label em{font-style:normal;text-transform:none;letter-spacing:0;font-weight:500;color:var(--ink3)}
+.req{color:var(--gold-ink)}
+.in{width:100%;height:52px;border-radius:var(--r-sm);border:1.5px solid var(--line2);background:#fff;padding:0 14px;font-size:17px;outline:none;transition:border-color .15s,box-shadow .15s}
+.in:focus{border-color:var(--g500);box-shadow:0 0 0 4px rgba(31,92,69,.13)}
+.in.big{height:58px;font-size:20px;font-weight:500}
+textarea.in{height:auto;min-height:76px;padding:12px 14px;resize:vertical;font-size:16px;line-height:1.4}
+.in.bad{border-color:var(--bad);box-shadow:0 0 0 4px rgba(180,35,24,.10)}
+.hint{font-size:12.5px;color:var(--ink3);margin-top:6px;min-height:18px}
+.hint.bad{color:var(--bad)}
+
+.phone-wrap{position:relative}
+.phone-wrap .badge{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:600;padding:5px 9px;border-radius:999px}
+.badge.new{background:var(--ok-bg);color:var(--ok)}
+.badge.wait{background:#eef1ef;color:var(--ink3)}
+.dup{margin-top:10px;border-radius:var(--r-sm);background:var(--warn-bg);border:1px solid #f1d39e;padding:12px 14px;color:#6b3d05;font-size:14px;line-height:1.45}
+.dup b{font-weight:700}
+.dup .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btn-s{height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--line2);background:#fff;font-size:14px;font-weight:600;color:var(--ink)}
+.btn-s.warn{border-color:#e7b866;color:#7a4606}
+
+/* chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{height:42px;padding:0 15px;border-radius:999px;border:1.5px solid var(--line2);background:#fff;font-size:15px;font-weight:500;color:var(--ink);transition:all .12s;display:inline-flex;align-items:center;gap:7px}
+.chip:hover{border-color:var(--g500)}
+.chip[aria-pressed="true"]{background:var(--g700);border-color:var(--g700);color:#fff;box-shadow:0 4px 12px rgba(15,51,38,.25)}
+.chip[aria-pressed="true"]::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--gold2)}
+.chips.sm .chip{height:36px;font-size:14px;padding:0 12px}
+
+/* reference picker */
+.pick{width:100%;min-height:52px;border-radius:var(--r-sm);border:1.5px solid var(--line2);background:#fff;padding:8px 14px;text-align:left;display:flex;align-items:center;gap:10px;font-size:17px}
+.pick .ph{color:var(--ink3)}
+.pick .grp{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-ink);background:var(--gold-soft);border-radius:6px;padding:3px 7px}
+.pick svg{margin-left:auto;flex:none;color:var(--ink3)}
+.pick:focus{outline:none;border-color:var(--g500);box-shadow:0 0 0 4px rgba(31,92,69,.13)}
+
+.toggles{display:flex;gap:10px;flex-wrap:wrap}
+.tg{flex:1;min-width:200px;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--r-sm);border:1.5px solid var(--line2);background:#fff;text-align:left}
+.tg .bx{width:26px;height:26px;border-radius:8px;border:2px solid var(--line2);display:grid;place-items:center;flex:none;transition:all .12s}
+.tg .bx svg{opacity:0;color:#fff}
+.tg b{display:block;font-size:15px;font-weight:600}
+.tg small{display:block;font-size:12.5px;color:var(--ink3)}
+.tg[aria-pressed="true"]{border-color:var(--gold);background:var(--gold-soft)}
+.tg[aria-pressed="true"] .bx{background:var(--gold);border-color:var(--gold)}
+.tg[aria-pressed="true"] .bx svg{opacity:1}
+
+.save-row{display:flex;align-items:center;gap:14px;margin-top:22px}
+.save{flex:1;height:60px;border:0;border-radius:14px;background:linear-gradient(180deg,#1b5a43,#0f3326);color:#fff;font-size:18px;font-weight:600;letter-spacing:.02em;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 10px 24px rgba(15,51,38,.32),inset 0 1px 0 rgba(255,255,255,.15);transition:transform .08s}
+.save:active{transform:scale(.99)}
+.save[disabled]{opacity:.6}
+.save .k{font-size:12px;font-weight:500;opacity:.65;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:2px 6px}
+@media (max-width:700px){.save .k{display:none}}
+.clear{height:60px;padding:0 18px;border-radius:14px;border:1.5px solid var(--line2);background:#fff;font-weight:600;color:var(--ink2)}
+
+/* side */
+.side{display:flex;flex-direction:column;gap:16px;position:sticky;top:84px}
+@media (max-width:1020px){.side{position:static}}
+.side .card{padding:18px}
+.side h2{margin:0 0 12px;font-family:var(--serif);font-weight:500;font-size:19px;color:var(--g800);display:flex;align-items:center;gap:8px}
+.side h2 small{margin-left:auto;font-family:var(--sans);font-size:12px;color:var(--ink3)}
+.mstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mstat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+.mstat b{display:block;font-size:22px;font-variant-numeric:tabular-nums;color:var(--g800)}
+.mstat span{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
+.recent{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.recent li{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.recent .no{font-family:var(--serif);font-size:16px;color:var(--gold-ink);min-width:38px}
+.recent .nm{min-width:0;flex:1}
+.recent .nm b{display:block;font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recent .nm span{display:block;font-size:12.5px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recent .tag{font-size:10.5px;font-weight:700;letter-spacing:.06em;padding:3px 6px;border-radius:6px;background:var(--gold-soft);color:var(--gold-ink)}
+.recent .tag.q{background:var(--warn-bg);color:var(--warn)}
+.recent button{border:1px solid var(--line2);background:#fff;border-radius:8px;height:32px;padding:0 10px;font-size:13px;font-weight:600;color:var(--ink2)}
+.empty{color:var(--ink3);font-size:14px;padding:14px;text-align:center;border:1px dashed var(--line2);border-radius:12px}
+.tips{margin:0;padding-left:18px;color:var(--ink2);font-size:13.5px;line-height:1.6}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:max(24px,env(safe-area-inset-bottom));transform:translate(-50%,30px);opacity:0;pointer-events:none;z-index:60;
+  background:var(--g800);color:#fff;border:1px solid rgba(201,162,75,.5);border-radius:16px;padding:14px 18px 14px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 18px 50px rgba(0,0,0,.35);transition:all .28s cubic-bezier(.2,.8,.2,1);max-width:calc(100vw - 32px)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast .ic{width:38px;height:38px;border-radius:50%;background:var(--gold);display:grid;place-items:center;flex:none}
+.toast.warn .ic{background:#f59e0b}
+.toast.bad .ic{background:#ef4444}
+.toast b{display:block;font-size:15px}
+.toast span{display:block;font-size:13px;color:rgba(255,255,255,.75)}
+.ic svg path{stroke-dasharray:30;stroke-dashoffset:30}
+.toast.show .ic svg path{animation:draw .45s .1s ease-out forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+/* overlays */
+.ov{position:fixed;inset:0;z-index:50;background:rgba(4,14,9,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:grid;place-items:center;padding:16px}
+.sheet{width:min(560px,100%);max-height:min(720px,calc(100vh - 32px));background:var(--ivory);border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.45);display:flex;flex-direction:column;overflow:hidden}
+.sheet-h{padding:18px 18px 12px;border-bottom:1px solid var(--line)}
+.sheet-h h3{margin:0 0 10px;font-family:var(--serif);font-weight:500;font-size:21px;color:var(--g800);display:flex;align-items:center}
+.sheet-h h3 button{margin-left:auto;border:0;background:#eee8da;border-radius:999px;width:34px;height:34px;display:grid;place-items:center}
+.sheet-b{overflow:auto;padding:8px 10px 14px}
+.grp-h{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-ink);padding:12px 8px 6px}
+.opt{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;text-align:left;padding:12px 10px;border-radius:10px;font-size:16px}
+.opt:hover,.opt.act{background:#fff}
+.opt .av{width:34px;height:34px;border-radius:50%;background:var(--g700);color:var(--gold2);display:grid;place-items:center;font-size:13px;font-weight:700;flex:none}
+.opt .av.ch{background:var(--gold-soft);color:var(--gold-ink)}
+
+.setup{width:min(620px,100%);background:var(--ivory);border-radius:22px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+.setup-top{padding:28px 28px 22px;background:linear-gradient(160deg,var(--g700),var(--g900));color:#fff;position:relative}
+.setup-top img{height:34px;display:block;margin-bottom:18px}
+.setup-top h2{margin:0;font-family:var(--serif);font-weight:500;font-size:28px;line-height:1.2}
+.setup-top h2 i{color:var(--gold2)}
+.setup-top p{margin:8px 0 0;color:rgba(255,255,255,.72);font-size:14px}
+.setup-b{padding:22px 28px 26px}
+.desks{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+@media (max-width:520px){.desks{grid-template-columns:repeat(2,1fr)}.setup-top,.setup-b{padding-left:18px;padding-right:18px}}
+.desk{height:84px;border-radius:14px;border:1.5px solid var(--line2);background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.desk small{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
+.desk b{font-family:var(--serif);font-size:28px;font-weight:500;color:var(--g800);line-height:1}
+.desk[aria-pressed="true"]{border-color:var(--g700);background:var(--g700)}
+.desk[aria-pressed="true"] small{color:var(--gold2)}
+.desk[aria-pressed="true"] b{color:#fff}
+
+.state{min-height:70vh;display:grid;place-items:center;text-align:center;color:#fff;padding:24px}
+.state h2{font-family:var(--serif);font-weight:500;font-size:28px;margin:14px 0 6px}
+.state p{color:rgba(255,255,255,.7);margin:0}
+.spin{width:38px;height:38px;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:var(--gold2);animation:sp 0.9s linear infinite;margin:0 auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── self (guest QR) mode ── */
+.self-wrap{max-width:620px;margin:0 auto;padding:0 16px 48px}
+.hero{padding:44px 6px 26px;text-align:center;color:#fff}
+.hero img.lg{height:46px;margin:0 auto 22px;display:block}
+.hero .k{font-size:11.5px;letter-spacing:.28em;text-transform:uppercase;color:var(--gold2)}
+.hero h1{margin:10px 0 8px;font-family:var(--serif);font-weight:500;font-size:clamp(30px,7vw,42px);line-height:1.12}
+.hero h1 i{color:var(--gold2)}
+.hero p{margin:0 auto;max-width:440px;color:rgba(255,255,255,.75);font-size:15px;line-height:1.5}
+.rule{width:64px;height:2px;margin:18px auto 0;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.thanks{padding:34px 24px 30px;text-align:center}
+.thanks .seal{width:84px;height:84px;margin:0 auto 14px;border-radius:50%;background:radial-gradient(circle at 30% 30%,var(--gold2),var(--gold));display:grid;place-items:center;box-shadow:0 12px 30px rgba(201,162,75,.45)}
+.thanks .seal svg path{stroke-dasharray:30;stroke-dashoffset:30;animation:draw .6s .2s ease-out forwards}
+.thanks h2{margin:0;font-family:var(--serif);font-weight:500;font-size:28px;color:var(--g800)}
+.thanks p{color:var(--ink2);margin:8px 0 0;font-size:15px;line-height:1.5}
+.ticket{margin:20px auto 0;max-width:280px;border:1.5px dashed var(--gold);border-radius:16px;padding:14px;background:#fff}
+.ticket small{display:block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3)}
+.ticket b{display:block;font-family:var(--serif);font-size:46px;color:var(--gold-ink);line-height:1.1}
+.foot{text-align:center;color:rgba(255,255,255,.45);font-size:12px;padding:20px 0 30px}
+.foot img{height:18px;opacity:.7;vertical-align:middle;margin-right:6px}
+</style>
+</head>
+<body>
+<div class="ground" aria-hidden="true"></div>
+
+<div id="loading" class="state"><div><div class="spin"></div><p style="margin-top:16px">Opening the guest register…</p></div></div>
+<div id="dead" class="state" hidden><div><img src="/assets/awami-logo-white.png" alt="Awami Market" style="height:40px"><h2>This link is not active</h2><p>Please ask the event office for the current guest register link.</p></div></div>
+
+<!-- ═════════ DESK MODE ═════════ -->
+<div id="deskApp" hidden>
+  <header class="top"><div class="top-in">
+    <div class="brand"><img src="/assets/awami-logo-white.png" alt="Awami Market"><div class="ev"><b id="evTitle">Grand Launch</b><span id="evDate">Guest Register</span></div></div>
+    <div class="spacer"></div>
+    <div class="stats">
+      <div class="stat gold"><b id="sTotal">0</b><span>Guests</span></div>
+      <div class="stat"><b id="sMine">0</b><span>My desk</span></div>
+      <div class="stat"><b id="sVip">0</b><span>VIP</span></div>
+    </div>
+    <div class="who" id="who"><span class="dot"></span><b id="whoDesk">Desk</b><small id="whoName"></small><button id="changeDesk" type="button">Change</button></div>
+  </div></header>
+
+  <main class="wrap">
+    <section class="card form-card">
+      <div class="f-head">
+        <div><h1>Welcome a <i>guest</i></h1><p>One guest at a time. Name and mobile are enough; the rest helps the sales team follow up.</p></div>
+        <div class="next-no" id="nextNoBox">Guests today<b id="nextNo">0</b></div>
+      </div>
+      <div class="editing" id="editBar" hidden><span>Editing guest <b id="editNo"></b></span><button type="button" id="editCancel">Cancel</button></div>
+
+      <form id="f" autocomplete="off" novalidate>
+        <div class="grid">
+          <div class="fld full">
+            <label for="gName">Guest name <span class="req">*</span></label>
+            <input class="in big" id="gName" name="guest_name" maxlength="80" placeholder="e.g. Haji Abdul Wahab" autocapitalize="words" enterkeyhint="next">
+            <div class="hint" id="hName"></div>
+          </div>
+          <div class="fld full">
+            <label for="gPhone">Mobile (WhatsApp) <span class="req">*</span> <em>11 digits, e.g. 0300 1234567 · overseas with +</em></label>
+            <div class="phone-wrap"><input class="in big" id="gPhone" inputmode="tel" maxlength="18" placeholder="03xx xxxxxxx" enterkeyhint="next"><span class="badge" id="phBadge" hidden></span></div>
+            <div class="hint" id="hPhone"></div>
+            <div class="dup" id="dupBox" hidden></div>
+          </div>
+          <div class="fld">
+            <span class="lbl">Who invited them / reference</span>
+            <button type="button" class="pick" id="refPick"><span class="ph">Choose a name or channel</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
+          </div>
+          <div class="fld">
+            <label for="gRefDetail">Reference detail <em>name, if not in the list</em></label>
+            <input class="in" id="gRefDetail" maxlength="120" placeholder="e.g. Friend of Haji Sahib">
+          </div>
+          <div class="fld full"><span class="lbl">Interested in</span><div class="chips" id="cInterest"></div></div>
+          <div class="fld full"><span class="lbl">Guest type</span><div class="chips" id="cType"></div></div>
+          <div class="fld">
+            <label for="gCity">Area / City</label>
+            <input class="in" id="gCity" maxlength="60" placeholder="e.g. Hayatabad" list="cityList">
+            <datalist id="cityList"></datalist>
+            <div class="chips sm" id="cCity" style="margin-top:8px"></div>
+          </div>
+          <div class="fld">
+            <label for="gRemarks">Remarks <em>budget, floor, booking today</em></label>
+            <textarea class="in" id="gRemarks" maxlength="400" placeholder="e.g. Wants 2 shops on ground floor, budget 1 crore"></textarea>
+          </div>
+          <div class="fld full toggles">
+            <button type="button" class="tg" id="tVip" aria-pressed="false"><span class="bx"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg></span><span><b>VIP guest</b><small>Seat in front, inform a director</small></span></button>
+            <button type="button" class="tg" id="tShield" aria-pressed="false"><span class="bx"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg></span><span><b>Shield given</b><small>Tick when the shield is handed over</small></span></button>
+          </div>
+        </div>
+        <div class="save-row">
+          <button type="button" class="clear" id="btnClear">Clear</button>
+          <button type="submit" class="save" id="btnSave"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12l5 5 9-10"/></svg><span id="saveTxt">Register guest</span><span class="k">Ctrl + Enter</span></button>
+        </div>
+      </form>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <h2>Live count <small id="syncAt"></small></h2>
+        <div class="mstats"><div class="mstat"><b id="mTotal">0</b><span>All desks</span></div><div class="mstat"><b id="mMine">0</b><span>This desk</span></div><div class="mstat"><b id="mShield">0</b><span>Shields</span></div></div>
+      </div>
+      <div class="card">
+        <h2>Your recent guests <small id="qInfo"></small></h2>
+        <ul class="recent" id="recent"></ul>
+      </div>
+      <div class="card">
+        <h2>Quick guide</h2>
+        <ol class="tips">
+          <li>Type the name, then the mobile. A green <b>New</b> tag means the guest is not in yet.</li>
+          <li>If the mobile is already in, the screen tells you where. Do not add the same guest twice.</li>
+          <li>Pick the reference, tap interest and guest type, then <b>Register guest</b>.</li>
+          <li>Made a mistake? Tap <b>Edit</b> on the guest in your recent list.</li>
+          <li>Internet gone? Keep going. Guests are kept on this device and sent when it is back.</li>
+        </ol>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<!-- ═════════ SELF (QR) MODE ═════════ -->
+<div id="selfApp" hidden>
+  <div class="self-wrap">
+    <div class="hero">
+      <img class="lg" src="/assets/awami-logo-white.png" alt="Awami Market">
+      <div class="k" id="sKicker">Grand Launch</div>
+      <h1>Welcome, you are our <i>honoured guest</i></h1>
+      <p>Please share a few details so our team can stay in touch with you about Awami Market.</p>
+      <div class="rule"></div>
+    </div>
+    <section class="card form-card" id="selfFormCard">
+      <form id="sf" autocomplete="on" novalidate>
+        <div class="grid" style="grid-template-columns:1fr">
+          <div class="fld"><label for="sName">Your name <span class="req">*</span></label><input class="in big" id="sName" maxlength="80" autocomplete="name" autocapitalize="words" placeholder="Full name"><div class="hint" id="shName"></div></div>
+          <div class="fld"><label for="sPhone">Mobile (WhatsApp) <span class="req">*</span></label><input class="in big" id="sPhone" inputmode="tel" autocomplete="tel" maxlength="18" placeholder="03xx xxxxxxx"><div class="hint" id="shPhone"></div></div>
+          <div class="fld"><label for="sCity">Area / City</label><input class="in" id="sCity" maxlength="60" placeholder="e.g. Hayatabad" list="cityList2"><datalist id="cityList2"></datalist></div>
+          <div class="fld"><span class="lbl">I am interested in</span><div class="chips" id="sInterest"></div></div>
+          <div class="fld"><span class="lbl">How did you hear about the event?</span><div class="chips" id="sRef"></div></div>
+          <div class="fld" id="sRefDetailBox" hidden><label for="sRefDetail" id="sRefDetailLbl">Name of the person who invited you</label><input class="in" id="sRefDetail" maxlength="120"></div>
+        </div>
+        <div class="save-row"><button type="submit" class="save" id="sSave"><span>Submit</span></button></div>
+      </form>
+    </section>
+    <section class="card thanks" id="thanks" hidden>
+      <div class="seal"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></div>
+      <h2 id="tTitle">Thank you</h2>
+      <p id="tMsg">Your details are with us. Please show this screen at the reception desk.</p>
+      <div class="ticket"><small>Guest number</small><b id="tNo">#0</b></div>
+      <p style="margin-top:18px"><button type="button" class="btn-s" id="another">Register another guest on this phone</button></p>
+    </section>
+    <div class="foot"><img src="/assets/fourteen-logo-white.png" alt="">A Fourteen Group project</div>
+  </div>
+</div>
+
+<!-- setup: desk + receptionist -->
+<div class="ov" id="setup" hidden>
+  <div class="setup">
+    <div class="setup-top"><img src="/assets/awami-logo-white.png" alt="Awami Market"><h2>Reception <i>desk</i> setup</h2><p>Choose your desk and type your name. This tablet remembers it.</p></div>
+    <div class="setup-b">
+      <span class="lbl">Desk</span>
+      <div class="desks" id="deskTiles"></div>
+      <div class="fld"><label for="rName">Your name</label><input class="in" id="rName" maxlength="60" placeholder="Receptionist name"></div>
+      <div class="hint bad" id="hSetup"></div>
+      <div class="save-row" style="margin-top:14px"><button type="button" class="save" id="setupGo">Start registering guests</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- reference picker sheet -->
+<div class="ov" id="refSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="Reference">
+    <div class="sheet-h"><h3>Reference <button type="button" id="refClose" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6 6 18"/></svg></button></h3>
+      <input class="in" id="refSearch" placeholder="Search a name…" autocomplete="off"></div>
+    <div class="sheet-b" id="refList"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></div><div><b id="toastT"></b><span id="toastS"></span></div></div>
+
+<script>
+(function(){
+'use strict';
+var SUPABASE_URL='https://itqxljtfbrppntgyfush.supabase.co';
+var KEY='sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG';
+var API=(window.__GUEST_API__)||(SUPABASE_URL+'/rest/v1/rpc/');
+var TOKEN=(location.pathname.match(/\/g\/([A-Za-z0-9]+)/)||[])[1]||new URLSearchParams(location.search).get('t')||'';
+var $=function(id){return document.getElementById(id)};
+var LS={get:function(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+var KP='ag.'+TOKEN.slice(0,8)+'.';
+
+function rpc(name,args){
+  return fetch(API+name,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+KEY},body:JSON.stringify(args)})
+    .then(function(r){ if(!r.ok) return r.text().then(function(t){var e=new Error('http '+r.status+' '+t);e.http=r.status;throw e}); return r.json(); });
+}
+function uuid(){ if(window.crypto&&crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0;return (c=='x'?r:(r&3|8)).toString(16)}); }
+function cleanName(s){return String(s||'').replace(/\s+/g,' ').trim()}
+function titleCase(s){return s.replace(/\b([a-z])/g,function(m){return m.toUpperCase()})}
+function normPhone(p){
+  var raw=String(p||'').trim(), d=raw.replace(/[^0-9]/g,'');
+  if(/^\+/.test(raw)||/^00/.test(d)){ var core=d.replace(/^00/,''); if(/^92/.test(core)){ d=core; } else { return /^[1-9][0-9]{7,13}$/.test(core)?'+'+core:null; } }
+  d=d.replace(/^(0092|92|0)/,''); return /^3[0-9]{9}$/.test(d)?'0'+d:null;
+}
+function fmtPhone(p){ return /^03\d{9}$/.test(p)?p.slice(0,4)+' '+p.slice(4):p; }
+function initials(s){var p=String(s).replace(/\(.*\)/,'').trim().split(/\s+/);return ((p[0]||'')[0]||'').toUpperCase()+((p[1]||'')[0]||'').toUpperCase()}
+var toastTimer;
+function toast(kind,t,s){ var el=$('toast'); el.className='toast '+(kind||''); $('toastT').textContent=t; $('toastS').textContent=s||'';
+  void el.offsetWidth; el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(function(){el.classList.remove('show')}, kind==='bad'?4200:2600); }
+function chips(box,items,opts){
+  opts=opts||{}; box.textContent='';
+  items.forEach(function(it){ var b=document.createElement('button'); b.type='button'; b.className='chip'; b.textContent=it; b.setAttribute('aria-pressed','false');
+    b.addEventListener('click',function(){ var on=b.getAttribute('aria-pressed')==='true';
+      box.querySelectorAll('.chip').forEach(function(x){x.setAttribute('aria-pressed','false')});
+      if(!on) b.setAttribute('aria-pressed','true'); if(opts.onPick) opts.onPick(on?null:it); });
+    box.appendChild(b); });
+}
+function chipVal(box){ var b=box.querySelector('.chip[aria-pressed="true"]'); return b?b.textContent:null; }
+function setChip(box,v){ box.querySelectorAll('.chip').forEach(function(x){x.setAttribute('aria-pressed', x.textContent===v?'true':'false')}); }
+
+var CFG=null, EVENT=null;
+var DEFAULTS={
+  desks:['Desk 1','Desk 2','Desk 3','Desk 4'],
+  interests:['Shop','Office','Apartment','Shop + Office','Just visiting'],
+  guest_types:['Business owner (will run shop)','Investor','Buyer for own use','Agent / dealer','Other'],
+  cities:['Peshawar','Karkhano','Hayatabad','University Town','Mardan','Charsadda','Nowshera','Kohat','Islamabad','Overseas'],
+  references:[], self_references:['Invitation card','A Fourteen Group team member','Facebook / Instagram','WhatsApp message','Banner / board','Friend / family','Walked in']
+};
+
+function boot(){
+  if(!TOKEN){ show('dead'); return; }
+  rpc('event_guest_config',{p_token:TOKEN}).then(function(r){
+    if(!r||!r.success){ show('dead'); return; }
+    EVENT=r; CFG=Object.assign({},DEFAULTS,r.config||{});
+    var d=r.date?new Date(r.date+'T00:00:00'):null;
+    var ds=d?d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}):'';
+    document.title=(r.mode==='self'?'Welcome · ':'Guest Register · ')+(r.title||'Awami Market');
+    if(r.mode==='self') bootSelf(ds); else bootDesk(ds);
+  }).catch(function(){
+    var cached=LS.get(KP+'cfg'); if(cached){ EVENT=cached; CFG=Object.assign({},DEFAULTS,cached.config||{}); (cached.mode==='self'?bootSelf:bootDesk)(''); toast('warn','No internet','Working offline. Guests will be sent later.'); }
+    else { show('dead'); $('dead').querySelector('h2').textContent='No internet connection'; $('dead').querySelector('p').textContent='Connect to Wi-Fi or mobile data and reload this page.'; }
+  });
+}
+function show(id){ ['loading','dead','deskApp','selfApp'].forEach(function(x){ $(x).hidden=(x!==id); }); }
+
+/* ═════════ DESK ═════════ */
+var ME=LS.get(KP+'me')||null, EDIT=null, DUP_FORCE=false, LAST_CHECK=null, FEED=null;
+var QUEUE=LS.get(KP+'queue')||[];
+function bootDesk(ds){
+  LS.set(KP+'cfg',EVENT);
+  show('deskApp');
+  $('evTitle').textContent=EVENT.title||'Grand Launch'; $('evDate').textContent=ds?('Guest Register · '+ds):'Guest Register';
+  chips($('cInterest'),CFG.interests); chips($('cType'),CFG.guest_types);
+  chips($('cCity'),CFG.cities.slice(0,6),{onPick:function(v){ $('gCity').value=v||''; }});
+  var dl=$('cityList'); CFG.cities.forEach(function(c){var o=document.createElement('option');o.value=c;dl.appendChild(o)});
+  buildDeskTiles();
+  if(!ME||CFG.desks.indexOf(ME.desk)<0) openSetup(); else applyMe();
+  wireForm(); renderRecent(); refresh(); setInterval(refresh,15000); setInterval(flushQueue,8000);
+  window.addEventListener('online',function(){ netState(true); flushQueue(); refresh(); });
+  window.addEventListener('offline',function(){ netState(false); });
+}
+function buildDeskTiles(){
+  var box=$('deskTiles'); box.textContent='';
+  CFG.desks.forEach(function(d){ var b=document.createElement('button'); b.type='button'; b.className='desk'; b.setAttribute('aria-pressed', ME&&ME.desk===d?'true':'false');
+    var sm=document.createElement('small'); sm.textContent='Desk'; var bb=document.createElement('b'); bb.textContent=d.replace(/^Desk\s*/i,'')||d;
+    b.appendChild(sm); b.appendChild(bb); b.dataset.desk=d;
+    b.addEventListener('click',function(){ box.querySelectorAll('.desk').forEach(function(x){x.setAttribute('aria-pressed','false')}); b.setAttribute('aria-pressed','true'); });
+    box.appendChild(b); });
+}
+function openSetup(){ $('setup').hidden=false; $('rName').value=ME?ME.name:''; buildDeskTiles(); }
+$('changeDesk').addEventListener('click',openSetup);
+$('setupGo').addEventListener('click',function(){
+  var t=$('deskTiles').querySelector('.desk[aria-pressed="true"]'); var n=cleanName($('rName').value);
+  if(!t){ $('hSetup').textContent='Choose your desk.'; return; }
+  if(n.length<2){ $('hSetup').textContent='Type your name.'; $('rName').focus(); return; }
+  ME={desk:t.dataset.desk,name:titleCase(n)}; LS.set(KP+'me',ME); $('setup').hidden=true; $('hSetup').textContent=''; applyMe(); FEED=null; renderRecent(); refresh(); $('gName').focus();
+});
+function applyMe(){ $('whoDesk').textContent=ME.desk; $('whoName').textContent=ME.name; }
+function netState(on){ $('who').classList.toggle('off',!on); }
+
+/* reference picker */
+var REF=null;
+function refGroups(){ var g=(CFG.references||[]).slice(); return g; }
+function setRef(v,grp){ REF=v?{v:v,g:grp}:null; var p=$('refPick'); p.textContent='';
+  if(!v){ var ph=document.createElement('span'); ph.className='ph'; ph.textContent='Choose a name or channel'; p.appendChild(ph); }
+  else { if(grp){ var gg=document.createElement('span'); gg.className='grp'; gg.textContent=grp; p.appendChild(gg); } var tt=document.createElement('span'); tt.textContent=v; p.appendChild(tt); }
+  p.insertAdjacentHTML('beforeend','<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>');
+}
+function renderRefList(q){
+  var box=$('refList'); box.textContent=''; q=(q||'').toLowerCase().trim(); var any=false;
+  refGroups().forEach(function(grp){
+    var items=(grp.items||[]).filter(function(it){return !q||it.toLowerCase().indexOf(q)>=0}); if(!items.length) return; any=true;
+    var h=document.createElement('div'); h.className='grp-h'; h.textContent=grp.group; box.appendChild(h);
+    items.forEach(function(it){ var b=document.createElement('button'); b.type='button'; b.className='opt'+(REF&&REF.v===it?' act':'');
+      var av=document.createElement('span'); av.className='av'+(grp.channel?' ch':''); av.textContent=grp.channel?'•':initials(it);
+      var tx=document.createElement('span'); tx.textContent=it; b.appendChild(av); b.appendChild(tx);
+      b.addEventListener('click',function(){ setRef(it,grp.channel?null:grp.group); closeRef(); if(/other|friend|walk/i.test(it)) $('gRefDetail').focus(); });
+      box.appendChild(b); });
+  });
+  if(q){ var b=document.createElement('button'); b.type='button'; b.className='opt'; var av=document.createElement('span'); av.className='av ch'; av.textContent='+';
+    var tx=document.createElement('span'); tx.textContent='Use "'+$('refSearch').value.trim()+'"'; b.appendChild(av); b.appendChild(tx);
+    b.addEventListener('click',function(){ setRef(titleCase(cleanName($('refSearch').value)),null); closeRef(); }); box.appendChild(b); any=true; }
+  if(REF){ var c=document.createElement('button'); c.type='button'; c.className='opt'; c.style.color='var(--bad)'; c.textContent='Clear reference'; c.addEventListener('click',function(){setRef(null);closeRef();}); box.appendChild(c); }
+}
+function openRef(){ $('refSheet').hidden=false; $('refSearch').value=''; renderRefList(''); setTimeout(function(){$('refSearch').focus()},50); }
+function closeRef(){ $('refSheet').hidden=true; }
+$('refPick').addEventListener('click',openRef); $('refClose').addEventListener('click',closeRef);
+$('refSheet').addEventListener('click',function(e){ if(e.target===$('refSheet')) closeRef(); });
+$('refSearch').addEventListener('input',function(){ renderRefList(this.value); });
+$('refSearch').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); var f=$('refList').querySelector('.opt'); if(f) f.click(); } if(e.key==='Escape') closeRef(); });
+
+/* toggles */
+['tVip','tShield'].forEach(function(id){ $(id).addEventListener('click',function(){ this.setAttribute('aria-pressed', this.getAttribute('aria-pressed')==='true'?'false':'true'); }); });
+
+/* phone check */
+var phTimer;
+function phoneChanged(){
+  var v=$('gPhone').value, p=normPhone(v); DUP_FORCE=false; $('dupBox').hidden=true; $('gPhone').classList.remove('bad'); $('hPhone').textContent=''; $('hPhone').className='hint';
+  var bd=$('phBadge'); bd.hidden=true; clearTimeout(phTimer);
+  if(!p) return;
+  if(EDIT&&EDIT.phone===p) return;
+  bd.hidden=false; bd.className='badge wait'; bd.textContent='Checking…';
+  phTimer=setTimeout(function(){ var asked=p;
+    // a guest still waiting in this device's queue counts too
+    var q=QUEUE.filter(function(x){return x.g.phone===asked})[0];
+    if(q){ showDup({name:q.g.guest_name,desk:ME.desk+' (waiting to send)',at:'',guest_no:null}); bd.hidden=true; return; }
+    rpc('event_guest_check',{p_token:TOKEN,p_phone:asked}).then(function(r){
+      if(normPhone($('gPhone').value)!==asked) return; LAST_CHECK=r;
+      if(r&&r.success&&r.found){ bd.hidden=true; showDup(r); } else if(r&&r.success){ bd.className='badge new'; bd.textContent='New'; } else bd.hidden=true;
+    }).catch(function(){ bd.hidden=true; });
+  },250);
+}
+function showDup(r){
+  var box=$('dupBox'); box.textContent=''; box.hidden=false;
+  var line=document.createElement('div'); line.append('Already registered');
+  if(r.guest_no){ line.append(' as '); var b0=document.createElement('b'); b0.textContent='#'+r.guest_no; line.append(b0); }
+  line.append(': '); var b=document.createElement('b'); b.textContent=r.name||'—'; line.append(b);
+  line.append(' at '+(r.desk||'another desk')+(r.at?(', '+r.at):'')+'.');
+  box.appendChild(line);
+  var acts=document.createElement('div'); acts.className='acts';
+  var a1=document.createElement('button'); a1.type='button'; a1.className='btn-s'; a1.textContent='Same guest · clear form'; a1.addEventListener('click',function(){ resetForm(); toast('','Not added again','This guest is already in the register.'); });
+  var a2=document.createElement('button'); a2.type='button'; a2.className='btn-s warn'; a2.textContent='Different person, same number'; a2.addEventListener('click',function(){ DUP_FORCE=true; box.hidden=true; $('hPhone').textContent='Will be saved as a second guest on this number.'; });
+  acts.appendChild(a1); acts.appendChild(a2); box.appendChild(acts);
+}
+
+function wireForm(){
+  $('gPhone').addEventListener('input',phoneChanged);
+  $('gPhone').addEventListener('blur',function(){ var p=normPhone(this.value); if(p&&/^03/.test(p)) this.value=fmtPhone(p); });
+  $('gName').addEventListener('blur',function(){ var n=cleanName(this.value); if(n && n===n.toLowerCase()) this.value=titleCase(n); });
+  $('gName').addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.ctrlKey){ e.preventDefault(); $('gPhone').focus(); } });
+  $('gPhone').addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.ctrlKey){ e.preventDefault(); openRef(); } });
+  $('gCity').addEventListener('input',function(){ setChip($('cCity'),this.value); });
+  $('f').addEventListener('submit',function(e){ e.preventDefault(); save(); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)&&!$('deskApp').hidden&&$('setup').hidden){ e.preventDefault(); save(); } });
+  $('btnClear').addEventListener('click',function(){ resetForm(); $('gName').focus(); });
+  $('editCancel').addEventListener('click',function(){ resetForm(); });
+}
+function collect(){
+  return { guest_name:titleCase(cleanName($('gName').value)), phone:normPhone($('gPhone').value),
+    reference:REF?REF.v:null, reference_detail:cleanName($('gRefDetail').value)||null,
+    interest:chipVal($('cInterest')), guest_type:chipVal($('cType')), city:cleanName($('gCity').value)||null,
+    remarks:cleanName($('gRemarks').value)||null, vip:$('tVip').getAttribute('aria-pressed')==='true', shield:$('tShield').getAttribute('aria-pressed')==='true',
+    desk:ME.desk, receptionist:ME.name };
+}
+function validate(g){
+  var ok=true;
+  if(!g.guest_name||g.guest_name.length<2){ $('gName').classList.add('bad'); $('hName').textContent='Type the guest name.'; $('hName').className='hint bad'; ok=false; } else { $('gName').classList.remove('bad'); $('hName').textContent=''; }
+  if(!g.phone){ $('gPhone').classList.add('bad'); $('hPhone').textContent='Mobile must be 11 digits starting with 03, or an overseas number starting with +.'; $('hPhone').className='hint bad'; ok=false; }
+  if(!ok) (!g.guest_name||g.guest_name.length<2?$('gName'):$('gPhone')).focus();
+  return ok;
+}
+var saving=false;
+function save(){
+  if(saving||!ME) return; var g=collect(); if(!validate(g)) return;
+  if(!$('dupBox').hidden && !DUP_FORCE){ toast('warn','Already registered','Choose "Same guest" or "Different person" first.'); return; }
+  saving=true; $('btnSave').disabled=true;
+  if(EDIT){
+    rpc('event_guest_edit',{p_token:TOKEN,p_id:EDIT.id,p_desk:ME.desk,p_guest:g}).then(function(r){
+      if(r&&r.success){ toast('','Guest #'+r.guest_no+' updated',g.guest_name); resetForm(); refresh(); }
+      else toast('bad','Could not save',errText(r&&r.error));
+    }).catch(function(){ toast('bad','No internet','Changes not saved. Try again when online.'); })
+      .then(done);
+    return;
+  }
+  g.client_ref=uuid();
+  send(g,DUP_FORCE).then(function(r){
+    if(r.queued){ toast('warn','Saved on this device',g.guest_name+' will be sent when internet is back.'); resetForm(); renderRecent(); }
+    else if(r.success){ toast('','Guest #'+r.guest_no+' registered',g.guest_name+(g.vip?' · VIP':'')); resetForm(); bump(); refresh(); }
+    else if(r.error==='already_registered'){ showDup(r); toast('warn','Already registered',(r.name||'')+' at '+(r.desk||'')); }
+    else toast('bad','Could not save',errText(r.error));
+  }).then(done);
+  function done(){ saving=false; $('btnSave').disabled=false; }
+}
+function errText(e){ return ({bad_phone:'Check the mobile number.',name_required:'Type the guest name.',desk_required:'Choose your desk.',not_available:'This link is no longer active.',not_found:'This guest was not entered at your desk.'})[e]||'Please try again.'; }
+function send(g,force){
+  return rpc('event_guest_register',{p_token:TOKEN,p_guest:g,p_force:!!force}).catch(function(err){
+    if(err&&err.http&&err.http<500) return {success:false,error:'bad_request'};
+    QUEUE.push({g:g,force:!!force,t:Date.now()}); LS.set(KP+'queue',QUEUE); netState(false); return {queued:true};
+  });
+}
+var flushing=false;
+function flushQueue(){
+  if(flushing||!QUEUE.length) return; flushing=true;
+  var item=QUEUE[0];
+  rpc('event_guest_register',{p_token:TOKEN,p_guest:item.g,p_force:item.force}).then(function(r){
+    QUEUE.shift(); LS.set(KP+'queue',QUEUE); netState(true);
+    if(r&&r.success) toast('','Guest #'+r.guest_no+' sent',item.g.guest_name);
+    else if(r&&r.error==='already_registered') toast('warn','Not added again',item.g.guest_name+' was already registered at '+r.desk+'.');
+    renderRecent(); refresh(); flushing=false; if(QUEUE.length) setTimeout(flushQueue,300);
+  }).catch(function(){ flushing=false; netState(false); });
+}
+function resetForm(){
+  EDIT=null; DUP_FORCE=false; $('editBar').hidden=true; $('saveTxt').textContent='Register guest'; $('nextNoBox').hidden=false;
+  ['gName','gPhone','gRefDetail','gCity','gRemarks'].forEach(function(id){ $(id).value=''; $(id).classList.remove('bad'); });
+  ['hName','hPhone'].forEach(function(id){ $(id).textContent=''; $(id).className='hint'; });
+  $('dupBox').hidden=true; $('phBadge').hidden=true; setRef(null);
+  [$('cInterest'),$('cType'),$('cCity')].forEach(function(b){ setChip(b,null); });
+  $('tVip').setAttribute('aria-pressed','false'); $('tShield').setAttribute('aria-pressed','false');
+  setTimeout(function(){ $('gName').focus(); },30);
+}
+function startEdit(g){
+  EDIT=g; resetFormKeepEdit();
+  $('gName').value=g.name||''; $('gPhone').value=fmtPhone(g.phone||''); $('gRefDetail').value=g.reference_detail||''; $('gCity').value=g.city||''; $('gRemarks').value=g.remarks||'';
+  var grp=null; (CFG.references||[]).forEach(function(x){ if(!x.channel&&(x.items||[]).indexOf(g.reference)>=0) grp=x.group; }); setRef(g.reference||null,grp);
+  setChip($('cInterest'),g.interest); setChip($('cType'),g.guest_type); setChip($('cCity'),g.city);
+  $('tVip').setAttribute('aria-pressed',g.vip?'true':'false'); $('tShield').setAttribute('aria-pressed',g.shield?'true':'false');
+  $('editBar').hidden=false; $('editNo').textContent='#'+g.no+' · '+g.name; $('saveTxt').textContent='Save changes'; $('nextNoBox').hidden=true;
+  window.scrollTo({top:0,behavior:'smooth'}); $('gName').focus();
+}
+function resetFormKeepEdit(){ var e=EDIT; resetForm(); EDIT=e; }
+function bump(){ var n=$('nextNo'); n.textContent=String((+n.textContent||0)+1); }
+function refresh(){
+  if(!ME) return;
+  rpc('event_guest_desk_feed',{p_token:TOKEN,p_desk:ME.desk}).then(function(r){
+    if(!r||!r.success) return; FEED=r; netState(true);
+    $('sTotal').textContent=r.total; $('mTotal').textContent=r.total; $('nextNo').textContent=r.total;
+    $('sMine').textContent=r.mine; $('mMine').textContent=r.mine; $('sVip').textContent=r.vip; $('mShield').textContent=r.shields;
+    $('syncAt').textContent='updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    renderRecent();
+  }).catch(function(){ netState(false); });
+}
+function renderRecent(){
+  var ul=$('recent'); ul.textContent='';
+  $('qInfo').textContent=QUEUE.length?(QUEUE.length+' waiting to send'):'';
+  QUEUE.forEach(function(q){ ul.appendChild(row({no:null,name:q.g.guest_name,phone:q.g.phone,interest:q.g.interest,at:'',queued:true})); });
+  var list=(FEED&&FEED.recent)||[];
+  list.forEach(function(g){ ul.appendChild(row(g)); });
+  if(!ul.children.length){ var e=document.createElement('li'); e.className='empty'; e.style.display='block'; e.textContent='Guests you register appear here.'; ul.appendChild(e); }
+}
+function row(g){
+  var li=document.createElement('li');
+  var no=document.createElement('span'); no.className='no'; no.textContent=g.no?('#'+g.no):'…'; li.appendChild(no);
+  var nm=document.createElement('div'); nm.className='nm'; var b=document.createElement('b'); b.textContent=g.name; var s=document.createElement('span');
+  s.textContent=[fmtPhone(g.phone||''),g.interest,g.at].filter(Boolean).join(' · '); nm.appendChild(b); nm.appendChild(s); li.appendChild(nm);
+  if(g.queued){ var t=document.createElement('span'); t.className='tag q'; t.textContent='WAITING'; li.appendChild(t); }
+  else { if(g.vip){ var t2=document.createElement('span'); t2.className='tag'; t2.textContent='VIP'; li.appendChild(t2); }
+    var ed=document.createElement('button'); ed.type='button'; ed.textContent='Edit'; ed.addEventListener('click',function(){ startEdit(g); }); li.appendChild(ed); }
+  return li;
+}
+
+/* ═════════ SELF ═════════ */
+var SREF=null;
+function bootSelf(ds){
+  show('selfApp');
+  $('sKicker').textContent=(EVENT.title||'Grand Launch')+(ds?(' · '+ds):'');
+  chips($('sInterest'),CFG.interests);
+  chips($('sRef'),CFG.self_references,{onPick:function(v){ SREF=v; var team=v&&/team member|invitation|friend/i.test(v);
+    $('sRefDetailBox').hidden=!team; $('sRefDetailLbl').textContent=/friend/i.test(v||'')?'Name of your friend / relative (optional)':'Name of the person who invited you (optional)'; }});
+  var dl=$('cityList2'); CFG.cities.forEach(function(c){var o=document.createElement('option');o.value=c;dl.appendChild(o)});
+  var done=LS.get(KP+'done'); if(done){ thanks(done.no,done.name,true); }
+  $('sf').addEventListener('submit',function(e){ e.preventDefault(); selfSave(); });
+  $('another').addEventListener('click',function(){ try{localStorage.removeItem(KP+'done')}catch(e){} ['sName','sPhone','sCity','sRefDetail'].forEach(function(id){$(id).value=''}); setChip($('sInterest'),null); setChip($('sRef'),null); SREF=null; $('sRefDetailBox').hidden=true; $('thanks').hidden=true; $('selfFormCard').hidden=false; $('sName').focus(); });
+}
+var sBusy=false;
+function selfSave(){
+  if(sBusy) return;
+  var name=titleCase(cleanName($('sName').value)), ph=normPhone($('sPhone').value), ok=true;
+  if(name.length<2){ $('sName').classList.add('bad'); $('shName').textContent='Please type your name.'; $('shName').className='hint bad'; ok=false; } else { $('sName').classList.remove('bad'); $('shName').textContent=''; }
+  if(!ph){ $('sPhone').classList.add('bad'); $('shPhone').textContent='Please type an 11-digit mobile, e.g. 0300 1234567.'; $('shPhone').className='hint bad'; ok=false; } else { $('sPhone').classList.remove('bad'); $('shPhone').textContent=''; }
+  if(!ok) return;
+  sBusy=true; $('sSave').disabled=true;
+  var g={client_ref:(LS.get(KP+'ref')||uuid()),guest_name:name,phone:ph,city:cleanName($('sCity').value)||null,interest:chipVal($('sInterest')),reference:SREF,reference_detail:cleanName($('sRefDetail').value)||null};
+  LS.set(KP+'ref',g.client_ref);
+  rpc('event_guest_register',{p_token:TOKEN,p_guest:g,p_force:false}).then(function(r){
+    if(r&&r.success){ LS.set(KP+'done',{no:r.guest_no,name:name}); localStorage.removeItem(KP+'ref'); thanks(r.guest_no,name,!!r.already); }
+    else toast('bad','Could not submit',r&&r.error==='bad_phone'?'Please check your mobile number.':'Please try again or visit the reception desk.');
+  }).catch(function(){ toast('bad','No internet','Please check your connection and tap Submit again.'); })
+    .then(function(){ sBusy=false; $('sSave').disabled=false; });
+}
+function thanks(no,name,already){
+  $('selfFormCard').hidden=true; $('thanks').hidden=false;
+  $('tTitle').textContent='Thank you'+(name?', '+name.split(' ')[0]:'');
+  $('tMsg').textContent=already?'You are already registered with us. Please show this screen at the reception desk.':'Your details are with us. Please show this screen at the reception desk.';
+  $('tNo').textContent='#'+no; window.scrollTo({top:0,behavior:'smooth'});
+}
+
+boot();
+})();
+</script>
+</body>
+</html>

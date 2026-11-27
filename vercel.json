@@ -27,9 +27,35 @@
     {
       "source": "/e/:token",
       "destination": "/event.html"
+    },
+    {
+      "source": "/g/:token",
+      "destination": "/guest.html"
+    },
+    {
+      "source": "/event-guests",
+      "destination": "/event-guests.html"
     }
   ],
   "headers": [
+    {
+      "source": "/event-guests.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/guest.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
     {
       "source": "/sales-portal.html",
       "headers": [

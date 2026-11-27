@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#071d15">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/assets/awami-mark.png">
+<title>Event Guests · Directors</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+:root{--g900:#06170f;--g800:#0a2419;--g700:#0f3326;--g500:#1f5c45;--gold:#c9a24b;--gold2:#e3c57a;--gold-ink:#7a5d1c;--gold-soft:#f6edd6;
+  --ivory:#fbf8f1;--line:#e7e1d2;--line2:#d9d0bb;--ink:#14211b;--ink2:#43524b;--ink3:#7b877f;
+  --serif:"Playfair Display",Georgia,serif;--sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:var(--sans);color:var(--ink);background:var(--g900);-webkit-font-smoothing:antialiased}
+[hidden]{display:none!important}
+button,input,select{font:inherit;color:inherit}
+.top{background:linear-gradient(160deg,var(--g700),var(--g900));color:#fff;border-bottom:1px solid rgba(201,162,75,.3)}
+.top-in{max-width:1280px;margin:0 auto;padding:18px 16px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.top img{height:32px}
+.top h1{margin:0;font-family:var(--serif);font-weight:500;font-size:24px}
+.top p{margin:2px 0 0;color:rgba(255,255,255,.65);font-size:13px}
+.sp{flex:1}
+.btn{height:40px;padding:0 14px;border-radius:10px;border:1px solid rgba(201,162,75,.5);background:rgba(201,162,75,.15);color:#fff;font-weight:600;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.btn.solid{background:var(--gold);border-color:var(--gold);color:var(--g900)}
+select.btn{appearance:auto}
+main{max-width:1280px;margin:0 auto;padding:20px 16px 50px}
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:480px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--ivory);border-radius:14px;padding:14px 16px}
+.kpi span{display:block;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3)}
+.kpi b{display:block;font-family:var(--serif);font-weight:500;font-size:32px;color:var(--g800);line-height:1.15;font-variant-numeric:tabular-nums}
+.kpi.gold{background:linear-gradient(160deg,#fff7e2,#f3e2b6)}
+.kpi.gold b{color:var(--gold-ink)}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+@media(max-width:900px){.cards{grid-template-columns:1fr}}
+.card{background:var(--ivory);border-radius:14px;padding:16px 18px}
+.card h2{margin:0 0 12px;font-family:var(--serif);font-weight:500;font-size:18px;color:var(--g800)}
+.bar{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:10px;align-items:center;margin:7px 0;font-size:13.5px}
+.bar .t{position:relative;padding:5px 8px;border-radius:7px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.bar .t i{position:absolute;inset:0 auto 0 0;background:var(--gold-soft);border-right:2px solid var(--gold);z-index:0}
+.bar .t span{position:relative;z-index:1}
+.bar b{text-align:right;font-variant-numeric:tabular-nums}
+.hours{display:flex;align-items:flex-end;gap:6px;height:120px;padding-top:8px}
+.hours div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--ink3)}
+.hours div i{display:block;width:100%;background:linear-gradient(180deg,var(--g500),var(--g700));border-radius:6px 6px 2px 2px;min-height:2px}
+.hours div b{font-size:11px;color:var(--ink2)}
+.tbl-card{background:var(--ivory);border-radius:14px;overflow:hidden}
+.tbl-h{display:flex;gap:10px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tbl-h h2{margin:0;font-family:var(--serif);font-weight:500;font-size:18px;color:var(--g800)}
+.tbl-h input{height:40px;border-radius:10px;border:1.5px solid var(--line2);padding:0 12px;min-width:240px;flex:1;max-width:360px;background:#fff}
+.tbl-h select{height:40px;border-radius:10px;border:1.5px solid var(--line2);padding:0 10px;background:#fff}
+.scroll{overflow:auto;max-height:70vh}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th{position:sticky;top:0;background:#f2ecdf;text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);padding:10px 12px;white-space:nowrap;z-index:1}
+td{padding:10px 12px;border-top:1px solid var(--line);vertical-align:top}
+td.no{font-family:var(--serif);color:var(--gold-ink);white-space:nowrap}
+td.dk{white-space:nowrap}
+td.ph{white-space:nowrap;font-variant-numeric:tabular-nums}
+td a{color:var(--g500);text-decoration:none;font-weight:600}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.05em;padding:2px 6px;border-radius:5px;background:var(--gold-soft);color:var(--gold-ink);margin-right:4px}
+.tag.s{background:#e6f0ec;color:var(--g500)}
+.state{min-height:60vh;display:grid;place-items:center;text-align:center;color:#fff}
+.state h2{font-family:var(--serif);font-weight:500;font-size:26px;margin:0 0 8px}
+.state p{color:rgba(255,255,255,.7)}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <img src="/assets/awami-logo-white.png" alt="Awami Market">
+  <div><h1 id="hTitle">Event guests</h1><p id="hSub">Directors only · updates every 30 seconds</p></div>
+  <div class="sp"></div>
+  <select class="btn" id="evSel" hidden></select>
+  <button class="btn solid" id="csv" type="button">Download Excel (CSV)</button>
+</div></header>
+
+<div class="state" id="msg"><div><h2 id="msgT">Loading…</h2><p id="msgS"></p><p id="msgA" hidden><a class="btn solid" href="/crm" style="text-decoration:none">Open sales portal to sign in</a></p></div></div>
+
+<main id="app" hidden>
+  <section class="kpis">
+    <div class="kpi gold"><span>Total guests</span><b id="kTotal">0</b></div>
+    <div class="kpi"><span>At desks</span><b id="kDesk">0</b></div>
+    <div class="kpi"><span>Self (QR)</span><b id="kSelf">0</b></div>
+    <div class="kpi"><span>VIP</span><b id="kVip">0</b></div>
+    <div class="kpi"><span>Shields given</span><b id="kShield">0</b></div>
+    <div class="kpi"><span>Last hour</span><b id="kHour">0</b></div>
+  </section>
+  <section class="cards">
+    <div class="card"><h2>Interested in</h2><div id="bInterest"></div></div>
+    <div class="card"><h2>Top references</h2><div id="bRef"></div></div>
+    <div class="card"><h2>Arrivals by hour</h2><div class="hours" id="bHours"></div></div>
+    <div class="card"><h2>By desk</h2><div id="bDesk"></div></div>
+    <div class="card"><h2>Guest type</h2><div id="bType"></div></div>
+    <div class="card"><h2>Area / City</h2><div id="bCity"></div></div>
+  </section>
+  <section class="tbl-card">
+    <div class="tbl-h"><h2>All guests</h2><input id="q" placeholder="Search name, mobile, reference, city…"><select id="fInt"><option value="">All interests</option></select><select id="fVip"><option value="">Everyone</option><option value="vip">VIP only</option><option value="shield">Shield given</option></select></div>
+    <div class="scroll"><table><thead><tr><th>#</th><th>Time</th><th>Guest</th><th>Mobile</th><th>Reference</th><th>Interest</th><th>Type</th><th>City</th><th>Remarks</th><th>Desk</th></tr></thead><tbody id="tb"></tbody></table></div>
+  </section>
+</main>
+
+<script>
+(function(){
+'use strict';
+var URL_='https://itqxljtfbrppntgyfush.supabase.co', KEY='sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG';
+var API=window.__GUEST_API__||(URL_+'/rest/v1/rpc/');
+var $=function(id){return document.getElementById(id)};
+var TOK=null; try{ TOK=localStorage.getItem('rms.sales.token'); }catch(e){}
+var DATA=null, EV=null;
+function rpc(n,a){return fetch(API+n,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+KEY},body:JSON.stringify(a)}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})}
+function msg(t,s,signin){ $('app').hidden=true; $('msg').hidden=false; $('msgT').textContent=t; $('msgS').textContent=s||''; $('msgA').hidden=!signin; }
+function pkt(ts){ return new Date(ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Karachi'}); }
+function hourOf(ts){ return +new Date(ts).toLocaleString('en-GB',{hour:'2-digit',hour12:false,timeZone:'Asia/Karachi'}); }
+function fmtPhone(p){ return /^03\d{9}$/.test(p)?p.slice(0,4)+' '+p.slice(4):p; }
+function load(){
+  if(!TOK){ msg('Sign in first','Open the sales portal on this browser with a director login, then come back to this page.',true); return; }
+  rpc('event_guest_list',{p_session_token:TOK,p_event_code:EV}).then(function(r){
+    if(!r||!r.success){ if(r&&r.error==='not_allowed') msg('Directors only','Your login cannot see the guest register.'); else msg('Sign in again','Your session has ended. Open the sales portal and sign in.',true); return; }
+    DATA=r; EV=r.event; $('msg').hidden=true; $('app').hidden=false;
+    var sel=$('evSel'); if((r.events||[]).length>1){ sel.hidden=false; sel.textContent=''; r.events.forEach(function(e){var o=document.createElement('option');o.value=e.code;o.textContent=e.title+' · '+e.date;if(e.code===EV)o.selected=true;sel.appendChild(o)}); }
+    var e0=(r.events||[]).filter(function(e){return e.code===EV})[0]; if(e0){ $('hTitle').textContent=e0.title; }
+    render();
+  }).catch(function(){ if(!DATA) msg('No internet','Retrying…'); });
+}
+function count(arr,key){ var m={}; arr.forEach(function(g){ var k=(typeof key==='function'?key(g):g[key])||'Not given'; m[k]=(m[k]||0)+1; }); return Object.keys(m).map(function(k){return [k,m[k]]}).sort(function(a,b){return b[1]-a[1]}); }
+function bars(el,rows,limit){ el.textContent=''; var max=rows.length?rows[0][1]:1; rows.slice(0,limit||8).forEach(function(r){
+  var d=document.createElement('div'); d.className='bar'; var t=document.createElement('div'); t.className='t'; var i=document.createElement('i'); i.style.width=(100*r[1]/max)+'%';
+  var s=document.createElement('span'); s.textContent=r[0]; t.appendChild(i); t.appendChild(s); var b=document.createElement('b'); b.textContent=r[1]; d.appendChild(t); d.appendChild(b); el.appendChild(d); });
+  if(!rows.length){ el.textContent='No guests yet.'; el.style.color='var(--ink3)'; } }
+function render(){
+  var G=DATA.guests||[];
+  $('kTotal').textContent=G.length; $('kDesk').textContent=G.filter(function(g){return g.source==='desk'}).length; $('kSelf').textContent=G.filter(function(g){return g.source==='self'}).length;
+  $('kVip').textContent=G.filter(function(g){return g.vip}).length; $('kShield').textContent=G.filter(function(g){return g.shield}).length;
+  var hr=Date.now()-3600e3; $('kHour').textContent=G.filter(function(g){return new Date(g.at).getTime()>hr}).length;
+  bars($('bInterest'),count(G,'interest')); bars($('bRef'),count(G,function(g){return g.reference||g.reference_detail}),10); bars($('bType'),count(G,'guest_type'));
+  bars($('bCity'),count(G,function(g){return g.city?g.city.replace(/\b\w/g,function(c){return c.toUpperCase()}):null}),8); bars($('bDesk'),count(G,function(g){return g.source==='self'?'QR self-registration':g.desk}));
+  var H={}; G.forEach(function(g){var h=hourOf(g.at);H[h]=(H[h]||0)+1}); var hs=$('bHours'); hs.textContent=''; var from=9,to=21; Object.keys(H).forEach(function(h){h=+h;if(h<from)from=h;if(h>to)to=h});
+  var mx=Math.max.apply(null,[1].concat(Object.keys(H).map(function(k){return H[k]})));
+  for(var h=from;h<=to;h++){ var c=document.createElement('div'); var b=document.createElement('b'); b.textContent=H[h]||''; var i=document.createElement('i'); i.style.height=(90*(H[h]||0)/mx)+'px'; var l=document.createElement('span'); l.textContent=(h%12||12)+(h<12?'a':'p'); c.appendChild(b); c.appendChild(i); c.appendChild(l); hs.appendChild(c); }
+  var fi=$('fInt'), cur=fi.value; fi.length=1; count(G,'interest').forEach(function(r){var o=document.createElement('option');o.value=r[0];o.textContent=r[0]+' ('+r[1]+')';fi.appendChild(o)}); fi.value=cur;
+  table();
+}
+function table(){
+  var q=$('q').value.toLowerCase().trim(), fi=$('fInt').value, fv=$('fVip').value, tb=$('tb'); tb.textContent='';
+  (DATA.guests||[]).slice().reverse().filter(function(g){
+    if(fi&&(g.interest||'Not given')!==fi) return false; if(fv==='vip'&&!g.vip) return false; if(fv==='shield'&&!g.shield) return false;
+    if(!q) return true; return [g.name,g.phone,g.reference,g.reference_detail,g.city,g.remarks,g.desk,g.receptionist].join(' ').toLowerCase().indexOf(q)>=0;
+  }).forEach(function(g){
+    var tr=document.createElement('tr');
+    function td(v,cls){var d=document.createElement('td'); if(cls)d.className=cls; d.textContent=v||''; tr.appendChild(d); return d;}
+    td('#'+g.no,'no'); td(pkt(g.at)); var n=td(''); if(g.vip){var t=document.createElement('span');t.className='tag';t.textContent='VIP';n.appendChild(t)} if(g.shield){var t2=document.createElement('span');t2.className='tag s';t2.textContent='SHIELD';n.appendChild(t2)} n.appendChild(document.createTextNode(g.name));
+    var p=td('','ph'); var a=document.createElement('a'); var wa=/^03\d{9}$/.test(g.phone)?'92'+g.phone.slice(1):g.phone.replace(/^\+/,''); a.href='https://wa.me/'+encodeURIComponent(wa); a.target='_blank'; a.rel='noopener'; a.textContent=fmtPhone(g.phone); p.appendChild(a);
+    td([g.reference,g.reference_detail].filter(Boolean).join(' · ')); td(g.interest); td(g.guest_type); td(g.city); td(g.remarks); td(g.source==='self'?'QR':(g.desk+(g.receptionist?(' · '+g.receptionist):'')),'dk');
+    tb.appendChild(tr);
+  });
+}
+function csv(){
+  if(!DATA) return; var cols=['No','Time (PKT)','Guest name','Mobile','Reference','Reference detail','Interested in','Guest type','Area / City','Remarks','VIP','Shield','Desk','Receptionist','Source','Same number as earlier guest'];
+  var rows=[cols].concat((DATA.guests||[]).map(function(g){ return [g.no,new Date(g.at).toLocaleString('en-GB',{timeZone:'Asia/Karachi'}),g.name,fmtPhone(g.phone).replace(/^\+/,'00'),g.reference,g.reference_detail,g.interest,g.guest_type,g.city,g.remarks,g.vip?'Yes':'',g.shield?'Yes':'',g.desk,g.receptionist,g.source==='self'?'QR self':'Desk',g.repeat?'Yes':'']; }));
+  var txt='﻿'+rows.map(function(r){return r.map(function(v){v=v==null?'':String(v); if(/^[=+\-@]/.test(v)) v="'"+v; return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')}).join('\r\n');
+  var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'})); a.download='Event guests '+(EV||'')+'.csv'; document.body.appendChild(a); a.click(); a.remove();
+}
+$('q').addEventListener('input',table); $('fInt').addEventListener('change',table); $('fVip').addEventListener('change',table); $('csv').addEventListener('click',csv);
+$('evSel').addEventListener('change',function(){ EV=this.value; load(); });
+load(); setInterval(load,30000);
+})();
+</script>
+</body>
+</html>
